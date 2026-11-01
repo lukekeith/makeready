@@ -43,7 +43,7 @@ struct MediaHomeContainer: View {
     @State private var level: MediaBrowser.Level = .five
     /// Written on every window move while scrolling, and read only by `requestImages`: a reference that is
     /// never observed, so a scroll never re-renders the container's mapper pass over the whole library.
-    @State private var visibleRange = VisibleRangeBox()
+    @State private var gridBox = MediaGridBox()
     @State private var gridWidth: CGFloat = 0
     /// D12: the open item, and the tile list frozen while it is open (pages that land meanwhile apply on close).
     @State private var viewer: Viewer?
@@ -57,12 +57,11 @@ struct MediaHomeContainer: View {
 
     private enum ChipMenu { case source, tags, leaders, time, uploadTo }
 
+    /// media-viewer-paging: the tapped item and its tile's global frame, and the page the viewer is on.
     private struct Viewer {
         let index: Int
-        let url: String
         let frame: CGRect
-        let title: String
-        let placeholder: UIImage?
+        var current: Int
     }
 
     init(mode: Mode = .browse, addRequest: Int = 0) {
@@ -109,7 +108,7 @@ struct MediaHomeContainer: View {
                     photoIDs: photoIDs,
                     photoDates: photoDates,
                     photoTitles: photoTitles,
-                    hiddenItemID: viewer.flatMap { tiles.indices.contains($0.index) ? tiles[$0.index].id : nil },
+                    hiddenItemID: viewer.flatMap { tiles.indices.contains($0.current) ? tiles[$0.current].id : nil },
                     frozen: viewer != nil,
                     refreshing: refreshing,
                     sourceLabel: Self.sourceLabel(selection.sourceIds, sources: sources),
@@ -131,7 +130,7 @@ struct MediaHomeContainer: View {
                     if case .pick(let owner) = mode { pick(id: id, owner: owner) } else { open(id: id, frame: frame, tiles: tiles) }
                 },
                 onVisibleRangeChange: { range in
-                    visibleRange.value = range
+                    gridBox.visibleRange = range
                     requestImages(tiles: tiles)
                 },
                 onScrollChange: { offset, interacting in
@@ -154,6 +153,8 @@ struct MediaHomeContainer: View {
             gridWidth = width
             requestImages(tiles: tiles)
         }
+        // Unobserved: the frame moves on every frame of a TopNav morph.
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { gridBox.frame = $0 }
         // Final review I3: a filter or page that changes the tiles without changing the reported range
         // (equal counts at the newest end) gets no range callback, so the new tiles are asked for here.
         .onChange(of: photoIDs) {
@@ -173,8 +174,20 @@ struct MediaHomeContainer: View {
             Task { await enqueueUploads(picks, orgId: orgId) }
         }
         .onChange(of: addRequest) { beginUpload() }
-        .coverViewerPresentation(url: viewer?.url, sourceFrame: viewer?.frame, accessibilityLabel: viewer?.title ?? "",
-                                 placeholder: viewer?.placeholder, onClose: { viewer = nil; frozenTiles = nil })
+        .imageViewerPresentation(viewer.map { opened in
+            ImageViewer(
+                urls: tiles.map(\.fullURL),
+                startIndex: opened.index,
+                sourceFrame: { index in
+                    Self.tileFrame(index: index, openedIndex: opened.index, openedFrame: opened.frame, level: level,
+                                   gridWidth: gridWidth, visible: Self.gridBand(screen: gridBox.frame))
+                },
+                accessibilityLabel: { tiles.indices.contains($0) ? tiles[$0].title : "" },
+                placeholder: { index in tiles.indices.contains(index) ? tilePlaceholder(tiles[index]) : nil },
+                onIndexChange: { viewer?.current = $0 },
+                onClose: { viewer = nil; frozenTiles = nil }
+            )
+        })
         .task {
             await AppState.shared.loadInitialData()   // waits for the org (as MembersHomeContainer)
             await actions.loadSources()                // media-library D4: Source options + upload targets
@@ -378,7 +391,7 @@ struct MediaHomeContainer: View {
         let columns = CGFloat(level.columns)
         let side = (gridWidth - (columns - 1) * level.gutter) / columns
         let images = tileImages
-        let build = { [range = visibleRange.value, medium = Self.usesMedium(level), scale = displayScale] in
+        let build = { [range = gridBox.visibleRange, medium = Self.usesMedium(level), scale = displayScale] in
             Self.imageRequests(tiles: tiles, range: range, medium: medium, tileSide: side, scale: scale, failed: images.hasFailed)
         }
         imageTask?.cancel()
@@ -454,20 +467,50 @@ struct MediaHomeContainer: View {
         }
     }
 
-    /// D12: one item at a time, from the tile's global frame, seeded with the tile's loaded image.
+    /// D12 → media-viewer-paging: opens the viewer on the tapped tile over the frozen tile list, so a
+    /// swipe pages through the grid's own order.
     private func open(id: String, frame: CGRect, tiles: [MediaHomeMapper.Tile]) {
         guard viewer == nil, let index = Self.index(ofTileID: id, in: tiles), tiles.indices.contains(index) else { return }
-        let tile = tiles[index]
-        let shown = Self.tileURL(tile, medium: Self.usesMedium(level), failed: tileImages.hasFailed).flatMap(tileImages.image(for:))
         frozenTiles = tiles
-        viewer = Viewer(index: index, url: tile.fullURL, frame: frame, title: tile.title,
-                        placeholder: shown ?? tile.thumbURL.flatMap(tileImages.image(for:)))
+        viewer = Viewer(index: index, frame: frame, current: index)
+    }
+
+    /// D12: the tile's loaded image — its `-md` at the levels that use it, else its thumb.
+    private func tilePlaceholder(_ tile: MediaHomeMapper.Tile) -> UIImage? {
+        Self.tileURL(tile, medium: Self.usesMedium(level), failed: tileImages.hasFailed).flatMap(tileImages.image(for:))
+            ?? tile.thumbURL.flatMap(tileImages.image(for:))
+    }
+
+    // GAP — media-home §2: "108 pt is its height in every state except the failed notice"; the top bar
+    // isn't reported, so the grid's band starts this far below the screen's top.
+    static let topBarHeight: CGFloat = 108
+
+    /// The part of the screen the grid shows (the grid runs to the screen bottom, under the TabBar layer).
+    static func gridBand(screen: CGRect) -> CGRect {
+        CGRect(x: screen.minX, y: screen.minY + topBarHeight, width: screen.width, height: max(0, screen.height - topBarHeight))
+    }
+
+    /// media-viewer-paging: where item `index`'s tile sits while the viewer is up. The grid is frozen,
+    /// so it is the opened tile's frame moved by whole columns and rows; nil when it isn't wholly in
+    /// `visible`, and the viewer then leaves off the bottom.
+    static func tileFrame(index: Int, openedIndex: Int, openedFrame: CGRect, level: MediaBrowser.Level,
+                          gridWidth: CGFloat, visible: CGRect) -> CGRect? {
+        if index == openedIndex { return openedFrame }
+        let columns = level.columns
+        guard columns > 0, gridWidth > 0 else { return nil }
+        let side = (gridWidth - CGFloat(columns - 1) * level.gutter) / CGFloat(columns)
+        let pitch = side + level.gutter
+        let dx = CGFloat(index % columns - openedIndex % columns) * pitch
+        let dy = CGFloat(index / columns - openedIndex / columns) * pitch
+        let frame = openedFrame.offsetBy(dx: dx, dy: dy)
+        return visible.contains(frame) ? frame : nil
     }
 }
 
-/// The grid's last reported prefetch range; a class so writing it re-renders nothing.
-private final class VisibleRangeBox {
-    var value: Range<Int> = 0..<0
+/// The grid's last reported prefetch range and its global frame; a class so writing them re-renders nothing.
+private final class MediaGridBox {
+    var visibleRange: Range<Int> = 0..<0
+    var frame: CGRect = .zero
 }
 
 /// Reads `MediaTileImages.generation` in its own body, so a landed tile image re-renders only the

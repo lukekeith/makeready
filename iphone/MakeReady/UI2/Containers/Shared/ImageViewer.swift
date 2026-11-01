@@ -4,25 +4,58 @@ import UIKit
 /// image-viewer-zoom-dismiss (owner 2026-10-28; reference docs/ui2/references/image-viewer-zoom-dismiss.md):
 /// one image full screen — pinch / double-tap zoom with pan, and Photos' drag-to-dismiss: the image
 /// follows the finger, shrinks as it goes down while the page shows through, and on release flies
-/// back into the frame it opened from (or back to rest). Reused by the cover viewer now and the
-/// media library later. Build-made: no d2m design; its chrome is one close control.
+/// back into the frame it opened from (or back to rest). Reused by the cover viewer and the media
+/// library. Build-made: no d2m design.
+///
+/// media-viewer-paging (owner 2026-11-01): given several images it pages sideways between them, and
+/// its only chrome is C-082 ModalCloseButton at the bottom centre — hidden until a tap, then gone
+/// again after `ImageViewerMath.chromeHold`.
 struct ImageViewer: View {
-    let url: String
-    /// Where the image opens from and flies back to, in GLOBAL coordinates; nil = no source (the
+    let urls: [String]
+    let startIndex: Int
+    /// Where image `i` opens from and flies back to, in GLOBAL coordinates; nil = no source (the
     /// image grows in place and leaves off the bottom).
-    let sourceFrame: CGRect?
-    let accessibilityLabel: String
+    let sourceFrame: (Int) -> CGRect?
+    let accessibilityLabel: (Int) -> String
+    /// media-page D12: the tile's loaded image; the open flight (and a page) starts from it while
+    /// the full image loads.
+    let placeholder: (Int) -> UIImage?
+    /// The page the viewer settled on.
+    var onIndexChange: (Int) -> Void = { _ in }
     let onClose: () -> Void
-    /// media-page D12: the tile's loaded image; the open flight starts from it while `url` loads.
-    var placeholder: UIImage?
 
+    /// One image (the cover viewers).
+    init(url: String, sourceFrame: CGRect?, accessibilityLabel: String, onClose: @escaping () -> Void,
+         placeholder: UIImage? = nil) {
+        self.init(urls: [url], startIndex: 0, sourceFrame: { _ in sourceFrame },
+                  accessibilityLabel: { _ in accessibilityLabel }, placeholder: { _ in placeholder }, onClose: onClose)
+    }
+
+    init(urls: [String], startIndex: Int, sourceFrame: @escaping (Int) -> CGRect?,
+         accessibilityLabel: @escaping (Int) -> String, placeholder: @escaping (Int) -> UIImage?,
+         onIndexChange: @escaping (Int) -> Void = { _ in }, onClose: @escaping () -> Void) {
+        self.urls = urls
+        self.startIndex = startIndex
+        self.sourceFrame = sourceFrame
+        self.accessibilityLabel = accessibilityLabel
+        self.placeholder = placeholder
+        self.onIndexChange = onIndexChange
+        self.onClose = onClose
+    }
+
+    /// The page on screen; nil until the first page change (then `startIndex`).
+    @State private var pageIndex: Int?
+    /// The current page's best image — what the open and dismiss flights draw.
     @State private var image: UIImage?
+    /// Bumped as page images land, so the pager swaps them in.
+    @State private var imageGeneration = 0
     /// The flying image's frame, in this view's coordinates — used while opening and dismissing.
     @State private var flightFrame: CGRect = .zero
     @State private var backdrop: Double = 0
-    /// The zoomable view is live (at rest, zooming, or being dragged); false while flying.
+    /// The pager is live (at rest, zooming, paging, or being dragged); false while flying.
     @State private var zoomLive = false
-    @State private var chromeVisible = true
+    @State private var chromeVisible = false
+    @State private var chromeHideTask: Task<Void, Never>?
     /// The dismiss drag's translation while the finger is down (applied to the live view).
     @State private var drag: CGSize = .zero
     /// Where the finger first touched, in this view's coordinates: the image scales about it, so
@@ -30,18 +63,26 @@ struct ImageViewer: View {
     @State private var dragAnchor: CGPoint?
     @State private var closing = false
 
+    private var current: Int { pageIndex ?? startIndex }
+
     var body: some View {
         GeometryReader { proxy in
             let viewport = CGRect(origin: .zero, size: proxy.size)
             let origin = proxy.frame(in: .global).origin
             let fitted = image.map { ImageViewerMath.fittedFrame(imageSize: $0.size, in: viewport) } ?? viewport
+            let showsChrome = chromeVisible && zoomLive && drag == .zero
             ZStack(alignment: .topLeading) {
                 Token.layoutBackground.opacity(backdrop)
-                if let image, zoomLive {
-                    ZoomableImageView(
-                        image: image,
+                if zoomLive {
+                    ImagePagerView(
+                        count: urls.count,
+                        startIndex: current,
+                        image: pageImage,
                         accessibilityLabel: accessibilityLabel,
-                        onSingleTap: { withAnimation(Token.Motion.menuFadeOut) { chromeVisible.toggle() } },
+                        imageGeneration: imageGeneration,
+                        dismissing: drag != .zero,
+                        onIndexChange: pageChanged,
+                        onSingleTap: toggleChrome,
                         onDismissBegan: { start in dragAnchor = CGPoint(x: start.x - origin.x, y: start.y - origin.y) },
                         onDismissChanged: { t in dragChanged(t, height: viewport.height) },
                         onDismissEnded: { t, v in dragEnded(t, velocity: v, fitted: fitted, viewport: viewport, origin: origin) }
@@ -56,25 +97,70 @@ struct ImageViewer: View {
                         .frame(width: flightFrame.width, height: flightFrame.height)
                         .clipped()
                         .position(x: flightFrame.midX, y: flightFrame.midY)
-                        .accessibilityLabel(accessibilityLabel)
+                        .accessibilityLabel(accessibilityLabel(current))
                 } else {
                     ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                closeButton(fitted: fitted, viewport: viewport, origin: origin)
-                    .padding(.top, proxy.safeAreaInsets.top + Token.Space.pageMargin)
-                    .padding(.leading, Token.Space.pageMargin)
-                    .opacity(chromeVisible && zoomLive && drag == .zero ? 1 : 0)
             }
-            .task(id: url) { await open(viewport: viewport, origin: origin) }
+            // As on C-036 FilterMenuOverlay (OQ-C-036-6): the disc's bottom edge sits
+            // max(bottom safe-area inset, `space-section-gap`) above the screen bottom.
+            .overlay(alignment: .bottom) {
+                ModalCloseButton(onClose: { dismiss(fitted: fitted, viewport: viewport, origin: origin) })
+                    .padding(.bottom, max(proxy.safeAreaInsets.bottom, Token.Space.sectionGap))
+                    .opacity(showsChrome ? 1 : 0)
+                    .allowsHitTesting(showsChrome)
+                    .accessibilityHidden(!showsChrome)
+            }
+            .task { await open(viewport: viewport, origin: origin) }
         }
         .ignoresSafeArea()
         .accessibilityAddTraits(.isModal)
         .accessibilityAction(.escape) { close() }
+        .onDisappear { chromeHideTask?.cancel() }
     }
 
-    private func closeButton(fitted: CGRect, viewport: CGRect, origin: CGPoint) -> some View {
-        IconButton(glyph: .x, tone: .default, style: .outlined, selected: false,
-                   accessibilityLabel: "Close", onTap: { dismiss(fitted: fitted, viewport: viewport, origin: origin) })
+    // MARK: - Pages
+
+    /// Page `i`'s best image now: the full one when cached, else the tile's.
+    private func pageImage(_ i: Int) -> UIImage? {
+        guard urls.indices.contains(i) else { return nil }
+        if let url = URL(string: urls[i]), let full = Ui2ImageCache.shared.image(for: url) { return full }
+        return placeholder(i)
+    }
+
+    private func pageChanged(_ i: Int) {
+        guard i != current else { return }
+        pageIndex = i
+        image = pageImage(i)
+        onIndexChange(i)
+        Task { await loadPages(around: i) }
+    }
+
+    /// The page and its neighbours, so a swipe lands on the full image.
+    @MainActor
+    private func loadPages(around i: Int) async {
+        let wanted = ImageViewerMath.neighbourhood(of: i, count: urls.count).map { urls[$0] }
+        guard await UI2ImageLoader.seed(wanted, context: "ImageViewer"), !closing else { return }
+        imageGeneration += 1
+        if let full = pageImage(current) { image = full }
+    }
+
+    // MARK: - Chrome
+
+    /// A tap shows the close button and hides it again after `chromeHold`; a tap while it shows
+    /// hides it at once.
+    private func toggleChrome() {
+        chromeHideTask?.cancel()
+        if chromeVisible {
+            withAnimation(Token.Motion.menuFadeOut) { chromeVisible = false }
+            return
+        }
+        withAnimation(Token.Motion.menuFadeIn) { chromeVisible = true }
+        chromeHideTask = Task { @MainActor in
+            try? await Task.sleep(for: ImageViewerMath.chromeHold)
+            guard !Task.isCancelled else { return }
+            withAnimation(Token.Motion.menuFadeOut) { chromeVisible = false }
+        }
     }
 
     // MARK: - Open (rules 1–3)
@@ -84,23 +170,22 @@ struct ImageViewer: View {
 
     @MainActor
     private func open(viewport: CGRect, origin: CGPoint) async {
-        guard let u = URL(string: url) else { return }
-        if Ui2ImageCache.shared.image(for: u) == nil, placeholder == nil {
-            _ = await UI2ImageLoader.seed([url], context: "ImageViewer")
+        guard urls.indices.contains(startIndex), let u = URL(string: urls[startIndex]) else { return }
+        let tile = placeholder(startIndex)
+        if Ui2ImageCache.shared.image(for: u) == nil, tile == nil {
+            _ = await UI2ImageLoader.seed([urls[startIndex]], context: "ImageViewer")
         }
-        guard let first = Self.openingImage(cached: Ui2ImageCache.shared.image(for: u), placeholder: placeholder) else { return }
+        guard let first = Self.openingImage(cached: Ui2ImageCache.shared.image(for: u), placeholder: tile) else { return }
         image = first
         let target = ImageViewerMath.fittedFrame(imageSize: first.size, in: viewport)
-        flightFrame = ImageViewerMath.startFrame(source: sourceFrame?.offsetBy(dx: -origin.x, dy: -origin.y), fitted: target)
+        flightFrame = ImageViewerMath.startFrame(source: sourceFrame(startIndex)?.offsetBy(dx: -origin.x, dy: -origin.y), fitted: target)
         withAnimation(ImageViewerMath.openSpring) {
             flightFrame = target
             backdrop = 1
         } completion: {
             zoomLive = true
         }
-        guard Ui2ImageCache.shared.image(for: u) == nil else { return }
-        _ = await UI2ImageLoader.seed([url], context: "ImageViewer")
-        if !closing, let full = Ui2ImageCache.shared.image(for: u) { image = full }
+        await loadPages(around: startIndex)
     }
 
     // MARK: - Drag to dismiss (rules 4–9)
@@ -123,16 +208,18 @@ struct ImageViewer: View {
         }
     }
 
-    /// Fly from where the image is now into the source (or off the bottom), then close.
+    /// Fly from where the image is now into the current page's source (or off the bottom), then close.
     private func dismiss(fitted: CGRect, viewport: CGRect, origin: CGPoint) {
-        guard !closing else { return }
+        guard !closing, image != nil else { return }
         closing = true
+        chromeHideTask?.cancel()
+        chromeVisible = false
         flightFrame = ImageViewerMath.draggedFrame(fitted: fitted, translation: drag,
                                                    scale: ImageViewerMath.dragScale(dy: drag.height, height: viewport.height),
                                                    anchor: dragAnchor)
         zoomLive = false
         drag = .zero
-        let source = sourceFrame?.offsetBy(dx: -origin.x, dy: -origin.y)
+        let source = sourceFrame(current)?.offsetBy(dx: -origin.x, dy: -origin.y)
         withAnimation(ImageViewerMath.flightSpring) {
             flightFrame = ImageViewerMath.endFrame(source: source, from: flightFrame, viewport: viewport)
             backdrop = 0
@@ -163,6 +250,22 @@ enum ImageViewerMath {
     /// Rules 10–12.
     static let maxZoom: CGFloat = 4
     static let doubleTapZoom: CGFloat = 2.5
+    /// media-viewer-paging: how long a tap shows the close button.
+    static let chromeHold: Duration = .seconds(3)
+
+    /// media-viewer-paging: the page on screen for a pager scrolled to `offsetX` — the nearest
+    /// page, clamped to the list.
+    static func pageIndex(offsetX: CGFloat, width: CGFloat, count: Int) -> Int {
+        guard width > 0, count > 0 else { return 0 }
+        return min(count - 1, max(0, Int((offsetX / width).rounded())))
+    }
+
+    /// media-viewer-paging: page `i` and its neighbours, in the list — what is mounted and loaded.
+    static func neighbourhood(of i: Int, count: Int) -> [Int] {
+        guard count > 0 else { return [] }
+        let clamped = min(count - 1, max(0, i))
+        return Array(max(0, clamped - 1)...min(count - 1, clamped + 1))
+    }
 
     /// Aspect-fit, centred.
     static func fittedFrame(imageSize: CGSize, in viewport: CGRect) -> CGRect {
@@ -217,11 +320,23 @@ enum ImageViewerMath {
     }
 }
 
-/// Rules 10–14: a UIScrollView zoom (pinch about the fingers, momentum pan, bounce), double-tap to
-/// zoom, single tap reported, and the dismiss pan — which only begins at 1× and vertical-first.
-struct ZoomableImageView: UIViewRepresentable {
-    let image: UIImage
-    let accessibilityLabel: String
+/// media-viewer-paging: the live viewer — a horizontal paging scroll view of zoomable pages (rules
+/// 10–14 on each: a UIScrollView zoom with momentum pan and bounce, double-tap zoom, single tap
+/// reported, and the dismiss pan, which begins only at 1× and vertical-first). Only the page on
+/// screen and its neighbours are mounted. A zoomed page pans to its edge before the pager moves
+/// (UIKit's nested scroll views); the pager's own pan begins only on a sideways-first drag, so a
+/// downward drag is always the dismiss.
+struct ImagePagerView: UIViewRepresentable {
+    let count: Int
+    /// The page shown when the pager is made; later pages are the pager's own.
+    let startIndex: Int
+    let image: (Int) -> UIImage?
+    let accessibilityLabel: (Int) -> String
+    /// Bumped when page images land; the mounted pages pick them up.
+    let imageGeneration: Int
+    /// A dismiss drag is under way: the neighbours hide, so the shrinking page drags alone.
+    let dismissing: Bool
+    var onIndexChange: (Int) -> Void
     var onSingleTap: () -> Void
     /// The dismiss drag began at this point, in global (window) coordinates.
     var onDismissBegan: (CGPoint) -> Void
@@ -230,34 +345,54 @@ struct ZoomableImageView: UIViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
-    func makeUIView(context: Context) -> ZoomScrollView {
-        let view = ZoomScrollView(image: image)
-        view.delegate = context.coordinator
-        view.imageView.isAccessibilityElement = true
-        view.imageView.accessibilityLabel = accessibilityLabel
-
-        let doubleTap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.doubleTapped(_:)))
-        doubleTap.numberOfTapsRequired = 2
-        view.addGestureRecognizer(doubleTap)
-        let singleTap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.singleTapped))
-        singleTap.require(toFail: doubleTap)
-        view.addGestureRecognizer(singleTap)
-        let dismissPan = UIPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.panned(_:)))
-        dismissPan.delegate = context.coordinator
-        view.addGestureRecognizer(dismissPan)
-        return view
+    func makeUIView(context: Context) -> PagerScrollView {
+        let pager = PagerScrollView(startIndex: startIndex)
+        pager.delegate = context.coordinator
+        pager.makePage = { [weak coordinator = context.coordinator] index in coordinator?.makePage(index) ?? ZoomScrollView(image: nil) }
+        pager.count = count
+        return pager
     }
 
-    func updateUIView(_ view: ZoomScrollView, context: Context) {
+    func updateUIView(_ pager: PagerScrollView, context: Context) {
         context.coordinator.parent = self
+        pager.count = count
+        for (index, page) in pager.pages where page.imageView.image !== image(index) {
+            page.setImage(image(index))
+        }
+        for (index, page) in pager.pages {
+            page.alpha = dismissing && index != pager.currentIndex ? 0 : 1
+        }
     }
 
     final class Coordinator: NSObject, UIScrollViewDelegate, UIGestureRecognizerDelegate {
-        var parent: ZoomableImageView
-        init(_ parent: ZoomableImageView) { self.parent = parent }
+        var parent: ImagePagerView
+        init(_ parent: ImagePagerView) { self.parent = parent }
+
+        func makePage(_ index: Int) -> ZoomScrollView {
+            let page = ZoomScrollView(image: parent.image(index))
+            page.delegate = self
+            page.imageView.isAccessibilityElement = true
+            page.imageView.accessibilityLabel = parent.accessibilityLabel(index)
+
+            let doubleTap = UITapGestureRecognizer(target: self, action: #selector(doubleTapped(_:)))
+            doubleTap.numberOfTapsRequired = 2
+            page.addGestureRecognizer(doubleTap)
+            let singleTap = UITapGestureRecognizer(target: self, action: #selector(singleTapped))
+            singleTap.require(toFail: doubleTap)
+            page.addGestureRecognizer(singleTap)
+            let dismissPan = UIPanGestureRecognizer(target: self, action: #selector(panned(_:)))
+            dismissPan.delegate = self
+            page.addGestureRecognizer(dismissPan)
+            return page
+        }
 
         func viewForZooming(in scrollView: UIScrollView) -> UIView? { (scrollView as? ZoomScrollView)?.imageView }
         func scrollViewDidZoom(_ scrollView: UIScrollView) { (scrollView as? ZoomScrollView)?.centerImage() }
+
+        func scrollViewDidScroll(_ scrollView: UIScrollView) {
+            guard let pager = scrollView as? PagerScrollView, pager.updateCurrentIndex() else { return }
+            parent.onIndexChange(pager.currentIndex)
+        }
 
         @objc func singleTapped() { parent.onSingleTap() }
 
@@ -293,23 +428,100 @@ struct ZoomableImageView: UIViewRepresentable {
             }
         }
 
-        /// Rule 13: the dismiss pan exists only at 1×, and only for a vertical-first drag.
+        /// Rule 13: the dismiss pan exists only at 1×, only for a vertical-first drag, and not while
+        /// the pager is still settling on a page.
         func gestureRecognizerShouldBegin(_ gesture: UIGestureRecognizer) -> Bool {
             guard let pan = gesture as? UIPanGestureRecognizer, let view = pan.view as? ZoomScrollView else { return true }
             guard view.zoomScale <= view.minimumZoomScale + 0.01 else { return false }
+            if let pager = view.superview as? PagerScrollView, pager.isDecelerating { return false }
             let v = pan.velocity(in: view)
             return abs(v.y) > abs(v.x)
         }
     }
 }
 
-/// The scroll view behind ZoomableImageView: the image aspect-fit at 1×, centred while smaller than
-/// the viewport.
+/// The pager behind ImagePagerView: one page per image, side by side, with only the current page
+/// and its neighbours mounted.
+final class PagerScrollView: UIScrollView {
+    var makePage: (Int) -> ZoomScrollView = { _ in ZoomScrollView(image: nil) }
+    var count = 0 {
+        didSet { if count != oldValue { setNeedsLayout() } }
+    }
+    private(set) var currentIndex: Int
+    private(set) var pages: [Int: ZoomScrollView] = [:]
+    private var laidOutSize: CGSize = .zero
+
+    init(startIndex: Int) {
+        currentIndex = startIndex
+        super.init(frame: .zero)
+        isPagingEnabled = true
+        showsHorizontalScrollIndicator = false
+        showsVerticalScrollIndicator = false
+        contentInsetAdjustmentBehavior = .never
+        alwaysBounceVertical = false
+        backgroundColor = .clear
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    /// The pager's own pan begins only on a sideways-first drag: a downward drag is the dismiss.
+    override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        if gestureRecognizer === panGestureRecognizer {
+            // Velocity plus translation: a slow drag starts with almost no velocity.
+            let v = panGestureRecognizer.velocity(in: self)
+            let t = panGestureRecognizer.translation(in: self)
+            guard abs(v.x) + abs(t.x) > abs(v.y) + abs(t.y) else { return false }
+        }
+        return super.gestureRecognizerShouldBegin(gestureRecognizer)
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        guard bounds.width > 0 else { return }
+        if bounds.size != laidOutSize {
+            laidOutSize = bounds.size
+            contentSize = CGSize(width: bounds.width * CGFloat(count), height: bounds.height)
+            contentOffset = CGPoint(x: bounds.width * CGFloat(currentIndex), y: 0)
+        }
+        tilePages()
+    }
+
+    /// Reads the page from the offset; true when it changed. A page that leaves the screen is
+    /// returned to 1×.
+    func updateCurrentIndex() -> Bool {
+        let next = ImageViewerMath.pageIndex(offsetX: contentOffset.x, width: bounds.width, count: count)
+        guard next != currentIndex else { return false }
+        pages[currentIndex]?.setZoomScale(1, animated: false)
+        currentIndex = next
+        tilePages()
+        return true
+    }
+
+    private func tilePages() {
+        let wanted = Set(ImageViewerMath.neighbourhood(of: currentIndex, count: count))
+        for (index, page) in pages where !wanted.contains(index) {
+            page.removeFromSuperview()
+            pages[index] = nil
+        }
+        for index in wanted {
+            let page = pages[index] ?? makePage(index)
+            if pages[index] == nil {
+                pages[index] = page
+                addSubview(page)
+            }
+            let frame = CGRect(x: bounds.width * CGFloat(index), y: 0, width: bounds.width, height: bounds.height)
+            if page.frame != frame { page.frame = frame }
+        }
+    }
+}
+
+/// One page of ImagePagerView: the image aspect-fit at 1×, centred while smaller than the viewport.
 final class ZoomScrollView: UIScrollView {
     let imageView: UIImageView
     private var laidOutSize: CGSize = .zero
 
-    init(image: UIImage) {
+    init(image: UIImage?) {
         imageView = UIImageView(image: image)
         super.init(frame: .zero)
         imageView.contentMode = .scaleAspectFit
@@ -336,6 +548,15 @@ final class ZoomScrollView: UIScrollView {
         imageView.frame = CGRect(origin: .zero, size: fitted.size)
         contentSize = fitted.size
         centerImage()
+    }
+
+    /// A better image for the page (the full one landed). At 1× the page re-fits it; zoomed, the
+    /// same picture is swapped in place.
+    func setImage(_ image: UIImage?) {
+        imageView.image = image
+        guard zoomScale <= minimumZoomScale + 0.01 else { return }
+        laidOutSize = .zero
+        setNeedsLayout()
     }
 
     func centerImage() {

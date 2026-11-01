@@ -11,23 +11,16 @@ enum CoverViewerOverlay {
     }
 }
 
-private struct CoverViewerPresentation: ViewModifier {
-    let url: String?
-    let sourceFrame: CGRect?
-    let accessibilityLabel: String
-    let placeholder: UIImage?
-    let onClose: () -> Void
+private struct ImageViewerPresentation: ViewModifier {
+    let viewer: ImageViewer?
     @Environment(\.ui2HostsOverlays) private var hosted
 
     func body(content: Content) -> some View {
-        let layer = url.map {
-            ImageViewer(url: $0, sourceFrame: sourceFrame, accessibilityLabel: accessibilityLabel, onClose: onClose, placeholder: placeholder)
-        }
         if hosted {
             // The viewer animates its own open and close (rules 1 and 8): no host crossfade.
-            content.hostedOverlay(layer.map { UI2HostedOverlay(view: AnyView($0), transition: .identity) })
+            content.hostedOverlay(viewer.map { UI2HostedOverlay(view: AnyView($0), transition: .identity) })
         } else {
-            content.overlay { if let layer { layer } }
+            content.overlay { if let viewer { viewer } }
         }
     }
 }
@@ -40,7 +33,14 @@ extension View {
     /// image-framing-editor D13: the image's accessibility label is the caller's.
     func coverViewerPresentation(url: String?, sourceFrame: CGRect? = nil, accessibilityLabel: String,
                                  placeholder: UIImage? = nil, onClose: @escaping () -> Void) -> some View {
-        modifier(CoverViewerPresentation(url: url, sourceFrame: sourceFrame, accessibilityLabel: accessibilityLabel,
-                                         placeholder: placeholder, onClose: onClose))
+        imageViewerPresentation(url.map {
+            ImageViewer(url: $0, sourceFrame: sourceFrame, accessibilityLabel: accessibilityLabel, onClose: onClose, placeholder: placeholder)
+        })
+    }
+
+    /// media-viewer-paging: presents `viewer` (any form, the paging one included) while non-nil, the
+    /// same way as `coverViewerPresentation`.
+    func imageViewerPresentation(_ viewer: ImageViewer?) -> some View {
+        modifier(ImageViewerPresentation(viewer: viewer))
     }
 }

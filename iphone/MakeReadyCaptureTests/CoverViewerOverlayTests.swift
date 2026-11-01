@@ -132,4 +132,28 @@ final class CoverViewerOverlayTests: XCTestCase {
             .filterMenuPresentation(isPresented: false) { Color.blue })
         XCTAssertTrue(shown.value, "the open action menu was overridden by a closed filter menu's nil")
     }
+
+    /// media-viewer-paging: the pager settles on the nearest page, inside the list.
+    func testPageIndexIsTheNearestPageClampedToTheList() {
+        XCTAssertEqual(ImageViewerMath.pageIndex(offsetX: 0, width: 440, count: 5), 0)
+        XCTAssertEqual(ImageViewerMath.pageIndex(offsetX: 440 * 2 + 219, width: 440, count: 5), 2)
+        XCTAssertEqual(ImageViewerMath.pageIndex(offsetX: 440 * 2 + 221, width: 440, count: 5), 3)
+        XCTAssertEqual(ImageViewerMath.pageIndex(offsetX: -100, width: 440, count: 5), 0)       // bounce past the first
+        XCTAssertEqual(ImageViewerMath.pageIndex(offsetX: 440 * 9, width: 440, count: 5), 4)    // bounce past the last
+        XCTAssertEqual(ImageViewerMath.pageIndex(offsetX: 300, width: 0, count: 5), 0)
+    }
+
+    /// media-viewer-paging: the mounted (and loaded) pages are the current one and its neighbours.
+    func testNeighbourhoodIsThePageAndItsNeighboursInTheList() {
+        XCTAssertEqual(ImageViewerMath.neighbourhood(of: 0, count: 1), [0])
+        XCTAssertEqual(ImageViewerMath.neighbourhood(of: 0, count: 5), [0, 1])
+        XCTAssertEqual(ImageViewerMath.neighbourhood(of: 2, count: 5), [1, 2, 3])
+        XCTAssertEqual(ImageViewerMath.neighbourhood(of: 4, count: 5), [3, 4])
+        XCTAssertEqual(ImageViewerMath.neighbourhood(of: 0, count: 0), [])
+    }
+
+    /// media-viewer-paging: the close button shows for a short while after a tap.
+    func testChromeHoldIsAShortWhile() {
+        XCTAssertEqual(ImageViewerMath.chromeHold, .seconds(3))
+    }
 }

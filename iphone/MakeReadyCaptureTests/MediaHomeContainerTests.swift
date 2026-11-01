@@ -109,4 +109,29 @@ final class MediaHomeContainerTests: XCTestCase {
         XCTAssertTrue(none.options.isEmpty)
         XCTAssertNil(none.direct)
     }
+
+    /// media-viewer-paging: a paged-to item flies back into its own tile — the opened tile moved by
+    /// whole columns and rows of the frozen grid — or off the bottom when that tile isn't on screen.
+    func testTileFrameMovesTheOpenedFrameByColumnsAndRowsAndIsNilOffScreen() {
+        // 440 wide at five: side (440 − 4 × 2) ÷ 5 = 86.4, pitch 88.4. Index 21 is row 4, column 1.
+        let opened = CGRect(x: 88.4, y: 400, width: 86.4, height: 86.4)
+        let band = MediaHomeContainer.gridBand(screen: CGRect(x: 0, y: 0, width: 440, height: 956))
+        func frame(_ i: Int) -> CGRect? {
+            MediaHomeContainer.tileFrame(index: i, openedIndex: 21, openedFrame: opened, level: .five, gridWidth: 440, visible: band)
+        }
+        XCTAssertEqual(frame(21), opened)
+        XCTAssertEqual(frame(22)?.minX ?? 0, 176.8, accuracy: 0.001)              // next column
+        XCTAssertEqual(frame(22)?.minY ?? 0, 400, accuracy: 0.001)
+        XCTAssertEqual(frame(26)?.minX ?? 0, 88.4, accuracy: 0.001)               // next row
+        XCTAssertEqual(frame(26)?.minY ?? 0, 488.4, accuracy: 0.001)
+        XCTAssertEqual(frame(15)?.minX ?? 0, 0, accuracy: 0.001)                  // row 3, column 0
+        XCTAssertNil(frame(1), "four rows up (y 46.4) is under the 108pt top bar")
+        XCTAssertNil(frame(51), "six rows down runs past the screen bottom")
+    }
+
+    /// media-viewer-paging: the grid's band is the screen below the top bar.
+    func testGridBandStartsBelowTheTopBar() {
+        let band = MediaHomeContainer.gridBand(screen: CGRect(x: 0, y: 100, width: 440, height: 800))
+        XCTAssertEqual(band, CGRect(x: 0, y: 208, width: 440, height: 692))
+    }
 }
