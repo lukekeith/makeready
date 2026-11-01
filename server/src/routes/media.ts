@@ -24,6 +24,9 @@ import {
   getUserOrgId,
 } from '../services/media-library.js'
 import { prisma } from '../lib/prisma.js'
+import { isMakeReadyOrg, mediaOrganizationId, scopeUsagesForCaller } from '../services/makeready-library.js'
+import { getUserOrganizations } from '../services/organization.js'
+import { isSuperAdmin } from '../services/permission.js'
 import { uploadImageVariants } from '../services/storage.js'
 import { createDirectUploadUrl } from '../services/cloudflare.js'
 
@@ -32,6 +35,36 @@ const router = Router()
 // ============================================================================
 // Media CRUD Endpoints
 // ============================================================================
+
+/**
+ * media-library D16: MakeReady media is written only through /api/makeready/media. Every generic
+ * write path refuses the MakeReady org — super admins included, so its rows keep the system uploader
+ * and are never hard-deleted.
+ */
+function refuseMakeReady(orgOf: (req: any) => Promise<string | null> | string | null) {
+  return async (req: any, res: any, next: any) => {
+    try {
+      if (await isMakeReadyOrg(await orgOf(req))) {
+        return res.status(403).json({ success: false, error: 'MakeReady media is managed by MakeReady' })
+      }
+      next()
+    } catch (error) {
+      next(error)
+    }
+  }
+}
+
+/** media-library D16: a MakeReady image's usages, narrowed to the caller's own orgs. */
+async function usagesForCaller<T extends { usageType: string; resourceId: string }>(
+  req: any,
+  mediaOrgId: string | null,
+  usages: T[],
+): Promise<T[]> {
+  const userId = (req.user as any)?.id as string
+  const superAdmin = await isSuperAdmin(userId)
+  const orgs = superAdmin ? [] : ((await getUserOrganizations(userId)).data ?? []).map((o) => o.id)
+  return scopeUsagesForCaller(mediaOrgId, usages, orgs, superAdmin)
+}
 
 /**
  * @openapi
@@ -614,6 +647,7 @@ const createMediaSchema = z.object({
 router.post(
   '/organizations/:organizationId/media',
   requireAuth,
+  refuseMakeReady((req) => req.params.organizationId),
   requirePermission('media.create', 'organization', (req) => req.params.organizationId),
   async (req, res) => {
     try {
@@ -996,6 +1030,7 @@ router.patch(
 router.delete(
   '/media/:mediaId',
   requireAuth,
+  refuseMakeReady((req) => mediaOrganizationId(req.params.mediaId)),
   requirePermission('media.delete', 'media', (req) => req.params.mediaId),
   async (req, res) => {
     try {
@@ -1182,6 +1217,7 @@ const uploadMediaSchema = z.object({
 router.post(
   '/organizations/:organizationId/media/upload',
   requireAuth,
+  refuseMakeReady((req) => req.params.organizationId),
   requirePermission('media.create', 'organization', (req) => req.params.organizationId),
   async (req, res) => {
     try {
@@ -1386,6 +1422,7 @@ const batchUploadSchema = z.object({
 router.post(
   '/organizations/:organizationId/media/upload/batch',
   requireAuth,
+  refuseMakeReady((req) => req.params.organizationId),
   requirePermission('media.create', 'organization', (req) => req.params.organizationId),
   async (req, res) => {
     try {
@@ -1585,7 +1622,7 @@ router.get(
     try {
       const { mediaId } = req.params
       const usages = await listUsages(mediaId)
-      res.json({ success: true, data: usages })
+      res.json({ success: true, data: await usagesForCaller(req, await mediaOrganizationId(mediaId), usages) })
     } catch (error) {
       console.error('Error listing media usages:', error)
       res.status(500).json({ success: false, error: 'Internal server error' })
@@ -1627,7 +1664,7 @@ router.get(
         return res.status(404).json({ success: false, error: 'Media not found' })
       }
 
-      res.json({ success: true, data: item })
+      res.json({ success: true, data: { ...item, usages: await usagesForCaller(req, item.organizationId, item.usages) } })
     } catch (error) {
       console.error('Error fetching media detail:', error)
       res.status(500).json({ success: false, error: 'Internal server error' })

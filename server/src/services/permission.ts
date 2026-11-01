@@ -1,3 +1,4 @@
+import { isMakeReadyOrg } from './makeready-library.js'
 import { prisma } from '../lib/prisma.js'
 import { Prisma } from '../generated/prisma/index.js'
 
@@ -207,6 +208,12 @@ export async function hasPermission(
       `❌ [Permission] Could not determine organization for resource ${resourceType}:${resourceId}`
     )
     return false
+  }
+
+  // media-library D1/D16: MakeReady's own media is readable by every signed-in user. Writes stay
+  // denied: no person holds a role in the MakeReady org.
+  if (permission === 'media.read' && resourceType === 'media' && (await isMakeReadyOrg(organizationId))) {
+    return true
   }
 
   // 2b. Organization owners implicitly hold every permission in their own org.
