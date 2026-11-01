@@ -1,7 +1,7 @@
 size: lg
-state: planned
+state: built
 next: /builder:resume --path docs/features/media-library
-head: fb4ff63c
+head: 2226978d
 ticket: none
 branch: main
 pr: none
@@ -12,6 +12,7 @@ go-ahead: Luke 2026-11-01 (here)
 tests: slice=own+app end=risk review=slice
 walk: none
 verify: none
+ready: none
 ui2: none
 auto: off
 blocked: none
