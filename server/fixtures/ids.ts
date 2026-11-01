@@ -67,8 +67,16 @@ export const FIXTURE_LEADER_USER_ID = fixtureId('user', 2)
 export const FIXTURE_LEADER_GROUP_ID = fixtureId('group', 4)
 /** ui2-groups-browse D25: a group with no members, enrollments, schedules or history (the empty states). */
 export const FIXTURE_EMPTY_GROUP_ID = fixtureId('group', 5)
-/** Every fixture user — reset deletes exactly these. */
-export const FIXTURE_USER_IDS: string[] = [FIXTURE_USER_ID, FIXTURE_LEADER_USER_ID]
+/**
+ * media-library D20: a second org, so the Media page's Source chip and Upload-to menu have two orgs
+ * to offer. Owned by its own user (a user owns at most one org, and the fixture user's primary org
+ * must stay FIXTURE_ORG_ID); FIXTURE_USER_ID holds the system Admin role in it.
+ */
+export const FIXTURE_ORG2_OWNER_EMAIL = 'fixtures-northside@makeready.local'
+export const FIXTURE_ORG2_OWNER_USER_ID = fixtureId('user', 3)
+export const FIXTURE_ORG2_ID = fixtureId('organization', 2)
+/** Every fixture user — reset deletes exactly these (cascading the orgs they own). */
+export const FIXTURE_USER_IDS: string[] = [FIXTURE_USER_ID, FIXTURE_LEADER_USER_ID, FIXTURE_ORG2_OWNER_USER_ID]
 
 export const FIXTURE_IDS = {
   user: FIXTURE_USER_ID,
@@ -80,4 +88,5 @@ export const FIXTURE_IDS = {
   leaderUser: FIXTURE_LEADER_USER_ID,
   leaderGroup: FIXTURE_LEADER_GROUP_ID,
   emptyGroup: FIXTURE_EMPTY_GROUP_ID,
+  org2: FIXTURE_ORG2_ID,
 }

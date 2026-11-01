@@ -63,9 +63,9 @@ describe.skipIf(!TEST_DB_URL)('fixtures base layer against the test database (D1
   it('(e) reset empty builds exactly the base world and no progress rows', async () => {
     const counts = await db.run('reset', 'empty')
     expect(counts).toEqual({
-      users: 2,
-      organizations: 1,
-      user_roles: 2,
+      users: 3,
+      organizations: 2,
+      user_roles: 3,
       groups: 5,
       members: 24,
       group_members: 24,

@@ -8,11 +8,12 @@
  *  4. the fixture users (FIXTURE_USER_IDS: the owner — cascading the owned
  *     org, and through creatorId its groups, programs, lessons, activities,
  *     enrollments, schedules, user_roles and member_organizations — and the
- *     Group-Leader user, cascading its user_role).
+ *     Group-Leader user, cascading its user_role, and the Northside owner, cascading its org —
+ *     media-library D20).
  * The system Owner role is never deleted. Nothing else is.
  */
 import type { PrismaClient } from '../src/generated/prisma/index.js'
-import { FIXTURE_LEADER_EMAIL, FIXTURE_MEMBER_IDS, FIXTURE_ORG_ID, FIXTURE_USER_EMAIL, FIXTURE_USER_IDS } from './ids.js'
+import { FIXTURE_LEADER_EMAIL, FIXTURE_MEMBER_IDS, FIXTURE_ORG2_OWNER_EMAIL, FIXTURE_ORG_ID, FIXTURE_USER_EMAIL, FIXTURE_USER_IDS } from './ids.js'
 
 export type WipeClient = Pick<PrismaClient, 'clientEvent' | 'member' | 'group' | 'studyProgram' | 'user'>
 
@@ -31,7 +32,7 @@ export async function wipeFixtures(prisma: WipeClient): Promise<void> {
 /** `fixtures:seed` refuses when this is true (D4). */
 export async function fixtureUserExists(prisma: Pick<PrismaClient, 'user'>): Promise<boolean> {
   const user = await prisma.user.findFirst({
-    where: { OR: [{ id: { in: FIXTURE_USER_IDS } }, { email: { in: [FIXTURE_USER_EMAIL, FIXTURE_LEADER_EMAIL] } }] },
+    where: { OR: [{ id: { in: FIXTURE_USER_IDS } }, { email: { in: [FIXTURE_USER_EMAIL, FIXTURE_LEADER_EMAIL, FIXTURE_ORG2_OWNER_EMAIL] } }] },
     select: { id: true },
   })
   return user !== null

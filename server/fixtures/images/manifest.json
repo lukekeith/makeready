@@ -48,211 +48,2555 @@
     "tony-stark",
     "wade-wilson"
   ],
+  "makeready": [
+    "1-chronicles-ark-musicians",
+    "1-chronicles-generations-tree",
+    "1-chronicles-temple-preparations",
+    "1-chronicles-temple-preparations-v02",
+    "1-corinthians-love-in-practice",
+    "1-corinthians-one-table",
+    "1-corinthians-seed-resurrection",
+    "1-john-love-deed",
+    "1-john-walk-light",
+    "1-kings-divided-kingdom",
+    "1-kings-elijah-carmel",
+    "1-kings-quiet-cave",
+    "1-kings-solomon-wisdom",
+    "1-peter-exiles-hope",
+    "1-peter-gentle-witness",
+    "1-peter-living-stones",
+    "1-samuel-david-goliath",
+    "1-samuel-hannah-prayer",
+    "1-samuel-samuel-listening",
+    "1-thessalonians-awake-dawn",
+    "1-thessalonians-encourage-one-another",
+    "1-timothy-care-vulnerable",
+    "1-timothy-mentor-teacher",
+    "2-chronicles-passover-restored",
+    "2-chronicles-return-decree",
+    "2-chronicles-temple-dedication",
+    "2-corinthians-comfort-shared",
+    "2-corinthians-generous-hands",
+    "2-corinthians-treasure-clay",
+    "2-john-truth-and-love",
+    "2-kings-exile-city",
+    "2-kings-josiah-scroll",
+    "2-kings-naaman-river",
+    "2-peter-lamp-darkness",
+    "2-peter-lamp-darkness-v02",
+    "2-peter-new-earth",
+    "2-samuel-covenant-house",
+    "2-samuel-david-ark-procession",
+    "2-samuel-king-repentance",
+    "2-thessalonians-quiet-work",
+    "2-thessalonians-steady-community",
+    "2-timothy-entrusted-next",
+    "2-timothy-last-letter",
+    "2-timothy-scripture-formation",
+    "3-john-welcome-travelers",
+    "acts-damascus-road",
+    "acts-open-door-gentiles",
+    "acts-pentecost-gathering",
+    "acts-shared-table",
+    "amos-justice-water",
+    "amos-plumb-line",
+    "amos-shepherd-prophet",
+    "colossians-all-things-held",
+    "colossians-new-self-kindness",
+    "colossians-rooted-built",
+    "daniel-fiery-furnace",
+    "daniel-lions-den",
+    "daniel-prayer-window",
+    "deuteronomy-moses-final-address",
+    "deuteronomy-nebo-view",
+    "deuteronomy-teach-children",
+    "ecclesiastes-ordinary-gifts",
+    "ecclesiastes-passing-breath",
+    "ecclesiastes-time-seasons",
+    "ephesians-armor-readiness",
+    "ephesians-body-built-together",
+    "ephesians-wall-removed",
+    "esther-banquet-revelation",
+    "esther-royal-portrait",
+    "esther-throne-approach",
+    "exodus-burning-bush",
+    "exodus-sea-crossing",
+    "exodus-sinai-covenant",
+    "exodus-tabernacle-presence",
+    "ezekiel-dry-bones",
+    "ezekiel-glory-exile",
+    "ezekiel-glory-exile-v02",
+    "ezekiel-river-temple",
+    "ezra-foundation-rebuilt",
+    "ezra-journey-home",
+    "ezra-journey-home-v02",
+    "ezra-scribe-devotion",
+    "galatians-burdens-shared",
+    "galatians-freedom-yoke",
+    "galatians-fruit-spirit",
+    "genesis-abraham-isaac-intervention",
+    "genesis-abram-stars",
+    "genesis-ark-rainbow",
+    "genesis-ark-storm",
+    "genesis-creation-animals",
+    "genesis-fountains-deep",
+    "genesis-jacob-wrestling",
+    "genesis-joseph-reunion",
+    "genesis-noah-cares-animals",
+    "genesis-noah-releases-dove",
+    "habakkuk-barren-fig-tree",
+    "habakkuk-watchtower-wait",
+    "haggai-greater-glory",
+    "haggai-work-resumes",
+    "hebrews-anchor-hope",
+    "hebrews-race-witnesses",
+    "hebrews-veil-access",
+    "hosea-dew-restoration",
+    "hosea-returning-love",
+    "image",
+    "image-10",
+    "image-11",
+    "image-12",
+    "image-2",
+    "image-3",
+    "image-4",
+    "image-5",
+    "image-6",
+    "image-7",
+    "image-8",
+    "image-9",
+    "isaiah-desert-bloom",
+    "isaiah-holy-throne",
+    "isaiah-peaceable-kingdom",
+    "isaiah-suffering-servant",
+    "james-faith-feeds",
+    "james-patient-farmer",
+    "james-tongue-spark",
+    "jeremiah-field-purchase",
+    "jeremiah-field-purchase-v02",
+    "jeremiah-potters-house",
+    "jeremiah-weeping-prophet",
+    "job-answer-whirlwind",
+    "job-friends-silence",
+    "job-unbroken-integrity",
+    "joel-fields-restored",
+    "joel-locust-darkness",
+    "joel-spirit-generations",
+    "john-foot-washing",
+    "john-lazarus-called",
+    "john-vine-branches",
+    "john-well-conversation",
+    "jonah-fish-and-prophet",
+    "jonah-nineveh-mercy",
+    "jonah-shade-and-anger",
+    "joshua-jericho-walls",
+    "joshua-jordan-crossing",
+    "joshua-memorial-stones",
+    "jude-kept-standing",
+    "jude-mercy-rescue",
+    "judges-deborah-palm",
+    "judges-gideon-torches",
+    "judges-samson-pillars",
+    "judges-samson-pillars-v02",
+    "judges-samson-pillars-v03",
+    "judges-samson-pillars-v04",
+    "lamentations-morning-mercies",
+    "lamentations-silent-city",
+    "leviticus-gleaning-mercy",
+    "leviticus-holy-place",
+    "leviticus-scapegoat-wilderness",
+    "luke-emmaus-table",
+    "luke-good-samaritan",
+    "luke-prodigal-embrace",
+    "luke-shepherds-manger",
+    "malachi-healing-dawn",
+    "malachi-refiners-fire",
+    "mark-bartimaeus-call",
+    "mark-servant-touch",
+    "mark-storm-stilled",
+    "matthew-great-commission",
+    "matthew-magi-homage",
+    "matthew-mountain-teaching",
+    "micah-bethlehem-promise",
+    "micah-humble-walk",
+    "micah-swords-plowshares",
+    "nahum-nineveh-falls",
+    "nahum-refuge-trouble",
+    "nehemiah-builders-wall",
+    "nehemiah-night-inspection",
+    "nehemiah-people-listen",
+    "numbers-bronze-serpent",
+    "numbers-cloud-led-camp",
+    "numbers-spies-grapes",
+    "obadiah-cliff-fortress",
+    "obadiah-crossroads-betrayal",
+    "philemon-letter-appeal",
+    "philemon-welcome-brother",
+    "philippians-humble-service",
+    "philippians-joy-confinement",
+    "philippians-pressing-forward",
+    "proverbs-beginning-of-wisdom",
+    "proverbs-bread-shared-freely",
+    "proverbs-city-without-walls",
+    "proverbs-gentle-answer",
+    "proverbs-go-to-ant",
+    "proverbs-honest-scales",
+    "proverbs-iron-sharpens-iron",
+    "proverbs-parent-instruction",
+    "proverbs-peace-over-plenty",
+    "proverbs-pride-before-fall",
+    "proverbs-stop-feeding-fire",
+    "proverbs-wisdom-at-work",
+    "proverbs-wisdom-crossroads",
+    "psalms-creation-praise",
+    "psalms-lament-night",
+    "psalms-shepherd-valley",
+    "psalms-tree-water",
+    "revelation-lamb-scroll-v02",
+    "revelation-lampstands-witness",
+    "revelation-multitude-worship",
+    "revelation-new-creation-city",
+    "revelation-new-creation-city-v02",
+    "romans-grafted-olive",
+    "romans-groaning-creation",
+    "romans-new-life-baptism",
+    "ruth-gleaning-field",
+    "ruth-naomi-child",
+    "ruth-road-with-naomi",
+    "song-of-songs-garden-beloved",
+    "song-of-songs-love-strength",
+    "titus-elders-community",
+    "titus-good-works",
+    "zechariah-garments-renewed",
+    "zechariah-humble-king",
+    "zechariah-lampstand-olives",
+    "zephaniah-day-darkness",
+    "zephaniah-gathered-home"
+  ],
   "images": {
     "image-9": {
       "title": "Men's Bible study around a round table",
       "alt": "Five men laughing together around a round table with open Bibles in a sunlit fellowship hall",
-      "mainColor": "#695f55"
+      "mainColor": "#695f55",
+      "tags": [
+        "group",
+        "study"
+      ]
     },
     "image-11": {
       "title": "Small group reading Bibles around a coffee table",
       "alt": "Overhead view of four men reading open Bibles around a rustic wooden coffee table with mugs of coffee",
-      "mainColor": "#594e42"
+      "mainColor": "#594e42",
+      "tags": [
+        "group",
+        "study"
+      ]
     },
     "image-6": {
       "title": "Open Bibles and lattes on a wooden table",
       "alt": "Open Bibles and cups of latte art spread across a rustic wooden table during a group study",
-      "mainColor": "#695543"
+      "mainColor": "#695543",
+      "tags": [
+        "group",
+        "study"
+      ]
     },
     "genesis-abram-stars": {
       "title": "Genesis — Abram counts the stars (Genesis 15)",
       "alt": "Night engraving of an old bearded Abram with a hand on his chest gazing up at a sky full of stars, his tent behind him on the hills",
-      "mainColor": "#302d29"
+      "mainColor": "#302d29",
+      "tags": [
+        "lesson",
+        "study",
+        "genesis"
+      ]
     },
     "john-well-conversation": {
       "title": "John — Jesus and the woman at the well (John 4)",
       "alt": "Engraving of Jesus gesturing as he talks with a veiled woman seated beside a stone well and a water jar, a hill town and olive trees behind them",
-      "mainColor": "#7d776d"
+      "mainColor": "#7d776d",
+      "tags": [
+        "lesson",
+        "study",
+        "john"
+      ]
     },
     "romans-new-life-baptism": {
       "title": "Romans — Rising from the water in baptism (Romans 6)",
       "alt": "Engraving of a bearded man rising from a river with water running down his face as another man steadies him, three smiling onlookers on the bank",
-      "mainColor": "#7c756c"
+      "mainColor": "#7c756c",
+      "tags": [
+        "lesson",
+        "study",
+        "romans"
+      ]
     },
     "matthew-mountain-teaching": {
       "title": "Matthew — Teaching on the hillside (Matthew 5–7)",
       "alt": "Engraving of Jesus seated on a hillside teaching with an open hand to a listening crowd of men, women and a child, a lake and town in the distance",
-      "mainColor": "#7f786e"
+      "mainColor": "#7f786e",
+      "tags": [
+        "lesson",
+        "study",
+        "matthew"
+      ]
     },
     "psalms-shepherd-valley": {
       "title": "Psalms — The shepherd leads through the valley (Psalm 23)",
       "alt": "Engraving of a shepherd seen from behind holding a staff, leading a flock of sheep down a rocky path in a ravine toward a wide, sunlit river valley",
-      "mainColor": "#676158"
+      "mainColor": "#676158",
+      "tags": [
+        "lesson",
+        "study",
+        "psalms"
+      ]
     },
     "acts-pentecost-gathering": {
       "title": "Acts — Flames at Pentecost (Acts 2)",
       "alt": "Engraving of a crowd of believers in a stone hall gazing upward with open hands, small flames above their heads and swirling wind streaks overhead",
-      "mainColor": "#5e5851"
+      "mainColor": "#5e5851",
+      "tags": [
+        "lesson",
+        "study",
+        "acts"
+      ]
     },
     "daniel-prayer-window": {
       "title": "Daniel — Praying at the open window (Daniel 6)",
       "alt": "Sepia engraving of an elderly bearded Daniel kneeling in prayer with open hands beside an open window looking out over a city",
-      "mainColor": "#534e48"
+      "mainColor": "#534e48",
+      "tags": [
+        "lesson",
+        "study",
+        "daniel"
+      ]
     },
     "luke-prodigal-embrace": {
       "title": "Luke — The father embraces the prodigal son (Luke 15)",
       "alt": "Engraving of a white-bearded father tenderly embracing his kneeling, barefoot son in torn rags on a country path, while family members watch from a farmhouse",
-      "mainColor": "#867c70"
+      "mainColor": "#867c70",
+      "tags": [
+        "lesson",
+        "study",
+        "luke"
+      ]
     },
     "genesis-creation-animals": {
       "title": "Genesis — God creates the animals (Genesis 1)",
       "alt": "Sepia engraving of newly created animals — a lion, a stag, birds in flight, an elephant and a tortoise — in a lush valley with light breaking through",
-      "mainColor": "#8d877e"
+      "mainColor": "#8d877e",
+      "tags": [
+        "lesson",
+        "study",
+        "genesis"
+      ]
     },
     "james-faith-feeds": {
       "title": "James — Faith that feeds the hungry (James 2:14–17)",
       "alt": "Sepia engraving of a standing bearded man giving a loaf of bread and a folded cloak to a ragged seated man, while a woman and a boy watch from a doorway",
-      "mainColor": "#69635a"
+      "mainColor": "#69635a",
+      "tags": [
+        "lesson",
+        "study",
+        "james"
+      ]
     },
     "philippians-joy-confinement": {
       "title": "Philippians — Joy in a prison cell (Philippians 1 and 4)",
       "alt": "Engraving of a smiling white-bearded man chained at the wrist, writing on a scroll in a stone cell lit by a barred window, three cheerful friends beside him",
-      "mainColor": "#4b453d"
+      "mainColor": "#4b453d",
+      "tags": [
+        "lesson",
+        "study",
+        "philippians"
+      ]
     },
     "ruth-road-with-naomi": {
       "title": "Ruth — Ruth and Naomi on the road (Ruth 1)",
       "alt": "Engraving of a younger and an older woman in headcloths walking arm in arm and looking at each other on a stony path past an olive tree, with a hill town behind",
-      "mainColor": "#777168"
+      "mainColor": "#777168",
+      "tags": [
+        "lesson",
+        "study",
+        "ruth"
+      ]
     },
     "1-samuel-hannah-prayer": {
       "title": "1 Samuel — Hannah prays at the sanctuary (1 Samuel 1)",
       "alt": "Engraving of Hannah in a headcovering looking up with clasped hands in a pillared sanctuary, while the priest Eli watches from beside an altar",
-      "mainColor": "#565049"
+      "mainColor": "#565049",
+      "tags": [
+        "lesson",
+        "study",
+        "1 samuel"
+      ]
     },
     "1-chronicles-ark-musicians": {
       "title": "1 Chronicles — Bringing the ark with music (1 Chronicles 15–16)",
       "alt": "Engraving of a bearded man's hands playing a lyre in the foreground while priests carry the winged ark on poles, blowing trumpets and shaking a tambourine before a walled city gate",
-      "mainColor": "#787269"
+      "mainColor": "#787269",
+      "tags": [
+        "lesson",
+        "study",
+        "1 chronicles"
+      ]
     },
     "1-corinthians-love-in-practice": {
       "title": "1 Corinthians — Washing a brother’s feet (1 Corinthians 13)",
       "alt": "Engraving of a man kneeling to dry another man’s foot over a wash basin, while a woman with a water jar and two men watch beneath a stone arch",
-      "mainColor": "#676057"
+      "mainColor": "#676057",
+      "tags": [
+        "lesson",
+        "study",
+        "1 corinthians"
+      ]
     },
     "1-john-love-deed": {
       "title": "1 John — Love in deed, sharing bread (1 John 3:16–18; 4:7–12)",
       "alt": "Sepia engraving of a bearded man in a turban handing a loaf of bread to a ragged old man seated by a doorway, with a smiling woman and a boy holding bread behind",
-      "mainColor": "#696258"
+      "mainColor": "#696258",
+      "tags": [
+        "lesson",
+        "study",
+        "1 john"
+      ]
     },
     "1-kings-divided-kingdom": {
       "title": "1 Kings — Broken crown at the fork in the road (1 Kings 12)",
       "alt": "Engraving of a broken royal crown on a rocky ledge between two diverging roads, each leading uphill to a walled city, with a valley and lake in the distance",
-      "mainColor": "#7c766d"
+      "mainColor": "#7c766d",
+      "tags": [
+        "lesson",
+        "study",
+        "1 kings"
+      ]
     },
     "1-peter-exiles-hope": {
       "title": "1 Peter — Exiles walking toward the dawn (1 Peter 1:1–9; 2:11–12)",
       "alt": "Sepia engraving of travelers with packs and staves and a lamb seen from behind on a rocky path, looking toward a rising sun over a river valley and a walled town",
-      "mainColor": "#766f65"
+      "mainColor": "#766f65",
+      "tags": [
+        "lesson",
+        "study",
+        "1 peter"
+      ]
     },
     "1-samuel-david-goliath": {
       "title": "1 Samuel — David faces Goliath (1 Samuel 17)",
       "alt": "Light engraving of a young David with a sling seen from behind facing a tall armored Goliath with spear and shield across a rocky valley, with armies on both ridges",
-      "mainColor": "#b9afa0"
+      "mainColor": "#b9afa0",
+      "tags": [
+        "lesson",
+        "study",
+        "1 samuel"
+      ]
     },
     "1-thessalonians-awake-dawn": {
       "title": "1 Thessalonians — Watching for the dawn (1 Thessalonians 5)",
       "alt": "Engraving of a watchman with a staff standing on a rocky wall at left, looking over a walled town with lit windows toward a sunrise over distant mountains",
-      "mainColor": "#6a655e"
+      "mainColor": "#6a655e",
+      "tags": [
+        "lesson",
+        "study",
+        "1 thessalonians"
+      ]
     },
     "1-timothy-care-vulnerable": {
       "title": "1 Timothy — Bringing a basket to a widow (1 Timothy 5)",
       "alt": "Engraving of a woman handing a basket of bread and grapes to a smiling elderly woman at her doorway, a man with a jug and a boy with a fruit basket beside her",
-      "mainColor": "#635d55"
+      "mainColor": "#635d55",
+      "tags": [
+        "lesson",
+        "study",
+        "1 timothy"
+      ]
     },
     "2-chronicles-passover-restored": {
       "title": "2 Chronicles — Hezekiah’s Passover meal (2 Chronicles 30)",
       "alt": "Engraving of smiling men, women and children sharing bread, grapes and wine at a laden table, with pilgrims climbing the steps toward a large temple gate behind them",
-      "mainColor": "#6a635c"
+      "mainColor": "#6a635c",
+      "tags": [
+        "lesson",
+        "study",
+        "2 chronicles"
+      ]
     },
     "2-corinthians-comfort-shared": {
       "title": "2 Corinthians — Comforting a grieving friend (2 Corinthians 1)",
       "alt": "Engraving of a distressed man holding his head while an older bearded man puts an arm around his shoulder and speaks to him, two friends sitting close",
-      "mainColor": "#4f4b45"
+      "mainColor": "#4f4b45",
+      "tags": [
+        "lesson",
+        "study",
+        "2 corinthians"
+      ]
     },
     "2-john-truth-and-love": {
       "title": "2 John — Walking in truth and love as a family (2 John 1:1–6)",
       "alt": "Sepia engraving of a white-bearded old man with a staff walking with a woman, a boy, a girl holding flowers and two younger men along a garden path, all smiling",
-      "mainColor": "#767066"
+      "mainColor": "#767066",
+      "tags": [
+        "lesson",
+        "study",
+        "2 john"
+      ]
     },
     "2-kings-exile-city": {
       "title": "2 Kings — Led into exile from the burning city (2 Kings 25)",
       "alt": "Engraving of Judean exiles with bundles walking away from a smoking, ruined walled city, an old man with a staff and a mother carrying a baby in front, armed guards following",
-      "mainColor": "#69635b"
+      "mainColor": "#69635b",
+      "tags": [
+        "lesson",
+        "study",
+        "2 kings"
+      ]
     },
     "barry-allen": {
       "title": "Young man with swept-back hair, maroon jacket",
       "alt": "Young man with swept-back brown hair and a maroon jacket, looking to the side",
-      "mainColor": "#6d554b"
+      "mainColor": "#6d554b",
+      "tags": [
+        "person"
+      ]
     },
     "bruce-banner": {
       "title": "Man with glasses and green-tinted skin",
       "alt": "Man with graying hair, dark-rimmed glasses and green-tinted skin, in a blue sweater",
-      "mainColor": "#65655b"
+      "mainColor": "#65655b",
+      "tags": [
+        "person"
+      ]
     },
     "bruce-wayne": {
       "title": "Serious man with dark hair over his forehead",
       "alt": "Serious-looking man with dark hair falling over his forehead, wearing a dark sweater",
-      "mainColor": "#4f5a57"
+      "mainColor": "#4f5a57",
+      "tags": [
+        "person"
+      ]
     },
     "clark-kent": {
       "title": "Smiling man in large glasses and a suit",
       "alt": "Smiling man with slicked dark hair and large glasses, in a suit and tie",
-      "mainColor": "#656167"
+      "mainColor": "#656167",
+      "tags": [
+        "person"
+      ]
     },
     "guy-gardner": {
       "title": "Man with blond bowl cut in warm light",
       "alt": "Man with a blond bowl haircut, backlit by warm orange light",
-      "mainColor": "#a57859"
+      "mainColor": "#a57859",
+      "tags": [
+        "person"
+      ]
     },
     "hal-jordan": {
       "title": "Man wearing a green eye mask",
       "alt": "Man in a green eye mask and green suit against a cloudy sky",
-      "mainColor": "#656c70"
+      "mainColor": "#656c70",
+      "tags": [
+        "person"
+      ]
     },
     "logan": {
       "title": "Bearded man with tousled hair, intense look",
       "alt": "Man with tousled dark hair and thick sideburn beard, frowning at the camera",
-      "mainColor": "#6f5449"
+      "mainColor": "#6f5449",
+      "tags": [
+        "person"
+      ]
     },
     "luke-cage": {
       "title": "Bald bearded man on a dark background",
       "alt": "Bald man with a short beard looking straight at the camera against a dark background",
-      "mainColor": "#4a3823"
+      "mainColor": "#4a3823",
+      "tags": [
+        "person"
+      ]
     },
     "matt-murdock": {
       "title": "Man in red sunglasses against a night city",
       "alt": "Man with short hair and round red-lensed sunglasses, dark suit, city skyline at night behind him",
-      "mainColor": "#524750"
+      "mainColor": "#524750",
+      "tags": [
+        "person"
+      ]
     },
     "peter-parker": {
       "title": "Young man with a worried expression",
       "alt": "Young man with tousled brown hair and a concerned look, red collar visible, dark background",
-      "mainColor": "#684f4f"
+      "mainColor": "#684f4f",
+      "tags": [
+        "person"
+      ]
     },
     "steven-strange": {
       "title": "Man with goatee and graying temples, red collar",
       "alt": "Man with swept-back dark hair, graying temples and a goatee, wearing a high red collar, frowning slightly",
-      "mainColor": "#7f534a"
+      "mainColor": "#7f534a",
+      "tags": [
+        "person"
+      ]
     },
     "tony-stark": {
       "title": "Man with styled goatee in a dark suit",
       "alt": "Man with dark hair and a trimmed goatee in a dark suit jacket, plain gray studio background",
-      "mainColor": "#6e5e57"
+      "mainColor": "#6e5e57",
+      "tags": [
+        "person"
+      ]
     },
     "wade-wilson": {
       "title": "Bald man with heavily scarred skin",
       "alt": "Bald man with heavily textured, scarred skin, white T-shirt, a small furry animal beside his face",
-      "mainColor": "#7e5144"
+      "mainColor": "#7e5144",
+      "tags": [
+        "person"
+      ]
+    },
+    "1-chronicles-generations-tree": {
+      "title": "1 Chronicles — The family tree of generations (1 Chronicles 1–9)",
+      "alt": "Engraving of a large oak with spreading roots and a leafy canopy, with several families of men, women, children and elders gathered around its base in a hilly landscape",
+      "mainColor": "#7e776d",
+      "tags": [
+        "lesson",
+        "study",
+        "1 chronicles"
+      ]
+    },
+    "1-chronicles-temple-preparations": {
+      "title": "1 Chronicles — David shows Solomon the temple plans, columns rising (1 Chronicles 22; 28–29)",
+      "alt": "Engraving of old King David pointing to a plan on a stone table beside Solomon, with masons cutting blocks at right and a scaffold, crane and tall columns behind them",
+      "mainColor": "#7c756a",
+      "tags": [
+        "lesson",
+        "study",
+        "1 chronicles"
+      ]
+    },
+    "1-chronicles-temple-preparations-v02": {
+      "title": "1 Chronicles — David hands Solomon the plans, stored materials (1 Chronicles 22; 28–29)",
+      "alt": "Engraving of old King David and young Solomon holding a rolled plan between stacks of beams and cut stone, with workers shaping blocks and metal bowls and cups beside them on a hillside",
+      "mainColor": "#7a746b",
+      "tags": [
+        "lesson",
+        "study",
+        "1 chronicles"
+      ]
+    },
+    "1-corinthians-one-table": {
+      "title": "1 Corinthians — One loaf at one table (1 Corinthians 10–11)",
+      "alt": "Engraving of a diverse group seated around a wooden table, a smiling man at center tearing bread, a loaf, cups and a jug on the table",
+      "mainColor": "#585148",
+      "tags": [
+        "lesson",
+        "study",
+        "1 corinthians"
+      ]
+    },
+    "1-corinthians-seed-resurrection": {
+      "title": "1 Corinthians — The seed and the harvest (1 Corinthians 15)",
+      "alt": "Engraving of a split seed lying in dark soil beside a rising sprout and a tall ripe ear of wheat, sunbeams breaking through clouds over a hill town",
+      "mainColor": "#777269",
+      "tags": [
+        "lesson",
+        "study",
+        "1 corinthians"
+      ]
+    },
+    "1-john-walk-light": {
+      "title": "1 John — Walking in the light together (1 John 1:5–7)",
+      "alt": "Sepia engraving of six people seen from behind, arms linked and a hand on a shoulder, walking out of a dark stone archway into bright sunlight toward a hillside town",
+      "mainColor": "#655f57",
+      "tags": [
+        "lesson",
+        "study",
+        "1 john"
+      ]
+    },
+    "1-kings-elijah-carmel": {
+      "title": "1 Kings — Elijah and the fire on Mount Carmel (1 Kings 18:20–39)",
+      "alt": "Engraving of Elijah with arms raised beside a stone altar topped with a bull and wood, a tall pillar of fire and dark smoke above it, and awestruck people shielding their eyes",
+      "mainColor": "#6f6a62",
+      "tags": [
+        "lesson",
+        "study",
+        "1 kings"
+      ]
+    },
+    "1-kings-quiet-cave": {
+      "title": "1 Kings — Elijah in the cave, the quiet voice (1 Kings 19:9–18)",
+      "alt": "Engraving of an aged, bearded Elijah seated at the mouth of a cave with his hand over his brow and a staff beside him, looking away from a wide dawn landscape",
+      "mainColor": "#6e675d",
+      "tags": [
+        "lesson",
+        "study",
+        "1 kings"
+      ]
+    },
+    "1-kings-solomon-wisdom": {
+      "title": "1 Kings — Solomon judges between two mothers (1 Kings 3:16–28)",
+      "alt": "Engraving of King Solomon on his throne with a hand at his chin, a woman pleading at lower left, a second woman at right, and an attendant holding a baby, with guards behind",
+      "mainColor": "#5a554e",
+      "tags": [
+        "lesson",
+        "study",
+        "1 kings"
+      ]
+    },
+    "1-peter-gentle-witness": {
+      "title": "1 Peter — Giving a gentle answer for our hope (1 Peter 3:13–16)",
+      "alt": "Sepia engraving of a curly-haired bearded man speaking with open hands to a listener resting his chin on his hand, with a woman, a boy and an older man listening nearby",
+      "mainColor": "#625d56",
+      "tags": [
+        "lesson",
+        "study",
+        "1 peter"
+      ]
+    },
+    "1-peter-living-stones": {
+      "title": "1 Peter — Living stones built into a house (1 Peter 2:4–10)",
+      "alt": "Sepia engraving of men, women and a boy carrying and lifting large stone blocks to a builder atop a half-built stone archway with scaffolding, a hillside town behind",
+      "mainColor": "#837c72",
+      "tags": [
+        "lesson",
+        "study",
+        "1 peter"
+      ]
+    },
+    "1-samuel-samuel-listening": {
+      "title": "1 Samuel — Samuel hears the call at night (1 Samuel 3)",
+      "alt": "Dark engraving of a young boy sitting up in bed beside a lit oil lamp, looking toward a smoking altar in the temple behind curtains and pillars",
+      "mainColor": "#3f3b35",
+      "tags": [
+        "lesson",
+        "study",
+        "1 samuel"
+      ]
+    },
+    "1-thessalonians-encourage-one-another": {
+      "title": "1 Thessalonians — Comforting the grieving (1 Thessalonians 4–5)",
+      "alt": "Engraving of a veiled woman weeping into a cloth while a friend rests a hand on her shoulder and a bearded man holding a scroll speaks to her",
+      "mainColor": "#665e54",
+      "tags": [
+        "lesson",
+        "study",
+        "1 thessalonians"
+      ]
+    },
+    "1-timothy-mentor-teacher": {
+      "title": "1 Timothy — A young teacher reads to the church (1 Timothy 4)",
+      "alt": "Engraving of a young bearded man standing to read from a scroll, gesturing as an audience of older and younger men and women look up at him",
+      "mainColor": "#555049",
+      "tags": [
+        "lesson",
+        "study",
+        "1 timothy"
+      ]
+    },
+    "2-chronicles-return-decree": {
+      "title": "2 Chronicles — The way open to go home (2 Chronicles 36:22–23)",
+      "alt": "Engraving of a family with bundles and tools standing in a stone gateway as a long line of travelers walks out toward a sunrise over hills and a distant temple city",
+      "mainColor": "#756f67",
+      "tags": [
+        "lesson",
+        "study",
+        "2 chronicles"
+      ]
+    },
+    "2-chronicles-temple-dedication": {
+      "title": "2 Chronicles — The glory cloud fills the temple (2 Chronicles 5–7)",
+      "alt": "Engraving of robed priests with censers in a carved temple doorway, gazing at billowing bright clouds and light over an altar and the ark with winged figures",
+      "mainColor": "#746f69",
+      "tags": [
+        "lesson",
+        "study",
+        "2 chronicles"
+      ]
+    },
+    "2-corinthians-generous-hands": {
+      "title": "2 Corinthians — Gathering gifts for the needy (2 Corinthians 8–9)",
+      "alt": "Engraving of villagers loading a large woven basket with loaves, sacks and a jar, a man carrying it toward seated beggars with open hands at an archway",
+      "mainColor": "#6e655b",
+      "tags": [
+        "lesson",
+        "study",
+        "2 corinthians"
+      ]
+    },
+    "2-corinthians-treasure-clay": {
+      "title": "2 Corinthians — Treasure in a cracked clay jar (2 Corinthians 4)",
+      "alt": "Engraving of a man in tattered robes holding a cracked clay jar that glows from inside, a woman, two men and a boy gathered close around him",
+      "mainColor": "#524c43",
+      "tags": [
+        "lesson",
+        "study",
+        "2 corinthians"
+      ]
+    },
+    "2-kings-josiah-scroll": {
+      "title": "2 Kings — Josiah hears the found Book of the Law (2 Kings 22)",
+      "alt": "Engraving of the young King Josiah with a hand to his mouth in distress as a bearded priest points to a text on an unrolled scroll, with three attendants looking on",
+      "mainColor": "#504a44",
+      "tags": [
+        "lesson",
+        "study",
+        "2 kings"
+      ]
+    },
+    "2-kings-naaman-river": {
+      "title": "2 Kings — Naaman comes up out of the Jordan (2 Kings 5:1–14)",
+      "alt": "Engraving of a bearded man rising bare-chested from a river, water running off him and eyes lifted, while servants hold cloths and his armor and helmet lie on the bank",
+      "mainColor": "#746f67",
+      "tags": [
+        "lesson",
+        "study",
+        "2 kings"
+      ]
+    },
+    "2-peter-lamp-darkness": {
+      "title": "2 Peter — A lantern in the dark, guided by the star (2 Peter 1:16–21)",
+      "alt": "Night engraving of a robed man with a staff holding up a glass lantern, leading a woman, an old man and a boy along a rocky path toward a bright star over a lake and village",
+      "mainColor": "#4e4842",
+      "tags": [
+        "lesson",
+        "study",
+        "2 peter"
+      ]
+    },
+    "2-peter-lamp-darkness-v02": {
+      "title": "2 Peter — A small clay lamp in the dark, guided by the star (2 Peter 1:16–21)",
+      "alt": "Night engraving of a robed man with a staff holding a small flaming clay oil lamp on his palm, leading a woman, an old man and a boy along a rocky path toward a bright star",
+      "mainColor": "#4c4640",
+      "tags": [
+        "lesson",
+        "study",
+        "2 peter"
+      ]
+    },
+    "2-peter-new-earth": {
+      "title": "2 Peter — Looking ahead to a new earth (2 Peter 3:8–13)",
+      "alt": "Sepia engraving of a family on rocks beside old ruined walls gazing over a green valley with a river, small waterfalls and a large flowering tree, with hills beyond",
+      "mainColor": "#9b9388",
+      "tags": [
+        "lesson",
+        "study",
+        "2 peter"
+      ]
+    },
+    "2-samuel-covenant-house": {
+      "title": "2 Samuel — David’s throne and the promised house (2 Samuel 7)",
+      "alt": "Engraving of an ornate empty throne with lion carvings, a draped cloth and a shepherd’s staff on a stone platform, looking out at a walled hill city under a bright sky",
+      "mainColor": "#6d675d",
+      "tags": [
+        "lesson",
+        "study",
+        "2 samuel"
+      ]
+    },
+    "2-samuel-david-ark-procession": {
+      "title": "2 Samuel — David dances before the ark (2 Samuel 6)",
+      "alt": "Engraving of a crowned David dancing with a raised tambourine among horn and drum players while men carry the ark of the covenant beside a walled city gate",
+      "mainColor": "#7d766c",
+      "tags": [
+        "lesson",
+        "study",
+        "2 samuel"
+      ]
+    },
+    "2-samuel-king-repentance": {
+      "title": "2 Samuel — Nathan confronts David (2 Samuel 12:1–13)",
+      "alt": "Engraving of King David slumped on his throne with his head in his hand, while the bearded prophet Nathan stands at right with a staff, extending an accusing hand",
+      "mainColor": "#514c46",
+      "tags": [
+        "lesson",
+        "study",
+        "2 samuel"
+      ]
+    },
+    "2-thessalonians-quiet-work": {
+      "title": "2 Thessalonians — A carpenter at his bench (2 Thessalonians 3)",
+      "alt": "Engraving of a bearded carpenter in a headband planing a board on a workbench, a smiling boy holding a small stool and a woman and an elder looking on",
+      "mainColor": "#6d675f",
+      "tags": [
+        "lesson",
+        "study",
+        "2 thessalonians"
+      ]
+    },
+    "2-thessalonians-steady-community": {
+      "title": "2 Thessalonians — Standing firm in the storm (2 Thessalonians 1–2)",
+      "alt": "Engraving of a man with a scroll speaking to a circle of attentive men, women and a boy under an awning, with dark storm clouds and rain over the town behind",
+      "mainColor": "#53504b",
+      "tags": [
+        "lesson",
+        "study",
+        "2 thessalonians"
+      ]
+    },
+    "2-timothy-entrusted-next": {
+      "title": "2 Timothy — Handing on the scroll (2 Timothy 2)",
+      "alt": "Engraving of a white-bearded elder handing a rolled scroll to a younger man, with listeners gathered around them in a room with columns and scrolls on shelves",
+      "mainColor": "#58524a",
+      "tags": [
+        "lesson",
+        "study",
+        "2 timothy"
+      ]
+    },
+    "2-timothy-last-letter": {
+      "title": "2 Timothy — The last letter from prison (2 Timothy 4)",
+      "alt": "Engraving of an old white-bearded man writing a letter with a quill at a wooden desk by an oil lamp, in a stone cell with a barred window and a hanging chain",
+      "mainColor": "#4c473f",
+      "tags": [
+        "lesson",
+        "study",
+        "2 timothy"
+      ]
+    },
+    "2-timothy-scripture-formation": {
+      "title": "2 Timothy — Taught the Scriptures from childhood (2 Timothy 1:5; 3:14–17)",
+      "alt": "Sepia engraving of an old woman pointing at an open scroll on a table while a boy rests his chin on his hand and a bearded man looks on, an oil lamp burning at left",
+      "mainColor": "#5e554b",
+      "tags": [
+        "lesson",
+        "study",
+        "2 timothy"
+      ]
+    },
+    "3-john-welcome-travelers": {
+      "title": "3 John — Welcoming traveling brothers (3 John 1:5–8)",
+      "alt": "Sepia engraving of a smiling woman in a doorway holding a jug and handing a cup to a seated bearded traveler, with two more packed travelers nearby and bread on a table",
+      "mainColor": "#6f675d",
+      "tags": [
+        "lesson",
+        "study",
+        "3 john"
+      ]
+    },
+    "acts-damascus-road": {
+      "title": "Acts — Saul struck down on the Damascus road (Acts 9)",
+      "alt": "Engraving of Saul thrown to the ground on a rocky road, one hand raised against a blinding burst of light from the clouds while companions shield their eyes",
+      "mainColor": "#878278",
+      "tags": [
+        "lesson",
+        "study",
+        "acts"
+      ]
+    },
+    "acts-open-door-gentiles": {
+      "title": "Acts — Peter greets Cornelius at the door (Acts 10)",
+      "alt": "Engraving of a bearded Peter shaking hands with a Roman centurion in armor at a doorway, while a soldier, a boy and a veiled woman look on",
+      "mainColor": "#696259",
+      "tags": [
+        "lesson",
+        "study",
+        "acts"
+      ]
+    },
+    "acts-shared-table": {
+      "title": "Acts — Sharing a meal together (Acts 2 and 4)",
+      "alt": "Engraving of a smiling woman passing a bowl of food to an old man at a crowded table of bread, olives and jugs, with a family looking on",
+      "mainColor": "#544f49",
+      "tags": [
+        "lesson",
+        "study",
+        "acts"
+      ]
+    },
+    "amos-justice-water": {
+      "title": "Amos — Justice like water (Amos 5:21–24)",
+      "alt": "Engraving of the prophet Amos with a staff pointing at a stream rushing across cracked dry ground, listeners beside him and robed priests at a smoking altar by a city wall",
+      "mainColor": "#857f76",
+      "tags": [
+        "lesson",
+        "study",
+        "amos"
+      ]
+    },
+    "amos-plumb-line": {
+      "title": "Amos — The plumb line on the wall (Amos 7)",
+      "alt": "Engraving of the prophet Amos at left watching a plumb line hang beside a tall stone wall while builders on scaffolding work at right, a hilltop city behind",
+      "mainColor": "#7b756c",
+      "tags": [
+        "lesson",
+        "study",
+        "amos"
+      ]
+    },
+    "amos-shepherd-prophet": {
+      "title": "Amos — Shepherd called to prophesy (Amos 7)",
+      "alt": "Engraving of the bearded shepherd Amos holding a staff under a fig tree among sheep, looking toward a walled temple city with rising smoke in the distance",
+      "mainColor": "#756f65",
+      "tags": [
+        "lesson",
+        "study",
+        "amos"
+      ]
+    },
+    "colossians-all-things-held": {
+      "title": "Colossians — All things held together (Colossians 1)",
+      "alt": "Night engraving of six people on a hillside gazing at a radiant star over a river valley, with spiral galaxies, planets and a large Earth in a starry sky",
+      "mainColor": "#635d54",
+      "tags": [
+        "lesson",
+        "study",
+        "colossians"
+      ]
+    },
+    "colossians-new-self-kindness": {
+      "title": "Colossians — Clothing a man in a new robe (Colossians 3)",
+      "alt": "Engraving of a smiling man placing a clean white robe around a ragged seated man, a family at a table of bread and a bowl smiling and welcoming him",
+      "mainColor": "#665f56",
+      "tags": [
+        "lesson",
+        "study",
+        "colossians"
+      ]
+    },
+    "colossians-rooted-built": {
+      "title": "Colossians — Roots on a stone foundation (Colossians 2)",
+      "alt": "Engraving of a large tree whose roots grip a wall of cut stone blocks, with a village on a hillside and a valley under a pale sky at left",
+      "mainColor": "#888279",
+      "tags": [
+        "lesson",
+        "study",
+        "colossians"
+      ]
+    },
+    "daniel-fiery-furnace": {
+      "title": "Daniel — The fiery furnace (Daniel 3)",
+      "alt": "Sepia engraving of Shadrach, Meshach and Abednego standing unharmed in a blazing furnace, talking with a glowing robed figure of Jesus",
+      "mainColor": "#897f72",
+      "tags": [
+        "lesson",
+        "study",
+        "daniel"
+      ]
+    },
+    "daniel-lions-den": {
+      "title": "Daniel — In the lions’ den (Daniel 6)",
+      "alt": "Sepia engraving of Daniel standing calmly in a rocky den lit by a shaft of light, with three lions resting around him",
+      "mainColor": "#46413b",
+      "tags": [
+        "lesson",
+        "study",
+        "daniel"
+      ]
+    },
+    "deuteronomy-moses-final-address": {
+      "title": "Deuteronomy — Moses addresses the people (Deuteronomy 29–30)",
+      "alt": "Engraving of an aged, white-bearded Moses with a staff gesturing over a river valley toward a distant walled city as families listen around him",
+      "mainColor": "#7a746b",
+      "tags": [
+        "lesson",
+        "study",
+        "deuteronomy"
+      ]
+    },
+    "deuteronomy-nebo-view": {
+      "title": "Deuteronomy — Moses views the land from Mount Nebo (Deuteronomy 34)",
+      "alt": "Engraving of Moses seen from behind on a rocky height, his cloak blowing, leaning on a staff and gazing across a wide river valley toward distant mountains",
+      "mainColor": "#867e75",
+      "tags": [
+        "lesson",
+        "study",
+        "deuteronomy"
+      ]
+    },
+    "deuteronomy-teach-children": {
+      "title": "Deuteronomy — Teaching the children the Word (Deuteronomy 6)",
+      "alt": "Engraving of a bearded father pointing to lines on an open scroll while his curly-haired son looks up at him, seated at a stone doorway with a village behind",
+      "mainColor": "#696158",
+      "tags": [
+        "lesson",
+        "study",
+        "deuteronomy"
+      ]
+    },
+    "ecclesiastes-ordinary-gifts": {
+      "title": "Ecclesiastes — Enjoying ordinary gifts (Ecclesiastes 9:7–10)",
+      "alt": "Dark engraving of a laughing family of four sharing bread, olives and a jug at a rough table under a vine trellis, with a hammer and basket in the foreground",
+      "mainColor": "#56514a",
+      "tags": [
+        "lesson",
+        "study",
+        "ecclesiastes"
+      ]
+    },
+    "ecclesiastes-passing-breath": {
+      "title": "Ecclesiastes — Passing breath (Ecclesiastes 1:1–11; 12:1–8)",
+      "alt": "Engraving of an old man seen from behind sitting on a rock under an olive tree, gazing at mist drifting over hills and a river valley at dusk",
+      "mainColor": "#837b71",
+      "tags": [
+        "lesson",
+        "study",
+        "ecclesiastes"
+      ]
+    },
+    "ecclesiastes-time-seasons": {
+      "title": "Ecclesiastes — A time for everything (Ecclesiastes 3:1–8)",
+      "alt": "Engraving of a large tree blooming on one side, fruiting in the middle and shedding leaves on the other, with a girl and mother, a man with apples and an old man sitting below",
+      "mainColor": "#80786c",
+      "tags": [
+        "lesson",
+        "study",
+        "ecclesiastes"
+      ]
+    },
+    "ephesians-armor-readiness": {
+      "title": "Ephesians — Standing in the armor of God (Ephesians 6)",
+      "alt": "Engraving of a bearded man in breastplate with a large round shield and sword, flanked by a boy, women and elders looking past him toward the horizon",
+      "mainColor": "#7d766c",
+      "tags": [
+        "lesson",
+        "study",
+        "ephesians"
+      ]
+    },
+    "ephesians-body-built-together": {
+      "title": "Ephesians — Passing stones to build the wall (Ephesians 4)",
+      "alt": "Engraving of men and women passing large stone blocks hand to hand up a rising wall, with workers on wooden scaffolding and a hill town in the distance",
+      "mainColor": "#868076",
+      "tags": [
+        "lesson",
+        "study",
+        "ephesians"
+      ]
+    },
+    "ephesians-wall-removed": {
+      "title": "Ephesians — The broken wall and one people (Ephesians 2)",
+      "alt": "Engraving of a diverse group of men, women and a boy laughing and embracing in a gap between crumbled stone walls, a walled city on the hill behind",
+      "mainColor": "#777068",
+      "tags": [
+        "lesson",
+        "study",
+        "ephesians"
+      ]
+    },
+    "esther-banquet-revelation": {
+      "title": "Esther — Esther names the enemy at the banquet (Esther 7)",
+      "alt": "Engraving of Queen Esther in a veil and crown speaking with an open hand to a bearded king, while a cowering courtier in a dark robe recoils at right over a banquet table",
+      "mainColor": "#524e47",
+      "tags": [
+        "lesson",
+        "study",
+        "esther"
+      ]
+    },
+    "esther-royal-portrait": {
+      "title": "Esther — The queen at the window (Esther 4)",
+      "alt": "Engraving of a crowned, veiled Esther in profile gazing out from a palace balcony with her hands on the ledge, handmaidens behind her, and a walled city and crowds below",
+      "mainColor": "#655f58",
+      "tags": [
+        "lesson",
+        "study",
+        "esther"
+      ]
+    },
+    "esther-throne-approach": {
+      "title": "Esther — Approaching the king’s scepter (Esther 4–5)",
+      "alt": "Engraving of a bearded king on a carved throne extending a scepter toward a veiled, flower-crowned Esther kneeling before him, with guards and tall columns behind",
+      "mainColor": "#6e6860",
+      "tags": [
+        "lesson",
+        "study",
+        "esther"
+      ]
+    },
+    "exodus-burning-bush": {
+      "title": "Exodus — Moses at the burning bush (Exodus 3)",
+      "alt": "Sepia engraving of a barefoot Moses kneeling in a rocky valley, shielding his face from a bush wrapped in glowing flames, his sandals on the ground beside him",
+      "mainColor": "#736c63",
+      "tags": [
+        "lesson",
+        "study",
+        "exodus"
+      ]
+    },
+    "exodus-sea-crossing": {
+      "title": "Exodus — Crossing the Red Sea (Exodus 14)",
+      "alt": "Engraving of Moses with raised staff and open hand watching Israelite families with bundles and sheep walk a dry path between two towering walls of sea water",
+      "mainColor": "#706c66",
+      "tags": [
+        "lesson",
+        "study",
+        "exodus"
+      ]
+    },
+    "exodus-sinai-covenant": {
+      "title": "Exodus — The people at Mount Sinai (Exodus 19–20)",
+      "alt": "Engraving of Israelites gathered in the foreground gazing up at a smoking, light-crowned mountain where a tiny Moses with a staff climbs the ridge",
+      "mainColor": "#716a61",
+      "tags": [
+        "lesson",
+        "study",
+        "exodus"
+      ]
+    },
+    "exodus-tabernacle-presence": {
+      "title": "Exodus — The cloud fills the tabernacle (Exodus 40)",
+      "alt": "Engraving of the fenced tabernacle courtyard with its altar and veiled tent under a huge glowing cloud, with tents and onlooking families in the surrounding desert camp",
+      "mainColor": "#807971",
+      "tags": [
+        "lesson",
+        "study",
+        "exodus"
+      ]
+    },
+    "ezekiel-dry-bones": {
+      "title": "Ezekiel — The valley of dry bones (Ezekiel 37:1–14)",
+      "alt": "Engraving of Ezekiel with a staff seen from behind, looking over a valley of bones where people rise and look up toward rays of light breaking through clouds",
+      "mainColor": "#827c74",
+      "tags": [
+        "lesson",
+        "study",
+        "ezekiel"
+      ]
+    },
+    "ezekiel-glory-exile": {
+      "title": "Ezekiel — Vision by the river, four separate creatures (Ezekiel 1)",
+      "alt": "Engraving of Ezekiel kneeling by a river and shielding his eyes at winged lion, man, ox and eagle figures beside wheels rimmed with eyes, a glowing throne above",
+      "mainColor": "#958d82",
+      "tags": [
+        "lesson",
+        "study",
+        "ezekiel"
+      ]
+    },
+    "ezekiel-glory-exile-v02": {
+      "title": "Ezekiel — Vision by the river, four multi-faced beings (Ezekiel 1)",
+      "alt": "Engraving of Ezekiel kneeling by a river facing four winged beings, each with several faces, standing beside wheels rimmed with eyes under a glowing throne",
+      "mainColor": "#948b80",
+      "tags": [
+        "lesson",
+        "study",
+        "ezekiel"
+      ]
+    },
+    "ezekiel-river-temple": {
+      "title": "Ezekiel — The river from the temple (Ezekiel 47:1–12)",
+      "alt": "Engraving of water spilling from a temple entrance in a waterfall into a river, a kneeling man cupping it in his hands, a woman with a jar, and deer drinking among fruit trees",
+      "mainColor": "#89837a",
+      "tags": [
+        "lesson",
+        "study",
+        "ezekiel"
+      ]
+    },
+    "ezra-foundation-rebuilt": {
+      "title": "Ezra — Laying the temple foundation, joy and tears (Ezra 3)",
+      "alt": "Engraving of two old men weeping at left, a crowd with raised hands rejoicing behind them, and workers hauling a large stone block into place before scaffolding and a hillside city wall",
+      "mainColor": "#766e65",
+      "tags": [
+        "lesson",
+        "study",
+        "ezra"
+      ]
+    },
+    "ezra-journey-home": {
+      "title": "Ezra — Exiles return within sight of the city (Ezra 1–2)",
+      "alt": "Engraving of a bearded elder with a staff leading families, a boy, a woman, a man carrying an ornate vessel and a laden donkey along a hillside toward a walled city with a columned temple",
+      "mainColor": "#7b7369",
+      "tags": [
+        "lesson",
+        "study",
+        "ezra"
+      ]
+    },
+    "ezra-journey-home-v02": {
+      "title": "Ezra — Exiles return to ruined walls (Ezra 1–2)",
+      "alt": "Engraving of a bearded elder with a staff leading families, a boy, a woman, a man carrying an ornate vessel and a laden donkey along a hillside toward a hilltop city of broken walls and columns",
+      "mainColor": "#7d756a",
+      "tags": [
+        "lesson",
+        "study",
+        "ezra"
+      ]
+    },
+    "ezra-scribe-devotion": {
+      "title": "Ezra — Ezra the scribe with the law (Ezra 7:6–10)",
+      "alt": "Engraving of the bearded scribe Ezra in a patterned cap holding open a large scroll at a table with ink pots, while men, a woman and a boy lean in to listen, a wall rising behind",
+      "mainColor": "#6b645c",
+      "tags": [
+        "lesson",
+        "study",
+        "ezra"
+      ]
+    },
+    "galatians-burdens-shared": {
+      "title": "Galatians — Carrying a heavy load together (Galatians 6)",
+      "alt": "Engraving of a younger and an older man together carrying a large rope-tied bundle up a rocky hillside path, two companions behind and a town in the valley",
+      "mainColor": "#888075",
+      "tags": [
+        "lesson",
+        "study",
+        "galatians"
+      ]
+    },
+    "galatians-freedom-yoke": {
+      "title": "Galatians — Walking away from the yoke (Galatians 5)",
+      "alt": "Engraving of a man seen from behind looking over a valley, a cast-off wooden yoke and coiled rope on the ground beside him, four people walking away down the path",
+      "mainColor": "#80796f",
+      "tags": [
+        "lesson",
+        "study",
+        "galatians"
+      ]
+    },
+    "galatians-fruit-spirit": {
+      "title": "Galatians — Sharing figs under the tree (Galatians 5)",
+      "alt": "Engraving of a bearded man smiling and handing a fig to a boy under a large fig tree, a woman with a basket of figs and two others sitting around them",
+      "mainColor": "#776f63",
+      "tags": [
+        "lesson",
+        "study",
+        "galatians"
+      ]
+    },
+    "genesis-abraham-isaac-intervention": {
+      "title": "Genesis — The angel stays Abraham’s hand (Genesis 22)",
+      "alt": "Sepia engraving of a winged angel gripping Abraham’s raised knife hand as Abraham looks up, with bound Isaac lying on wood and a ram caught in a thicket at right",
+      "mainColor": "#978d81",
+      "tags": [
+        "lesson",
+        "study",
+        "genesis"
+      ]
+    },
+    "genesis-ark-rainbow": {
+      "title": "Genesis — Leaving the ark under the rainbow (Genesis 8–9)",
+      "alt": "Sepia engraving of Noah, his wife and family leading sheep and deer down the ark's ramp onto green hills, birds flying under a rainbow",
+      "mainColor": "#827c74",
+      "tags": [
+        "lesson",
+        "study",
+        "genesis"
+      ]
+    },
+    "genesis-ark-storm": {
+      "title": "Genesis — The ark in the storm (Genesis 7)",
+      "alt": "Dark engraving of Noah’s large timber ark riding towering whitecapped waves under black storm clouds and driving diagonal rain",
+      "mainColor": "#6b6660",
+      "tags": [
+        "lesson",
+        "study",
+        "genesis"
+      ]
+    },
+    "genesis-fountains-deep": {
+      "title": "Genesis — The fountains of the deep burst open (Genesis 7)",
+      "alt": "Dark engraving of geysers of water erupting from rocks on either side while the distant ark floats on a rough sea under rain and storm clouds",
+      "mainColor": "#89847d",
+      "tags": [
+        "lesson",
+        "study",
+        "genesis"
+      ]
+    },
+    "genesis-jacob-wrestling": {
+      "title": "Genesis — Jacob wrestles at the Jabbok (Genesis 32)",
+      "alt": "Sepia engraving of Jacob wrestling a mysterious man knee-deep in a river at dawn, hills and a rising sun behind them",
+      "mainColor": "#676158",
+      "tags": [
+        "lesson",
+        "study",
+        "genesis"
+      ]
+    },
+    "genesis-joseph-reunion": {
+      "title": "Genesis — Joseph embraces his brothers (Genesis 45)",
+      "alt": "Sepia engraving of Joseph in Egyptian dress tearfully embracing his brother Benjamin while their older brothers look on in a columned hall",
+      "mainColor": "#615c55",
+      "tags": [
+        "lesson",
+        "study",
+        "genesis"
+      ]
+    },
+    "genesis-noah-cares-animals": {
+      "title": "Genesis — Noah tends the animals in the ark (Genesis 6–7)",
+      "alt": "Sepia engraving of bearded Noah spreading hay inside the ark’s timber pens among a sheep, goat, donkey, two waterbirds and two small dinosaurs",
+      "mainColor": "#685f55",
+      "tags": [
+        "lesson",
+        "study",
+        "genesis"
+      ]
+    },
+    "genesis-noah-releases-dove": {
+      "title": "Genesis — Noah releases the dove (Genesis 8)",
+      "alt": "Sepia engraving of an old bearded Noah at the ark window, hands open, as a white dove lifts away toward a flooded landscape and distant mountains",
+      "mainColor": "#77726a",
+      "tags": [
+        "lesson",
+        "study",
+        "genesis"
+      ]
+    },
+    "habakkuk-barren-fig-tree": {
+      "title": "Habakkuk — Rejoicing with no harvest (Habakkuk 3)",
+      "alt": "Engraving of the prophet Habakkuk standing with open arms and face lifted beside a gnarled bare fig tree over a barren, stubbled field, sun rays breaking through clouds",
+      "mainColor": "#948c81",
+      "tags": [
+        "lesson",
+        "study",
+        "habakkuk"
+      ]
+    },
+    "habakkuk-watchtower-wait": {
+      "title": "Habakkuk — Watching from the tower (Habakkuk 2)",
+      "alt": "Engraving of the prophet Habakkuk seen from behind at a stone watchtower wall, staff in hand, looking over a walled city and winding river toward a low sun",
+      "mainColor": "#6b655b",
+      "tags": [
+        "lesson",
+        "study",
+        "habakkuk"
+      ]
+    },
+    "haggai-greater-glory": {
+      "title": "Haggai — Encouraged to build the greater house (Haggai 2)",
+      "alt": "Engraving of an older bearded man with a hand on the shoulder of a younger builder holding a stone block, both gazing upward in a scaffolded temple under construction",
+      "mainColor": "#726a5f",
+      "tags": [
+        "lesson",
+        "study",
+        "haggai"
+      ]
+    },
+    "haggai-work-resumes": {
+      "title": "Haggai — The temple work resumes (Haggai 1)",
+      "alt": "Engraving of workers hauling a heavy timber beam and lifting a large stone block, with scaffolding, columns and more builders rising at the temple site behind",
+      "mainColor": "#857d75",
+      "tags": [
+        "lesson",
+        "study",
+        "haggai"
+      ]
+    },
+    "hebrews-anchor-hope": {
+      "title": "Hebrews — The anchor of hope on the seabed (Hebrews 6:13–20)",
+      "alt": "Engraving of a rope descending through sunlit rippling water to a large rusted anchor resting on a rocky seabed, with shafts of light and bubbles rising",
+      "mainColor": "#5b5752",
+      "tags": [
+        "lesson",
+        "study",
+        "hebrews"
+      ]
+    },
+    "hebrews-race-witnesses": {
+      "title": "Hebrews — Running the race among the witnesses (Hebrews 11–12:3)",
+      "alt": "Sepia engraving of a muscular runner in a short tunic seen from behind on a winding rocky path toward a hilltop temple, with robed witnesses watching from the clouds on both sides",
+      "mainColor": "#878075",
+      "tags": [
+        "lesson",
+        "study",
+        "hebrews"
+      ]
+    },
+    "hebrews-veil-access": {
+      "title": "Hebrews — Through the parted veil (Hebrews 9–10)",
+      "alt": "Engraving of a robed man seen from behind walking through a parted dark curtain embroidered with winged figures toward a glowing ark with two winged figures on a flight of steps",
+      "mainColor": "#68625a",
+      "tags": [
+        "lesson",
+        "study",
+        "hebrews"
+      ]
+    },
+    "hosea-dew-restoration": {
+      "title": "Hosea — Dew and restoration (Hosea 14:4–8)",
+      "alt": "Engraving of dew-beaded lilies growing among rocks beside the roots of a large olive tree, with a small stream, hills and a distant town at sunrise",
+      "mainColor": "#7d766d",
+      "tags": [
+        "lesson",
+        "study",
+        "hosea"
+      ]
+    },
+    "hosea-returning-love": {
+      "title": "Hosea — A returning love (Hosea 3)",
+      "alt": "Engraving of a bearded man in a turban gently holding the face of a tearful kneeling woman in tattered robes, in a village lane beside a doorway and a large jar",
+      "mainColor": "#776f66",
+      "tags": [
+        "lesson",
+        "study",
+        "hosea"
+      ]
+    },
+    "image": {
+      "title": "Robed figure between parted walls of sea",
+      "alt": "Illustration of a robed, bearded figure seen from behind, arms raised, between towering walls of water with light breaking through",
+      "mainColor": "#636e75",
+      "tags": [
+        "lesson",
+        "person",
+        "study"
+      ]
+    },
+    "image-10": {
+      "title": "Men studying open Bibles at an outdoor table",
+      "alt": "Four men around a wooden outdoor table with open Bibles, one pointing to a passage as the others listen",
+      "mainColor": "#655b4f",
+      "tags": [
+        "group",
+        "study"
+      ]
+    },
+    "image-12": {
+      "title": "Group praying with hands joined over open Bibles",
+      "alt": "Hands clasped in prayer around a wooden table with open Bibles and a closed Holy Bible",
+      "mainColor": "#545049",
+      "tags": [
+        "group",
+        "study"
+      ]
+    },
+    "image-2": {
+      "title": "Ancient tree beside a stream in a misty garden",
+      "alt": "Black-and-white illustration of a vast leafy tree with twisting roots beside a small waterfall in misty hills",
+      "mainColor": "#a1a1a1",
+      "tags": [
+        "lesson",
+        "study"
+      ]
+    },
+    "image-3": {
+      "title": "Engraving of a crowned elder reading a scroll",
+      "alt": "Engraved illustration of a bearded elder in a jeweled crown and robe reading a scroll by candlelight beside stone pillars",
+      "mainColor": "#494642",
+      "tags": [
+        "lesson",
+        "person",
+        "study"
+      ]
+    },
+    "image-4": {
+      "title": "Engraving of a prisoner dictating a letter on a scroll",
+      "alt": "Engraving of an older bearded man in chains in a stone cell, guiding a young man writing on a scroll",
+      "mainColor": "#727272",
+      "tags": [
+        "lesson",
+        "study"
+      ]
+    },
+    "image-5": {
+      "title": "Four men talking at a café window",
+      "alt": "Four young men sit side by side at a café counter, talking, seen through a window with warm lights behind",
+      "mainColor": "#66625f",
+      "tags": [
+        "group",
+        "person"
+      ]
+    },
+    "image-7": {
+      "title": "Open Bible and coffee on a sunlit table",
+      "alt": "Open Bible at the Psalms beside a steaming mug of coffee, a notebook and pen on a wooden table in morning sun",
+      "mainColor": "#947256",
+      "tags": [
+        "lesson",
+        "study"
+      ]
+    },
+    "image-8": {
+      "title": "Open Bible and coffee mug on a café table",
+      "alt": "Open Bible with red ribbon markers beside a black coffee mug on a wooden café table, people blurred behind",
+      "mainColor": "#5a4433",
+      "tags": [
+        "lesson",
+        "study"
+      ]
+    },
+    "isaiah-desert-bloom": {
+      "title": "Isaiah — The desert blooms (Isaiah 35)",
+      "alt": "Engraving of a man with a staff, a woman, two children and another traveler walking through blooming lilies in a rocky valley toward a stream and waterfall",
+      "mainColor": "#9f988d",
+      "tags": [
+        "lesson",
+        "study",
+        "isaiah"
+      ]
+    },
+    "isaiah-holy-throne": {
+      "title": "Isaiah — The holy throne (Isaiah 6:1–8)",
+      "alt": "Engraving of Isaiah prostrate and reaching out on a temple floor, facing steps and a radiant light, with two huge winged beings and clouds filling the space above him",
+      "mainColor": "#8f877c",
+      "tags": [
+        "lesson",
+        "study",
+        "isaiah"
+      ]
+    },
+    "isaiah-peaceable-kingdom": {
+      "title": "Isaiah — The peaceable kingdom (Isaiah 11:1–9)",
+      "alt": "Engraving of a smiling child with a lamb in his lap resting beside a wolf, with a lion, ox, leopard and deer lying calmly under a tree above a river valley",
+      "mainColor": "#877f75",
+      "tags": [
+        "lesson",
+        "study",
+        "isaiah"
+      ]
+    },
+    "isaiah-suffering-servant": {
+      "title": "Isaiah — The suffering servant (Isaiah 52:13–53:12)",
+      "alt": "Dark engraving of a man in ragged robes sitting with bowed head on rocks, a lamb curled at his feet, with rays of light breaking through clouds over a walled city",
+      "mainColor": "#6b645c",
+      "tags": [
+        "lesson",
+        "study",
+        "isaiah"
+      ]
+    },
+    "james-patient-farmer": {
+      "title": "James — The patient farmer waiting for the rain (James 5:7–11)",
+      "alt": "Sepia engraving of a bearded farmer in a turban kneeling in a young crop and touching a shoot, under an olive tree, with a rain cloud over distant hills and a village",
+      "mainColor": "#7c766e",
+      "tags": [
+        "lesson",
+        "study",
+        "james"
+      ]
+    },
+    "james-tongue-spark": {
+      "title": "James — A small spark sets the forest ablaze (James 3:1–12)",
+      "alt": "Engraving of a hand in a robe sleeve lighting a pile of dry twigs with a stick, as fire spreads across a wooded hillside under a plume of dark smoke",
+      "mainColor": "#625b52",
+      "tags": [
+        "lesson",
+        "study",
+        "james"
+      ]
+    },
+    "jeremiah-field-purchase": {
+      "title": "Jeremiah — Buying the field, minted coins and city smoke (Jeremiah 32:1–15)",
+      "alt": "Engraving of an old bearded prophet pressing a seal on a scroll as a man counts coins from a pile, with onlookers behind and smoke over a walled city in the distance",
+      "mainColor": "#756f66",
+      "tags": [
+        "lesson",
+        "study",
+        "jeremiah"
+      ]
+    },
+    "jeremiah-field-purchase-v02": {
+      "title": "Jeremiah — Buying the field, silver weighed in a courtyard (Jeremiah 32:1–15)",
+      "alt": "Engraving of an old prophet sealing a deed scroll while a man weighs lumps of silver on a balance, with onlookers, two armed guards and a city gate behind",
+      "mainColor": "#6f695f",
+      "tags": [
+        "lesson",
+        "study",
+        "jeremiah"
+      ]
+    },
+    "jeremiah-potters-house": {
+      "title": "Jeremiah — The potter’s house (Jeremiah 18:1–12)",
+      "alt": "Engraving of a bearded potter shaping a flawed clay jar on a wheel with both hands, as a thoughtful old man with a long beard watches from beside him",
+      "mainColor": "#6e655a",
+      "tags": [
+        "lesson",
+        "study",
+        "jeremiah"
+      ]
+    },
+    "jeremiah-weeping-prophet": {
+      "title": "Jeremiah — The weeping prophet (Jeremiah 8:18–9:1)",
+      "alt": "Dark engraving of a hooded white-bearded prophet resting his head on his hand, looking out over a walled city with smoke rising and grieving people below",
+      "mainColor": "#6b645b",
+      "tags": [
+        "lesson",
+        "study",
+        "jeremiah"
+      ]
+    },
+    "job-answer-whirlwind": {
+      "title": "Job — Answered out of the whirlwind (Job 38–42)",
+      "alt": "Engraving of a ragged man with open hands standing on a rocky outcrop beneath an enormous spiraling storm cloud with a bright eye and shafts of light over a wide valley",
+      "mainColor": "#827d76",
+      "tags": [
+        "lesson",
+        "study",
+        "job"
+      ]
+    },
+    "job-friends-silence": {
+      "title": "Job — Job and his three friends sit in silence (Job 2:11–13)",
+      "alt": "Engraving of Job, thin and bearded, with sore-marked skin sitting hugging his knees, while three friends in striped cloaks sit quietly around him with chins and cheeks resting on their hands",
+      "mainColor": "#68625a",
+      "tags": [
+        "lesson",
+        "study",
+        "job"
+      ]
+    },
+    "job-unbroken-integrity": {
+      "title": "Job — Job among the ruins, looking up (Job 1–3)",
+      "alt": "Engraving of a thin, white-bearded Job in torn robes sitting on rubble with an upturned face and open hand, with fallen walls, a broken jar and distant mountains around him",
+      "mainColor": "#80776b",
+      "tags": [
+        "lesson",
+        "study",
+        "job"
+      ]
+    },
+    "joel-fields-restored": {
+      "title": "Joel — The fields restored (Joel 2:18–27)",
+      "alt": "Engraving of a smiling family holding sheaves of wheat and baskets of grapes and figs in a green harvest field, with a withered cracked field behind them at left",
+      "mainColor": "#978f83",
+      "tags": [
+        "lesson",
+        "study",
+        "joel"
+      ]
+    },
+    "joel-locust-darkness": {
+      "title": "Joel — Locusts and darkness (Joel 1)",
+      "alt": "Dark engraving of a farmer holding a stalk eaten full of holes in a ruined field, a dense swarm of locusts across the sky and a few figures searching the field behind",
+      "mainColor": "#726d65",
+      "tags": [
+        "lesson",
+        "study",
+        "joel"
+      ]
+    },
+    "joel-spirit-generations": {
+      "title": "Joel — The Spirit on every generation (Joel 2:28–29)",
+      "alt": "Engraving of a crowd of old, young and child faces looking up with open hands and folded hands toward rays of light streaming down through clouds above city walls",
+      "mainColor": "#787269",
+      "tags": [
+        "lesson",
+        "study",
+        "joel"
+      ]
+    },
+    "john-foot-washing": {
+      "title": "John — Jesus washes the disciples’ feet (John 13)",
+      "alt": "Engraving of Jesus kneeling to wash a seated disciple’s foot in a metal basin, a towel at his waist, with other disciples watching from a candlelit table behind",
+      "mainColor": "#59534a",
+      "tags": [
+        "lesson",
+        "study",
+        "john"
+      ]
+    },
+    "john-lazarus-called": {
+      "title": "John — Lazarus called out of the tomb (John 11)",
+      "alt": "Engraving of Jesus reaching out toward Lazarus stepping from a rock tomb in burial wrappings, a round stone beside the door and awed mourners kneeling at left",
+      "mainColor": "#6b645c",
+      "tags": [
+        "lesson",
+        "study",
+        "john"
+      ]
+    },
+    "john-vine-branches": {
+      "title": "John — The vine and the branches (John 15)",
+      "alt": "Engraving of a thick twisted grapevine with heavy clusters of grapes hanging from its branches, a vineyard and walled hill town in the distance",
+      "mainColor": "#736b62",
+      "tags": [
+        "lesson",
+        "study",
+        "john"
+      ]
+    },
+    "jonah-fish-and-prophet": {
+      "title": "Jonah — Swallowed by the great fish (Jonah 1–2)",
+      "alt": "Dark engraving of Jonah sinking with raised arms underwater beside a giant fish with a wide open mouth, shafts of light and bubbles above",
+      "mainColor": "#45423d",
+      "tags": [
+        "lesson",
+        "study",
+        "jonah"
+      ]
+    },
+    "jonah-nineveh-mercy": {
+      "title": "Jonah — Nineveh repents (Jonah 3)",
+      "alt": "Engraving of Jonah with a staff pointing toward a kneeling crowd and crowned king, praying with covered faces before the walls and winged-beast gate of Nineveh",
+      "mainColor": "#767067",
+      "tags": [
+        "lesson",
+        "study",
+        "jonah"
+      ]
+    },
+    "jonah-shade-and-anger": {
+      "title": "Jonah — Sulking under the shade plant (Jonah 4)",
+      "alt": "Engraving of Jonah sitting brooding with his chin on his hand under a leafy plant, looking away from the walled city of Nineveh and its busy market road",
+      "mainColor": "#847c70",
+      "tags": [
+        "lesson",
+        "study",
+        "jonah"
+      ]
+    },
+    "joshua-jericho-walls": {
+      "title": "Joshua — The walls of Jericho fall (Joshua 6)",
+      "alt": "Engraving of priests blowing rams’ horns beside men carrying the ark of the covenant as the city wall collapses into rubble and dust",
+      "mainColor": "#868077",
+      "tags": [
+        "lesson",
+        "study",
+        "joshua"
+      ]
+    },
+    "joshua-jordan-crossing": {
+      "title": "Joshua — The ark carried across the Jordan (Joshua 3–4)",
+      "alt": "Engraving of priests carrying the ark of the covenant over river stones with families, sheep and a donkey following, as the Jordan’s water rushes on both sides",
+      "mainColor": "#8e8881",
+      "tags": [
+        "lesson",
+        "study",
+        "joshua"
+      ]
+    },
+    "joshua-memorial-stones": {
+      "title": "Joshua — The memorial stones (Joshua 4)",
+      "alt": "Engraving of a white-bearded elder pointing to a stack of large stones by a river while a boy, a girl and parents listen, with a hill town in the distance",
+      "mainColor": "#736d66",
+      "tags": [
+        "lesson",
+        "study",
+        "joshua"
+      ]
+    },
+    "jude-kept-standing": {
+      "title": "Jude — Kept from stumbling on the narrow path (Jude 1:24–25)",
+      "alt": "Engraving of a lone traveler with a staff and pack seen from behind on a narrow rocky ledge above a deep canyon, with a river and a distant city under a bright sky",
+      "mainColor": "#6a655d",
+      "tags": [
+        "lesson",
+        "study",
+        "jude"
+      ]
+    },
+    "jude-mercy-rescue": {
+      "title": "Jude — Snatching a brother from the fire (Jude 1:20–23)",
+      "alt": "Engraving of a robed man kneeling on a rock ledge and clasping the wrist of a ragged man hanging over a fiery, smoking canyon",
+      "mainColor": "#6e6860",
+      "tags": [
+        "lesson",
+        "study",
+        "jude"
+      ]
+    },
+    "judges-deborah-palm": {
+      "title": "Judges — Deborah judges under the palm (Judges 4)",
+      "alt": "Engraving of Deborah seated under a palm tree with a staff, her hand extended toward a standing armed Barak, with elders at left and soldiers with spears at right",
+      "mainColor": "#6d665d",
+      "tags": [
+        "lesson",
+        "study",
+        "judges"
+      ]
+    },
+    "judges-gideon-torches": {
+      "title": "Judges — Gideon’s torches and trumpet (Judges 7)",
+      "alt": "Night engraving of Gideon on a rocky ridge blowing a ram’s horn and holding up a flaming torch, with two torch-bearers behind him and a camp of tents in the valley below",
+      "mainColor": "#393530",
+      "tags": [
+        "lesson",
+        "study",
+        "judges"
+      ]
+    },
+    "judges-samson-pillars": {
+      "title": "Judges — Samson between the pillars, bare cuffs (Judges 16)",
+      "alt": "Engraving of Samson with cuffed wrists pushing apart two cracking temple pillars as stones fall, with a frightened crowd on the balcony behind him",
+      "mainColor": "#605a52",
+      "tags": [
+        "lesson",
+        "study",
+        "judges"
+      ]
+    },
+    "judges-samson-pillars-v02": {
+      "title": "Judges — Samson between the pillars, one chain wrist to wrist (Judges 16)",
+      "alt": "Engraving of Samson with a heavy chain sagging between his cuffed wrists as he pushes apart two cracking temple pillars above rubble and a frightened crowd",
+      "mainColor": "#635b51",
+      "tags": [
+        "lesson",
+        "study",
+        "judges"
+      ]
+    },
+    "judges-samson-pillars-v03": {
+      "title": "Judges — Samson between the pillars, shackles linked to a waist chain (Judges 16)",
+      "alt": "Engraving of Samson with shackled wrists, chains running down to his waist, pushing apart two cracking temple pillars above rubble and a frightened crowd",
+      "mainColor": "#635a50",
+      "tags": [
+        "lesson",
+        "study",
+        "judges"
+      ]
+    },
+    "judges-samson-pillars-v04": {
+      "title": "Judges — Samson between the pillars, broken chains (Judges 16)",
+      "alt": "Engraving of Samson with broken chain lengths hanging from his wrist cuffs as he pushes apart two cracking temple pillars above rubble and a frightened crowd",
+      "mainColor": "#655c52",
+      "tags": [
+        "lesson",
+        "study",
+        "judges"
+      ]
+    },
+    "lamentations-morning-mercies": {
+      "title": "Lamentations — New every morning (Lamentations 3:19–26)",
+      "alt": "Engraving of a hooded woman with tears on her face sitting among fallen stones, looking toward a rising sun over ruined columns, a small seedling growing beside her",
+      "mainColor": "#6b6359",
+      "tags": [
+        "lesson",
+        "study",
+        "lamentations"
+      ]
+    },
+    "lamentations-silent-city": {
+      "title": "Lamentations — The silent city (Lamentations 1)",
+      "alt": "Engraving of a cloaked mourner with her face in her hands, seated on fallen blocks before a broken gate, with a ruined and empty walled city stretching behind",
+      "mainColor": "#7c766c",
+      "tags": [
+        "lesson",
+        "study",
+        "lamentations"
+      ]
+    },
+    "leviticus-gleaning-mercy": {
+      "title": "Leviticus — Leaving the edge of the field for the poor (Leviticus 19)",
+      "alt": "Engraving of a standing man with a staff gesturing toward a woman and children gathering grain at the uncut edge of a field, with a village on the hills behind",
+      "mainColor": "#837c74",
+      "tags": [
+        "lesson",
+        "study",
+        "leviticus"
+      ]
+    },
+    "leviticus-holy-place": {
+      "title": "Leviticus — Aaron with the firepan on the Day of Atonement (Leviticus 16)",
+      "alt": "Engraving of a white-robed, bearded high priest holding a smoking firepan inside a dim tent as he faces a massive dark veil woven with winged cherubim",
+      "mainColor": "#423c37",
+      "tags": [
+        "lesson",
+        "study",
+        "leviticus"
+      ]
+    },
+    "leviticus-scapegoat-wilderness": {
+      "title": "Leviticus — The scapegoat sent into the wilderness (Leviticus 16)",
+      "alt": "Engraving of a robed man leading a long-haired goat by a cord along a rocky path into a wide desert valley, while Israelites and the tent camp watch from the left",
+      "mainColor": "#817a71",
+      "tags": [
+        "lesson",
+        "study",
+        "leviticus"
+      ]
+    },
+    "luke-emmaus-table": {
+      "title": "Luke — Bread broken at Emmaus (Luke 24)",
+      "alt": "Engraving of Jesus tearing a loaf of bread at a table between two amazed disciples with open hands, a jug, cups and olives in front and a hill town through the window",
+      "mainColor": "#5f5851",
+      "tags": [
+        "lesson",
+        "study",
+        "luke"
+      ]
+    },
+    "luke-good-samaritan": {
+      "title": "Luke — The Good Samaritan tends the wounded man (Luke 10)",
+      "alt": "Engraving of a traveler tending the bandaged head of a wounded man lying on rocks, with a donkey and supply basket beside them and two figures walking away on a distant road",
+      "mainColor": "#867f75",
+      "tags": [
+        "lesson",
+        "study",
+        "luke"
+      ]
+    },
+    "luke-shepherds-manger": {
+      "title": "Luke — Shepherds at the manger (Luke 2)",
+      "alt": "Dark engraving of Mary and Joseph gazing at a glowing baby in a hay manger, surrounded by three smiling shepherds with staffs and a lamb in a stable",
+      "mainColor": "#4c443c",
+      "tags": [
+        "lesson",
+        "study",
+        "luke"
+      ]
+    },
+    "malachi-healing-dawn": {
+      "title": "Malachi — Calves leaping at the healing dawn (Malachi 4)",
+      "alt": "Engraving of a smiling farmer and boy in a barn doorway watching three calves leap out into a sunrise over rolling hills and a distant village",
+      "mainColor": "#8a8175",
+      "tags": [
+        "lesson",
+        "study",
+        "malachi"
+      ]
+    },
+    "malachi-refiners-fire": {
+      "title": "Malachi — The refiner’s fire (Malachi 3)",
+      "alt": "Engraving of a bearded silversmith carefully ladling glowing molten silver from a crucible over coals, a bowl of ore beside him and a walled city through the window",
+      "mainColor": "#58534c",
+      "tags": [
+        "lesson",
+        "study",
+        "malachi"
+      ]
+    },
+    "mark-bartimaeus-call": {
+      "title": "Mark — Bartimaeus cries out (Mark 10)",
+      "alt": "Engraving of a ragged blind man kneeling on a street with outstretched arm toward Jesus, who walks toward him with an open hand while a crowd watches",
+      "mainColor": "#797269",
+      "tags": [
+        "lesson",
+        "study",
+        "mark"
+      ]
+    },
+    "mark-servant-touch": {
+      "title": "Mark — Jesus touches the leper (Mark 1)",
+      "alt": "Close engraving of Jesus bending to touch the face of a kneeling man in torn clothes with raised hands, while onlookers watch beside a stone archway",
+      "mainColor": "#777066",
+      "tags": [
+        "lesson",
+        "study",
+        "mark"
+      ]
+    },
+    "mark-storm-stilled": {
+      "title": "Mark — Jesus calms the storm (Mark 4)",
+      "alt": "Engraving of Jesus standing in a wave-tossed boat with his arm raised toward a lightening sky, while five alarmed disciples cling to the gunwales",
+      "mainColor": "#746d66",
+      "tags": [
+        "lesson",
+        "study",
+        "mark"
+      ]
+    },
+    "matthew-great-commission": {
+      "title": "Matthew — The Great Commission on the mountain (Matthew 28)",
+      "alt": "Engraving of Jesus standing with open hands before seated and kneeling disciples on a hilltop overlooking a wide lake, hills and a small town, light rays in the sky",
+      "mainColor": "#837e76",
+      "tags": [
+        "lesson",
+        "study",
+        "matthew"
+      ]
+    },
+    "matthew-magi-homage": {
+      "title": "Matthew — The magi bring gifts (Matthew 2)",
+      "alt": "Engraving of three turbaned magi presenting ornate gift boxes to a toddler who reaches out from his mother’s lap in a simple room",
+      "mainColor": "#615b53",
+      "tags": [
+        "lesson",
+        "study",
+        "matthew"
+      ]
+    },
+    "micah-bethlehem-promise": {
+      "title": "Micah — The ruler promised from Bethlehem (Micah 5)",
+      "alt": "Engraving of a shepherd with a crook seen from behind, standing among grazing sheep on a hillside and looking toward a small village under sun rays breaking through clouds",
+      "mainColor": "#6d665e",
+      "tags": [
+        "lesson",
+        "study",
+        "micah"
+      ]
+    },
+    "micah-humble-walk": {
+      "title": "Micah — Justice and mercy on the road (Micah 6)",
+      "alt": "Engraving of a traveler kneeling to bandage and comfort a wounded man on a rocky path, a pack donkey at left and a hilltop village in the distance",
+      "mainColor": "#827d73",
+      "tags": [
+        "lesson",
+        "study",
+        "micah"
+      ]
+    },
+    "micah-swords-plowshares": {
+      "title": "Micah — Swords beaten into plowshares (Micah 4)",
+      "alt": "Engraving of a blacksmith hammering a sword blade into a plowshare on an anvil, with swords on the wall behind and farmers plowing and planting in a valley beyond",
+      "mainColor": "#706961",
+      "tags": [
+        "lesson",
+        "study",
+        "micah"
+      ]
+    },
+    "nahum-nineveh-falls": {
+      "title": "Nahum — The flood breaches Nineveh (Nahum 2)",
+      "alt": "Engraving of a family running over rocks as a flood bursts through the broken gates and towers of an Assyrian city with winged-beast reliefs",
+      "mainColor": "#807a71",
+      "tags": [
+        "lesson",
+        "study",
+        "nahum"
+      ]
+    },
+    "nahum-refuge-trouble": {
+      "title": "Nahum — A refuge in the day of trouble (Nahum 1)",
+      "alt": "Dark engraving of a father, mother, children and elder sheltering under a rocky overhang, watching a storm and smoke over a distant city across a river valley",
+      "mainColor": "#57534d",
+      "tags": [
+        "lesson",
+        "study",
+        "nahum"
+      ]
+    },
+    "nehemiah-builders-wall": {
+      "title": "Nehemiah — Builders on the wall, one on watch (Nehemiah 4)",
+      "alt": "Engraving of men passing a large stone block up a wooden scaffold to build a wall, with a guard holding a spear and shading his eyes on top and distant figures on a hill",
+      "mainColor": "#817a70",
+      "tags": [
+        "lesson",
+        "study",
+        "nehemiah"
+      ]
+    },
+    "nehemiah-night-inspection": {
+      "title": "Nehemiah — Inspecting the broken walls at night (Nehemiah 2:11–16)",
+      "alt": "Night engraving of Nehemiah and three companions crouched among fallen stones, looking toward broken towers and a ruined gate under a full moon",
+      "mainColor": "#494541",
+      "tags": [
+        "lesson",
+        "study",
+        "nehemiah"
+      ]
+    },
+    "nehemiah-people-listen": {
+      "title": "Nehemiah — Ezra reads the law to the people (Nehemiah 8)",
+      "alt": "Engraving of a bearded priest holding a scroll on a raised wooden platform with an attendant beside him, facing a large attentive crowd, with a wall with scaffolding behind",
+      "mainColor": "#6d675f",
+      "tags": [
+        "lesson",
+        "study",
+        "nehemiah"
+      ]
+    },
+    "numbers-bronze-serpent": {
+      "title": "Numbers — The bronze serpent on the pole (Numbers 21)",
+      "alt": "Engraving of Israelites looking up with open hands at a bronze serpent coiled around a wooden pole set on a stone base in a desert valley",
+      "mainColor": "#8b8377",
+      "tags": [
+        "lesson",
+        "study",
+        "numbers"
+      ]
+    },
+    "numbers-cloud-led-camp": {
+      "title": "Numbers — Following the cloud through the wilderness (Numbers 9)",
+      "alt": "Engraving of Israelite travellers with packs, staffs and donkeys descending a rocky hillside toward a long caravan and tents beneath a tall pillar of cloud",
+      "mainColor": "#766f66",
+      "tags": [
+        "lesson",
+        "study",
+        "numbers"
+      ]
+    },
+    "numbers-spies-grapes": {
+      "title": "Numbers — Two spies carry a cluster of grapes (Numbers 13)",
+      "alt": "Light engraving of two scouts on a rocky path carrying a large cluster of grapes hanging from a pole on their shoulders, with a walled town in the valley behind",
+      "mainColor": "#928a7f",
+      "tags": [
+        "lesson",
+        "study",
+        "numbers"
+      ]
+    },
+    "obadiah-cliff-fortress": {
+      "title": "Obadiah — Pride on the cliff fortress (Obadiah 1)",
+      "alt": "Engraving of a stone fortress city perched on a high cliff at right, with a soaring eagle in the sky at upper left above a wide rocky valley",
+      "mainColor": "#868077",
+      "tags": [
+        "lesson",
+        "study",
+        "obadiah"
+      ]
+    },
+    "obadiah-crossroads-betrayal": {
+      "title": "Obadiah — Refugees turned away at the gate (Obadiah 1)",
+      "alt": "Engraving of weary refugees with packs and children being stopped at a fortress road by a robed captain with an outstretched hand and two spear-bearing guards",
+      "mainColor": "#67615a",
+      "tags": [
+        "lesson",
+        "study",
+        "obadiah"
+      ]
+    },
+    "philemon-letter-appeal": {
+      "title": "Philemon — Handing over the letter of appeal (Philemon 1:8–21)",
+      "alt": "Sepia engraving of a curly-haired man and a bearded older man at a wooden table passing a sheet of papyrus between them, a sealed scroll and bowl on the table, a column behind",
+      "mainColor": "#66625b",
+      "tags": [
+        "lesson",
+        "study",
+        "philemon"
+      ]
+    },
+    "philemon-welcome-brother": {
+      "title": "Philemon — Welcoming him back as a brother (Philemon 1:8–21)",
+      "alt": "Sepia engraving of a smiling bearded man in a doorway placing a hand on the shoulder of a younger man in worn clothes while both hold a rolled letter",
+      "mainColor": "#666159",
+      "tags": [
+        "lesson",
+        "study",
+        "philemon"
+      ]
+    },
+    "philippians-humble-service": {
+      "title": "Philippians — Kneeling to wash a man’s feet (Philippians 2)",
+      "alt": "Engraving of a young man kneeling to wash an old bearded man’s foot in a basin, a woman with a water jar and two smiling men watching under a vine trellis",
+      "mainColor": "#766f65",
+      "tags": [
+        "lesson",
+        "study",
+        "philippians"
+      ]
+    },
+    "philippians-pressing-forward": {
+      "title": "Philippians — Running toward the goal (Philippians 3)",
+      "alt": "Engraving of a runner seen from behind sprinting along a rocky hillside path toward a walled city on a hill, a valley and river behind him",
+      "mainColor": "#837b71",
+      "tags": [
+        "lesson",
+        "study",
+        "philippians"
+      ]
+    },
+    "proverbs-beginning-of-wisdom": {
+      "title": "Proverbs — Kneeling in reverence (Proverbs 9:10)",
+      "alt": "Light engraving of a bearded man kneeling with bowed head and hands on his knees on a rocky hilltop, with a pale sky and a river valley with distant hills at sunrise",
+      "mainColor": "#afa79a",
+      "tags": [
+        "lesson",
+        "study",
+        "proverbs"
+      ]
+    },
+    "proverbs-bread-shared-freely": {
+      "title": "Proverbs — Sharing bread with the poor (Proverbs 22:9)",
+      "alt": "Engraving of a smiling woman in a headcovering handing a piece of bread to a smiling man in torn clothes, both seated on stone steps outside a wooden door",
+      "mainColor": "#888074",
+      "tags": [
+        "lesson",
+        "study",
+        "proverbs"
+      ]
+    },
+    "proverbs-city-without-walls": {
+      "title": "Proverbs — A city with its walls broken down (Proverbs 25:28)",
+      "alt": "Engraving of a wall with a large breach, a fallen studded wooden gate and scattered stones in the foreground, opening onto a town of flat-roofed houses and hills beyond",
+      "mainColor": "#8a8379",
+      "tags": [
+        "lesson",
+        "study",
+        "proverbs"
+      ]
+    },
+    "proverbs-gentle-answer": {
+      "title": "Proverbs — A gentle answer (Proverbs 15:1)",
+      "alt": "Engraving of an agitated bearded man with a hand on his chest facing a calm man who holds out an open palm, in a stone courtyard beside an olive tree",
+      "mainColor": "#857b6c",
+      "tags": [
+        "lesson",
+        "study",
+        "proverbs"
+      ]
+    },
+    "proverbs-go-to-ant": {
+      "title": "Proverbs — Go to the ant (Proverbs 6:6–11)",
+      "alt": "Close engraving of five ants hauling grain seeds across bare soil toward an earthen nest hole, with tall wheat stalks and a field behind",
+      "mainColor": "#a2998b",
+      "tags": [
+        "lesson",
+        "study",
+        "proverbs"
+      ]
+    },
+    "proverbs-honest-scales": {
+      "title": "Proverbs — Honest scales (Proverbs 11:1)",
+      "alt": "Engraving of a bearded market merchant placing a weight on a balance with grain in the other pan, a customer at left and a walled city market behind",
+      "mainColor": "#726a61",
+      "tags": [
+        "lesson",
+        "study",
+        "proverbs"
+      ]
+    },
+    "proverbs-iron-sharpens-iron": {
+      "title": "Proverbs — Iron sharpens iron (Proverbs 27:17)",
+      "alt": "Engraving of a bearded craftsman filing a blade clamped to a workbench while a second curly-haired man gestures and talks beside him in a stone workshop",
+      "mainColor": "#7a6e60",
+      "tags": [
+        "lesson",
+        "study",
+        "proverbs"
+      ]
+    },
+    "proverbs-parent-instruction": {
+      "title": "Proverbs — A father teaches his son (Proverbs 1:8–9; 4:1–9)",
+      "alt": "Engraving of a white-bearded father showing a young man how to plane a wooden beam in a workshop, wood shavings on the bench and a hill town behind",
+      "mainColor": "#696259",
+      "tags": [
+        "lesson",
+        "study",
+        "proverbs"
+      ]
+    },
+    "proverbs-peace-over-plenty": {
+      "title": "Proverbs — Peace over plenty (Proverbs 17:1)",
+      "alt": "Engraving of a bearded father, a young girl and a mother smiling at each other across a rough wooden table set with a plate of bread and three cups",
+      "mainColor": "#786f62",
+      "tags": [
+        "lesson",
+        "study",
+        "proverbs"
+      ]
+    },
+    "proverbs-pride-before-fall": {
+      "title": "Proverbs — Pride before the fall (Proverbs 16:18)",
+      "alt": "Engraving of a proud man in an ornate robe, head thrown back, walking down stone steps toward a cracked step that is breaking apart above a river valley",
+      "mainColor": "#a09587",
+      "tags": [
+        "lesson",
+        "study",
+        "proverbs"
+      ]
+    },
+    "proverbs-stop-feeding-fire": {
+      "title": "Proverbs — Stop feeding the fire (Proverbs 26:20)",
+      "alt": "Engraving of a kneeling man laying down a tied bundle of sticks on a paved courtyard, away from a small dying fire in a ring of stones",
+      "mainColor": "#91887b",
+      "tags": [
+        "lesson",
+        "study",
+        "proverbs"
+      ]
+    },
+    "proverbs-wisdom-at-work": {
+      "title": "Proverbs — A capable woman at work (Proverbs 31:16–20)",
+      "alt": "Engraving of a woman in a headscarf tending a grapevine in a terraced vineyard, a basket and hoe beside her and a village on the hills behind",
+      "mainColor": "#989187",
+      "tags": [
+        "lesson",
+        "study",
+        "proverbs"
+      ]
+    },
+    "proverbs-wisdom-crossroads": {
+      "title": "Proverbs — Wisdom at the crossroads (Proverbs 4:10–27)",
+      "alt": "Engraving of a traveler with a staff seen from behind at a fork, one road dark and thorny toward ruined buildings, the other paved and bright toward a hilltop city",
+      "mainColor": "#6c665e",
+      "tags": [
+        "lesson",
+        "study",
+        "proverbs"
+      ]
+    },
+    "psalms-creation-praise": {
+      "title": "Psalms — Creation joins in praise (Psalm 148)",
+      "alt": "Engraving of a family with raised arms under a large oak, with sheep, a donkey, deer, a rabbit and flying birds, looking over a river valley with waterfalls and mountains at sunrise",
+      "mainColor": "#8b847b",
+      "tags": [
+        "lesson",
+        "study",
+        "psalms"
+      ]
+    },
+    "psalms-lament-night": {
+      "title": "Psalms — Prayer at night by lamplight (Psalms 13; 42)",
+      "alt": "Night engraving of a bearded man with clasped hands looking upward at a table with a burning oil lamp and scrolls, beside a window showing stars and a lit walled city",
+      "mainColor": "#38332f",
+      "tags": [
+        "lesson",
+        "study",
+        "psalms"
+      ]
+    },
+    "psalms-tree-water": {
+      "title": "Psalms — The tree planted by streams (Psalm 1)",
+      "alt": "Engraving of a bearded man seated against a large tree with exposed roots, holding a scroll beside a rushing stream, with a dry cracked plain and a bare tree at the right",
+      "mainColor": "#898379",
+      "tags": [
+        "lesson",
+        "study",
+        "psalms"
+      ]
+    },
+    "revelation-lamb-scroll-v02": {
+      "title": "Revelation — The Lamb and the scroll, resting on the ledge (Revelation 5)",
+      "alt": "Engraving of a white Lamb with several horns and eyes standing behind a sealed scroll with six seals on a rock ledge, before a glowing city, with angels and worshipers",
+      "mainColor": "#948d82",
+      "tags": [
+        "lesson",
+        "study",
+        "revelation"
+      ]
+    },
+    "revelation-lampstands-witness": {
+      "title": "Revelation — The glorified figure among seven lampstands (Revelation 1:9–20)",
+      "alt": "Engraving of a radiant robed figure with a blazing face standing among seven flaming lampstands in dark clouds, a kneeling man at lower left reaching toward him",
+      "mainColor": "#837b72",
+      "tags": [
+        "lesson",
+        "study",
+        "revelation"
+      ]
+    },
+    "revelation-multitude-worship": {
+      "title": "Revelation — The great multitude with palm branches (Revelation 7:9–17)",
+      "alt": "Engraving of smiling men, women and a child of many backgrounds holding palm branches and looking up, a huge crowd behind them and waterfalls leading to a distant city",
+      "mainColor": "#8c857a",
+      "tags": [
+        "lesson",
+        "study",
+        "revelation"
+      ]
+    },
+    "revelation-new-creation-city": {
+      "title": "Revelation — The open gates and the tree of life, ancient dress (Revelation 21–22)",
+      "alt": "Engraving of a family in ancient robes looking toward tall open city gates, a large central tree, waterfalls and a river, with small groups walking in toward the city",
+      "mainColor": "#9a9387",
+      "tags": [
+        "lesson",
+        "study",
+        "revelation"
+      ]
+    },
+    "revelation-new-creation-city-v02": {
+      "title": "Revelation — The open gates and the tree of life, mixed modern dress (Revelation 21–22)",
+      "alt": "Engraving of people of many backgrounds, some in ancient robes and some in modern clothes, gazing toward open city gates, a large central tree, waterfalls and a river",
+      "mainColor": "#999287",
+      "tags": [
+        "lesson",
+        "study",
+        "revelation"
+      ]
+    },
+    "romans-grafted-olive": {
+      "title": "Romans — The grafted olive tree (Romans 11)",
+      "alt": "Engraving of a large olive tree with a bound graft on one branch, a group of men, women and a boy touching the trunk and looking up at its olives",
+      "mainColor": "#766f66",
+      "tags": [
+        "lesson",
+        "study",
+        "romans"
+      ]
+    },
+    "romans-groaning-creation": {
+      "title": "Romans — Creation waits in hope (Romans 8)",
+      "alt": "Engraving of a family and a standing traveler on cracked rocks looking up at sunbeams through clouds, a small green shoot growing from the stones before them",
+      "mainColor": "#948c81",
+      "tags": [
+        "lesson",
+        "study",
+        "romans"
+      ]
+    },
+    "ruth-gleaning-field": {
+      "title": "Ruth — Ruth gleans in Boaz’s field (Ruth 2)",
+      "alt": "Engraving of a young woman in a headcovering kneeling to gather grain in a wheat field, with an older bearded man with a staff standing behind her and reapers at work",
+      "mainColor": "#878075",
+      "tags": [
+        "lesson",
+        "study",
+        "ruth"
+      ]
+    },
+    "ruth-naomi-child": {
+      "title": "Ruth — Naomi holds the baby (Ruth 4)",
+      "alt": "Engraving of a smiling elderly Naomi cradling a swaddled baby while a smiling Ruth leans in beside her, with a doorway and village behind",
+      "mainColor": "#615b52",
+      "tags": [
+        "lesson",
+        "study",
+        "ruth"
+      ]
+    },
+    "song-of-songs-garden-beloved": {
+      "title": "Song of Songs — The garden and the beloved (Song of Songs 4:12–5:1; 6:2–3)",
+      "alt": "Engraving of a smiling bearded man and a veiled woman embracing in a walled garden full of white flowers, with cypress trees, a gate and a small fountain behind",
+      "mainColor": "#777068",
+      "tags": [
+        "lesson",
+        "study",
+        "song of songs"
+      ]
+    },
+    "song-of-songs-love-strength": {
+      "title": "Song of Songs — Love strong as death (Song of Songs 8:6–7)",
+      "alt": "Engraving of two people's clasped hands joined over a rushing stream, only their arms and robes shown, with olive branches and a hill town behind",
+      "mainColor": "#7d766d",
+      "tags": [
+        "lesson",
+        "study",
+        "song of songs"
+      ]
+    },
+    "titus-elders-community": {
+      "title": "Titus — Appointing elders in the courtyard (Titus 1:5–9)",
+      "alt": "Sepia engraving of a bearded man gesturing with open hands to a circle of seated and standing elders in a courtyard, a scroll and jug on a table, a hillside town behind",
+      "mainColor": "#6f685f",
+      "tags": [
+        "lesson",
+        "study",
+        "titus"
+      ]
+    },
+    "titus-good-works": {
+      "title": "Titus — Doing good works, repairing a neighbor’s door (Titus 3:1–8, 14)",
+      "alt": "Sepia engraving of a kneeling man hammering a plank onto a stone doorway as an old man steadies it, while a smiling family carries baskets of bread and a jug up the street",
+      "mainColor": "#7a736a",
+      "tags": [
+        "lesson",
+        "study",
+        "titus"
+      ]
+    },
+    "zechariah-garments-renewed": {
+      "title": "Zechariah — Joshua’s clean garments (Zechariah 3)",
+      "alt": "Engraving of a kneeling bearded priest being given a clean turban and robe by two attendants, while a man at left drops his soiled garments into a flaming bowl",
+      "mainColor": "#888076",
+      "tags": [
+        "lesson",
+        "study",
+        "zechariah"
+      ]
+    },
+    "zechariah-humble-king": {
+      "title": "Zechariah — The humble king on a donkey (Zechariah 9)",
+      "alt": "Engraving of a robed figure riding a donkey, seen from behind with disciples following, approaching the stone gate of a walled hilltop city beneath an olive tree",
+      "mainColor": "#7c766d",
+      "tags": [
+        "lesson",
+        "study",
+        "zechariah"
+      ]
+    },
+    "zechariah-lampstand-olives": {
+      "title": "Zechariah — The lampstand and two olive trees (Zechariah 4)",
+      "alt": "Engraving of a seven-branched lampstand with lit flames glowing between two fruiting olive trees, with the prophet Zechariah watching from behind at lower left",
+      "mainColor": "#726c63",
+      "tags": [
+        "lesson",
+        "study",
+        "zechariah"
+      ]
+    },
+    "zephaniah-day-darkness": {
+      "title": "Zephaniah — The day of darkness (Zephaniah 1)",
+      "alt": "Engraving of the prophet Zephaniah on a hillside pointing toward a walled city burning beneath massive dark smoke clouds, with villagers watching beside him",
+      "mainColor": "#68635a",
+      "tags": [
+        "lesson",
+        "study",
+        "zephaniah"
+      ]
+    },
+    "zephaniah-gathered-home": {
+      "title": "Zephaniah — The scattered gathered home (Zephaniah 3)",
+      "alt": "Engraving of weary exiles with bundles, an old man leaning on a younger one, and a child running to be welcomed by cheering people at an open city gate",
+      "mainColor": "#787068",
+      "tags": [
+        "lesson",
+        "study",
+        "zephaniah"
+      ]
     }
   }
 }

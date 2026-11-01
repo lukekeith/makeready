@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { FIXTURE_LEADER_EMAIL, FIXTURE_LEADER_USER_ID, FIXTURE_MEMBER_IDS, FIXTURE_ORG_ID, FIXTURE_USER_EMAIL, FIXTURE_USER_ID } from '../ids.js'
+import {
+  FIXTURE_LEADER_EMAIL,
+  FIXTURE_LEADER_USER_ID,
+  FIXTURE_MEMBER_IDS,
+  FIXTURE_ORG2_OWNER_EMAIL,
+  FIXTURE_ORG2_OWNER_USER_ID,
+  FIXTURE_ORG_ID,
+  FIXTURE_USER_EMAIL,
+  FIXTURE_USER_ID,
+} from '../ids.js'
 import { type WipeClient, fixtureUserExists, wipeFixtures } from '../wipe.js'
 
 describe('wipeFixtures (D7)', () => {
@@ -29,7 +38,7 @@ describe('wipeFixtures (D7)', () => {
       { model: 'member', args: { where: { id: { in: FIXTURE_MEMBER_IDS } } } },
       { model: 'group', args: { where: { organizationId: FIXTURE_ORG_ID } } },
       { model: 'studyProgram', args: { where: { organizationId: FIXTURE_ORG_ID } } },
-      { model: 'user', args: { where: { id: { in: [FIXTURE_USER_ID, FIXTURE_LEADER_USER_ID] } } } },
+      { model: 'user', args: { where: { id: { in: [FIXTURE_USER_ID, FIXTURE_LEADER_USER_ID, FIXTURE_ORG2_OWNER_USER_ID] } } } },
     ])
   })
 
@@ -47,8 +56,8 @@ describe('wipeFixtures (D7)', () => {
     expect(args).toEqual({
       where: {
         OR: [
-          { id: { in: [FIXTURE_USER_ID, FIXTURE_LEADER_USER_ID] } },
-          { email: { in: [FIXTURE_USER_EMAIL, FIXTURE_LEADER_EMAIL] } },
+          { id: { in: [FIXTURE_USER_ID, FIXTURE_LEADER_USER_ID, FIXTURE_ORG2_OWNER_USER_ID] } },
+          { email: { in: [FIXTURE_USER_EMAIL, FIXTURE_LEADER_EMAIL, FIXTURE_ORG2_OWNER_EMAIL] } },
         ],
       },
       select: { id: true },

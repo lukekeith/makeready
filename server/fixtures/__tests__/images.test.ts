@@ -120,7 +120,16 @@ describe('fixture images as real uploads (fixture-real-uploads)', () => {
     const m = manifestOf(selectImages(catalog))
     expect(m.groups).toEqual(['image-9', 'image-11', 'image-10'])
     expect(m.library).toHaveLength(LIBRARY_SIZE)
-    expect(m.images['image-9']).toEqual({ title: 'image-9', alt: null, mainColor: null })
+    expect(m.images['image-9']).toMatchObject({ title: 'image-9', alt: null, mainColor: null })
+  })
+
+  it('media-library D5/D20: lists every live Use: cover image for MakeReady, with Subject + Book tags', () => {
+    const m = manifestOf(selectImages(catalog))
+    const covers = catalog.filter((i) => !i.retired && (i.terms ?? []).some((t) => t.taxonomy === 'Use' && t.term === 'cover'))
+    expect(m.makeready).toEqual(covers.map((i) => i.slug).sort())
+    const first = covers[0]
+    const expected = [...new Set((first.terms ?? []).filter((t) => t.taxonomy === 'Subject' || t.taxonomy === 'Book').map((t) => t.term.toLowerCase()))]
+    expect(m.images[first.slug].tags).toEqual(expected)
   })
 
   it('has every image the committed manifest names in the repo', () => {

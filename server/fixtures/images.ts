@@ -27,6 +27,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
 import { extractImageMetadata } from '../src/services/media-metadata.js'
+import { importFromCatalog } from '../src/services/makeready-media.js'
 import { getPublicUrl, objectExists, r2BucketName, uploadImageVariants, uploadToR2 } from '../src/services/storage.js'
 import { type FixtureContext, FixtureError } from './context.js'
 import { FIXTURE_GROUP_IDS, FIXTURE_MEMBER_IDS, FIXTURE_ORG_ID, FIXTURE_PROGRAM_IDS, FIXTURE_USER_ID, fixtureId } from './ids.js'
@@ -99,6 +100,8 @@ export interface Selection {
   library: D2mImage[]
   /** D13: up to AVATAR_COUNT live `Use: avatar` images, by slug — member photos, not library media. */
   avatars: D2mImage[]
+  /** media-library D5/D20: every live `Use: cover` image — MakeReady's own library. */
+  makeready: D2mImage[]
 }
 
 /**
@@ -132,7 +135,8 @@ export function selectImages(catalog: readonly D2mImage[]): Selection {
     }
   }
   const avatars = live.filter((i) => has(i, 'Use', 'avatar') && !used.has(i.slug)).slice(0, AVATAR_COUNT)
-  return { groups, programs, library, avatars }
+  const makeready = live.filter((i) => has(i, 'Use', 'cover'))
+  return { groups, programs, library, avatars, makeready }
 }
 
 /** What `fixtures/images/` holds: the selection by slug, and each image's d2m metadata. */
@@ -141,18 +145,28 @@ export interface ImageManifest {
   programs: Record<string, string | null>
   library: string[]
   avatars: string[]
-  images: Record<string, { title: string; alt: string | null; mainColor: string | null }>
+  /** media-library D20: MakeReady's own library (absent in a manifest written before it). */
+  makeready?: string[]
+  images: Record<string, { title: string; alt: string | null; mainColor: string | null; tags?: string[] }>
 }
 
+/** media-library D5: an image's Subject + Book terms, lower-cased and de-duplicated, as tags. */
+export const coverTags = (image: D2mImage): string[] => [
+  ...new Set((image.terms ?? []).filter((t) => t.taxonomy === 'Subject' || t.taxonomy === 'Book').map((t) => t.term.toLowerCase().trim())),
+]
+
 export function manifestOf(selection: Selection): ImageManifest {
-  const all = [...selection.groups, ...Object.values(selection.programs), ...selection.library, ...selection.avatars]
+  const all = [...selection.groups, ...Object.values(selection.programs), ...selection.library, ...selection.avatars, ...selection.makeready]
   return {
     groups: selection.groups.map((i) => i?.slug ?? null),
     programs: Object.fromEntries(Object.entries(selection.programs).map(([id, i]) => [id, i?.slug ?? null])),
     library: selection.library.map((i) => i.slug),
     avatars: selection.avatars.map((i) => i.slug),
+    makeready: selection.makeready.map((i) => i.slug),
     images: Object.fromEntries(
-      all.filter((i): i is D2mImage => i !== null).map((i) => [i.slug, { title: i.title, alt: i.alt ?? null, mainColor: i.mainColor ?? null }])
+      all
+        .filter((i): i is D2mImage => i !== null)
+        .map((i) => [i.slug, { title: i.title, alt: i.alt ?? null, mainColor: i.mainColor ?? null, tags: coverTags(i) }])
     ),
   }
 }
@@ -302,6 +316,21 @@ export async function seedImages(ctx: FixtureContext): Promise<void> {
     await prisma.member.update({ where: { id: memberId }, data: { profilePicture: getPublicUrl(key) } })
   }
   console.log(`fixtures: ${covers.length} covers, ${manifest.library.length} library photos, ${manifest.avatars.length} avatars in R2`)
+
+  // media-library D20: MakeReady's own library, through the same import the production command uses.
+  // Its org and rows sit outside the fixture wipe; the import is idempotent and re-uploads a missing
+  // object (a walk reset empties the bucket).
+  const slugs = manifest.makeready ?? []
+  if (slugs.length > 0) {
+    const items = await Promise.all(
+      slugs.map(async (slug) => {
+        const info = manifest.images[slug]
+        return { slug, title: info?.title ?? slug, alt: info?.alt ?? '', tags: info?.tags ?? [], file: await readSource(slug) }
+      }),
+    )
+    const out = await importFromCatalog(items)
+    console.log(`fixtures: MakeReady library — ${out.created} created, ${out.repaired} repaired, ${out.skipped} already there`)
+  }
 }
 
 /** Clear of base's media (n ≤ ~30) and study-program-home's usage (101). */

@@ -16,6 +16,9 @@ import {
   FIXTURE_LEADER_GROUP_ID,
   FIXTURE_LEADER_USER_ID,
   FIXTURE_MEMBER_IDS,
+  FIXTURE_ORG2_ID,
+  FIXTURE_ORG2_OWNER_EMAIL,
+  FIXTURE_ORG2_OWNER_USER_ID,
   FIXTURE_ORG_ID,
   FIXTURE_PROGRAM_IDS,
   FIXTURE_USER_EMAIL,
@@ -27,6 +30,8 @@ export const FIXTURE_USER_NAME = 'Fixture Leader'
 export const FIXTURE_ORG_NAME = 'MakeReady Fixtures'
 /** ui2-members-browse T7: the Group-Leader fixture user — the same person as member 7 (members-profile links them, D8). */
 export const FIXTURE_LEADER_NAME = 'Nathan Hughes'
+export const FIXTURE_ORG2_OWNER_NAME = 'Grace Whitfield'
+export const FIXTURE_ORG2_NAME = 'Northside Fellowship'
 export const LEADER_GROUP_NAME = 'Prayer Team'
 /** ui2-groups-browse D25: the group page's empty states. */
 export const EMPTY_GROUP_NAME = 'Empty Group'
@@ -118,6 +123,8 @@ export const seedBase: ScenarioFn = async (ctx) => {
   if (!ownerRole) throw new FixtureError('the system Owner role is missing — run `npm run db:seed` first')
   const groupLeaderRole = await prisma.role.findFirst({ where: { name: 'Group Leader', isSystem: true, organizationId: null } })
   if (!groupLeaderRole) throw new FixtureError('the system Group Leader role is missing — run `npm run db:seed` first')
+  const adminRole = await prisma.role.findFirst({ where: { name: 'Admin', isSystem: true, organizationId: null } })
+  if (!adminRole) throw new FixtureError('the system Admin role is missing — run `npm run db:seed` first')
 
   const seededAt = ctx.daysAgo(75)
   created.user = await prisma.user.create({
@@ -149,6 +156,24 @@ export const seedBase: ScenarioFn = async (ctx) => {
       organizationId: FIXTURE_ORG_ID,
       assignedAt: seededAt,
       assignedBy: FIXTURE_USER_ID,
+    },
+  })
+
+  // media-library D20: a second org the fixture user administers (Source chip, Upload-to menu).
+  await prisma.user.create({
+    data: { id: FIXTURE_ORG2_OWNER_USER_ID, email: FIXTURE_ORG2_OWNER_EMAIL, name: FIXTURE_ORG2_OWNER_NAME, createdAt: seededAt },
+  })
+  await prisma.organization.create({
+    data: { id: FIXTURE_ORG2_ID, name: FIXTURE_ORG2_NAME, ownerId: FIXTURE_ORG2_OWNER_USER_ID, createdAt: seededAt },
+  })
+  await prisma.userRole.create({
+    data: {
+      id: fixtureId('userRole', 3),
+      userId: FIXTURE_USER_ID,
+      roleId: adminRole.id,
+      organizationId: FIXTURE_ORG2_ID,
+      assignedAt: seededAt,
+      assignedBy: FIXTURE_ORG2_OWNER_USER_ID,
     },
   })
 
