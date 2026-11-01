@@ -36,21 +36,29 @@ final class MediaHomeContainerTests: XCTestCase {
 
     func testFiveColumnsUsesMediumThenThumbOnFailureDenserUsesThumb() {
         let t = tile("a")
-        XCTAssertEqual(MediaHomeContainer.tileURL(t, fiveColumns: true, failed: { _ in false })?.absoluteString, "https://img/a-md.jpeg")
-        XCTAssertEqual(MediaHomeContainer.tileURL(t, fiveColumns: true, failed: { $0.absoluteString.hasSuffix("-md.jpeg") })?.absoluteString,
+        XCTAssertEqual(MediaHomeContainer.tileURL(t, medium: true, failed: { _ in false })?.absoluteString, "https://img/a-md.jpeg")
+        XCTAssertEqual(MediaHomeContainer.tileURL(t, medium: true, failed: { $0.absoluteString.hasSuffix("-md.jpeg") })?.absoluteString,
                        "https://img/a-thumb.jpeg")
-        XCTAssertEqual(MediaHomeContainer.tileURL(t, fiveColumns: false, failed: { _ in false })?.absoluteString, "https://img/a-thumb.jpeg")
-        XCTAssertEqual(MediaHomeContainer.tileURL(tile("b", medium: nil), fiveColumns: true, failed: { _ in false })?.absoluteString,
+        XCTAssertEqual(MediaHomeContainer.tileURL(t, medium: false, failed: { _ in false })?.absoluteString, "https://img/a-thumb.jpeg")
+        XCTAssertEqual(MediaHomeContainer.tileURL(tile("b", medium: nil), medium: true, failed: { _ in false })?.absoluteString,
                        "https://img/b-thumb.jpeg")
+    }
+
+    /// Search's 3-column tiles are bigger than the 5-column ones, so they load `-md` too.
+    func testThreeAndFiveColumnsUseMediumDenserLevelsDoNot() {
+        XCTAssertTrue(MediaHomeContainer.usesMedium(.three))
+        XCTAssertTrue(MediaHomeContainer.usesMedium(.five))
+        XCTAssertFalse(MediaHomeContainer.usesMedium(.eight))
+        XCTAssertFalse(MediaHomeContainer.usesMedium(.thirty))
     }
 
     func testRequestsOnlyTheReportedRangeAtTilePixelSize() {
         let tiles = (0..<10).map { tile("t\($0)") }
-        let requests = MediaHomeContainer.imageRequests(tiles: tiles, range: 3..<6, fiveColumns: false, tileSide: 44, scale: 3,
+        let requests = MediaHomeContainer.imageRequests(tiles: tiles, range: 3..<6, medium: false, tileSide: 44, scale: 3,
                                                         failed: { _ in false })
         XCTAssertEqual(requests.map(\.url.absoluteString), ["https://img/t3-thumb.jpeg", "https://img/t4-thumb.jpeg", "https://img/t5-thumb.jpeg"])
         XCTAssertEqual(requests.first?.maxPixelSize, 132)
-        XCTAssertTrue(MediaHomeContainer.imageRequests(tiles: tiles, range: 8..<20, fiveColumns: false, tileSide: 44, scale: 3,
+        XCTAssertTrue(MediaHomeContainer.imageRequests(tiles: tiles, range: 8..<20, medium: false, tileSide: 44, scale: 3,
                                                        failed: { _ in false }).count == 2)
     }
     /// D10: at 5 columns a tile whose `-md` fails is followed, in the same request, by its thumb.
@@ -62,7 +70,7 @@ final class MediaHomeContainerTests: XCTestCase {
         })
         let tiles = [tile("a")]
         await MediaHomeContainer.loadImages(into: images) {
-            MediaHomeContainer.imageRequests(tiles: tiles, range: 0..<1, fiveColumns: true, tileSide: 88, scale: 3,
+            MediaHomeContainer.imageRequests(tiles: tiles, range: 0..<1, medium: true, tileSide: 88, scale: 3,
                                              failed: images.hasFailed)
         }
         XCTAssertTrue(images.hasFailed(URL(string: "https://img/a-md.jpeg")!))

@@ -24,6 +24,11 @@ final class MediaTileImages {
     @ObservationIgnored private let byteLimit: Int
     @ObservationIgnored private let maxConcurrent: Int
     @ObservationIgnored private let fetch: UI2ImageLoader.Fetch
+    /// Images landed since the last `generation` bump. Each bump re-renders the whole Media screen, so a
+    /// burst of landings is one bump per `redrawInterval`, not one per image.
+    @ObservationIgnored private var redrawPending = false
+    @ObservationIgnored private var redrawScheduled = false
+    nonisolated static let redrawInterval: Duration = .milliseconds(50)
 
     /// Final review I2: 64 MB of decoded bitmaps, in line with ImageCache's 50 MB memory layer — about 300
     /// tiles at 5 columns (231 px, ~213 KB each), more at the denser levels' smaller thumbs.
@@ -82,6 +87,25 @@ final class MediaTileImages {
                 addNext()
             }
         }
+        flushRedraw()
+    }
+
+    /// Bumps `generation` for the images landed since the last bump.
+    private func flushRedraw() {
+        guard redrawPending else { return }
+        redrawPending = false
+        generation += 1
+    }
+
+    private func scheduleRedraw() {
+        redrawPending = true
+        guard !redrawScheduled else { return }
+        redrawScheduled = true
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: Self.redrawInterval)
+            self?.redrawScheduled = false
+            self?.flushRedraw()
+        }
     }
 
     private func store(_ image: UIImage, for url: URL, protecting protected: Set<URL>) {
@@ -97,7 +121,7 @@ final class MediaTileImages {
             if protected.contains(candidate) { index += 1; continue }
             remove(candidate)
         }
-        generation += 1
+        scheduleRedraw()
     }
 
     private func remove(_ url: URL) {

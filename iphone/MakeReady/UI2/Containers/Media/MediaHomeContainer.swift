@@ -41,7 +41,9 @@ struct MediaHomeContainer: View {
     @State private var tileImages = MediaTileImages()
     /// MediaBrowser's level (it reports changes) and the range it last reported, with the grid width.
     @State private var level: MediaBrowser.Level = .five
-    @State private var visibleRange: Range<Int> = 0..<0
+    /// Written on every window move while scrolling, and read only by `requestImages`: a reference that is
+    /// never observed, so a scroll never re-renders the container's mapper pass over the whole library.
+    @State private var visibleRange = VisibleRangeBox()
     @State private var gridWidth: CGFloat = 0
     /// D12: the open item, and the tile list frozen while it is open (pages that land meanwhile apply on close).
     @State private var viewer: Viewer?
@@ -74,8 +76,8 @@ struct MediaHomeContainer: View {
         let app = AppState.shared
         let output = MediaHomeMapper.output(items: app.mediaLibrary.all, selection: selection, today: Date(), timeZone: .current)
         let tiles = frozenTiles ?? output.tiles
-        let fiveColumns = level == .five
-        let urls = tiles.map { Self.tileURL($0, fiveColumns: fiveColumns, failed: tileImages.hasFailed) }
+        let medium = Self.usesMedium(level)
+        let urls = tiles.map { Self.tileURL($0, medium: medium, failed: tileImages.hasFailed) }
         // A tile whose `-md` hasn't landed (or failed) shows its thumb meanwhile.
         let thumbs = Dictionary(zip(urls, tiles).compactMap { url, tile -> (String, URL)? in
             guard let url, let thumb = tile.thumbURL, thumb != url else { return nil }
@@ -83,6 +85,11 @@ struct MediaHomeContainer: View {
         }, uniquingKeysWith: { first, _ in first })
         let images = tileImages
         let sources = app.mediaSources
+        // Built here, not in the generation reader, so a landed image doesn't re-format every tile's date.
+        let photoURLs = urls.map { $0?.absoluteString ?? "" }
+        let photoIDs = tiles.map(\.id)
+        let photoDates = tiles.map { Self.dayFormatter.string(from: $0.date) }
+        let photoTitles = tiles.map(\.title)
         // Only this reader observes `generation`, so a landed image redraws the screen, not the mapper.
         VStack(spacing: 0) {
           if case .pick = mode {
@@ -98,10 +105,10 @@ struct MediaHomeContainer: View {
                     selectedTags: selection.tags.sorted(),
                     selectedLeaders: output.leaderOptions.filter { selection.leaderIds.contains($0.id) }.map(\.label),
                     timeOption: selection.time.label,
-                    photoURLs: urls.map { $0?.absoluteString ?? "" },
-                    photoIDs: tiles.map(\.id),
-                    photoDates: tiles.map { Self.dayFormatter.string(from: $0.date) },
-                    photoTitles: tiles.map(\.title),
+                    photoURLs: photoURLs,
+                    photoIDs: photoIDs,
+                    photoDates: photoDates,
+                    photoTitles: photoTitles,
                     hiddenItemID: viewer.flatMap { tiles.indices.contains($0.index) ? tiles[$0.index].id : nil },
                     frozen: viewer != nil,
                     refreshing: refreshing,
@@ -124,7 +131,7 @@ struct MediaHomeContainer: View {
                     if case .pick(let owner) = mode { pick(id: id, owner: owner) } else { open(id: id, frame: frame, tiles: tiles) }
                 },
                 onVisibleRangeChange: { range in
-                    visibleRange = range
+                    visibleRange.value = range
                     requestImages(tiles: tiles)
                 },
                 onScrollChange: { offset, interacting in
@@ -149,7 +156,7 @@ struct MediaHomeContainer: View {
         }
         // Final review I3: a filter or page that changes the tiles without changing the reported range
         // (equal counts at the newest end) gets no range callback, so the new tiles are asked for here.
-        .onChange(of: tiles.map(\.id)) {
+        .onChange(of: photoIDs) {
             requestImages(tiles: tiles)
         }
         .background(Token.layoutBackground.ignoresSafeArea())
@@ -229,17 +236,20 @@ struct MediaHomeContainer: View {
     }
 
     /// D10: `-md` at 5 columns unless it failed or there is none; the thumb otherwise.
-    static func tileURL(_ tile: MediaHomeMapper.Tile, fiveColumns: Bool, failed: (URL) -> Bool) -> URL? {
-        if fiveColumns, let medium = tile.mediumURL, !failed(medium) { return medium }
+    /// The levels whose tiles are big enough for `-md`: `five`, and search's `three`.
+    static func usesMedium(_ level: MediaBrowser.Level) -> Bool { level == .three || level == .five }
+
+    static func tileURL(_ tile: MediaHomeMapper.Tile, medium: Bool, failed: (URL) -> Bool) -> URL? {
+        if medium, let medium = tile.mediumURL, !failed(medium) { return medium }
         return tile.thumbURL
     }
 
     /// D18: the reported range only, at the tile's pixel size.
-    static func imageRequests(tiles: [MediaHomeMapper.Tile], range: Range<Int>, fiveColumns: Bool, tileSide: CGFloat,
+    static func imageRequests(tiles: [MediaHomeMapper.Tile], range: Range<Int>, medium: Bool, tileSide: CGFloat,
                               scale: CGFloat, failed: (URL) -> Bool) -> [MediaTileImages.Request] {
         let clamped = range.clamped(to: 0..<tiles.count)
         return clamped.compactMap { index in
-            tileURL(tiles[index], fiveColumns: fiveColumns, failed: failed).map { .init(url: $0, maxPixelSize: tileSide * scale) }
+            tileURL(tiles[index], medium: medium, failed: failed).map { .init(url: $0, maxPixelSize: tileSide * scale) }
         }
     }
 
@@ -368,8 +378,8 @@ struct MediaHomeContainer: View {
         let columns = CGFloat(level.columns)
         let side = (gridWidth - (columns - 1) * level.gutter) / columns
         let images = tileImages
-        let build = { [range = visibleRange, five = level == .five, scale = displayScale] in
-            Self.imageRequests(tiles: tiles, range: range, fiveColumns: five, tileSide: side, scale: scale, failed: images.hasFailed)
+        let build = { [range = visibleRange.value, medium = Self.usesMedium(level), scale = displayScale] in
+            Self.imageRequests(tiles: tiles, range: range, medium: medium, tileSide: side, scale: scale, failed: images.hasFailed)
         }
         imageTask?.cancel()
         imageTask = Task { @MainActor in await Self.loadImages(into: images, requests: build) }
@@ -448,11 +458,16 @@ struct MediaHomeContainer: View {
     private func open(id: String, frame: CGRect, tiles: [MediaHomeMapper.Tile]) {
         guard viewer == nil, let index = Self.index(ofTileID: id, in: tiles), tiles.indices.contains(index) else { return }
         let tile = tiles[index]
-        let shown = Self.tileURL(tile, fiveColumns: level == .five, failed: tileImages.hasFailed).flatMap(tileImages.image(for:))
+        let shown = Self.tileURL(tile, medium: Self.usesMedium(level), failed: tileImages.hasFailed).flatMap(tileImages.image(for:))
         frozenTiles = tiles
         viewer = Viewer(index: index, url: tile.fullURL, frame: frame, title: tile.title,
                         placeholder: shown ?? tile.thumbURL.flatMap(tileImages.image(for:)))
     }
+}
+
+/// The grid's last reported prefetch range; a class so writing it re-renders nothing.
+private final class VisibleRangeBox {
+    var value: Range<Int> = 0..<0
 }
 
 /// Reads `MediaTileImages.generation` in its own body, so a landed tile image re-renders only the

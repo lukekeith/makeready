@@ -25,11 +25,13 @@ import UIKit
 /// (rule 3).
 struct MediaBrowser: View {
     /// C-129 §4 `level` (R-06, R-36: nested). The column count is fixed per level (§2).
+    /// `three` is off the pinch chain (owner 2026-11-01: media-home's search results) and draws like `five`.
     enum Level: String, CaseIterable {
-        case five, eight, fourteen, thirty
+        case three, five, eight, fourteen, thirty
 
         var columns: Int {
             switch self {
+            case .three: return 3
             case .five: return 5
             case .eight: return 8
             case .fourteen: return 14
@@ -38,19 +40,20 @@ struct MediaBrowser: View {
         }
 
         /// §2 Tile: `space-chip-gap` at `five` (deviation 1), 0 elsewhere (one mosaic, rule 6).
-        var gutter: CGFloat { self == .five ? Token.Space.chipGap : 0 }
-        /// §2 Badges: `five` only (rule 8).
-        var showsBadges: Bool { self == .five }
+        var gutter: CGFloat { self == .three || self == .five ? Token.Space.chipGap : 0 }
+        /// §2 Badges: `five` only (rule 8), and `three`.
+        var showsBadges: Bool { self == .three || self == .five }
         /// §2 Pill: `eight` / `fourteen` / `thirty` (rules 19–22).
-        var showsPills: Bool { self != .five }
+        var showsPills: Bool { self != .three && self != .five }
         /// §2 Pill text: "yyyy" at `thirty`, "MMM yyyy" at the month levels.
         var sectionsByYear: Bool { self == .thirty }
         /// OQ-C-129-005 (owner): a tap opens the viewer at `five` and `eight` only.
-        var tappable: Bool { self == .five || self == .eight }
+        var tappable: Bool { self == .three || self == .five || self == .eight }
 
         /// One step toward more columns (pinch out, §2b).
         var denser: Level? {
             switch self {
+            case .three: return nil
             case .five: return .eight
             case .eight: return .fourteen
             case .fourteen: return .thirty
@@ -61,7 +64,7 @@ struct MediaBrowser: View {
         /// One step toward fewer columns (pinch in, §2b).
         var sparser: Level? {
             switch self {
-            case .five: return nil
+            case .three, .five: return nil
             case .eight: return .five
             case .fourteen: return .eight
             case .thirty: return .fourteen
@@ -108,7 +111,11 @@ struct MediaBrowser: View {
     var body: some View {
         GeometryReader { proxy in
             let size = proxy.size
-            let sections = tracker.sections(items: items, byYear: level.sectionsByYear, timeZone: timeZone)
+            // Only the pill levels cut sections: the cut compares every item, and this body runs on
+            // every resize and image redraw.
+            let sections = level.showsPills
+                ? tracker.sections(items: items, byYear: level.sectionsByYear, timeZone: timeZone)
+                : []
             ZStack(alignment: .topLeading) {
                 MediaBrowserLevelGrid(
                     items: items,
@@ -119,7 +126,7 @@ struct MediaBrowser: View {
                     frozen: frozen,
                     scrollToNewestToken: scrollToNewestToken,
                     refreshing: refreshing,
-                    sections: level.showsPills ? sections : [],
+                    sections: sections,
                     size: size,
                     initialOffset: tracker.initialOffset(for: level, size: size, count: items.count, refreshing: refreshing),
                     fadePillsIn: tracker.geometry != nil,

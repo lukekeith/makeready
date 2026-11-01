@@ -123,6 +123,17 @@ final class MediaTileImagesTests: XCTestCase {
 
     /// A pull-to-refresh that succeeds forgets earlier failures, so a transient outage doesn't blank a
     /// URL for the session.
+    /// A burst of landed images redraws the grid a few times, not once per image (every redraw re-renders
+    /// the whole Media screen).
+    func testABurstOfLandedImagesBumpsGenerationLessThanOncePerImage() async {
+        let image = pixel()
+        let tiles = MediaTileImages(byteLimit: 64 * 1024 * 1024, maxConcurrent: 6, fetch: { _, _ in image })
+        await tiles.load(requests(0..<30))
+        XCTAssertNotNil(tiles.image(for: url(29)))
+        XCTAssertGreaterThan(tiles.generation, 0)
+        XCTAssertLessThan(tiles.generation, 30)
+    }
+
     func testClearFailuresForgetsFailedURLs() async {
         let tiles = MediaTileImages(byteLimit: 64 * 1024 * 1024, maxConcurrent: 1, fetch: { _, _ in throw URLError(.notConnectedToInternet) })
         await tiles.load(requests(0..<1))
