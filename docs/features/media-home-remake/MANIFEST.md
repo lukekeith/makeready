@@ -12,3 +12,4 @@ ui2: media-home (d2m era 2.0, no Figma; queued, unspecced) + MediaBrowser (new d
 auto: off
 child: media-page — shipped
 child: viewer-paging-video — spec pending
+child: media-library — spec
