@@ -60,6 +60,9 @@ struct MediaHomeScreen: View {
         /// §3 date-range label capture input: nil = automatic (shown while scrolling, hidden
         /// ~2 s after), true = forced shown, false = forced hidden.
         var dateLabelVisible: Bool? = nil
+        /// §3 Active search: the field's focus on first render (capture state `searchActiveEmpty`);
+        /// the screen's own focus `@State` takes over from there.
+        var searchFocused: Bool = false
     }
 
     let state: State
@@ -72,7 +75,7 @@ struct MediaHomeScreen: View {
     var onTapTime: () -> Void = {}
     var onClearFilters: () -> Void = {}                  // §3 noResults "Clear filters"
     var onRetry: () -> Void = {}                         // §3 failed "Retry"
-    /// §3 "`onLevelChange` is not wired while pinch is off": kept for callers, never called.
+    /// §3 Level reporting: each change of the resting level (five ⇄ three), first render included.
     var onLevelChange: (MediaBrowser.Level) -> Void = { _ in }
     var onTap: (String, CGRect) -> Void = { _, _ in }    // §3 opening a photo → ImageViewer
     var onVisibleRangeChange: (Range<Int>) -> Void = { _ in }
@@ -91,14 +94,21 @@ struct MediaHomeScreen: View {
     @SwiftUI.State private var visibleRange: Range<Int>?
     @SwiftUI.State private var scrollToNewestToken = 0
     @SwiftUI.State private var dateLabelShown = false
-    @SwiftUI.State private var lastScrollOffset: CGFloat?
-    @SwiftUI.State private var dateLabelHideTask: Task<Void, Never>?
+    /// §3 Rendering cost: the last offset, the fade-out task and the derived items, held outside
+    /// observation so a scroll frame re-renders only when `dateLabelShown` flips.
+    @SwiftUI.State private var cache = MediaHomeCache()
     /// Owner 2026-11-01: the search's own focus, as on groups-home/members-home.
-    @SwiftUI.State private var searchFocused = false
+    @SwiftUI.State private var searchFocused: Bool
 
     /// Owner 2026-11-01 (groups-home's rule): search is active while the field is focused or holds
     /// a query — the dismiss x shows, and the shell is told (`onSearchActiveChange`).
     private var searchActive: Bool { searchFocused || !query.isEmpty }
+
+    /// §3 "Empty means trimmed": a whitespace-only query is empty for the blank state and the level.
+    private var trimmedQueryEmpty: Bool { query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+    /// §3 Search-blank state: search active with an empty trimmed query → no C-129, blank ground.
+    private var searchBlank: Bool { searchActive && trimmedQueryEmpty }
 
     init(
         state: State,
@@ -135,6 +145,7 @@ struct MediaHomeScreen: View {
         self.image = image
         self.imageGeneration = imageGeneration
         _query = SwiftUI.State(initialValue: state.searchText)
+        _searchFocused = SwiftUI.State(initialValue: state.searchFocused)
     }
 
     // MARK: - §2 / §3 constants
@@ -143,8 +154,8 @@ struct MediaHomeScreen: View {
     private static let searchPlaceholder = "Search"
     /// §3 Time chip options, in order; the first is "no filter".
     static let timeOptions = ["All time", "Last 7 days", "Last 30 days", "Last 90 days"]
-    /// §3 "Pinch is off": C-129 opens at `five` and stays there.
-    private static let level: MediaBrowser.Level = .five
+    /// §3 Level follows the query (owner 2026-11-01): `five` with no trimmed query, `three` with one.
+    private var level: MediaBrowser.Level { trimmedQueryEmpty ? .five : .three }
     /// §3 Visibility: "fades out about 2 seconds after scrolling stops".
     private static let dateLabelHold: Duration = .seconds(2)
 
@@ -161,27 +172,26 @@ struct MediaHomeScreen: View {
 
     private var timeActive: Bool { state.timeOption != Self.timeOptions[0] }
 
-    /// C-129 `items`, oldest → newest.
-    private var items: [MediaBrowser.Item] {
-        state.photoDates.indices.map { index in
-            let date = Self.parse(state.photoDates[index]) ?? .distantPast
-            let title = state.photoTitles.indices.contains(index) ? state.photoTitles[index] : ""
-            return MediaBrowser.Item(
-                id: itemID(index),
-                date: date,
-                accessibilityLabel: "\(title), \(Self.dayFormatter.string(from: date))"
-            )
+    /// C-129 `items`, oldest → newest, and the `photoIDs` → index lookup — §3 Rendering cost:
+    /// derived once per change of `photoDates`, `photoIDs` or `photoTitles`, then reused.
+    private var derived: MediaHomeCache.Derived {
+        cache.derived(dates: state.photoDates, ids: state.photoIDs, titles: state.photoTitles) {
+            Self.derive(dates: state.photoDates, ids: state.photoIDs, titles: state.photoTitles)
         }
     }
 
-    /// `photoIDs[index]` when the host passed ids, else "photo-<index>".
-    private func itemID(_ index: Int) -> String {
-        state.photoIDs.indices.contains(index) ? state.photoIDs[index] : "photo-\(index)"
-    }
-
-    /// `photoIDs` → its `photoURLs` index, built once per render so a tile's lookup is O(1).
-    private var photoIndexByID: [String: Int] {
-        Dictionary(state.photoIDs.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
+    private static func derive(dates: [String], ids: [String], titles: [String]) -> MediaHomeCache.Derived {
+        let items = dates.indices.map { index in
+            let date = parse(dates[index]) ?? .distantPast
+            let title = titles.indices.contains(index) ? titles[index] : ""
+            return MediaBrowser.Item(
+                id: ids.indices.contains(index) ? ids[index] : "photo-\(index)",   // "photo-<index>" without ids
+                date: date,
+                accessibilityLabel: "\(title), \(dayFormatter.string(from: date))"
+            )
+        }
+        let indexByID = Dictionary(ids.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
+        return MediaHomeCache.Derived(items: items, indexByID: indexByID)
     }
 
     /// The `photoURLs` index an item id names: its place in `photoIDs`, or the "photo-<index>" suffix.
@@ -205,7 +215,7 @@ struct MediaHomeScreen: View {
     }
 
     /// §2.4: the date label is not drawn with no photos on screen (loading, empty, noResults,
-    /// failed with no photos).
+    /// failed with no photos), nor in the search-blank state (§3).
     private var drawsDateLabel: Bool {
         guard !state.photoDates.isEmpty else { return false }
         return state.phase == .loaded || state.phase == .failed
@@ -220,6 +230,7 @@ struct MediaHomeScreen: View {
     /// §2.2: C-129 stays for loading, loaded and failed-with-photos; §2.3's lines replace it
     /// otherwise.
     private var showsGrid: Bool {
+        guard !searchBlank else { return false }
         switch state.phase {
         case .loading, .loaded: return true
         case .failed: return !state.photoDates.isEmpty
@@ -229,7 +240,7 @@ struct MediaHomeScreen: View {
 
     /// §3 Date-range label: the dates of the items C-129 reports (all items until it reports).
     private var dateRange: String {
-        let all = items
+        let all = derived.items
         guard !all.isEmpty else { return "" }
         let range = visibleRange.map { $0.clamped(to: 0..<all.count) } ?? 0..<all.count
         guard let first = range.first, let last = range.last else { return "" }
@@ -290,20 +301,22 @@ struct MediaHomeScreen: View {
         .background(Token.layoutBackground)              // §2: page ground
         .onChange(of: filterKey) { scrollToNewestToken += 1 }
         .onChange(of: searchActive, initial: true) { _, active in onSearchActiveChange(active) }
-        .onDisappear { dateLabelHideTask?.cancel() }
+        // §3 Level reporting: the host sizes its tile images for the resting level.
+        .onChange(of: level, initial: true) { _, next in onLevelChange(next) }
+        .onDisappear { cache.hideTask?.cancel() }
     }
 
     /// §3 Visibility: any change of C-129's reported offset shows the label; it fades out
     /// `dateLabelHold` after the last change, and a new scroll restarts the wait. The first
     /// report only records where the grid rests, so the label stays hidden at rest.
     private func scrollChanged(_ offset: CGFloat) {
-        defer { lastScrollOffset = offset }
-        guard let last = lastScrollOffset, last != offset else { return }
+        defer { cache.lastScrollOffset = offset }
+        guard let last = cache.lastScrollOffset, last != offset else { return }
         if !dateLabelShown {
             withAnimation(Token.Motion.menuFadeIn) { dateLabelShown = true }
         }
-        dateLabelHideTask?.cancel()
-        dateLabelHideTask = Task { @MainActor in
+        cache.hideTask?.cancel()
+        cache.hideTask = Task { @MainActor in
             try? await Task.sleep(for: Self.dateLabelHold)
             guard !Task.isCancelled else { return }
             withAnimation(Token.Motion.menuFadeOut) { dateLabelShown = false }
@@ -406,14 +419,17 @@ struct MediaHomeScreen: View {
     // MARK: §2.2 / §2.3 Content
 
     @ViewBuilder private var content: some View {
-        if showsGrid {
-            let indexByID = photoIndexByID
+        if searchBlank {
+            // §3 Search-blank state: blank page ground under the top bar — no grid, no lines.
+            Color.clear
+        } else if showsGrid {
+            let derived = derived
             MediaBrowser(
-                items: items,
-                image: { image(for: $0, indexByID: indexByID) },
+                items: derived.items,
+                image: { image(for: $0, indexByID: derived.indexByID) },
                 imageGeneration: imageGeneration,
-                level: Self.level,
-                // §3 "Pinch is off" (owner 2026-11-01): `onLevelChange` never fires, not wired.
+                level: level,
+                // §3 "Pinch is off" (owner 2026-11-01): the level comes from the query alone.
                 pinchEnabled: false,
                 hiddenItemID: state.hiddenItemID,
                 frozen: state.frozen,
@@ -541,6 +557,19 @@ extension MediaHomeScreen.State {
         phase: .loaded, searchText: "", selectedTags: [], selectedLeaders: [],
         timeOption: "All time", photoURLs: samplePhotoURLs, photoDates: samplePhotoDates,
         photoTitles: samplePhotoTitles, dateLabelVisible: true
+    )
+
+    /// Capture state `searchActiveEmpty` — search focused, empty query: blank ground below the top bar.
+    static let searchActiveEmpty = Self(
+        phase: .loaded, searchText: "", selectedTags: [], selectedLeaders: [],
+        timeOption: "All time", photoURLs: samplePhotoURLs, photoDates: samplePhotoDates,
+        photoTitles: samplePhotoTitles, searchFocused: true
+    )
+    /// Capture state `searchResults` — query "Noah", a few matching photos, C-129 at `three`.
+    static let searchResults = Self(
+        phase: .loaded, searchText: "Noah", selectedTags: [], selectedLeaders: [],
+        timeOption: "All time", photoURLs: Array(samplePhotoURLs.prefix(7)),
+        photoDates: Array(samplePhotoDates.prefix(7)), photoTitles: Array(samplePhotoTitles.prefix(7))
     )
 
     // The owner's 13 catalog portraits (media-browser.md §6) in a fixed shuffle, four a day over
@@ -676,4 +705,44 @@ extension MediaHomeScreen.State {
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)
+}
+
+#Preview("searchActiveEmpty") {
+    MediaHomeScreen(state: .searchActiveEmpty)
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
+
+#Preview("searchResults") {
+    MediaHomeScreen(state: .searchResults)
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
+
+// MARK: - §3 Rendering cost
+
+/// Scroll bookkeeping and derived items, deliberately NOT observable (like C-129's
+/// `MediaBrowserTracker`): a write from a scroll frame must not re-render the screen.
+final class MediaHomeCache {
+    struct Derived {
+        let items: [MediaBrowser.Item]
+        let indexByID: [String: Int]
+    }
+
+    var lastScrollOffset: CGFloat?
+    var hideTask: Task<Void, Never>?
+
+    private var key: (dates: [String], ids: [String], titles: [String])?
+    private var value: Derived?
+
+    /// The cached result while the inputs are unchanged; `make()` runs once per change.
+    func derived(dates: [String], ids: [String], titles: [String], make: () -> Derived) -> Derived {
+        if let key, let value, key.dates == dates, key.ids == ids, key.titles == titles { return value }
+        let made = make()
+        key = (dates, ids, titles)
+        value = made
+        return made
+    }
 }

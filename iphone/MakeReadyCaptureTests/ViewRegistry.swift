@@ -5595,7 +5595,8 @@ private func buildScreenMediaHome(_ fixture: CaptureFixture) throws -> AnyView {
             refreshing: c.refreshing ?? false,
             sourceLabel: c.sourceLabel,
             sourceActive: c.sourceActive ?? false,
-            dateLabelVisible: c.dateLabelVisible
+            dateLabelVisible: c.dateLabelVisible,
+            searchFocused: c.focused ?? false             // capture state searchActiveEmpty
         )
     )
     // The harness proposes no height; the screen fills its host, so the capture gives it the
