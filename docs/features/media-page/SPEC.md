@@ -1,4 +1,5 @@
 # media-page — spec
+> 🤖 AGENT SIGNED OFF 2026-11-01 — c2cae1e2 · agent walk round 2 · not human-tested · evidence: .builder/media-page/agent-walk/round-2/
 > lg · child 1 of media-home-remake (`docs/features/media-home-remake/PROGRAM.md`) · ticket none
 
 ## Idea
@@ -256,22 +257,6 @@ otherwise untouched; it's undone by dropping the column. SC2 and SC3 are body-on
 | R2 | build-time risk: D15's physical-device check can't run on an agent walk's headless simulator | settled by the owner's device check after merge; the agent walk records it as pending (D15) |
 | R3 | build-time risk: the fixtures layer depends on the base layer's library images; under vitest or with no storage it is skipped and Media is empty. The walk env has storage (s3mock) | settled by the fixtures task: assert the `full` scenario yields 360 rows in the walk env |
 | R4 | build-time risk: `PersistedState` caps persisted media at the 100 newest by `createdAt` (`PersistedState.swift:205`), so a cold launch shows a partial grid until `loadAllPhotos` finishes | settled by the container task: the first paint after a cold launch shows the loading state until page 1 lands, or the partial set bottom-anchored |
-
-## Plan
-
-The plan, with its code: `docs/features/media-page/PLAN.md` (§PLAN.md).
-
-- Phase 1 · Task 1 · `Media.takenAt` column + guarded backfill
-- Phase 1 · Task 2 · `parseTakenAt` + the upload route and `captureToLibrary` store it
-- Phase 2 · Task 3 · Cover routes accept `takenAt`; the library list returns it
-- Phase 2 · Task 4 · `media-home` fixtures layer — and the contract freeze
-- Phase 3 · Task 5 · Cover picks send their capture date
-- Phase 3 · Task 6 · `MediaLibraryItem.takenAt` + `MediaActions.loadAllPhotos`
-- Phase 3 · Task 7 · `MediaHomeMapper` — order, search, chips, tile URLs
-- Phase 4 · Task 8 · d2m designs and builds MediaBrowser and media-home
-- Phase 5 · Task 9 · Media owns its scroll — the section opt-out and a shared morph rule
-- Phase 5 · Task 10 · Tile image budget + ImageViewer seeded flight
-- Phase 5 · Task 11 · `MediaHomeContainer` — Home's Media section
 
 ## Fixes
 
