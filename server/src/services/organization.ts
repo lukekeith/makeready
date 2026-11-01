@@ -144,7 +144,7 @@ export async function resolveUserOrganizationId(
 export async function getUserOrganizations(userId: string): Promise<OrganizationsResult> {
   try {
     const [owned, roles] = await Promise.all([
-      prisma.organization.findMany({ where: { ownerId: userId, isActive: true } }),
+      prisma.organization.findMany({ where: { ownerId: userId, isActive: true, isMakeReady: false } }),
       prisma.userRole.findMany({ where: { userId }, select: { organizationId: true } }),
     ])
     const ownedIds = new Set(owned.map((o) => o.id))
@@ -152,7 +152,7 @@ export async function getUserOrganizations(userId: string): Promise<Organization
     const roleHeld =
       roleOrgIds.length > 0
         ? await prisma.organization.findMany({
-            where: { id: { in: roleOrgIds }, isActive: true },
+            where: { id: { in: roleOrgIds }, isActive: true, isMakeReady: false },
             orderBy: [{ name: 'asc' }, { id: 'asc' }],
           })
         : []

@@ -292,7 +292,8 @@ async function runSeedFile(filePath: string) {
 async function migrateOrganizationOwners() {
   console.log('\n  📦 Migrating organization owners to UserRole...')
 
-  const organizations = await prisma.organization.findMany()
+  // media-library D6: the MakeReady org's system owner is never given a role
+  const organizations = await prisma.organization.findMany({ where: { isMakeReady: false } })
   const ownerRole = await prisma.role.findFirst({
     where: { name: 'Owner', organizationId: null },
   })

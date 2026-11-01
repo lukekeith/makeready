@@ -327,6 +327,7 @@ model Organization {
   ownerId              String @unique // Deprecated - Kept for backward compatibility
   isActive             Boolean @default(true)
   twilioVerifyServiceSid String? // Twilio Verify Service SID for org-branded SMS
+  isMakeReady          Boolean @default(false) // media-library D6: the one org that owns MakeReady's own media library
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -340,6 +341,7 @@ model Organization {
   previewTokens        PreviewToken[]
   @@index([ownerId])
   @@index([isActive])
+  @@index([isMakeReady])
   @@map("organizations")
 }
 

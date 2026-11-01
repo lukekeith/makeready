@@ -524,6 +524,10 @@ models:
         type: string
         nullable: true
         description: "Twilio Verify Service SID for org-branded SMS"
+      isMakeReady:
+        type: boolean
+        default: false
+        description: "media-library D6: the one org that owns MakeReady's own media library"
       createdAt:
         type: datetime
         default: now()
@@ -562,6 +566,7 @@ models:
     indexes:
       - fields: [ownerId]
       - fields: [isActive]
+      - fields: [isMakeReady]
 
   # ===========================================================================
   # Members (Phone-authenticated users)
