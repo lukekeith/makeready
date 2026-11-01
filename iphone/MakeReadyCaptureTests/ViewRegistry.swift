@@ -5597,5 +5597,9 @@ private func buildScreenMediaHome(_ fixture: CaptureFixture) throws -> AnyView {
             sourceActive: c.sourceActive ?? false,
             dateLabelVisible: c.dateLabelVisible
         )
-    ))
+    )
+    // The harness proposes no height; the screen fills its host, so the capture gives it the
+    // device height (956) less the 59pt top inset it draws. (Was the screen's own minHeight, which
+    // on device overflowed the space under the TopNav and pushed the row off screen.)
+    .frame(minHeight: 897, alignment: .top))
 }

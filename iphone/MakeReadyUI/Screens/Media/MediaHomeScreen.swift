@@ -137,10 +137,6 @@ struct MediaHomeScreen: View {
     private static let searchPlaceholder = "Search"
     /// §3 Time chip options, in order; the first is "no filter".
     static let timeOptions = ["All time", "Last 7 days", "Last 30 days", "Last 90 days"]
-    // GAP — media-home §2: "C-129 … to the bottom of the screen". The screen fills its host's
-    // height; under the capture harness (which proposes no height) that is the device height
-    // (956) less the 59pt top inset the harness draws. No layout token.
-    private static let canvasHeight: CGFloat = 897
     /// §3 "Pinch is off": C-129 opens at `five` and stays there.
     private static let level: MediaBrowser.Level = .five
     /// §3 Visibility: "fades out about 2 seconds after scrolling stops".
@@ -281,7 +277,10 @@ struct MediaHomeScreen: View {
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(maxWidth: .infinity, minHeight: Self.canvasHeight, maxHeight: .infinity, alignment: .top)
+        // Fills exactly the height its host offers — no floor of its own: on device a floor taller
+        // than the space under the TopNav overflowed it and the shell pushed the row off screen.
+        // The capture harness, which proposes no height, gives it the 897pt canvas instead.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Token.layoutBackground)              // §2: page ground
         .onChange(of: filterKey) { scrollToNewestToken += 1 }
         .onDisappear { dateLabelHideTask?.cancel() }
