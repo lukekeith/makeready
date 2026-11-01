@@ -92,6 +92,8 @@ struct MediaBrowser: View {
     var timeZone: TimeZone = .current
     var refreshing: Bool = false
     var onVisibleRangeChange: (Range<Int>) -> Void = { _ in }
+    /// The indices on screen, with no prefetch margin — what a date-range line describes.
+    var onVisibleItemsChange: (Range<Int>) -> Void = { _ in }
     var onTap: (String, CGRect) -> Void = { _, _ in }
     var onScrollChange: (CGFloat, Bool) -> Void = { _, _ in }
     var onRefresh: () -> Void = {}
@@ -120,6 +122,7 @@ struct MediaBrowser: View {
                     fadePillsIn: tracker.geometry != nil,
                     tracker: tracker,
                     onVisibleRangeChange: onVisibleRangeChange,
+                    onVisibleItemsChange: onVisibleItemsChange,
                     onTap: onTap,
                     onScrollChange: onScrollChange,
                     onRefresh: onRefresh
@@ -181,6 +184,7 @@ private struct MediaBrowserLevelGrid: View {
     let size: CGSize
     let tracker: MediaBrowserTracker
     let onVisibleRangeChange: (Range<Int>) -> Void
+    let onVisibleItemsChange: (Range<Int>) -> Void
     let onTap: (String, CGRect) -> Void
     let onScrollChange: (CGFloat, Bool) -> Void
     let onRefresh: () -> Void
@@ -206,6 +210,7 @@ private struct MediaBrowserLevelGrid: View {
         fadePillsIn: Bool,
         tracker: MediaBrowserTracker,
         onVisibleRangeChange: @escaping (Range<Int>) -> Void,
+        onVisibleItemsChange: @escaping (Range<Int>) -> Void,
         onTap: @escaping (String, CGRect) -> Void,
         onScrollChange: @escaping (CGFloat, Bool) -> Void,
         onRefresh: @escaping () -> Void
@@ -222,6 +227,7 @@ private struct MediaBrowserLevelGrid: View {
         self.size = size
         self.tracker = tracker
         self.onVisibleRangeChange = onVisibleRangeChange
+        self.onVisibleItemsChange = onVisibleItemsChange
         self.onTap = onTap
         self.onScrollChange = onScrollChange
         self.onRefresh = onRefresh
@@ -242,7 +248,10 @@ private struct MediaBrowserLevelGrid: View {
                 Color.clear
                     .frame(width: size.width, height: metrics.contentHeight)
 
-                ForEach(Array(window), id: \.self) { row in
+                // The window is clamped to the CURRENT row count: `items` can shrink (a refresh
+                // reloading page 1, a filter) while the mounted window still points past the
+                // new end, until the next scroll geometry callback moves it.
+                ForEach(Array(window.clamped(to: 0..<metrics.rowCount)), id: \.self) { row in
                     tileRow(row)
                         .padding(.top, CGFloat(row) * metrics.pitch)
                 }
@@ -277,6 +286,9 @@ private struct MediaBrowserLevelGrid: View {
                 onScrollChange(geometry.contentOffset.y + geometry.contentInsets.top, tracker.fingerDown)
             }
         }
+        .onChange(of: items.count) {
+            if let geometry = tracker.geometry { scrolled(geometry) }
+        }
         .onChange(of: scrollToNewestToken) {
             // §2b: "It never jumps to the newest end on its own, only on a
             // `scrollToNewestToken` change (rule 4)."
@@ -297,7 +309,8 @@ private struct MediaBrowserLevelGrid: View {
         tracker.geometryLevel = level
 
         let visible = metrics.visibleRows(top: geometry.visibleRect.minY, bottom: geometry.visibleRect.maxY)
-        if visible.lowerBound < window.lowerBound || visible.upperBound > window.upperBound {
+        if visible.lowerBound < window.lowerBound || visible.upperBound > window.upperBound
+            || window.upperBound > metrics.rowCount {
             window = metrics.window(visibleTop: geometry.visibleRect.minY, viewport: geometry.visibleRect.height)
         }
 
@@ -307,6 +320,11 @@ private struct MediaBrowserLevelGrid: View {
         if range != tracker.lastReportedRange {
             tracker.lastReportedRange = range
             onVisibleRangeChange(range)
+        }
+        let onScreen = metrics.itemRange(rows: visible)
+        if onScreen != tracker.lastReportedVisible {
+            tracker.lastReportedVisible = onScreen
+            onVisibleItemsChange(onScreen)
         }
 
         onScrollChange(geometry.contentOffset.y + geometry.contentInsets.top, tracker.fingerDown)
@@ -322,7 +340,7 @@ private struct MediaBrowserLevelGrid: View {
     // MARK: Tiles
 
     private func tileRow(_ row: Int) -> some View {
-        let first = row * metrics.columns
+        let first = min(row * metrics.columns, items.count)
         let last = min(first + metrics.columns, items.count)
         return HStack(spacing: metrics.gutter) {
             ForEach(Array(first..<last), id: \.self) { index in
@@ -548,7 +566,7 @@ private struct MediaBrowserMetrics {
 
     func visibleRows(top: CGFloat, bottom: CGFloat) -> Range<Int> {
         guard pitch > 0, rowCount > 0 else { return 0..<0 }
-        let first = max(0, Int((top / pitch).rounded(.down)))
+        let first = min(rowCount, max(0, Int((top / pitch).rounded(.down))))
         let last = min(rowCount, Int((bottom / pitch).rounded(.up)))
         return first..<max(first, last)
     }
@@ -557,7 +575,7 @@ private struct MediaBrowserMetrics {
     func window(visibleTop: CGFloat, viewport: CGFloat) -> Range<Int> {
         guard pitch > 0, rowCount > 0 else { return 0..<0 }
         let margin = viewport
-        let first = max(0, Int(((visibleTop - margin) / pitch).rounded(.down)))
+        let first = min(rowCount, max(0, Int(((visibleTop - margin) / pitch).rounded(.down))))
         let last = min(rowCount, Int(((visibleTop + viewport + margin) / pitch).rounded(.up)))
         return first..<max(first, last)
     }
@@ -588,6 +606,7 @@ final class MediaBrowserTracker {
     var fingerDown = false
     var refreshArmed = false
     var lastReportedRange: Range<Int>?
+    var lastReportedVisible: Range<Int>?
 
     var pinching = false
     var pinchBase: CGFloat = 1

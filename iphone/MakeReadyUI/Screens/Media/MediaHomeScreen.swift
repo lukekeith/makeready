@@ -366,10 +366,10 @@ struct MediaHomeScreen: View {
                 scrollToNewestToken: scrollToNewestToken,
                 timeZone: .current,
                 refreshing: state.refreshing,
-                onVisibleRangeChange: { range in
-                    visibleRange = range
-                    onVisibleRangeChange(range)
-                },
+                onVisibleRangeChange: onVisibleRangeChange,
+                // §3 Date-range line: the items ON SCREEN, not the prefetch range, which
+                // carries a one-viewport margin each way.
+                onVisibleItemsChange: { range in visibleRange = range },
                 onTap: onTap,
                 onScrollChange: onScrollChange,
                 onRefresh: onRefresh
