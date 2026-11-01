@@ -1,7 +1,7 @@
 size: lg
 state: built
-next: /builder:agent-walk --path docs/features/media-page
-head: 933dceac
+next: /builder:resume --path docs/features/media-page
+head: cf635119
 ticket: none
 branch: builder/media-page
 pr: none
