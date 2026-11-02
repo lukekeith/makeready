@@ -1,12 +1,12 @@
 size: lg
 state: building
-next: "Implement admitted batch resend, atomic withdrawal and fixtures; review/security/verify before producer freeze"
+next: "Integrate reviewed D2M inputs, then implement frozen iPhone models/state/session-safe actions"
 head: 9da5d240
 ticket: none
 branch: builder/invites
 pr: none
 apps: server+iphone
-contract: open
+contract: frozen
 hold: none
 go-ahead: owner 2026-11-02 agent --auto
 walk: none
@@ -17,7 +17,7 @@ auto: on
 blocked: none
 agent-walk: risk
 phase: building
-current-task: "Task 5"
+current-task: "Task 6 integration boundary"
 origin-branch: feature/invites
 origin-head: 9bc0bf7d86156bb023e04c00a32d3fd62ffa8d11
 target-branch: feature/invites
@@ -25,3 +25,5 @@ target-start-head: 9bc0bf7d86156bb023e04c00a32d3fd62ffa8d11
 feature-name: invites
 registry: docs/features
 tests: walk=risk review=slice
+
+producer-head: 46d0b8c69429763e9f25d2fdbe1949fced19e568
