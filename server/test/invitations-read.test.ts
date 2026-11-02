@@ -1,3 +1,4 @@
+import { startInvitationHttpServer, stopInvitationHttpServer, type InvitationHttpServer } from './helpers/invitations-http.js'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { assertInvitationTestDatabase, installLegacyAuthHelpers, legacyAgent, legacyId, seedLegacyInvitationCases } from './helpers/invitations-legacy-fixtures.js'
@@ -22,6 +23,7 @@ if (process.env.DATABASE_URL !== leased || process.env.DIRECT_URL !== leased) th
 const { prisma } = await import('../src/lib/prisma.js')
 const { app } = await import('../src/index.js')
 installLegacyAuthHelpers(app, prisma)
+let httpServer: InvitationHttpServer
 
 let fixture: Awaited<ReturnType<typeof seedLegacyInvitationCases>>
 async function cleanup() {
@@ -37,9 +39,9 @@ async function cleanup() {
   await prisma.organization.deleteMany({ where: { id: legacyId(3) } })
   await prisma.user.deleteMany({ where: { id: { in: ids } } })
 }
-beforeAll(async () => { await cleanup() })
+beforeAll(async () => { httpServer = await startInvitationHttpServer(app); await cleanup() })
 beforeEach(async () => { await cleanup(); fixture = await seedLegacyInvitationCases(prisma); vi.clearAllMocks() })
-afterAll(async () => { await cleanup(); await prisma.$disconnect() })
+afterAll(async () => { try { await cleanup() } finally { await stopInvitationHttpServer(httpServer); await prisma.$disconnect() } })
 
 const id = (n: number) => `a3300000-0000-4000-8000-${String(n).padStart(12,'0')}`
 async function foreignWorld() {
@@ -59,7 +61,7 @@ afterAll(cleanupForeign)
 
 describe('managed invitation feed and detail', () => {
   it('emits exact nullable C1 fields, all statuses, deterministic dates and full independent filter options', async () => {
-    const user=await legacyAgent(app,{userId:fixture.leader.id})
+    const user=await legacyAgent(httpServer,{userId:fixture.leader.id})
     const response=await user.get('/api/invitations/feed')
     expect(response.status).toBe(200)
     expect(Object.keys(response.body).sort()).toEqual(['filters','items','total'])
@@ -76,8 +78,8 @@ describe('managed invitation feed and detail', () => {
   it('scopes rows/options/detail for owners, roles, creators, strangers and super admins', async () => {
     const foreign=await foreignWorld()
     await prisma.group.update({where:{id:foreign.group.id},data:{creatorId:fixture.outsider.id}})
-    const owner=await legacyAgent(app,{userId:fixture.leader.id})
-    const stranger=await legacyAgent(app,{userId:fixture.outsider.id})
+    const owner=await legacyAgent(httpServer,{userId:fixture.leader.id})
+    const stranger=await legacyAgent(httpServer,{userId:fixture.outsider.id})
     const own=await owner.get('/api/invitations/feed')
     expect(own.body.items.some((row:any)=>row.id===foreign.row.id)).toBe(false)
     expect(JSON.stringify(own.body.filters)).not.toContain('Private')
@@ -113,9 +115,9 @@ describe('managed invitation feed and detail', () => {
     await prisma.invitation.update({ where: { id: fixture.invites.nullGroup.id }, data: { recipientPhone: member.phoneNumber, status: 'rejected' } })
     await prisma.invitation.update({ where: { id: fixture.invites.nullPhone.id }, data: { organizationId: null } })
     await prisma.inviteEvent.create({ data: { invitationId: fixture.invites.pending.id, type: 'sent', groupId: fixture.group.id } })
-    const oldA = await legacyAgent(app, { userId: fixture.outsider.id })
-    const newB = await legacyAgent(app, { userId: foreign.owner.id })
-    const mover = await legacyAgent(app, { userId: fixture.leader.id })
+    const oldA = await legacyAgent(httpServer, { userId: fixture.outsider.id })
+    const newB = await legacyAgent(httpServer, { userId: foreign.owner.id })
+    const mover = await legacyAgent(httpServer, { userId: fixture.leader.id })
     expect((await oldA.get(`/api/invitations/${fixture.requests.pending.id}`)).status).toBe(200)
     expect((await newB.get(`/api/invitations/${fixture.requests.pending.id}`)).status).toBe(403)
 
@@ -164,7 +166,7 @@ describe('managed invitation feed and detail', () => {
 
   it('fails closed for an unresolved current group org without falling back to its stored org', async () => {
     await prisma.group.update({ where: { id: fixture.group.id }, data: { organizationId: 'obsolete-not-a-uuid' } })
-    const user = await legacyAgent(app, { userId: fixture.leader.id })
+    const user = await legacyAgent(httpServer, { userId: fixture.leader.id })
     const feed = await user.get('/api/invitations/feed')
     expect(feed.status, JSON.stringify(feed.body)).toBe(200)
     expect(feed.body.total).toBe(1)
@@ -177,7 +179,7 @@ describe('managed invitation feed and detail', () => {
   it('filters and sorts display dates before limiting and reports total before the 200 cap', async () => {
     await prisma.invitation.deleteMany({where:{organizationId:fixture.org.id}})
     await prisma.invitation.createMany({data:Array.from({length:201},(_,i)=>({id:id(100+i),initiatedBy:'leader',organizationId:fixture.org.id,inviterId:fixture.leader.id,groupId:fixture.group.id,status:i===0?'accepted':'pending',createdAt:new Date('2020-01-01'),acceptedAt:i===0?new Date('2025-12-01'):null}))})
-    const user=await legacyAgent(app,{userId:fixture.leader.id})
+    const user=await legacyAgent(httpServer,{userId:fixture.leader.id})
     const all=await user.get('/api/invitations/feed')
     expect(all.body.items).toHaveLength(200)
     expect(all.body.total).toBe(201)
@@ -189,7 +191,7 @@ describe('managed invitation feed and detail', () => {
   })
 
   it('matches sender invites and requests in a leader-managed group and canonicalizes uppercase filters', async () => {
-    const user=await legacyAgent(app,{userId:fixture.leader.id})
+    const user=await legacyAgent(httpServer,{userId:fixture.leader.id})
     const role=await prisma.role.create({data:{name:'Co Leader',organizationId:fixture.org.id}})
     await prisma.userRole.create({data:{userId:fixture.outsider.id,roleId:role.id,organizationId:fixture.org.id}})
     const response=await user.get('/api/invitations/feed').query({orgId:fixture.org.id.toUpperCase(),groupId:fixture.group.id.toUpperCase(),leaderId:fixture.outsider.id.toUpperCase()})
@@ -204,7 +206,7 @@ describe('managed invitation feed and detail', () => {
     const selected=fixture.invites.pending
     const sibling=await prisma.invitation.create({data:{initiatedBy:'leader',inviterId:fixture.leader.id,organizationId:fixture.org.id,recipientPhone:selected.recipientPhone,status:'withdrawn',createdAt:new Date('2025-06-01')}})
     await prisma.inviteEvent.createMany({data:[{id:id(50),invitationId:selected.id,type:'sent',at:new Date('2025-01-02'),groupId:fixture.group.id,actorId:fixture.leader.id,metadata:{private:'hidden'}},{id:id(51),invitationId:sibling.id,type:'withdrawn',at:new Date('2025-06-02'),groupId:foreign.group.id},{id:id(52),invitationId:sibling.id,type:'resent',at:new Date('2025-06-03'),groupId:'deleted-history-id'},{id:id(53),invitationId:foreign.row.id,type:'sent',at:new Date('2025-06-04'),groupId:foreign.group.id}]})
-    const user=await legacyAgent(app,{userId:fixture.leader.id})
+    const user=await legacyAgent(httpServer,{userId:fixture.leader.id})
     const response=await user.get(`/api/invitations/${selected.id}`)
     expect(response.status).toBe(200)
     expect(response.body).toEqual({id:selected.id,kind:'invite',status:'sent',recipientPhone:selected.recipientPhone,recipientName:selected.recipientName,inviterName:'Legacy Leader',message:null,createdAt:selected.createdAt.toISOString(),member:null,invitations:[{id:sibling.id,kind:'invite',groupId:null,groupName:null,groupPicture:null,status:'withdrawn',date:sibling.createdAt.toISOString()},{id:selected.id,kind:'invite',groupId:fixture.group.id,groupName:'Legacy Group',groupPicture:null,status:'sent',date:selected.createdAt.toISOString()}],events:[{id:id(52),type:'resent',at:'2025-06-03T00:00:00.000Z',groupId:'deleted-history-id',groupName:null,invitationId:sibling.id},{id:id(51),type:'withdrawn',at:'2025-06-02T00:00:00.000Z',groupId:foreign.group.id,groupName:null,invitationId:sibling.id},{id:id(50),type:'sent',at:'2025-01-02T00:00:00.000Z',groupId:fixture.group.id,groupName:'Legacy Group',invitationId:selected.id}],canResend:true,canWithdraw:true})
@@ -213,7 +215,7 @@ describe('managed invitation feed and detail', () => {
   })
 
   it('isolates null phone identities and distinguishes pending-expired capabilities', async () => {
-    const user=await legacyAgent(app,{userId:fixture.leader.id})
+    const user=await legacyAgent(httpServer,{userId:fixture.leader.id})
     const empty=await user.get(`/api/invitations/${fixture.invites.nullPhone.id}`)
     expect(empty.status).toBe(200)
     expect(empty.body).toMatchObject({recipientPhone:null,canResend:false,canWithdraw:false})
@@ -232,7 +234,7 @@ describe('managed invitation feed and detail', () => {
     await prisma.memberOrganization.create({data:{memberId:member.id,organizationId:foreign.org.id}})
     await prisma.member.update({where:{id:member.id},data:{birthday:new Date(Date.UTC(new Date().getUTCFullYear()-25,0,1)),profilePicture:'https://example.invalid/avatar.png'}})
     await prisma.invitation.update({where:{id:fixture.invites.pending.id},data:{recipientPhone:member.phoneNumber.replace('+1202','+1 (202) ')}})
-    const user=await legacyAgent(app,{userId:fixture.leader.id})
+    const user=await legacyAgent(httpServer,{userId:fixture.leader.id})
     expect((await user.get(`/api/invitations/${fixture.invites.pending.id}`)).body.member).toBeNull()
     await prisma.memberOrganization.create({data:{memberId:member.id,organizationId:fixture.org.id,joinedAt:new Date('2024-01-01')}})
     await prisma.groupMember.create({data:{groupId:fixture.group.id,memberId:member.id,role:'leader',joinedAt:new Date('2025-01-01')}})
@@ -243,21 +245,21 @@ describe('managed invitation feed and detail', () => {
   })
 
   it('validates inputs and preserves authentication and absent/forbidden error distinctions', async () => {
-    expect((await request(app).get('/api/invitations/feed')).body).toEqual({success:false,error:'Not authenticated'})
-    const user=await legacyAgent(app,{userId:fixture.leader.id})
+    expect((await request(httpServer).get('/api/invitations/feed')).body).toEqual({success:false,error:'Not authenticated'})
+    const user=await legacyAgent(httpServer,{userId:fixture.leader.id})
     for(const query of [{limit:0},{limit:201},{limit:1.5},{limit:'wat'},{orgId:'bad'},{status:'withdrawn'},{q:'query'}]) expect((await user.get('/api/invitations/feed').query(query)).status).toBe(400)
     for(const value of ['malformed',id(999)]) expect((await user.get(`/api/invitations/${value}`)).status).toBe(404)
     expect((await user.get(`/api/invitations/${fixture.invites.unresolvedOrg.id}`)).status).toBe(403)
     const {createApiKeyForUser}=await import('./helpers/api-auth.js')
     const outsiderKey=await createApiKeyForUser(fixture.outsider.id)
-    const outsiderFeed=await request(app).get('/api/invitations/feed').set('Authorization',`Bearer ${outsiderKey.token}`)
+    const outsiderFeed=await request(httpServer).get('/api/invitations/feed').set('Authorization',`Bearer ${outsiderKey.token}`)
     expect(outsiderFeed.status).toBe(200)
     expect(outsiderFeed.body.items).toEqual([])
-    expect((await request(app).get(`/api/invitations/${fixture.invites.pending.id}`).set('Authorization',`Bearer ${outsiderKey.token}`)).status).toBe(403)
+    expect((await request(httpServer).get(`/api/invitations/${fixture.invites.pending.id}`).set('Authorization',`Bearer ${outsiderKey.token}`)).status).toBe(403)
     const apiKey=await createApiKeyForUser(fixture.leader.id)
     await prisma.user.update({where:{id:fixture.leader.id},data:{isActive:false}})
     // Global API-key auth rejects inactive owners before requireAuth; cached sessions retain their existing policy.
-    const inactive=await request(app).get('/api/invitations/feed').set('Authorization',`Bearer ${apiKey.token}`)
+    const inactive=await request(httpServer).get('/api/invitations/feed').set('Authorization',`Bearer ${apiKey.token}`)
     expect(inactive.status).toBe(401)
     expect(inactive.body).toEqual({success:false,error:'User account is inactive'})
   })

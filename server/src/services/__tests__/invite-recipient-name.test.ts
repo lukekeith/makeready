@@ -21,8 +21,8 @@ beforeEach(() => {
   prismaMock.member.findUnique.mockResolvedValue(null)
   prismaMock.invitation.findUnique.mockResolvedValue({ id: 'inv1', initiatedBy: 'leader', status: 'pending', groupId: 'g1', recipientPhone: '+15555550123' })
   prismaMock.invitation.create.mockResolvedValue({ id: 'inv1', createdAt: new Date() })
-  prismaMock.group.findUniqueOrThrow.mockResolvedValue({ code: 'ABC123', organizationId: 'org1' })
-  prismaMock.group.findUnique.mockResolvedValue({ code: 'ABC123', organizationId: 'org1' })
+  prismaMock.group.findUniqueOrThrow.mockResolvedValue({ id: 'g1', creatorId: 'u1', code: 'ABC123', organizationId: 'org1' })
+  prismaMock.group.findUnique.mockResolvedValue({ id: 'g1', creatorId: 'u1', code: 'ABC123', organizationId: 'org1' })
   vi.mocked(sendCampaignSms).mockResolvedValue({ success: true, smsLogId: 's1', messageSid: 'SM1' } as never)
 })
 

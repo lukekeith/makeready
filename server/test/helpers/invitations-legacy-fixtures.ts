@@ -1,6 +1,7 @@
 import { toLegacyInvite, toLegacyJoinRequest } from '../../src/services/invitation.js'
 import type { PrismaClient } from '../../src/generated/prisma/index.js'
 import type { Express } from 'express'
+import type { Server } from 'node:http'
 import request from 'supertest'
 export { assertInvitationTestDatabase } from './invitations-migration-db.js'
 
@@ -52,7 +53,7 @@ export function installLegacyAuthHelpers(app: Express, prisma: PrismaClient) {
   })
 }
 
-export async function legacyAgent(app: Express, identity: { userId: string } | { memberId: string }) {
+export async function legacyAgent(app: Express | Server, identity: { userId: string } | { memberId: string }) {
   const agent = request.agent(app)
   const response = await agent.post('/__legacy-test/session').send(identity)
   if (response.status !== 200) throw new Error(`Session helper failed: ${response.status}`)

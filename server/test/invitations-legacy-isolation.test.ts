@@ -1,3 +1,4 @@
+import { startInvitationHttpServer, stopInvitationHttpServer, type InvitationHttpServer } from './helpers/invitations-http.js'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { assertInvitationTestDatabase, installLegacyAuthHelpers, legacyAgent, legacyId, seedLegacyInvitationCases } from './helpers/invitations-legacy-fixtures.js'
@@ -21,6 +22,7 @@ if (process.env.DATABASE_URL !== leased || process.env.DIRECT_URL !== leased) th
 const { prisma } = await import('../src/lib/prisma.js')
 const { app } = await import('../src/index.js')
 installLegacyAuthHelpers(app, prisma)
+let httpServer: InvitationHttpServer
 
 let fixture: Awaited<ReturnType<typeof seedLegacyInvitationCases>>
 async function cleanup() {
@@ -33,27 +35,27 @@ async function cleanup() {
   await prisma.organization.deleteMany({ where: { id: legacyId(3) } })
   await prisma.user.deleteMany({ where: { id: { in: ids } } })
 }
-beforeAll(async () => { await cleanup() })
+beforeAll(async () => { httpServer = await startInvitationHttpServer(app); await cleanup() })
 beforeEach(async () => { await cleanup(); fixture = await seedLegacyInvitationCases(prisma); vi.clearAllMocks() })
-afterAll(async () => { await cleanup(); await prisma.$disconnect() })
+afterAll(async () => { try { await cleanup() } finally { await stopInvitationHttpServer(httpServer); await prisma.$disconnect() } })
 
 describe('merged storage preserves legacy endpoint boundaries', () => {
   it('rejects IDs and tokens from the other relationship kind even with misleading identity fields', async () => {
     const { leader, group, members, invites, requests } = fixture
-    const user = await legacyAgent(app, { userId: leader.id })
+    const user = await legacyAgent(httpServer, { userId: leader.id })
     await prisma.invitation.update({ where: { id: requests.pending.id }, data: { token: 'MEMBER_TOKEN', inviterId: leader.id } })
     await prisma.invitation.update({ where: { id: invites.pending.id }, data: { memberId: members[3].id } })
     for (const method of ['patch', 'delete'] as const) {
       const response = await user[method](`/api/invites/${requests.pending.id}`).send({ status: 'expired' })
       expect(response.status).toBe(404)
-      expect(response.body).toEqual({ success: false, error: 'Invite not found' })
+      expect(response.body, JSON.stringify({ method, path: `/api/invites/${requests.pending.id}`, text: response.text, contentType: response.headers['content-type'] })).toEqual({ success: false, error: 'Invite not found' })
     }
     for (const action of ['approve', 'reject']) {
       const response = await user.post(`/api/groups/${group.id}/join-requests/${invites.pending.id}/${action}`).send({})
       expect(response.status).toBe(404)
       expect(response.body).toEqual({ success: false, error: 'Pending request not found' })
     }
-    expect((await request(app).get('/api/invites/MEMBER_TOKEN')).status).toBe(404)
+    expect((await request(httpServer).get('/api/invites/MEMBER_TOKEN')).status).toBe(404)
     const { acceptInvite } = await import('../src/services/invite.js')
     expect(await acceptInvite(requests.pending.id, leader.id)).toEqual({ success: false, error: 'Invite not found' })
     expect((await prisma.invitation.findUniqueOrThrow({ where: { id: requests.pending.id } })).status).toBe('pending')
@@ -62,11 +64,11 @@ describe('merged storage preserves legacy endpoint boundaries', () => {
     const list = await user.get(`/api/groups/${group.id}/join-requests`)
     expect(list.status).toBe(200)
     expect(list.body.requests.map((row: { id: string }) => row.id)).toEqual([requests.pending.id])
-    const member = await legacyAgent(app, { memberId: members[3].id })
+    const member = await legacyAgent(httpServer, { memberId: members[3].id })
     expect((await member.get(`/api/groups/${group.id}/join-requests/me`)).body).toEqual({ success: true, status: 'none' })
     const { createApiKeyForUser } = await import('./helpers/api-auth.js')
     const admin = await createApiKeyForUser(leader.id)
-    const adminList = await request(app).get('/api/admin/join-requests').set('Authorization', `Bearer ${admin.token}`)
+    const adminList = await request(httpServer).get('/api/admin/join-requests').set('Authorization', `Bearer ${admin.token}`)
     expect(adminList.status, JSON.stringify(adminList.body)).toBe(200)
     expect(adminList.body.requests.map((row: { id: string }) => row.id)).toEqual([requests.pending.id])
     for (const status of ['accepted', 'withdrawn']) {

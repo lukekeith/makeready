@@ -1,3 +1,4 @@
+import { startInvitationHttpServer, stopInvitationHttpServer, type InvitationHttpServer } from './helpers/invitations-http.js'
 import { readLegacyInvite, readLegacyRequest } from './helpers/invitations-legacy-fixtures.js'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -27,6 +28,7 @@ const { verifyCode } = await import('../src/services/twilio.js')
 const { default: liveTwilio } = await import('twilio')
 const { default: livePush } = await import('@parse/node-apn')
 installLegacyAuthHelpers(app, prisma)
+let httpServer: InvitationHttpServer
 
 let fixture: Awaited<ReturnType<typeof seedLegacyInvitationCases>>
 let generated: GeneratedScalar[]
@@ -54,15 +56,15 @@ async function cleanup() {
   await prisma.organization.deleteMany({ where: { id: legacyId(3) } })
   await prisma.user.deleteMany({ where: { id: { in: ids } } })
 }
-beforeAll(async () => { await cleanup() })
+beforeAll(async () => { httpServer = await startInvitationHttpServer(app); await cleanup() })
 beforeEach(async () => { await cleanup(); fixture = await seedLegacyInvitationCases(prisma); generated = []; vi.clearAllMocks() })
-afterAll(async () => { await cleanup(); await prisma.$disconnect() })
+afterAll(async () => { try { await cleanup() } finally { await stopInvitationHttpServer(httpServer); await prisma.$disconnect() } })
 
 describe('old-schema invitation HTTP contracts (immutable baseline)', () => {
   it('legacy contracts capture complete bodies', async () => {
     const { leader, outsider, group, invites, requests, members } = fixture
-    const user = await legacyAgent(app, { userId: leader.id })
-    const other = await legacyAgent(app, { userId: outsider.id })
+    const user = await legacyAgent(httpServer, { userId: leader.id })
+    const other = await legacyAgent(httpServer, { userId: outsider.id })
     snap(await user.get('/api/invites'))
     for (const status of ['pending', 'accepted', 'expired']) snap(await user.get('/api/invites').query({ groupId: group.id, status }))
     snap(await other.get('/api/invites')) // unresolved organization, null group
@@ -88,7 +90,7 @@ describe('old-schema invitation HTTP contracts (immutable baseline)', () => {
 
     for (const status of ['pending', 'approved', 'rejected']) {
       snap(await user.get(`/api/groups/${group.id}/join-requests`).query({ status }))
-      const member = await legacyAgent(app, { memberId: requests[status].memberId })
+      const member = await legacyAgent(httpServer, { memberId: requests[status].memberId })
       snap(await member.get(`/api/groups/${group.id}/join-requests/me`))
       snap(await member.get(`/api/groups/code/${group.code}`))
     }
@@ -96,13 +98,13 @@ describe('old-schema invitation HTTP contracts (immutable baseline)', () => {
     const { createApiKeyForUser } = await import('./helpers/api-auth.js')
     const admin = await createApiKeyForUser(leader.id)
     for (const status of ['pending', 'approved', 'rejected']) {
-      const response = await request(app).get('/api/admin/join-requests').set('Authorization', `Bearer ${admin.token}`).query({ status })
+      const response = await request(httpServer).get('/api/admin/join-requests').set('Authorization', `Bearer ${admin.token}`).query({ status })
       snap(response)
       expect(Object.keys(response.body).sort()).toEqual(['count', 'requests', 'success'])
       expect(response.body.requests[0]).toHaveProperty('updatedAt', requests[status].updatedAt.toISOString())
       expect(response.body.requests[0].status).toBe(status)
     }
-    const newMember = await legacyAgent(app, { memberId: members[3].id })
+    const newMember = await legacyAgent(httpServer, { memberId: members[3].id })
     snap(await newMember.get(`/api/groups/${group.id}/join-requests/me`))
     const submitted = await newMember.post(`/api/groups/${group.id}/join-requests`).send({ message: 'Please let me join' })
     alias(await readLegacyRequest(prisma, submitted.body.request.id), ['id', 'createdAt'], 'submitted')
@@ -113,7 +115,7 @@ describe('old-schema invitation HTTP contracts (immutable baseline)', () => {
     expect(Object.keys(approvedResponse.body).sort()).toEqual(['member', 'request', 'success'])
     snap(approvedResponse)
     const approved = await readLegacyRequest(prisma, requests.pending.id)
-    const adminApproved = await request(app).get('/api/admin/join-requests').set('Authorization', `Bearer ${admin.token}`).query({ status: 'approved' })
+    const adminApproved = await request(httpServer).get('/api/admin/join-requests').set('Authorization', `Bearer ${admin.token}`).query({ status: 'approved' })
     snap(adminApproved)
     const rawApproved = adminApproved.body.requests.find((row: { id: string }) => row.id === approved.id)
     expect(rawApproved).toHaveProperty('updatedAt', approved.updatedAt.toISOString())
@@ -121,7 +123,7 @@ describe('old-schema invitation HTTP contracts (immutable baseline)', () => {
     expect(rawApproved.status).toBe('approved')
     const membership = await prisma.groupMember.findFirstOrThrow({ where: { memberId: members[0].id, groupId: group.id } })
     alias(membership, ['id', 'joinedAt'], 'membership')
-    const approvedMember = await legacyAgent(app, { memberId: members[0].id })
+    const approvedMember = await legacyAgent(httpServer, { memberId: members[0].id })
     snap(await approvedMember.get(`/api/groups/${group.id}/join-requests/me`))
     snap(await approvedMember.get(`/api/groups/code/${group.code}`))
     snap(await approvedMember.post(`/api/groups/${group.id}/join-requests`).send({}), 400)
@@ -135,29 +137,29 @@ describe('old-schema invitation HTTP contracts (immutable baseline)', () => {
 
   it('public token data stays whitelisted and landing HTML stays complete', async () => {
     for (const invite of Object.values(fixture.invites)) {
-      const lookup = await request(app).get(`/api/invites/${invite.token}`)
+      const lookup = await request(httpServer).get(`/api/invites/${invite.token}`)
       snap(lookup, ['accepted', 'timeExpired'].includes(Object.keys(fixture.invites).find(key => fixture.invites[key].id === invite.id)!) ? 404 : 200)
       if (lookup.body.invite) expect(lookup.body.invite).not.toHaveProperty('recipientName')
-      const landing = await request(app).get(`/join/${invite.token}`)
+      const landing = await request(httpServer).get(`/join/${invite.token}`)
       expect(landing.status).toBe(200)
       expect({ status: landing.status, contentType: landing.type, html: landing.text }).toMatchSnapshot()
     }
-    snap(await request(app).get('/api/invites/UNKNOWN'), 404)
-    const missing = await request(app).get('/join/UNKNOWN')
+    snap(await request(httpServer).get('/api/invites/UNKNOWN'), 404)
+    const missing = await request(httpServer).get('/join/UNKNOWN')
     expect({ status: missing.status, html: missing.text }).toMatchSnapshot()
   })
 
   it('embedded member confirmation and verification acceptance retain complete JSON', async () => {
     const { group, members, requests, invites } = fixture
     for (const member of [members[0], members[4]]) {
-      const response = await request(app).post('/api/members/confirm-verification').send({ phoneNumber: member.phoneNumber, code: '123456', groupId: group.id })
+      const response = await request(httpServer).post('/api/members/confirm-verification').send({ phoneNumber: member.phoneNumber, code: '123456', groupId: group.id })
       const persisted = await prisma.member.findUniqueOrThrow({ where: { id: member.id } })
       alias(persisted, ['updatedAt', 'lastVerifiedAt'], 'verifiedMember')
       if (member.id === members[4].id) alias(await readLegacyRequest(prisma, response.body.joinRequest.id), ['id', 'createdAt', 'updatedAt'], 'confirmedRequest')
       else expect(response.body.joinRequest.id).toBe(requests.pending.id)
       snap(response)
     }
-    const accepted = await request(app).post('/api/verification/verify').send({ phoneNumber: members[6].phoneNumber, code: '123456', inviteToken: invites.verification.token })
+    const accepted = await request(httpServer).post('/api/verification/verify').send({ phoneNumber: members[6].phoneNumber, code: '123456', inviteToken: invites.verification.token })
     snap(accepted)
     expect((await readLegacyInvite(prisma, invites.verification.id)).status).toBe('accepted')
     expect(verifyCode).toHaveBeenCalled()
@@ -167,12 +169,12 @@ describe('old-schema invitation HTTP contracts (immutable baseline)', () => {
 
   it('pending invite auto-join and optional send-name envelopes retain complete JSON', async () => {
     const { group, members, invites, leader } = fixture
-    const member = await legacyAgent(app, { memberId: members[6].id })
+    const member = await legacyAgent(httpServer, { memberId: members[6].id })
     snap(await member.post(`/api/groups/${group.id}/join-requests`).send({ message: 'Invited' }), 201)
     expect((await readLegacyInvite(prisma, invites.verification.id)).status).toBe('accepted')
     expect(await prisma.invitation.count({ where: { initiatedBy: 'member', groupId: group.id, memberId: members[6].id } })).toBe(0)
     expect(await prisma.groupMember.count({ where: { groupId: group.id, memberId: members[6].id, isActive: true } })).toBe(1)
-    const user = await legacyAgent(app, { userId: leader.id })
+    const user = await legacyAgent(httpServer, { userId: leader.id })
     const sent = await user.post('/api/invites/send').send({ groupId: group.id, recipientPhone: '+12025550301' })
     const row = await readLegacyInvite(prisma, sent.body.inviteId)
     alias(row, ['id', 'token', 'createdAt', 'expiresAt'], 'unnamedSent')
@@ -190,15 +192,15 @@ describe('old-schema invitation HTTP contracts (immutable baseline)', () => {
 
   it('original unauthorized and forbidden HTTP envelopes remain exact', async () => {
     const { group, invites, requests, outsider } = fixture
-    for (const method of ['get', 'post'] as const) snap(await request(app)[method]('/api/invites').send({}), 401)
-    snap(await request(app).post('/api/invites/send').send({}), 401)
-    for (const method of ['patch', 'delete'] as const) snap(await request(app)[method](`/api/invites/${invites.pending.id}`).send({}), 401)
-    snap(await request(app).post(`/api/groups/${group.id}/join-requests`).send({}), 401)
-    snap(await request(app).get(`/api/groups/${group.id}/join-requests/me`), 401)
-    snap(await request(app).get(`/api/groups/${group.id}/join-requests`), 401)
-    for (const decision of ['approve', 'reject']) snap(await request(app).post(`/api/groups/${group.id}/join-requests/${requests.pending.id}/${decision}`).send({}), 401)
-    snap(await request(app).get('/api/admin/join-requests'), 401)
-    const other = await legacyAgent(app, { userId: outsider.id })
+    for (const method of ['get', 'post'] as const) snap(await request(httpServer)[method]('/api/invites').send({}), 401)
+    snap(await request(httpServer).post('/api/invites/send').send({}), 401)
+    for (const method of ['patch', 'delete'] as const) snap(await request(httpServer)[method](`/api/invites/${invites.pending.id}`).send({}), 401)
+    snap(await request(httpServer).post(`/api/groups/${group.id}/join-requests`).send({}), 401)
+    snap(await request(httpServer).get(`/api/groups/${group.id}/join-requests/me`), 401)
+    snap(await request(httpServer).get(`/api/groups/${group.id}/join-requests`), 401)
+    for (const decision of ['approve', 'reject']) snap(await request(httpServer).post(`/api/groups/${group.id}/join-requests/${requests.pending.id}/${decision}`).send({}), 401)
+    snap(await request(httpServer).get('/api/admin/join-requests'), 401)
+    const other = await legacyAgent(httpServer, { userId: outsider.id })
     snap(await other.post('/api/invites').send({ groupId: group.id }), 403)
     snap(await other.post('/api/invites/send').send({ groupId: group.id, recipientPhone: '+12025550300' }), 403)
     for (const method of ['patch', 'delete'] as const) snap(await other[method](`/api/invites/${invites.pending.id}`).send({}), 403)
@@ -211,7 +213,7 @@ describe('old-schema invitation HTTP contracts (immutable baseline)', () => {
 describe('separate mutable D14 characterization and migration safety', () => {
   it('D14 rerequests preserve reviewed rows (no immutable snapshot)', async () => {
     const { group, requests } = fixture
-    const member = await legacyAgent(app, { memberId: requests.rejected.memberId })
+    const member = await legacyAgent(httpServer, { memberId: requests.rejected.memberId })
     const response = await member.post(`/api/groups/${group.id}/join-requests`).send({ message: 'Again' })
     expect(response.status).toBe(201)
     expect(response.body.request.id).not.toBe(requests.rejected.id)
@@ -223,7 +225,7 @@ describe('separate mutable D14 characterization and migration safety', () => {
     // Reject the new attempt, then confirmation must create another historical row.
     // These D14 assertions remain separate from the frozen wire snapshots.
     await prisma.invitation.update({ where: { id: response.body.request.id, initiatedBy: 'member' }, data: { status: 'rejected', respondedById: fixture.leader.id, respondedAt: new Date('2025-02-02T00:00:00Z') } })
-    const confirmed = await request(app).post('/api/members/confirm-verification').send({ phoneNumber: fixture.members[2].phoneNumber, code: '123456', groupId: group.id })
+    const confirmed = await request(httpServer).post('/api/members/confirm-verification').send({ phoneNumber: fixture.members[2].phoneNumber, code: '123456', groupId: group.id })
     expect(confirmed.status).toBe(200)
     expect(confirmed.body.joinRequest.id).not.toBe(row.id)
     expect(confirmed.body.joinRequest.id).not.toBe(response.body.request.id)

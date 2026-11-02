@@ -1,3 +1,4 @@
+import { startInvitationHttpServer, stopInvitationHttpServer, type InvitationHttpServer } from './helpers/invitations-http.js'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { assertInvitationTestDatabase, installLegacyAuthHelpers, legacyAgent, legacyId, seedLegacyInvitationCases } from './helpers/invitations-legacy-fixtures.js'
@@ -22,6 +23,7 @@ if (process.env.DATABASE_URL !== leased || process.env.DIRECT_URL !== leased) th
 const { prisma } = await import('../src/lib/prisma.js')
 const { app } = await import('../src/index.js')
 installLegacyAuthHelpers(app, prisma)
+let httpServer: InvitationHttpServer
 
 let fixture: Awaited<ReturnType<typeof seedLegacyInvitationCases>>
 async function cleanup() {
@@ -34,9 +36,9 @@ async function cleanup() {
   await prisma.organization.deleteMany({ where: { id: legacyId(3) } })
   await prisma.user.deleteMany({ where: { id: { in: ids } } })
 }
-beforeAll(async () => { await cleanup() })
+beforeAll(async () => { httpServer = await startInvitationHttpServer(app); await cleanup() })
 beforeEach(async () => { await cleanup(); fixture = await seedLegacyInvitationCases(prisma); vi.clearAllMocks() })
-afterAll(async () => { await cleanup(); await prisma.$disconnect() })
+afterAll(async () => { try { await cleanup() } finally { await stopInvitationHttpServer(httpServer); await prisma.$disconnect() } })
 
 const { sendCampaignSms } = await import('../src/services/sms-campaign.js')
 const { trackActivity } = await import('../src/services/activity.js')
@@ -50,7 +52,7 @@ function barrier() {
 describe('atomic invitation lifecycle', () => {
   it('serializes duplicate requests and records one request history/notification', async () => {
     const { group, members } = fixture
-    const agent = await legacyAgent(app, { memberId: members[3].id })
+    const agent = await legacyAgent(httpServer, { memberId: members[3].id })
     const responses = await Promise.all([agent.post(`/api/groups/${group.id}/join-requests`).send({ message: 'Hi' }), agent.post(`/api/groups/${group.id}/join-requests`).send({ message: 'Hi' })])
     expect(responses.map(r => r.status).sort()).toEqual([201,400])
     const rows = await prisma.invitation.findMany({ where: { groupId: group.id, memberId: members[3].id, initiatedBy: 'member' } })
@@ -62,7 +64,7 @@ describe('atomic invitation lifecycle', () => {
 
   it('has one winner when approve and reject compete', async () => {
     const { leader, group, requests } = fixture
-    const agent = await legacyAgent(app, { userId: leader.id })
+    const agent = await legacyAgent(httpServer, { userId: leader.id })
     const responses = await Promise.all(['approve','reject'].map(action => agent.post(`/api/groups/${group.id}/join-requests/${requests.pending.id}/${action}`).send({ reason:'Later' })))
     expect(responses.map(r => r.status).sort()).toEqual([200,404])
     const row = await prisma.invitation.findUniqueOrThrow({ where: { id: requests.pending.id } })
@@ -73,7 +75,7 @@ describe('atomic invitation lifecycle', () => {
 
   it('D12 sends a group-code URL then approves the existing request with no second row', async () => {
     const { leader, group, requests, members } = fixture
-    const agent = await legacyAgent(app, { userId:leader.id })
+    const agent = await legacyAgent(httpServer, { userId:leader.id })
     const response = await agent.post('/api/invites/send').send({groupId:group.id,recipientPhone:members[0].phoneNumber})
     expect(response.status).toBe(200)
     expect(response.body).toEqual({ success:true,inviteId:requests.pending.id,inviteUrl:`${process.env.CLIENT_URL}/join/group/${group.code}`,message:'Invite sent successfully' })
@@ -86,7 +88,7 @@ describe('atomic invitation lifecycle', () => {
 
   it('D12 failure changes no request and a competing rejection wins during delivery', async () => {
     const { leader, group, requests, members } = fixture
-    const agent = await legacyAgent(app, { userId:leader.id })
+    const agent = await legacyAgent(httpServer, { userId:leader.id })
     vi.mocked(sendCampaignSms).mockResolvedValueOnce({success:false,error:'Mock failure'} as never)
     expect((await agent.post('/api/invites/send').send({groupId:group.id,recipientPhone:members[0].phoneNumber})).status).toBe(400)
     expect((await prisma.invitation.findUniqueOrThrow({where:{id:requests.pending.id}})).status).toBe('pending')
@@ -102,9 +104,74 @@ describe('atomic invitation lifecycle', () => {
     expect(await prisma.invitation.count({where:{groupId:group.id,recipientPhone:members[0].phoneNumber}})).toBe(1)
   })
 
+  it.each([false, true])('D12 reauthorizes after group transfer and preserves creator allowance (creator=%s)', async (creator) => {
+    const { leader, outsider, group, members, requests, org } = fixture
+    const destination = await prisma.organization.create({ data: { id: legacyId(40), name: 'Destination', ownerId: members[4].id } })
+    const sourceRole = await prisma.role.create({ data: { name: 'A sender', organizationId: org.id } })
+    const destinationRole = await prisma.role.create({ data: { name: 'B mover', organizationId: destination.id } })
+    await prisma.userRole.createMany({ data: [{ userId: outsider.id, roleId: sourceRole.id, organizationId: org.id }, { userId: leader.id, roleId: destinationRole.id, organizationId: destination.id }] })
+    if (creator) await prisma.group.update({ where: { id: group.id }, data: { creatorId: outsider.id } })
+    const sender = await legacyAgent(httpServer, { userId: outsider.id })
+    const mover = await legacyAgent(httpServer, { userId: leader.id })
+    const entered = barrier(), finish = barrier()
+    const before = await prisma.invitation.findUniqueOrThrow({ where: { id: requests.pending.id } })
+    vi.mocked(sendCampaignSms).mockImplementationOnce(async () => { entered.release(); await finish.wait; return { success: true } as never })
+    const sending = sender.post('/api/invites/send').send({ groupId: group.id, recipientPhone: members[0].phoneNumber }).then(r => r)
+    await Promise.race([entered.wait, sending.then(r => { throw new Error(`Send ended before barrier: ${r.status} ${JSON.stringify(r.body)}`) })])
+    try {
+      const transferred = await mover.patch(`/api/groups/${group.id}`).send({ organizationId: destination.id })
+      expect(transferred.status, JSON.stringify(transferred.body)).toBe(200)
+    } finally { finish.release() }
+    const response = await sending
+    expect(response.status, JSON.stringify(response.body)).toBe(creator ? 200 : 400)
+    if (!creator) {
+      expect(response.body).toEqual({ success: false, error: 'Invite is no longer valid' })
+      expect(await prisma.invitation.findUniqueOrThrow({ where: { id: before.id } })).toEqual(before)
+    }
+    expect(await prisma.groupMember.count({ where: { groupId: group.id, memberId: members[0].id } })).toBe(creator ? 1 : 0)
+    expect(await prisma.memberOrganization.count({ where: { organizationId: destination.id, memberId: members[0].id } })).toBe(creator ? 1 : 0)
+    expect(await prisma.inviteEvent.count({ where: { invitationId: before.id, type: 'approved' } })).toBe(creator ? 1 : 0)
+    expect(await prisma.membershipEvent.count({ where: { groupId: group.id, memberId: members[0].id } })).toBe(creator ? 2 : 0)
+    expect(await prisma.invitation.count({ where: { groupId: group.id, recipientPhone: members[0].phoneNumber } })).toBe(1)
+  })
+
+  it('D12 rechecks authority when transfer wins between route authorization and preparation', async () => {
+    const { leader, outsider, group, members, requests, org } = fixture
+    const destination = await prisma.organization.create({ data: { id: legacyId(40), name: 'Destination', ownerId: members[4].id } })
+    const sourceRole = await prisma.role.create({ data: { name: 'A sender', organizationId: org.id } })
+    const destinationRole = await prisma.role.create({ data: { name: 'B mover', organizationId: destination.id } })
+    await prisma.userRole.createMany({ data: [{ userId: outsider.id, roleId: sourceRole.id, organizationId: org.id }, { userId: leader.id, roleId: destinationRole.id, organizationId: destination.id }] })
+    const entered = barrier(), finish = barrier()
+    const holding = prisma.$transaction(async tx => {
+      const key = JSON.stringify(['invitation-person', group.id, members[0].phoneNumber])
+      await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(${key}, 0))`
+      entered.release(); await finish.wait
+    }, { timeout: 10000 })
+    await entered.wait
+    const sender = await legacyAgent(httpServer, { userId: outsider.id }), mover = await legacyAgent(httpServer, { userId: leader.id })
+    const sending = sender.post('/api/invites/send').send({ groupId: group.id, recipientPhone: members[0].phoneNumber }).then(r => r)
+    try {
+      let waiting = false
+      for (let n = 0; n < 100 && !waiting; n++) {
+        const rows = await prisma.$queryRaw<{ waiting: boolean }[]>`SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock' AND query LIKE '%pg_advisory_xact_lock%') AS waiting`
+        waiting = rows[0].waiting
+        if (!waiting) await new Promise(resolve => setTimeout(resolve, 10))
+      }
+      expect(waiting, 'Route passed auth and preparation is waiting on its person lock').toBe(true)
+      const transferred = await mover.patch(`/api/groups/${group.id}`).send({ organizationId: destination.id })
+      expect(transferred.status, JSON.stringify(transferred.body)).toBe(200)
+    } finally { finish.release(); await holding }
+    expect((await sending).status).toBe(400)
+    expect(sendCampaignSms).not.toHaveBeenCalled()
+    expect((await prisma.invitation.findUniqueOrThrow({ where: { id: requests.pending.id } })).status).toBe('pending')
+    expect(await prisma.inviteEvent.count({ where: { invitationId: requests.pending.id } })).toBe(0)
+    expect(await prisma.groupMember.count({ where: { groupId: group.id, memberId: members[0].id } })).toBe(0)
+    expect(await prisma.memberOrganization.count({ where: { organizationId: destination.id, memberId: members[0].id } })).toBe(0)
+  })
+
   it('request accepts the prepared normal send and failed SMS cannot delete the accepted row', async () => {
     const { leader, group, members } = fixture
-    const user = await legacyAgent(app,{userId:leader.id}), member = await legacyAgent(app,{memberId:members[3].id})
+    const user = await legacyAgent(httpServer,{userId:leader.id}), member = await legacyAgent(httpServer,{memberId:members[3].id})
     const entered = barrier(), finish = barrier()
     vi.mocked(sendCampaignSms).mockImplementationOnce(async () => { entered.release(); await finish.wait; return {success:false,error:'Mock delivery failure'} as never })
     const sending = user.post('/api/invites/send').send({groupId:group.id,recipientPhone:members[3].phoneNumber}).then(r => r)
@@ -122,14 +189,14 @@ describe('atomic invitation lifecycle', () => {
 
   it('preserves reviewed history for direct and confirmation requests without adding confirmation hooks', async () => {
     const { group, requests, members } = fixture
-    const member = await legacyAgent(app,{memberId:members[2].id})
+    const member = await legacyAgent(httpServer,{memberId:members[2].id})
     const created = await member.post(`/api/groups/${group.id}/join-requests`).send({message:'Again'})
     expect(created.status).toBe(201)
     expect(created.body.request.id).not.toBe(requests.rejected.id)
     expect((await prisma.invitation.findUniqueOrThrow({where:{id:requests.rejected.id}})).status).toBe('rejected')
     expect((await member.get(`/api/groups/${group.id}/join-requests/me`)).body.request.id).toBe(created.body.request.id)
     vi.mocked(trackActivity).mockClear()
-    const confirmed = await request(app).post('/api/members/confirm-verification').send({phoneNumber:members[1].phoneNumber,code:'123456',groupId:group.id})
+    const confirmed = await request(httpServer).post('/api/members/confirm-verification').send({phoneNumber:members[1].phoneNumber,code:'123456',groupId:group.id})
     expect(confirmed.status).toBe(200)
     expect(confirmed.body.wasNewRequest).toBe(true)
     expect(confirmed.body.joinRequest.id).not.toBe(requests.approved.id)
@@ -138,9 +205,9 @@ describe('atomic invitation lifecycle', () => {
     expect(await prisma.inviteEvent.count({where:{invitationId:confirmed.body.joinRequest.id,type:'requested'}})).toBe(1)
   })
   it('uses one relationship when send and request start together, in either lock order', async () => {
-    const user = await legacyAgent(app,{userId:fixture.leader.id})
+    const user = await legacyAgent(httpServer,{userId:fixture.leader.id})
     for (const [i, member] of fixture.members.slice(3,5).entries()) {
-      const agent = await legacyAgent(app,{memberId:member.id})
+      const agent = await legacyAgent(httpServer,{memberId:member.id})
       const send = () => user.post('/api/invites/send').send({groupId:i ? fixture.group.id.toUpperCase() : fixture.group.id,recipientPhone:member.phoneNumber})
       const submit = () => agent.post(`/api/groups/${fixture.group.id}/join-requests`).send({})
       const responses = await Promise.all(i ? [submit(),send()] : [send(),submit()])
@@ -165,7 +232,7 @@ describe('atomic invitation lifecycle', () => {
   })
 
   it('rolls back a failed attempt and sends/records only once after retry', async () => {
-    const user = await legacyAgent(app,{userId:fixture.leader.id})
+    const user = await legacyAgent(httpServer,{userId:fixture.leader.id})
     const original = prisma.$transaction.bind(prisma)
     const spy = vi.spyOn(prisma,'$transaction').mockImplementation(original)
     spy.mockImplementationOnce(((work: (tx: unknown) => Promise<unknown>, options: unknown) => original(async tx => { await work(tx); throw Object.assign(new Error('forced serialization conflict'),{code:'P2034'}) }, options as never)) as never)
@@ -178,7 +245,7 @@ describe('atomic invitation lifecycle', () => {
       expect(await prisma.membershipEvent.count({where:{memberId:fixture.members[3].id,action:'INVITED'}})).toBe(1)
       expect(spy).toHaveBeenCalledTimes(3) // prepare rollback + prepare commit + finalize
       spy.mockImplementationOnce(((work: (tx: unknown) => Promise<unknown>, options: unknown) => original(async tx => { await work(tx); throw Object.assign(new Error('forced serialization conflict'),{code:'P2034'}) }, options as never)) as never)
-      const member = await legacyAgent(app,{memberId:fixture.members[4].id})
+      const member = await legacyAgent(httpServer,{memberId:fixture.members[4].id})
       const submitted = await member.post(`/api/groups/${fixture.group.id}/join-requests`).send({})
       expect(submitted.status).toBe(201)
       expect(trackActivity).toHaveBeenCalledTimes(1)
@@ -204,7 +271,7 @@ describe('atomic invitation lifecycle', () => {
 
   it('mints a missing code for D12 and keeps same-clock rerequests newer than history', async () => {
     await prisma.group.update({where:{id:fixture.group.id},data:{code:null}})
-    const user=await legacyAgent(app,{userId:fixture.leader.id})
+    const user=await legacyAgent(httpServer,{userId:fixture.leader.id})
     const sent=await user.post('/api/invites/send').send({groupId:fixture.group.id,recipientPhone:fixture.members[0].phoneNumber})
     const group=await prisma.group.findUniqueOrThrow({where:{id:fixture.group.id}})
     expect(sent.status).toBe(200)
@@ -222,7 +289,7 @@ describe('atomic invitation lifecycle', () => {
 
   it.each(['approve','reject'])('accepts uppercase group UUIDs for %s without weakening wrong-group isolation', async action => {
     const { group, leader, requests, org } = fixture
-    const user = await legacyAgent(app,{userId:leader.id})
+    const user = await legacyAgent(httpServer,{userId:leader.id})
     const otherGroup = await prisma.group.create({data:{name:'Other managed group',creatorId:leader.id,organizationId:org.id}})
     try {
       const mismatch = await user.post(`/api/groups/${otherGroup.id.toUpperCase()}/join-requests/${requests.pending.id}/${action}`).send({})
@@ -240,7 +307,7 @@ describe('atomic invitation lifecycle', () => {
   it.each(['requested','accepted'])('records canonical group IDs for %s through an uppercase request path', async type => {
     const { group, members } = fixture
     const member = type === 'requested' ? members[3] : members[6]
-    const agent = await legacyAgent(app,{memberId:member.id})
+    const agent = await legacyAgent(httpServer,{memberId:member.id})
     const response = await agent.post(`/api/groups/${group.id.toUpperCase()}/join-requests`).send({})
     expect(response.status).toBe(201)
     const invitationId = type === 'requested' ? response.body.request.id : fixture.invites.verification.id

@@ -234,12 +234,28 @@ export async function patchLegacyInvitation(id: string, actorId: string, data: {
   })
 }
 
+/** Legacy send permission includes creator authority; it is deliberately distinct from org-only C1–C4 scope. */
+async function lockManagedLegacySendGroup(tx: Db, groupId: string, actorId: string) {
+  await tx.$queryRaw`SELECT id FROM groups WHERE id = ${groupId}::uuid FOR SHARE`
+  const group = await tx.group.findUnique({ where: { id: groupId } })
+  if (!group) return null
+  if (group.creatorId === actorId) return group
+  const actor = await tx.user.findUnique({ where: { id: actorId }, select: { isSuperAdmin: true } })
+  if (actor?.isSuperAdmin) return group
+  const allowed = UUID.test(group.organizationId) && await tx.organization.findFirst({
+    where: { id: group.organizationId, OR: [{ ownerId: actorId }, { userRoles: { some: { userId: actorId } } }] }, select: { id: true },
+  })
+  return allowed ? group : null
+}
+
 export async function prepareInvitationSend(data: { groupId: string; inviterId: string; recipientPhone: string; recipientName?: string; token: string; expiresAt: Date }) {
   return withInvitationTransaction(async tx => {
     await lockInvitationPerson(tx, data.groupId, data.recipientPhone)
-    const group = await tx.group.findUniqueOrThrow({ where: { id: data.groupId } })
     const member = await tx.member.findUnique({ where: { phoneNumber: normalizePhone(data.recipientPhone) ?? data.recipientPhone } })
     const pending = member ? await tx.invitation.findFirst({ where: memberInvitationWhere({ groupId: data.groupId, memberId: member.id, status: 'pending' }), orderBy: [{ createdAt:'desc' },{ id:'desc' }] }) : null
+    if (pending) await lockInvitationRow(tx, pending.id)
+    const group = await lockManagedLegacySendGroup(tx, data.groupId, data.inviterId)
+    if (!group) throw new Error('Not authorized to send invites for this group')
     if (pending) return { crossRequest: true, row: pending, code: group.code }
     const row = await createLeaderInvitation({ ...data, recipientName: data.recipientName ?? null, organizationId: group.organizationId }, tx)
     return { crossRequest: false, row, code: group.code }
@@ -262,7 +278,9 @@ export async function finishInvitationSend(id: string, crossRequest: boolean, ac
       return false
     }
     if (crossRequest) {
-      if (row.status !== 'pending' || !row.groupId || !await tx.group.findFirst({ where: { id: row.groupId, isActive: true } })) return false
+      if (row.status !== 'pending' || !row.groupId) return false
+      const group = await lockManagedLegacySendGroup(tx, row.groupId, actorId)
+      if (!group?.isActive) return false
       await applyRequestDecision(tx, row, actorId, 'approve')
     }
     const member = await tx.member.findUnique({ where: { phoneNumber: normalizePhone(recipientPhone) ?? recipientPhone } })

@@ -1,3 +1,4 @@
+import { startInvitationHttpServer, stopInvitationHttpServer, type InvitationHttpServer } from './helpers/invitations-http.js'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { assertInvitationTestDatabase, installLegacyAuthHelpers, legacyAgent, legacyId, seedLegacyInvitationCases } from './helpers/invitations-legacy-fixtures.js'
@@ -22,6 +23,7 @@ if (process.env.DATABASE_URL !== leased || process.env.DIRECT_URL !== leased) th
 const { prisma } = await import('../src/lib/prisma.js')
 const { app } = await import('../src/index.js')
 installLegacyAuthHelpers(app, prisma)
+let httpServer: InvitationHttpServer
 
 const { sendSMS } = await import('../src/services/twilio.js')
 const { seedSmsCampaigns } = await import('../src/services/sms-campaign-seed.js')
@@ -40,9 +42,9 @@ async function cleanup() {
   await prisma.organization.deleteMany({ where: { id: legacyId(3) } })
   await prisma.user.deleteMany({ where: { id: { in: ids } } })
 }
-beforeAll(async () => { await cleanup() })
+beforeAll(async () => { httpServer = await startInvitationHttpServer(app); await cleanup() })
 beforeEach(async () => { await cleanup(); fixture = await seedLegacyInvitationCases(prisma); vi.mocked(sendSMS).mockReset().mockResolvedValue({ success: true, messageSid: 'mock-sid' }); await seedSmsCampaigns(prisma) })
-afterAll(async () => { await cleanup(); vi.unstubAllEnvs(); await prisma.$disconnect() })
+afterAll(async () => { try { await cleanup() } finally { vi.unstubAllEnvs(); await stopInvitationHttpServer(httpServer); await prisma.$disconnect() } })
 
 
 const id = (n: number) => `a5500000-0000-4000-8000-${String(n).padStart(12, '0')}`
@@ -56,7 +58,7 @@ const barrier = () => { let release!: () => void; const wait = new Promise<void>
 describe('managed invitation mutations', () => {
   it('resends same-phone eligible invitations with their original tokens and seven-day expiry', async () => {
     const other = await sibling()
-    const user = await legacyAgent(app, { userId: fixture.leader.id })
+    const user = await legacyAgent(httpServer, { userId: fixture.leader.id })
     const started = Date.now()
     const response = await user.post(`/api/invitations/${fixture.invites.pending.id}/resend`).send({})
     expect(response.status, JSON.stringify(response.body)).toBe(200)
@@ -79,7 +81,7 @@ describe('managed invitation mutations', () => {
     const ids = [fixture.invites.pending.id, other.id]
     const before = await prisma.invitation.findMany({ where: { id: { in: ids } }, orderBy: { id: 'asc' } })
     vi.mocked(sendSMS).mockResolvedValueOnce({ success: true, messageSid: 'first-sent' }).mockResolvedValueOnce({ success: false, error: 'Injected second failure' })
-    const user = await legacyAgent(app, { userId: fixture.leader.id })
+    const user = await legacyAgent(httpServer, { userId: fixture.leader.id })
     const response = await user.post(`/api/invitations/${ids[0]}/resend`).send({})
     expect(response.status).toBe(502)
     expect(response.body).toEqual({ error: 'Unable to resend invitations' })
@@ -97,7 +99,7 @@ describe('managed invitation mutations', () => {
     const foreign = await prisma.invitation.create({ data: { id: id(4), initiatedBy: 'leader', groupId: foreignGroup.id, organizationId: foreignOrg.id, inviterId: fixture.outsider.id, token: 'FOREIGN_TOKEN', recipientPhone: phone } })
     const untouchedIds = [fixture.invites.accepted.id, fixture.requests.pending.id, foreign.id]
     const untouched = await prisma.invitation.findMany({ where: { id: { in: untouchedIds } }, orderBy: { id: 'asc' } })
-    const user = await legacyAgent(app, { userId: fixture.leader.id })
+    const user = await legacyAgent(httpServer, { userId: fixture.leader.id })
     const response = await user.post(`/api/invitations/${fixture.invites.pending.id.toUpperCase()}/withdraw`).send({})
     expect(response.status, JSON.stringify(response.body)).toBe(200)
     expect(response.body).toMatchObject({ status: 'withdrawn', canWithdraw: false, canResend: false })
@@ -105,22 +107,22 @@ describe('managed invitation mutations', () => {
     expect(await prisma.invitation.count({ where: { id: { in: changedIds }, status: 'withdrawn' } })).toBe(3)
     expect(await prisma.inviteEvent.count({ where: { invitationId: { in: changedIds }, type: 'withdrawn', actorId: fixture.leader.id } })).toBe(3)
     expect(await prisma.invitation.findMany({ where: { id: { in: untouchedIds } }, orderBy: { id: 'asc' } })).toEqual(untouched)
-    expect((await request(app).get(`/api/invites/${fixture.invites.pending.token}`)).status).toBe(404)
+    expect((await request(httpServer).get(`/api/invites/${fixture.invites.pending.token}`)).status).toBe(404)
     expect((await user.post(`/api/invitations/${fixture.invites.pending.id}/withdraw`).send({})).status).toBe(409)
   })
 
   it('authenticates selected identity before expansion and rejects null phone or absent eligibility', async () => {
-    const user = await legacyAgent(app, { userId: fixture.leader.id })
-    const outsider = await legacyAgent(app, { userId: fixture.outsider.id })
-    const member = await legacyAgent(app, { memberId: fixture.members[0].id })
+    const user = await legacyAgent(httpServer, { userId: fixture.leader.id })
+    const outsider = await legacyAgent(httpServer, { userId: fixture.outsider.id })
+    const member = await legacyAgent(httpServer, { memberId: fixture.members[0].id })
     const { createApiKeyForUser } = await import('./helpers/api-auth.js')
     const apiKey = await createApiKeyForUser(fixture.outsider.id)
     for (const action of ['resend', 'withdraw']) {
-      const unauthenticated = await request(app).post(`/api/invitations/${fixture.invites.pending.id}/${action}`).send({})
+      const unauthenticated = await request(httpServer).post(`/api/invitations/${fixture.invites.pending.id}/${action}`).send({})
       expect(unauthenticated.status, `${action}: ${unauthenticated.text}`).toBe(401)
       expect((await outsider.post(`/api/invitations/${fixture.invites.pending.id}/${action}`)).status).toBe(403)
       expect((await member.post(`/api/invitations/${fixture.invites.pending.id}/${action}`)).status).toBe(401)
-      expect((await request(app).post(`/api/invitations/${fixture.invites.pending.id}/${action}`).set('Authorization', `Bearer ${apiKey.token}`)).status).toBe(403)
+      expect((await request(httpServer).post(`/api/invitations/${fixture.invites.pending.id}/${action}`).set('Authorization', `Bearer ${apiKey.token}`)).status).toBe(403)
       expect((await user.post(`/api/invitations/malformed/${action}`)).status).toBe(404)
       expect((await user.post(`/api/invitations/${id(999)}/${action}`)).status).toBe(404)
       expect((await user.post(`/api/invitations/${fixture.invites.nullPhone.id}/${action}`)).status).toBe(409)
@@ -136,7 +138,7 @@ describe('managed invitation mutations', () => {
     await prisma.invitation.update({ where: { id: fixture.invites.pending.id }, data: { recipientPhone: fixture.members[0].phoneNumber } })
     await prisma.member.update({ where: { id: fixture.members[0].id }, data: { smsConsent: false } })
     const before = await prisma.invitation.findUniqueOrThrow({ where: { id: fixture.invites.pending.id } })
-    const user = await legacyAgent(app, { userId: fixture.leader.id })
+    const user = await legacyAgent(httpServer, { userId: fixture.leader.id })
     expect((await user.post(`/api/invitations/${before.id}/resend`)).status).toBe(502)
     expect(await prisma.invitation.findUniqueOrThrow({ where: { id: before.id } })).toEqual(before)
     expect(await prisma.inviteEvent.count({ where: { invitationId: before.id } })).toBe(0)
@@ -146,7 +148,7 @@ describe('managed invitation mutations', () => {
   it('never overwrites withdrawal while resend is delivering', async () => {
     const entered = barrier(), finish = barrier()
     vi.mocked(sendSMS).mockImplementationOnce(async () => { entered.release(); await finish.wait; return { success: true, messageSid: 'raced-sent' } })
-    const user = await legacyAgent(app, { userId: fixture.leader.id })
+    const user = await legacyAgent(httpServer, { userId: fixture.leader.id })
     const sending = user.post(`/api/invitations/${fixture.invites.pending.id}/resend`).send({}).then(response => response)
     await Promise.race([entered.wait, sending.then(response => { throw new Error(`Resend ended before transport barrier: ${response.status} ${JSON.stringify(response.body)}`) })])
     try { expect((await user.post(`/api/invitations/${fixture.invites.pending.id}/withdraw`).send({})).status).toBe(200) }
@@ -163,7 +165,7 @@ describe('managed invitation mutations', () => {
     await prisma.member.update({ where: { id: fixture.members[3].id }, data: { smsConsent: true } })
     const entered = barrier(), finish = barrier()
     vi.mocked(sendSMS).mockImplementationOnce(async () => { entered.release(); await finish.wait; return { success: true, messageSid: 'raced-sent' } })
-    const user = await legacyAgent(app, { userId: fixture.leader.id })
+    const user = await legacyAgent(httpServer, { userId: fixture.leader.id })
     const sending = user.post(`/api/invitations/${fixture.invites.pending.id}/resend`).send({}).then(response => response)
     await Promise.race([entered.wait, sending.then(response => { throw new Error(`Resend ended before transport barrier: ${response.status} ${JSON.stringify(response.body)}`) })])
     try {
@@ -185,8 +187,8 @@ describe('managed invitation mutations', () => {
     const entered = barrier(), finish = barrier()
     vi.mocked(sendSMS).mockImplementationOnce(async () => { entered.release(); await finish.wait; return { success: true, messageSid: 'transferred-sent' } })
     const before = await prisma.invitation.findUniqueOrThrow({ where: { id: fixture.invites.pending.id } })
-    const oldOwner = await legacyAgent(app, { userId: fixture.leader.id })
-    const movingUser = await legacyAgent(app, { userId: mover.id })
+    const oldOwner = await legacyAgent(httpServer, { userId: fixture.leader.id })
+    const movingUser = await legacyAgent(httpServer, { userId: mover.id })
     const sending = oldOwner.post(`/api/invitations/${before.id}/resend`).send({}).then(response => response)
     await Promise.race([entered.wait, sending.then(response => { throw new Error(`Resend ended before transport barrier: ${response.status} ${JSON.stringify(response.body)}`) })])
     try {
@@ -198,7 +200,7 @@ describe('managed invitation mutations', () => {
     expect(await prisma.invitation.findUniqueOrThrow({ where: { id: before.id } })).toEqual(before)
     expect(await prisma.inviteEvent.count({ where: { invitationId: before.id } })).toBe(0)
     expect((await oldOwner.post(`/api/invitations/${before.id}/withdraw`)).status).toBe(403)
-    const newOwner = await legacyAgent(app, { userId: fixture.outsider.id })
+    const newOwner = await legacyAgent(httpServer, { userId: fixture.outsider.id })
     expect((await newOwner.post(`/api/invitations/${before.id}/withdraw`)).status).toBe(200)
     await prisma.user.delete({ where: { id: mover.id } })
   })
@@ -213,7 +215,7 @@ describe('managed invitation mutations', () => {
       await tx.group.update({ where: { id: fixture.group.id }, data: { organizationId: foreignOrg.id } })
     }, { timeout: 10000 })
     await entered.wait
-    const user = await legacyAgent(app, { userId: fixture.leader.id })
+    const user = await legacyAgent(httpServer, { userId: fixture.leader.id })
     const withdrawing = user.post(`/api/invitations/${fixture.invites.pending.id}/withdraw`).send({}).then(response => response)
     try {
       let waiting = false
@@ -231,7 +233,7 @@ describe('managed invitation mutations', () => {
   })
 
   it('keeps generic phone-bearing legacy invitations actionable without inventing a group', async () => {
-    const user = await legacyAgent(app, { userId: fixture.leader.id })
+    const user = await legacyAgent(httpServer, { userId: fixture.leader.id })
     const generic = fixture.invites.nullGroup
     const response = await user.post(`/api/invitations/${generic.id}/resend`).send({})
     expect(response.status, JSON.stringify(response.body)).toBe(200)
@@ -249,7 +251,7 @@ describe('managed invitation mutations', () => {
     const foreign = await prisma.invitation.create({ data: { id: id(4), initiatedBy: 'leader', groupId: group.id, organizationId: org.id, inviterId: fixture.outsider.id, token: 'FOREIGN_TOKEN', recipientPhone: phone } })
     excludedIds.push(foreign.id)
     const before = await prisma.invitation.findMany({ where: { id: { in: excludedIds } }, orderBy: { id: 'asc' } })
-    const user = await legacyAgent(app, { userId: fixture.leader.id })
+    const user = await legacyAgent(httpServer, { userId: fixture.leader.id })
     expect((await user.post(`/api/invitations/${foreign.id}/resend`).send({})).status).toBe(403)
     expect((await user.post(`/api/invitations/${fixture.requests.pending.id}/resend`).send({})).status).toBe(200)
     expect(sendSMS).toHaveBeenCalledTimes(1)
