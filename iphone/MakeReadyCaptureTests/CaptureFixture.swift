@@ -1294,6 +1294,8 @@ struct CaptureComponent: Codable {
     let sourceLabel: String?                   // §3 Source chip label (nil = "Source")
     let sourceActive: Bool?                    // §3 Source chip active
     let dateLabelVisible: Bool?                // §3 date label capture input (nil = automatic)
+    // ── preview props ──
+    let placement: String?                     // C-131 SearchFilterHeader (underShellTopNav|underScreenHeader)
 }
 
 /// C-123 §4 `look` — "Fixtures encode `look` as an object: `{\"kind\": \"<case>\", …associated

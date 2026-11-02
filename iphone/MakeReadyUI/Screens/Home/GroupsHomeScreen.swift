@@ -87,8 +87,6 @@ struct GroupsHomeScreen: View {
     // taps → C-036).
     @SwiftUI.State private var query: String
     @SwiftUI.State private var presentedMenu: FilterMenu?
-    /// §3 Search active: the editable C-034's focus, as it reports it.
-    @SwiftUI.State private var searchFocused = false
 
     init(
         state: State,
@@ -129,23 +127,9 @@ struct GroupsHomeScreen: View {
 
     // MARK: - §2 geometry the screen owns
 
-    // GAP — groups-home §2: "header block (116pt: 16 inset → SearchField 408×44 → 16 → chip
-    // row" — a vertical 16 with no spacing token naming the role (page-margin is horizontal).
-    // The 16 under the chip row is the same GAP: 116 = 16 + 44 + 16 + 24 + 16, and the frozen
-    // frame `default` starts the first row there (drawings: chips end at 179, row 1 at 195).
-    private static let headerGap: CGFloat = 16
     // GAP — groups-home §2: "1px `color-layout-border` hairlines between rows" — no stroke-width
     // token.
     private static let hairline: CGFloat = 1
-
-    /// §3 Search active (identical to members-home): search is active while the field is focused
-    /// or holds a query, so typed results stay up after the keyboard drops; only C-039 (the x)
-    /// ends it.
-    static func isSearchActive(query: String, focused: Bool) -> Bool {
-        focused || !query.isEmpty
-    }
-
-    private var searchActive: Bool { Self.isSearchActive(query: query, focused: searchFocused) }
 
     // MARK: - Body (§2 top → bottom)
 
@@ -160,9 +144,8 @@ struct GroupsHomeScreen: View {
                 groupList
                 emptyLine
             } header: {
-                header.background { Self.headerMaterial }
-                    // topnav-height-env: once pinned, the growing TopNav pushes it down.
-                    .pinnedBelowTopNav()
+                // C-131 paints its own pinned material and pins below the TopNav.
+                header
             }
         }
         .frame(maxWidth: .infinity, alignment: .top)
@@ -171,66 +154,36 @@ struct GroupsHomeScreen: View {
         .filterMenuPresentation(isPresented: presentedMenu != nil, onDismiss: { presentedMenu = nil }) {
             filterMenu
         }
-        .onChange(of: searchActive, initial: true) { _, active in onSearchActiveChange(active) }
-    }
-
-    // GAP — groups-home §3 Pinned header (members-search-pinned): no material token. A blur under
-    // a mostly-opaque page background, so the rows behind the pinned header are barely visible.
-    private static let headerScrimOpacity: Double = 0.8
-
-    private static var headerMaterial: some View {
-        ZStack {
-            Rectangle().fill(.ultraThinMaterial)
-            Token.layoutBackground.opacity(headerScrimOpacity)
-        }
     }
 
     // MARK: §2 Header
 
     /// §2: "header block (116pt: 16 inset → SearchField 408×44 \"Search groups\" → 16 → chip
-    /// row: FilterChip ×2 \"∨ All Orgs\" (95pt), \"∨ All Leaders\" (117pt), 8 gap)".
+    /// row: FilterChip ×2 \"∨ All Orgs\" (95pt), \"∨ All Leaders\" (117pt), 8 gap)". Now the
+    /// shared C-131 SearchFilterHeader (field, full-bleed rail, insets, material, pinning); this
+    /// screen passes its chips. `.underShellTopNav`: the shell's TopNav and nav gap sit above (D2).
     private var header: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // §2's "16 inset" above the field is the gap under the nav row. The row is now the
-            // shell's (D2) and `HomeSectionLayout.navGap` (16) already is that gap, so the
-            // screen adds none of its own (the MembersHomeScreen D4 precedent).
-            // §4: C-034, its editable form (D3 — members-browse D19 precedent); focus is the field's own.
-            SearchField(
-                text: query,
-                placeholder: Self.searchPlaceholder,
-                focused: false,
-                onChange: { newValue in
-                    query = newValue
-                    onSearch(newValue)
-                },
-                onClear: {
-                    query = ""
-                    onSearch("")
-                },
-                // §3 Search active: while active the x is always there and ends the search.
-                showsClearWhenEmpty: searchActive,
-                onFocusChange: { searchFocused = $0 },
-                clearDismisses: true,
-                editable: true
-            )
-            .ui2Element("C-034 SearchField")
-            .padding(.horizontal, Token.Space.pageMargin)            // §2: "inset 16"
-            Spacer().frame(height: Self.headerGap)
+        SearchFilterHeader(
+            query: query,
+            onQueryChange: { newValue in
+                query = newValue
+                onSearch(newValue)
+            },
+            placeholder: Self.searchPlaceholder,
+            placement: .underShellTopNav,
+            onSearchActiveChange: onSearchActiveChange
+        ) {
             // §4: both chips `type=Menu`, active while it has a pick — filter-multiselect D4.
-            // Owner 2026-11-01: the shared full-bleed FilterRail (docs/ui2/references/filter-rail.md).
-            FilterRail {                                             // §2: "8 gap"
-                if state.orgFilterVisible {
-                    Self.menuChip(label: state.orgFilterLabel, active: !state.selectedOrgs.isEmpty) {
-                        presentedMenu = .orgs
-                    }
-                    .ui2Element("C-035 FilterChip")
+            if state.orgFilterVisible {
+                Self.menuChip(label: state.orgFilterLabel, active: !state.selectedOrgs.isEmpty) {
+                    presentedMenu = .orgs
                 }
-                Self.menuChip(label: state.leaderFilterLabel, active: !state.selectedLeaders.isEmpty) {
-                    presentedMenu = .leaders
-                }
-                .ui2Element(state.orgFilterVisible ? "C-035 FilterChip 2" : "C-035 FilterChip")
+                .ui2Element("C-035 FilterChip")
             }
-            Spacer().frame(height: Self.headerGap)
+            Self.menuChip(label: state.leaderFilterLabel, active: !state.selectedLeaders.isEmpty) {
+                presentedMenu = .leaders
+            }
+            .ui2Element(state.orgFilterVisible ? "C-035 FilterChip 2" : "C-035 FilterChip")
         }
     }
 

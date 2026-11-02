@@ -86,8 +86,6 @@ struct StudyProgramsScreen: View {
     // (§3 chip taps → C-036).
     @SwiftUI.State private var query: String
     @SwiftUI.State private var presentedMenu: FilterMenu?
-    /// §3 Search field: the editable C-034's focus, as it reports it.
-    @SwiftUI.State private var searchFocused = false
 
     init(
         state: State,
@@ -126,13 +124,6 @@ struct StudyProgramsScreen: View {
     /// §3: "Debounce and min-chars follow search-home: 300ms, min 2".
     private static let minimumQueryLength = 2
 
-    /// §3 Search field: "\"Search active\" = the field is focused OR its query is non-empty".
-    static func isSearchActive(query: String, focused: Bool) -> Bool {
-        focused || !query.isEmpty
-    }
-
-    private var searchActive: Bool { Self.isSearchActive(query: query, focused: searchFocused) }
-
     // MARK: - Body (§2 top → bottom)
 
     var body: some View {
@@ -146,9 +137,8 @@ struct StudyProgramsScreen: View {
             Section {
                 programList
             } header: {
-                header.background { Self.headerMaterial }
-                    // topnav-height-env: once pinned, the growing TopNav pushes it down.
-                    .pinnedBelowTopNav()
+                // C-131 paints its own pinned material and pins below the TopNav.
+                header
             }
         }
         .frame(maxWidth: .infinity, alignment: .top)
@@ -158,62 +148,29 @@ struct StudyProgramsScreen: View {
         .filterMenuPresentation(isPresented: presentedMenu != nil, onDismiss: { presentedMenu = nil }) {
             filterMenu
         }
-        .onChange(of: searchActive, initial: true) { _, active in onSearchActiveChange(active) }
-    }
-
-    // GAP — §2 pinned header: "`ultraThinMaterial` under `color-layout-background` at 0.8
-    // opacity" — no material token (members-home's header material).
-    private static let headerScrimOpacity: Double = 0.8
-
-    private static var headerMaterial: some View {
-        ZStack {
-            Rectangle().fill(.ultraThinMaterial)
-            Token.layoutBackground.opacity(headerScrimOpacity)
-        }
     }
 
     // MARK: §2 Header
 
     /// §2: "Header block: `space-page-margin` (16) padding on all sides, `space-card-padding`
-    /// (16) gap, 116 tall" — persists in every §3 state.
+    /// (16) gap, 116 tall" — persists in every §3 state. Now the shared C-131 SearchFilterHeader
+    /// (field, full-bleed rail, insets, material, pinning); this screen passes its chips.
+    /// `.underShellTopNav`: no top padding — the shell's nav gap (16) is already the space under
+    /// the TopNav (owner 2026-11-01).
     private var header: some View {
-        VStack(alignment: .leading, spacing: Token.Space.cardPadding) {   // §2: 16 gap
-            // §2: C-034 "408×44, `Default`". §3 Search field: its editable form — focus is the
-            // field's own.
-            SearchField(
-                text: query,
-                placeholder: Self.searchPlaceholder,
-                focused: false,
-                onChange: { newValue in
-                    query = newValue
-                    onSearch(newValue)
-                },
-                onClear: {
-                    query = ""
-                    onSearch("")
-                },
-                // §3: the clear control shows whenever search is active and also dismisses focus.
-                showsClearWhenEmpty: searchActive,
-                onFocusChange: { searchFocused = $0 },
-                clearDismisses: true,
-                editable: true
-            )
-            .ui2Element("C-034 SearchField")
-            .padding(.horizontal, Token.Space.pageMargin)
-            chipRow
-        }
-        // Owner 2026-11-01: no top padding — the shell's nav gap (16) is already the space under the
-        // TopNav, as on groups-home/members-home; the bottom keeps `space-page-margin`. The field
-        // keeps the 16 side inset; the chip row is full bleed (FilterRail).
-        .padding(.bottom, Token.Space.pageMargin)
-    }
-
-    /// §2: "Filter rail: 2 × C-035 FilterChip (`type=Menu`), gap `space-element-gap` (8), 24
-    /// tall". Owner 2026-11-01: the shared full-bleed FilterRail, which always swipes
-    /// (docs/ui2/references/filter-rail.md). A chip is active while it has a pick; the org chip
-    /// is drawn only when `orgFilterVisible` (§3 Filter API).
-    private var chipRow: some View {
-        FilterRail {
+        SearchFilterHeader(
+            query: query,
+            onQueryChange: { newValue in
+                query = newValue
+                onSearch(newValue)
+            },
+            placeholder: Self.searchPlaceholder,
+            placement: .underShellTopNav,
+            onSearchActiveChange: onSearchActiveChange
+        ) {
+            // §2: "Filter rail: 2 × C-035 FilterChip (`type=Menu`), gap `space-element-gap` (8),
+            // 24 tall". A chip is active while it has a pick; the org chip is drawn only when
+            // `orgFilterVisible` (§3 Filter API).
             if state.orgFilterVisible {
                 Self.menuChip(label: state.orgFilterLabel, active: !state.selectedOrgs.isEmpty) {
                     presentedMenu = .orgs

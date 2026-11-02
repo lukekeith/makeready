@@ -88,8 +88,6 @@ struct MembersHomeScreen: View {
     // presented menu (§3 "Tap a chip → FilterMenuOverlay (C-036) opens").
     @SwiftUI.State private var query: String
     @SwiftUI.State private var presentedMenu: FilterMenu?
-    /// members-search-pinned: the editable C-034's focus, as it reports it.
-    @SwiftUI.State private var searchFocused = false
 
     init(
         state: State,
@@ -116,22 +114,9 @@ struct MembersHomeScreen: View {
 
     // MARK: - §2 geometry the screen owns
 
-    // GAP — members-home §2: "16pt top inset → SearchField (C-034) 408×44 → 16pt → chip row" — a
-    // vertical 16 with no spacing token naming the role (page-margin is horizontal). The 16 under
-    // the chip row is the same GAP: §2's "Header (fixed content, 116pt)" = 16 + 44 + 16 + 24 + 16,
-    // and the frozen frame `default` starts the first row there (element map: 179 → 195).
-    private static let headerGap: CGFloat = 16
     // GAP — members-home §2: "1px `color-layout-border` hairline between rows" — no stroke-width
     // token.
     private static let hairline: CGFloat = 1
-
-    /// members-search-pinned: search is active while the field is focused or holds a query, so
-    /// typed results stay up after the keyboard drops; only C-039 (the x) ends it.
-    static func isSearchActive(query: String, focused: Bool) -> Bool {
-        focused || !query.isEmpty
-    }
-
-    private var searchActive: Bool { Self.isSearchActive(query: query, focused: searchFocused) }
 
     // MARK: - Body (§2 top → bottom)
 
@@ -144,9 +129,8 @@ struct MembersHomeScreen: View {
             Section {
                 memberList
             } header: {
-                header.background { Self.headerMaterial }
-                    // topnav-height-env: once pinned, the growing TopNav pushes it down.
-                    .pinnedBelowTopNav()
+                // C-131 paints its own pinned material and pins below the TopNav.
+                header
             }
         }
         .frame(maxWidth: .infinity, alignment: .top)
@@ -155,64 +139,39 @@ struct MembersHomeScreen: View {
         .filterMenuPresentation(isPresented: presentedMenu != nil, onDismiss: { presentedMenu = nil }) {
             filterMenu
         }
-        .onChange(of: searchActive, initial: true) { _, active in onSearchActiveChange(active) }
-    }
-
-    // GAP — members-search-pinned: no material token. A blur under a mostly-opaque page
-    // background, so the rows behind the pinned header are barely visible.
-    private static let headerScrimOpacity: Double = 0.8
-
-    private static var headerMaterial: some View {
-        ZStack {
-            Rectangle().fill(.ultraThinMaterial)
-            Token.layoutBackground.opacity(headerScrimOpacity)
-        }
     }
 
     // MARK: §2 Header
 
     /// §2: "Header (fixed content, 116pt): 16pt top inset → SearchField (C-034) 408×44 → 16pt →
     /// chip row: FilterChip (C-035) ×2 — \"∨ All Groups\", \"∨ All Leaders\" — 24pt tall, 8pt
-    /// gap, left-aligned."
+    /// gap, left-aligned." Now the shared C-131 SearchFilterHeader, which owns the field, the
+    /// full-bleed rail, the insets, the material and the pinning; this screen passes its chips.
+    /// `.underShellTopNav`: the shell's TopNav and its 16 nav gap sit above (D4).
     private var header: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // §2's "16pt top inset" is the gap between the nav row and the field. The row is now
-            // the shell's (D4) and `HomeSectionLayout.navGap` (16) already is that gap, so the
-            // screen adds none of its own (routed to /ui2-resolve with D4, F3).
-            // §4: C-034, its editable form (D19) — focus is the field's own.
-            SearchField(
-                text: query,
-                placeholder: Self.searchPlaceholder,
-                focused: false,
-                onChange: { newValue in
-                    query = newValue
-                    onSearch(newValue)
-                },
-                onClear: {
-                    query = ""
-                    onSearch("")
-                },
-                // members-search-pinned: while active the x is always there and ends the search.
-                showsClearWhenEmpty: searchActive,
-                onFocusChange: { searchFocused = $0 },
-                clearDismisses: true,
-                editable: true
-            )
-            .ui2Element("C-034 SearchField")
-            .padding(.horizontal, Token.Space.pageMargin)            // §2: content inset 16
-            Spacer().frame(height: Self.headerGap)
-            // Owner 2026-11-01: the shared full-bleed FilterRail, which always swipes
-            // (docs/ui2/references/filter-rail.md) — supersedes OQ-members-home-3's plain row.
-            FilterRail {                                             // §2: "8pt gap"
-                Self.menuChip(label: state.groupFilterLabel, active: !state.selectedGroupIDs.isEmpty) { presentedMenu = .groups }
-                .ui2Element("C-035 FilterChip")
-                if state.showsLeaderFilter {                         // D7/D15
-                    Self.menuChip(label: state.leaderFilterLabel, active: !state.selectedLeaderIDs.isEmpty) { presentedMenu = .leaders }
-                    .ui2Element("C-035 FilterChip 2")
-                }
+        SearchFilterHeader(
+            query: query,
+            onQueryChange: { newValue in
+                query = newValue
+                onSearch(newValue)
+            },
+            placeholder: Self.searchPlaceholder,
+            placement: .underShellTopNav,
+            onSearchActiveChange: onSearchActiveChange
+        ) {
+            Self.menuChip(label: state.groupFilterLabel, active: !state.selectedGroupIDs.isEmpty) { presentedMenu = .groups }
+            .ui2Element("C-035 FilterChip")
+            if state.showsLeaderFilter {                             // D7/D15
+                Self.menuChip(label: state.leaderFilterLabel, active: !state.selectedLeaderIDs.isEmpty) { presentedMenu = .leaders }
+                .ui2Element("C-035 FilterChip 2")
             }
-            Spacer().frame(height: Self.headerGap)
         }
+    }
+
+    /// members-search-pinned: search is active while the field is focused or holds a query —
+    /// C-131's own rule, which now tracks the field's focus.
+    static func isSearchActive(query: String, focused: Bool) -> Bool {
+        SearchFilterHeader<EmptyView>.isSearchActive(query: query, focused: focused)
     }
 
     /// §3: "Tap a chip → FilterMenuOverlay (C-036) opens" — a `Menu` chip whose tap presents it;

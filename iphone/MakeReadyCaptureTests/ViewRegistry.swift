@@ -3231,6 +3231,9 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
     case "component.ui2.C-130":
         // Out of line for the same stack-frame reason as C-083.
         return try buildUI2C130(fixture)
+    case "component.ui2.C-131":
+        // Out of line for the same stack-frame reason as C-083.
+        return try buildUI2C131(fixture)
     default:
         return nil
     }
@@ -5442,6 +5445,7 @@ enum ViewRegistry {
         "component.ui2.C-129",
         "screen.2.0.media-home",
         "component.ui2.C-130",
+        "component.ui2.C-131",
     ]
 }
 
@@ -5480,6 +5484,64 @@ private func buildUI2C130(_ fixture: CaptureFixture) throws -> AnyView {
                 MakeReadyUI.FilterChip(type: chip.type, active: chip.active, label: chip.label)
             }
         },
+        PreviewFrame(width: 440, marginEdges: .vertical, alignment: .leading)
+    )
+}
+
+/// `component.ui2.C-131` — C-131 SearchFilterHeader. See the case in `buildCaptureViewPart10`.
+@MainActor @inline(never)
+private func buildUI2C131(_ fixture: CaptureFixture) throws -> AnyView {
+    guard let c = fixture.state?.component else {
+        throw ViewRegistryError.unknownView("component.ui2.C-131: missing state.component")
+    }
+    // C-131 §4 (R-07): `query`, `placeholder`, `placement` and `chips` are required — a nil is a
+    // fixture bug, not a value to guess. `onQueryChange` and `onSearchActiveChange` have no render
+    // effect and take no-ops.
+    guard let query = c.query else {
+        throw ViewRegistryError.unknownView("component.ui2.C-131: props.query is required")
+    }
+    guard let placeholder = c.placeholder else {
+        throw ViewRegistryError.unknownView("component.ui2.C-131: props.placeholder is required")
+    }
+    // §4 `placement` (nested in the generic view, so it is chosen in the call's own context).
+    let underShellTopNav: Bool
+    switch c.placement {
+    case "underShellTopNav": underShellTopNav = true
+    case "underScreenHeader": underShellTopNav = false
+    default:
+        throw ViewRegistryError.unknownView("component.ui2.C-131: props.placement must be underShellTopNav|underScreenHeader")
+    }
+    // §4 "Fixture (capture)": `chips` as `type · active · label` entries, one C-035 per entry —
+    // decoded exactly as C-130's case does.
+    guard let raw = c.chips, !raw.isEmpty else {
+        throw ViewRegistryError.unknownView("component.ui2.C-131: props.chips is required and never empty")
+    }
+    let chips: [(type: MakeReadyUI.FilterChip.ChipType, active: Bool, label: String)] =
+        try raw.enumerated().map { index, entry in
+            guard let typeRaw = entry.type,
+                  let type = MakeReadyUI.FilterChip.ChipType(rawValue: typeRaw),
+                  type != .font else {
+                throw ViewRegistryError.unknownView("component.ui2.C-131: chips[\(index)].type must be Menu|Button")
+            }
+            guard let active = entry.active, let label = entry.label else {
+                throw ViewRegistryError.unknownView("component.ui2.C-131: chips[\(index)] needs active and label")
+            }
+            return (type, active, label)
+        }
+    return declareCase(
+        MakeReadyUI.SearchFilterHeader(
+            query: query,
+            onQueryChange: { _ in },
+            placeholder: placeholder,
+            placement: underShellTopNav ? .underShellTopNav : .underScreenHeader
+        ) {
+            ForEach(Array(chips.enumerated()), id: \.offset) { _, chip in
+                MakeReadyUI.FilterChip(type: chip.type, active: chip.active, label: chip.label)
+            }
+        },
+        // §2: the header fills the full 440 screen width and owns its side insets and material
+        // (the R-16 carve-out), so it is captured full-bleed (the C-130 precedent: vertical
+        // specimen margin only).
         PreviewFrame(width: 440, marginEdges: .vertical, alignment: .leading)
     )
 }

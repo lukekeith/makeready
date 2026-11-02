@@ -108,8 +108,6 @@ struct EnrollmentsHomeScreen: View {
 
     // R-31 ephemeral UI: the query as typed (§3 "live text filter").
     @SwiftUI.State private var query: String
-    /// The editable C-034's focus, as it reports it.
-    @SwiftUI.State private var searchFocused = false
 
     init(
         state: State,
@@ -149,18 +147,8 @@ struct EnrollmentsHomeScreen: View {
     /// §3: "debounce/min-chars follow search-home's precedent: 300ms, min 2".
     private static let minimumQueryLength = 2
 
-    /// §3: search is active while the field is focused or holds a query (members-home's rule).
-    static func isSearchActive(query: String, focused: Bool) -> Bool {
-        focused || !query.isEmpty
-    }
-
-    private var searchActive: Bool { Self.isSearchActive(query: query, focused: searchFocused) }
-
     // MARK: - §2 geometry the screen owns
 
-    // GAP — enrollments-home §2: "header block (`space-page-margin` 16 padding, 16 gap; 116
-    // tall)" — the vertical 16 between search and chips has no spacing token naming the role.
-    private static let headerGap: CGFloat = 16
     // GAP — enrollments-home §2: "Per group section (gap 16)" / "Enrollment list (starts 16
     // below the header)" — no spacing token names the header-to-list gap.
     private static let sectionInnerGap: CGFloat = 16
@@ -177,70 +165,33 @@ struct EnrollmentsHomeScreen: View {
             Section {
                 sectionsContainer
             } header: {
-                header.background { Self.headerMaterial }
-                    // topnav-height-env: once pinned, the growing TopNav pushes it down.
-                    .pinnedBelowTopNav()
+                // C-131 paints its own pinned material and pins below the TopNav.
+                header
             }
         }
         .frame(maxWidth: .infinity, alignment: .top)
         .background(Token.layoutBackground)                      // §2: `color-layout-background`
-        .onChange(of: searchActive, initial: true) { _, active in onSearchActiveChange(active) }
-    }
-
-    // GAP — §2 pinned header: no material token — members-home's header material
-    // (`ultraThinMaterial` under `color-layout-background` at 0.8).
-    private static let headerScrimOpacity: Double = 0.8
-
-    private static var headerMaterial: some View {
-        ZStack {
-            Rectangle().fill(.ultraThinMaterial)
-            Token.layoutBackground.opacity(headerScrimOpacity)
-        }
     }
 
     // MARK: §2 Header
 
     /// §2: "header block (`space-page-margin` 16 padding, 16 gap; 116 tall)" — persists in every
-    /// §3 state.
+    /// §3 state. Now the shared C-131 SearchFilterHeader (field, full-bleed C-130 rail, insets,
+    /// material, pinning); this screen passes its chips. `.underShellTopNav`: no top padding — the
+    /// shell's nav gap (16) is already the space under the TopNav (owner 2026-11-01).
     private var header: some View {
-        VStack(alignment: .leading, spacing: Self.headerGap) {
-            // §2: C-034 "408×44, `Default` state". §3: its editable form — focus is the field's
-            // own, reported so the screen can tell the shell when search is active.
-            SearchField(
-                text: query,
-                placeholder: Self.searchPlaceholder,
-                focused: false,
-                onChange: { newValue in
-                    query = newValue
-                    onSearch(newValue)
-                },
-                onClear: {
-                    query = ""
-                    onSearch("")
-                },
-                // members-home: while active the x is always there and ends the search.
-                showsClearWhenEmpty: searchActive,
-                onFocusChange: { searchFocused = $0 },
-                clearDismisses: true,
-                editable: true
-            )
-            .ui2Element("C-034 SearchField")
-            .padding(.horizontal, Token.Space.pageMargin)
-            chipRow
-        }
-        // Owner 2026-11-01: no top padding — the shell's nav gap (16) is already the space under the
-        // TopNav, as on groups-home/members-home; the bottom keeps `space-page-margin`.
-        .padding(.bottom, Token.Space.pageMargin)
-    }
-
-    /// §2: "Filter rail — 4 × C-035 FilterChip (`type=Menu, active=false`), gap
-    /// `space-element-gap` (8), 24 tall". The frame's fourth chip runs past the right edge, so
-    /// the rail scrolls horizontally with the 16 leading inset; a horizontal carousel keeps its
-    /// own ScrollView (D22).
-    private var chipRow: some View {
-        // §4 C-130 FilterRail (owner 2026-11-01, filter-rail.md): full bleed — it sits outside the
-        // header's side padding; its 16 inset is inside the scroll content.
-        FilterRail {
+        SearchFilterHeader(
+            query: query,
+            onQueryChange: { newValue in
+                query = newValue
+                onSearch(newValue)
+            },
+            placeholder: Self.searchPlaceholder,
+            placement: .underShellTopNav,
+            onSearchActiveChange: onSearchActiveChange
+        ) {
+            // §2: "Filter rail — 4 × C-035 FilterChip (`type=Menu, active=false`), gap
+            // `space-element-gap` (8), 24 tall".
             ForEach(chipLabels.indices, id: \.self) { index in
                 // Owner 2026-10-30: a chip with a setting (its label off its resting text) is active.
                 Self.menuChip(label: chipLabels[index],
@@ -250,7 +201,6 @@ struct EnrollmentsHomeScreen: View {
                 .ui2Element(Self.partName("C-035 FilterChip", ordinal: index + 1))
             }
         }
-        .ui2Element("C-130 FilterRail")
     }
 
     /// §3: a chip tap presents C-036. `onTap:` is passed by label: an unlabelled trailing closure on

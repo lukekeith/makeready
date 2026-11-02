@@ -97,12 +97,10 @@ struct MediaHomeScreen: View {
     /// §3 Rendering cost: the last offset, the fade-out task and the derived items, held outside
     /// observation so a scroll frame re-renders only when `dateLabelShown` flips.
     @SwiftUI.State private var cache = MediaHomeCache()
-    /// Owner 2026-11-01: the search's own focus, as on groups-home/members-home.
-    @SwiftUI.State private var searchFocused: Bool
-
     /// Owner 2026-11-01 (groups-home's rule): search is active while the field is focused or holds
-    /// a query — the dismiss x shows, and the shell is told (`onSearchActiveChange`).
-    private var searchActive: Bool { searchFocused || !query.isEmpty }
+    /// a query — as C-131 SearchFilterHeader reports it (it owns the field's focus, and the shell
+    /// is told through `onSearchActiveChange`). Seeded from `State.searchFocused`.
+    @SwiftUI.State private var searchActive: Bool
 
     /// §3 "Empty means trimmed": a whitespace-only query is empty for the blank state and the level.
     private var trimmedQueryEmpty: Bool { query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
@@ -145,7 +143,7 @@ struct MediaHomeScreen: View {
         self.image = image
         self.imageGeneration = imageGeneration
         _query = SwiftUI.State(initialValue: state.searchText)
-        _searchFocused = SwiftUI.State(initialValue: state.searchFocused)
+        _searchActive = SwiftUI.State(initialValue: state.searchFocused || !state.searchText.isEmpty)
     }
 
     // MARK: - §2 / §3 constants
@@ -300,7 +298,6 @@ struct MediaHomeScreen: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Token.layoutBackground)              // §2: page ground
         .onChange(of: filterKey) { scrollToNewestToken += 1 }
-        .onChange(of: searchActive, initial: true) { _, active in onSearchActiveChange(active) }
         // §3 Level reporting: the host sizes its tile images for the resting level.
         .onChange(of: level, initial: true) { _, next in onLevelChange(next) }
         .onDisappear { cache.hideTask?.cancel() }
@@ -325,86 +322,74 @@ struct MediaHomeScreen: View {
 
     // MARK: §2.1 Top bar
 
-    /// §2.1: fixed, full width, `color-layout-background`, `space-page-margin` padding; the
-    /// search field and the chip row only (plus §2.5's notice when failed with photos).
+    /// §2.1: fixed, full width; the search field and the chip row, now the shared C-131
+    /// SearchFilterHeader (field, full-bleed rail, insets, material — OQ-media-home-9), plus
+    /// §2.5's notice when failed with photos, just below the header (OQ-media-home-9).
+    /// `.underShellTopNav`: no top padding — the shell's nav gap (16) is already the space under
+    /// the TopNav (owner 2026-11-01).
     private var topBar: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SearchField(
-                text: query,
-                placeholder: Self.searchPlaceholder,
-                focused: false,
-                // §3 Search: "updates on every keystroke (`onSearch(String)`) with no server call".
-                onChange: { newValue in
+            SearchFilterHeader(
+                query: query,
+                // §3 Search: "updates on every keystroke (`onSearch(String)`) with no server call";
+                // C-034's clear empties it and ends the search.
+                onQueryChange: { newValue in
                     query = newValue
                     onSearch(newValue)
                 },
-                // §3: "C-034's clear button empties it."
-                onClear: {
-                    query = ""
-                    onSearch("")
+                placeholder: Self.searchPlaceholder,
+                placement: .underShellTopNav,
+                onSearchActiveChange: { active in
+                    searchActive = active
+                    onSearchActiveChange(active)
                 },
-                // Owner 2026-11-01: the same dismiss x as every other search — shown while active, and
-                // tapping it clears the query and ends the search.
-                showsClearWhenEmpty: searchActive,
-                onFocusChange: { searchFocused = $0 },
-                clearDismisses: true,
-                editable: true
-            )
-            .ui2Element("C-034 SearchField")
-            .padding(.horizontal, Token.Space.pageMargin)
-
-            // Owner 2026-11-01: the search → chips gap matches groups-home/members-home (16).
-            chipRow
-                .padding(.top, Token.Space.cardPadding)
+                // §3 Active search: capture state `searchActiveEmpty` starts focused.
+                initiallyFocused: state.searchFocused
+            ) {
+                chipRow
+            }
 
             if showsNotice {
                 noticeRow
-                    .padding(.top, Token.Space.elementGap)
                     .padding(.horizontal, Token.Space.pageMargin)
+                    .padding(.bottom, Token.Space.pageMargin)
             }
         }
-        // Owner 2026-11-01: no top padding — the shell's nav gap (16) is already the space under the
-        // TopNav, as on groups-home/members-home; the bottom keeps `space-page-margin`. The field
-        // and notice keep the 16 side inset; the chip row is full bleed (FilterRail).
-        .padding(.bottom, Token.Space.pageMargin)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Token.layoutBackground)
     }
 
     /// §2.1 Chip row: four C-035 `type: Menu` — Source · Tags · Leaders · Time —
-    /// `space-element-gap` apart. Owner 2026-11-01: the shared full-bleed FilterRail, which always
-    /// swipes (docs/ui2/references/filter-rail.md) — supersedes §2.1's "no horizontal scroll".
-    private var chipRow: some View {
-        FilterRail {
-            FilterChip(
-                type: .menu,
-                active: state.sourceActive,
-                label: state.sourceLabel ?? "Source",
-                onTap: onSource
-            )
-            .ui2Element("C-035 FilterChip")
-            FilterChip(
-                type: .menu,
-                active: !state.selectedTags.isEmpty,
-                label: Self.chipLabel("Tags", state.selectedTags),
-                onTap: onTapTags
-            )
-            .ui2Element("C-035 FilterChip 2")
-            FilterChip(
-                type: .menu,
-                active: !state.selectedLeaders.isEmpty,
-                label: Self.chipLabel("Leaders", state.selectedLeaders),
-                onTap: onTapLeaders
-            )
-            .ui2Element("C-035 FilterChip 3")
-            FilterChip(
-                type: .menu,
-                active: timeActive,
-                label: state.timeOption,
-                onTap: onTapTime
-            )
-            .ui2Element("C-035 FilterChip 4")
-        }
+    /// `space-element-gap` apart — C-131's slot, laid in its full-bleed FilterRail, which always
+    /// swipes (owner 2026-11-01, filter-rail.md) — supersedes §2.1's "no horizontal scroll".
+    @ViewBuilder private var chipRow: some View {
+        FilterChip(
+            type: .menu,
+            active: state.sourceActive,
+            label: state.sourceLabel ?? "Source",
+            onTap: onSource
+        )
+        .ui2Element("C-035 FilterChip")
+        FilterChip(
+            type: .menu,
+            active: !state.selectedTags.isEmpty,
+            label: Self.chipLabel("Tags", state.selectedTags),
+            onTap: onTapTags
+        )
+        .ui2Element("C-035 FilterChip 2")
+        FilterChip(
+            type: .menu,
+            active: !state.selectedLeaders.isEmpty,
+            label: Self.chipLabel("Leaders", state.selectedLeaders),
+            onTap: onTapLeaders
+        )
+        .ui2Element("C-035 FilterChip 3")
+        FilterChip(
+            type: .menu,
+            active: timeActive,
+            label: state.timeOption,
+            onTap: onTapTime
+        )
+        .ui2Element("C-035 FilterChip 4")
     }
 
     /// §2.5: "Some photos didn't load · Retry", Retry in `type-link`, `color-accent`.
