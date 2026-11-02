@@ -1,7 +1,7 @@
 size: lg
-state: aligned
+state: audited
 next: /builder:resume --path docs/features/tag-categories
-head: dbf58dbe
+head: 5f82853f
 ticket: none
 branch: main
 pr: none
