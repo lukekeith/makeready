@@ -76,6 +76,13 @@ final class UI2ShellModelTests: XCTestCase {
         XCTAssertEqual(m.expansion, 0)
     }
 
+    func testInvitesSectionHasNoPlaceholderPush() {
+        var model = UI2ShellModel()
+        model.apply(.section(.invites))
+        XCTAssertEqual(model.section, .invites)
+        XCTAssertTrue(model.path(for: .home).isEmpty)
+    }
+
     // MARK: - ui2-members-browse D1/D2/D20: per-tab push paths
 
     private let tony = UI2Destination.memberDetail(id: "m1", name: "Tony Stark")

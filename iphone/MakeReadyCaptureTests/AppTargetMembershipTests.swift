@@ -8,4 +8,10 @@ final class AppTargetMembershipTests: XCTestCase {
         XCTAssertFalse(state.authenticating)
         XCTAssertEqual(String(reflecting: LoginScreen.self), "MakeReady.LoginScreen")
     }
+    func testInvitesListTypesAreInTheAppModule() {
+        XCTAssertEqual(String(reflecting: InvitesHomeContainer.self), "MakeReady.InvitesHomeContainer")
+        XCTAssertEqual(String(reflecting: InvitesHomeScreen.self), "MakeReady.InvitesHomeScreen")
+        XCTAssertEqual(String(reflecting: InvitesHomeMapper.self), "MakeReady.InvitesHomeMapper")
+    }
+
 }
