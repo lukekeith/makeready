@@ -275,10 +275,10 @@ interface InvitationDetail {
   canResend: boolean; canWithdraw: boolean;
 }
 ```
-- C1: GET `/api/invitations/feed?orgId&groupId&leaderId&status&limit`; UUID filters optional; status closed five values; limit integer 1–200 default 200; no q. C2: GET `/api/invitations/:id`. Errors `{error: string}`, 400 invalid filter/401 unauthenticated/403 known out-of-scope detail/404 absent.
+- C1: GET `/api/invitations/feed?orgId&groupId&leaderId&status&limit`; UUID filters optional; status closed five values; limit integer 1–200 default 200; no q. C2: GET `/api/invitations/:id`. Handler errors `{error: string}`; existing requireAuth failures retain `{success:false,error:string}`. Statuses400 invalid filter/401 unauthenticated/403 inactive or known out-of-scope detail/404 absent.
 
 **Behaviour:**
-- Scope every row, related invitation, event and filter option to owned/role orgs or super-admin all non-null orgs; creator-only cannot expand org scope and null-org rows never enter new APIs (D9,D17).
+- Scope every row, related invitation, event and filter option to owned/role orgs or super-admin all non-null orgs; creator-only cannot expand org scope and null-org rows never enter new APIs (D9,D17). Effective org follows the current group organization for grouped rows and stored organization for generic group-null rows; prove old-org access is revoked and destination-org access granted through the existing HTTP group-transfer API. Apply the same helper to Task5 selections and rechecks.
 - Filter statuses before limit, order display date then id descending, count before cap, include all permitted filter options independent of selected chips; leader filter includes sender invites and requests in groups creator/org-role leader manages (D7–D10).
 - Detail includes selected row, phone-equal permitted rows/history newest first; null phone selects only self; link member by stored memberId or exact normalized phone within selected org (D18).
 - Exclude withdrawn from feed, include it in detail; canResend excludes expired/null-phone; canWithdraw includes expired pending but excludes null-phone; dates always fallback without data rewrites (D5,D7,D10,D15,D16).

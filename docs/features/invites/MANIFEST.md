@@ -1,6 +1,6 @@
 size: lg
 state: building
-next: "Implement scoped invitation feed/detail endpoints with exact C1/C2 wire projections"
+next: "Implement admitted batch resend, atomic withdrawal and fixtures; review/security/verify before producer freeze"
 head: 9da5d240
 ticket: none
 branch: builder/invites
@@ -17,7 +17,7 @@ auto: on
 blocked: none
 agent-walk: risk
 phase: building
-current-task: "Task 4"
+current-task: "Task 5"
 origin-branch: feature/invites
 origin-head: 9bc0bf7d86156bb023e04c00a32d3fd62ffa8d11
 target-branch: feature/invites
