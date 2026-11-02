@@ -8,6 +8,9 @@
 //  `inviterId` filters, org-wide join-request listing, and a `rejected` status with decline
 //  capture, are API-GAPs in §5).
 //  PREVIEW ONLY: referenced by no app screen, route, tab, flag or navigation case.
+//  §8 production integration inputs (builder/invites D11, D18, D21–D24): `showsNav`,
+//  `onSearchActiveChange`, `filtersLocally` and the Members-pattern pinned header — every one
+//  defaulted so the frozen frames and the preview call sites render as before.
 //
 
 import SwiftUI
@@ -60,10 +63,22 @@ struct InvitesHomeScreen: View {
     var onOpenFilter: (String) -> Void = { _ in }   // §3: chip tap → C-036 for that dimension
     var onOpenInvite: (Int) -> Void = { _ in }      // §3: invite row tap → push invite-home, by row
     var onOpenRequest: (Int) -> Void = { _ in }     // §3: Requested row tap → push request-detail, by row
+    /// §8: search became active (field focused OR query non-empty) / ended — the caller may hide
+    /// the shell TopNav while it is active. The screen only reports it.
+    var onSearchActiveChange: (Bool) -> Void = { _ in }
+    /// §8: the screen's own C-019 row. Default shown, as in the frame (§2 item 1); the app
+    /// container turns it off to compose with the single shell TopNav.
+    let showsNav: Bool
+    /// §8 caller-owned search: true (previews) keeps the screen's own filter over the rows; false
+    /// (the app) means the caller debounces and filters, passes the filtered rows in, and the
+    /// screen performs no second, immediate filter — typing only reports the text.
+    let filtersLocally: Bool
 
     // R-31 ephemeral UI: the query as typed. §3: "The search text is ephemeral screen state
     // (D43)."
     @SwiftUI.State private var query: String
+    /// §8: the editable C-034's focus, as it reports it (caller-owned search only).
+    @SwiftUI.State private var searchFocused = false
 
     init(
         state: State,
@@ -72,7 +87,10 @@ struct InvitesHomeScreen: View {
         onSearch: @escaping (String) -> Void = { _ in },
         onOpenFilter: @escaping (String) -> Void = { _ in },
         onOpenInvite: @escaping (Int) -> Void = { _ in },
-        onOpenRequest: @escaping (Int) -> Void = { _ in }
+        onOpenRequest: @escaping (Int) -> Void = { _ in },
+        onSearchActiveChange: @escaping (Bool) -> Void = { _ in },
+        showsNav: Bool = true,
+        filtersLocally: Bool = true
     ) {
         self.state = state
         self.onSelectTab = onSelectTab
@@ -81,6 +99,9 @@ struct InvitesHomeScreen: View {
         self.onOpenFilter = onOpenFilter
         self.onOpenInvite = onOpenInvite
         self.onOpenRequest = onOpenRequest
+        self.onSearchActiveChange = onSearchActiveChange
+        self.showsNav = showsNav
+        self.filtersLocally = filtersLocally
         _query = SwiftUI.State(initialValue: state.searchText)
     }
 
@@ -112,15 +133,39 @@ struct InvitesHomeScreen: View {
         // D22: no ScrollView at the root. The canvas is the device width × the content's full
         // length, so the page lays out top to bottom at full height. The status bar (§1
         // deviation 1) is the harness's.
-        VStack(alignment: .leading, spacing: 0) {
-            navRow
-            header
-            inviteList
+        // §8 Members-pattern pinned header: the header is a pinned section header, so inside the
+        // shell's page scroll the search field and rail stay put and only the list scrolls.
+        LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+            if showsNav {
+                navRow
+            }
+            Section {
+                inviteList
+            } header: {
+                header.background { Self.headerMaterial }
+                    // topnav-height-env: once pinned, the growing TopNav pushes it down.
+                    .pinnedBelowTopNav()
+            }
         }
         .frame(maxWidth: .infinity, alignment: .top)
         // §2: "Background `color-background` (`layout/background`)". The register's row for
         // that Figma variable is `color-layout-background`.
         .background(Token.layoutBackground)
+        .onChange(of: searchActive, initial: true) { _, active in onSearchActiveChange(active) }
+    }
+
+    /// §8: search is active while the field is focused or holds a query.
+    private var searchActive: Bool { searchFocused || !query.isEmpty }
+
+    // GAP — §8 pinned header (the members-search-pinned precedent): no material token. A blur
+    // under a mostly-opaque page background, so the rows behind the pinned header barely show.
+    private static let headerScrimOpacity: Double = 0.8
+
+    private static var headerMaterial: some View {
+        ZStack {
+            Rectangle().fill(.ultraThinMaterial)
+            Token.layoutBackground.opacity(headerScrimOpacity)
+        }
     }
 
     /// §2.1: "C-019 TopNav: y47, full width, height 32", collapsed (`expansion` 0) at rest
@@ -157,7 +202,13 @@ struct InvitesHomeScreen: View {
                 onClear: {
                     query = ""
                     onSearch("")
-                }
+                },
+                // §8 caller-owned search: the app's field is editable and reports its focus;
+                // while active the x is always there and ends the search (Members pattern).
+                showsClearWhenEmpty: !filtersLocally && searchActive,
+                onFocusChange: { searchFocused = $0 },
+                clearDismisses: !filtersLocally,
+                editable: !filtersLocally
             )
             .ui2Element("C-034 SearchField")
             .padding(.horizontal, Token.Space.pageMargin)
@@ -233,7 +284,9 @@ struct InvitesHomeScreen: View {
     }
 
     /// §3: "Type in C-034: filters the list on phone number and group name as the user types."
+    /// §8: with caller-owned search the rows arrive already filtered — no second filter here.
     private var visibleRows: [Int] {
+        guard filtersLocally else { return Array(state.inviteRecipients.indices) }
         let needle = query.trimmingCharacters(in: .whitespaces)
         return state.inviteRecipients.indices.filter { index in
             needle.isEmpty

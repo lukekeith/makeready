@@ -8,6 +8,9 @@
 //  POST /api/groups/{groupId}/join-requests/{requestId}/reject
 //  (the single-request GET and the request/invite event history are API-GAPs in §5).
 //  PREVIEW ONLY: referenced by no app screen, route, tab, flag or navigation case.
+//  Integration input (builder/invites, chat-apply 2026-11-02): `showsHeader` — defaulted so the
+//  frozen frames and the preview call sites render as before. Accept/Reject confirmation stays
+//  the caller's (OQ-006); the view holds no network and no navigation.
 //
 
 import SwiftUI
@@ -65,19 +68,24 @@ struct RequestDetailScreen: View {
     // screen only emits the tap (§3 still reads "no confirmation step" — see the report).
     var onApprove: () -> Void = {}    // C-048 affirmative "Accept" → POST …/approve, pop to whichever screen pushed (groups-detail or invites-home)
     var onReject: () -> Void = {}     // C-048 destructive → POST …/reject, pop to whichever screen pushed
+    /// External-header mode: false hides the screen's own C-040 so the caller's header stands in
+    /// for it. Default shown, as in the frame.
+    let showsHeader: Bool
 
     init(
         state: State,
         onBack: @escaping () -> Void = {},
         onOpenGroup: @escaping () -> Void = {},
         onApprove: @escaping () -> Void = {},
-        onReject: @escaping () -> Void = {}
+        onReject: @escaping () -> Void = {},
+        showsHeader: Bool = true
     ) {
         self.state = state
         self.onBack = onBack
         self.onOpenGroup = onOpenGroup
         self.onApprove = onApprove
         self.onReject = onReject
+        self.showsHeader = showsHeader
     }
 
     // §3 has no UI-only rule on this screen: `responding` is a §3 state (a `State` field), every
@@ -128,17 +136,19 @@ struct RequestDetailScreen: View {
         // length. The status bar (§1 deviation 2) is the harness's.
         VStack(alignment: .leading, spacing: 0) {
             // §2: "C-040 PageHeader (`Two icons`, `showIcons=false`; back + centred title
-            // "Join request")".
-            PageHeader(
-                style: .twoIcons,
-                title: Self.pageTitle,
-                showTitle: true,
-                showIcons: false,
-                leadingGlyph: .back,
-                rightButtons: [],
-                onLeading: onBack
-            )
-            .ui2Element("C-040 PageHeader")
+            // "Join request")". External-header mode: the caller's header replaces it.
+            if showsHeader {
+                PageHeader(
+                    style: .twoIcons,
+                    title: Self.pageTitle,
+                    showTitle: true,
+                    showIcons: false,
+                    leadingGlyph: .back,
+                    rightButtons: [],
+                    onLeading: onBack
+                )
+                .ui2Element("C-040 PageHeader")
+            }
 
             // §2: "vertical scroll content, padding `space-page-margin` (16), column gap
             // `space-section-gap` (32)".

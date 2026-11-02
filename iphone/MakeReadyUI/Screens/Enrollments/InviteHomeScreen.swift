@@ -8,6 +8,9 @@
 //  (the leader-facing by-recipient invite detail, the invite event history and both writes
 //  are API-GAPs in §5).
 //  PREVIEW ONLY: referenced by no app screen, route, tab, flag or navigation case.
+//  Integration inputs (builder/invites, chat-apply 2026-11-02): `canResend` / `canWithdraw`,
+//  `resending` / `withdrawing`, `showsHeader` and an optional `age` — every one defaulted so the
+//  frozen frames and the preview call sites render as before.
 //
 
 import SwiftUI
@@ -45,8 +48,9 @@ struct InviteHomeScreen: View {
         /// `linked`: C-038's photo; "" = no photo → C-038's initials fallback.
         var avatarURL: String
         var initials: String
-        /// `linked`: the 2×2 grid. Age is computed by the caller.
-        var age: Int
+        /// `linked`: the 2×2 grid. Age is computed by the caller; nil (no birthday on file) shows
+        /// a dash.
+        var age: Int?
         var role: String
         var birthday: String
         var joined: String
@@ -76,6 +80,17 @@ struct InviteHomeScreen: View {
     var onOpenMember: () -> Void = {}                   // linked-member block → members-profile (OQ-6)
     var onResendInvitation: () -> Void = {}             // Resend invitation → the resend write (§5)
     var onWithdrawInvitation: () -> Void = {}           // Withdraw invitation → confirm, then withdraw (§3)
+    /// The server's `canResend` / `canWithdraw` (builder/invites C2), each showing its own C-048.
+    /// nil keeps the Sent-derived rule (§3: pending = at least one group invitation is Sent),
+    /// which is what every preview uses.
+    let canResend: Bool?
+    let canWithdraw: Bool?
+    /// A resend / withdraw write is in flight: both C-048s disable until it answers.
+    let resending: Bool
+    let withdrawing: Bool
+    /// External-header mode: false hides the screen's own C-040 so the caller's header stands in
+    /// for it. Default shown, as in the frame.
+    let showsHeader: Bool
 
     init(
         state: State,
@@ -83,7 +98,12 @@ struct InviteHomeScreen: View {
         onOpenGroupInvitation: @escaping (Int) -> Void = { _ in },
         onOpenMember: @escaping () -> Void = {},
         onResendInvitation: @escaping () -> Void = {},
-        onWithdrawInvitation: @escaping () -> Void = {}
+        onWithdrawInvitation: @escaping () -> Void = {},
+        canResend: Bool? = nil,
+        canWithdraw: Bool? = nil,
+        resending: Bool = false,
+        withdrawing: Bool = false,
+        showsHeader: Bool = true
     ) {
         self.state = state
         self.onBack = onBack
@@ -91,6 +111,11 @@ struct InviteHomeScreen: View {
         self.onOpenMember = onOpenMember
         self.onResendInvitation = onResendInvitation
         self.onWithdrawInvitation = onWithdrawInvitation
+        self.canResend = canResend
+        self.canWithdraw = canWithdraw
+        self.resending = resending
+        self.withdrawing = withdrawing
+        self.showsHeader = showsHeader
     }
 
     // §3 has no UI-only rule on this screen: every interaction leaves it and the timeline is
@@ -120,6 +145,8 @@ struct InviteHomeScreen: View {
     /// §2.7: the two C-048 labels.
     private static let resendLabel = "Resend invitation"
     private static let withdrawLabel = "Withdraw invitation"
+    /// A grid value the caller does not have (no age on file).
+    private static let missingValue = "—"
 
     // MARK: - §2 geometry the screen owns
 
@@ -150,17 +177,19 @@ struct InviteHomeScreen: View {
         // length. The status bar (§1 deviation 2) is the harness's.
         VStack(alignment: .leading, spacing: 0) {
             // §2: "C-040 PageHeader (`Two icons` + `showIcons=false`, back + centered title
-            // "Invite")".
-            PageHeader(
-                style: .twoIcons,
-                title: Self.pageTitle,
-                showTitle: true,
-                showIcons: false,
-                leadingGlyph: .back,
-                rightButtons: [],
-                onLeading: onBack
-            )
-            .ui2Element("C-040 PageHeader")
+            // "Invite")". External-header mode: the caller's header replaces it.
+            if showsHeader {
+                PageHeader(
+                    style: .twoIcons,
+                    title: Self.pageTitle,
+                    showTitle: true,
+                    showIcons: false,
+                    leadingGlyph: .back,
+                    rightButtons: [],
+                    onLeading: onBack
+                )
+                .ui2Element("C-040 PageHeader")
+            }
 
             // §2: "vertical scroll content (p16, column gap `space-section-gap` 32)".
             VStack(alignment: .leading, spacing: Token.Space.sectionGap) {
@@ -171,8 +200,9 @@ struct InviteHomeScreen: View {
                 sectionDivider
                 timeline
                 // §3 visibility rule: the stack — with its 32 section gap — renders only while
-                // the invite is pending (at least one group invitation is Sent).
-                if isPending {
+                // the invite is pending (at least one group invitation is Sent) — or, given the
+                // caller's flags, while either action is allowed.
+                if showsResend || showsWithdraw {
                     buttonsStack
                 }
             }
@@ -259,7 +289,7 @@ struct InviteHomeScreen: View {
 
             VStack(alignment: .leading, spacing: Self.gridGap) {
                 HStack(alignment: .top, spacing: Self.gridGap) {
-                    metaCell(label: Self.ageLabel, value: "\(state.age)", ordinal: 2)
+                    metaCell(label: Self.ageLabel, value: state.age.map(String.init) ?? Self.missingValue, ordinal: 2)
                     metaCell(label: Self.roleLabel, value: state.role, ordinal: 3)
                 }
                 HStack(alignment: .top, spacing: Self.gridGap) {
@@ -367,31 +397,42 @@ struct InviteHomeScreen: View {
         state.groupStatuses.contains(Self.sentStatus)
     }
 
+    private var showsResend: Bool { canResend ?? isPending }
+    private var showsWithdraw: Bool { canWithdraw ?? isPending }
+    /// A write in flight disables both buttons.
+    private var actionsEnabled: Bool { !resending && !withdrawing }
+
     /// §2.7: "full content width (408), vertical stack … C-048 PageActionButton "Resend
     /// invitation" (accent, send glyph trailing, spread) above C-048 PageActionButton "Withdraw
     /// invitation" (secondary)". Gap: Figma `4773:11378` places the 38pt buttons at y 0 and 54 —
     /// 16, `space-stack-gap` (§2.7's proposed 12 is confirmed from the frame as 16).
     private var buttonsStack: some View {
         VStack(spacing: Token.Space.stackGap) {
-            PageActionButton(
-                label: Self.resendLabel,
-                role: .accent,
-                size: .md,
-                glyph: .sendFilled,
-                glyphPosition: .trailing,
-                layout: .spread,
-                onTap: onResendInvitation
-            )
-            .frame(maxWidth: .infinity)
-            .ui2Element("C-048 PageActionButton")
-            PageActionButton(
-                label: Self.withdrawLabel,
-                role: .secondary,
-                size: .md,
-                onTap: onWithdrawInvitation
-            )
-            .frame(maxWidth: .infinity)
-            .ui2Element("C-048 PageActionButton 2")
+            if showsResend {
+                PageActionButton(
+                    label: Self.resendLabel,
+                    role: .accent,
+                    size: .md,
+                    glyph: .sendFilled,
+                    glyphPosition: .trailing,
+                    layout: .spread,
+                    enabled: actionsEnabled,
+                    onTap: onResendInvitation
+                )
+                .frame(maxWidth: .infinity)
+                .ui2Element("C-048 PageActionButton")
+            }
+            if showsWithdraw {
+                PageActionButton(
+                    label: Self.withdrawLabel,
+                    role: .secondary,
+                    size: .md,
+                    enabled: actionsEnabled,
+                    onTap: onWithdrawInvitation
+                )
+                .frame(maxWidth: .infinity)
+                .ui2Element("C-048 PageActionButton 2")
+            }
         }
         .frame(maxWidth: .infinity)
     }
