@@ -310,9 +310,10 @@ struct MediaHomeContainer: View {
                 },
                 onClose: { openMenu = nil })
         case .tags:
+            // tag-categories D6: the tag-flow form of C-036 (Figma 4770:11375); every other chip keeps the list.
             FilterMenuOverlay(
-                options: output.tagSections.flatMap(\.options).map { FilterMenuOverlay.Option(id: $0.id, label: $0.label) },
-                selectionMode: .multiple, selectedIDs: selection.tags,
+                sections: Self.tagMenuSections(output.tagSections),
+                selectedIDs: selection.tags,
                 onClose: { openMenu = nil },
                 onSave: { ids in
                     update { $0.tags = ids }
@@ -467,6 +468,14 @@ struct MediaHomeContainer: View {
                 AppState.shared.recordError(error, context: "MediaHomeContainer.pick", surface: true,
                                             friendlyMessage: "Couldn't open that photo")
             }
+        }
+    }
+
+    /// tag-categories D6: the mapper's tag sections as C-036's tag-flow sections, unchanged.
+    static func tagMenuSections(_ sections: [MediaHomeMapper.TagSection]) -> [FilterMenuOverlay.Section] {
+        sections.map { section in
+            FilterMenuOverlay.Section(title: section.title,
+                                      options: section.options.map { FilterMenuOverlay.Option(id: $0.id, label: $0.label) })
         }
     }
 

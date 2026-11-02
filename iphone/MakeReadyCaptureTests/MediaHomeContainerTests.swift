@@ -134,4 +134,17 @@ final class MediaHomeContainerTests: XCTestCase {
         let band = MediaHomeContainer.gridBand(screen: CGRect(x: 0, y: 100, width: 440, height: 800))
         XCTAssertEqual(band, CGRect(x: 0, y: 208, width: 440, height: 692))
     }
+
+    /// tag-categories D6/T5: the Tags menu hands the mapper's sections to the tag-flow form unchanged —
+    /// titles, option ids and labels, in order.
+    func testTagMenuSectionsAreTheMappersSections() {
+        let sections = [
+            MediaHomeMapper.TagSection(title: "BOOKS OF THE BIBLE", options: [.init(id: "cat:bible-books:1", label: "Genesis")]),
+            MediaHomeMapper.TagSection(title: "CONTENT", options: [.init(id: "dogs", label: "Dogs")]),
+        ]
+        let menu = MediaHomeContainer.tagMenuSections(sections)
+        XCTAssertEqual(menu.map(\.title), ["BOOKS OF THE BIBLE", "CONTENT"])
+        XCTAssertEqual(menu.flatMap(\.options).map(\.id), ["cat:bible-books:1", "dogs"])
+        XCTAssertEqual(menu.flatMap(\.options).map(\.label), ["Genesis", "Dogs"])
+    }
 }

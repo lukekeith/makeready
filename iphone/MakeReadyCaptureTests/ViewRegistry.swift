@@ -2451,6 +2451,30 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-036: missing state.component")
         }
+        // §7 tag-flow form: `sections` (the `.filterMenu` shape — see CaptureSectionsField) +
+        // `selectedIDs`, in draft mode (a no-op onSave draws the Clear / Save row as the app does).
+        if let ui2C036Sections = c.sections?.filterMenu {
+            let ui2C036FlowView = MakeReadyUI.FilterMenuOverlay(
+                sections: ui2C036Sections.map { section in
+                    MakeReadyUI.FilterMenuOverlay.Section(
+                        title: section.title,
+                        options: section.options.map {
+                            MakeReadyUI.FilterMenuOverlay.Option(id: $0.id, label: $0.label, glyph: nil)
+                        }
+                    )
+                },
+                selectedIDs: Set(c.selectedIDs ?? []),
+                onSave: { _ in }
+            )
+            return AnyView(
+                ui2C036FlowView
+                    // Same frame and stand-in top inset as the list form below (§1, OQ-C-036-6).
+                    .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: 53) }
+                    .frame(width: 440, height: 893)
+                    .frame(maxWidth: .infinity)
+                    .background(MakeReadyUI.Token.layoutBackground)  // OQ-PB-2 default
+            )
+        }
         // §4 `options` is required (R-07) and IS the component, so a nil is a fixture bug.
         // `options` decodes the object shape here (`.items`) — see CaptureStringsOrOptions.
         guard let ui2C036Options = c.options?.items else {

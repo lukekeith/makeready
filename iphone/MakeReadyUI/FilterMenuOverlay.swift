@@ -15,6 +15,11 @@
 //  filter-multiselect D1 (owner 2026-10-26): with onSave set, picks are a draft — Save applies,
 //  ✕ discards (routed to /d2m:component:update C-036, F2/F4).
 //
+//  TAG-FLOW FORM (§7, owner 2026-11-01, Figma 4770:11375): `sections` set → the options draw as
+//  wrapping tag chips under optional uppercase section headers. The tag chip and the flow layout
+//  are private sub-views (R-15 disclosed fallback) until a registry row is minted for the chip.
+//  Every list-form caller is unchanged: `sections` is nil unless the tag-flow init is used.
+//
 
 import SwiftUI
 
@@ -33,6 +38,13 @@ struct FilterMenuOverlay: View {
         var glyph: String?
     }
 
+    /// §7 `Section` (nested, R-36): an optional header over a flow of options. nil `title` =
+    /// no header. Options in the tag-flow form carry no glyph.
+    struct Section {
+        let title: String?
+        let options: [Option]
+    }
+
     /// OQ-C-036-009: `.single` — one tap picks and the presenter closes; `.multiple` — a tap
     /// toggles and the menu stays open.
     enum SelectionMode {
@@ -42,6 +54,9 @@ struct FilterMenuOverlay: View {
 
     /// §4 `options`: the closed option list, in display order.
     let options: [Option]
+    /// §7 `sections`: set → the tag-flow form (sections of wrapping tag chips) in place of the
+    /// option list; nil → the list form, exactly as before.
+    let sections: [Section]?
     /// OQ-C-036-009 `selectionMode`.
     let selectionMode: SelectionMode
     /// OQ-C-036-009 `selectedIDs`: every checked option; empty = a plain option menu with no
@@ -82,6 +97,7 @@ struct FilterMenuOverlay: View {
         onSave: ((Set<String>) -> Void)? = nil
     ) {
         self.options = options
+        self.sections = nil
         self.selectionMode = selectionMode
         self.selectedIDs = selectedIDs
         self.onSelect = onSelect
@@ -90,6 +106,28 @@ struct FilterMenuOverlay: View {
         self.clearEnabled = clearEnabled
         self.onSave = onSave
         // Seeded here, not in onAppear, so the first frame already shows the current checks.
+        _draft = SwiftUI.State(initialValue: selectedIDs)
+    }
+
+    /// §7 the tag-flow form: `sections` in display order, `selectedIDs` seeding the draft. Draft
+    /// mode as C-036 draws it today — a chip tap toggles its id, Save hands the draft back, Clear
+    /// applies the empty selection, ✕ (`onClose`) discards.
+    init(
+        sections: [Section],
+        selectedIDs: Set<String>,
+        onSelect: @escaping (Option) -> Void = { _ in },
+        onClose: @escaping () -> Void = {},
+        onSave: ((Set<String>) -> Void)? = nil
+    ) {
+        self.options = []
+        self.sections = sections
+        self.selectionMode = .multiple
+        self.selectedIDs = selectedIDs
+        self.onSelect = onSelect
+        self.onClose = onClose
+        self.onClear = nil
+        self.clearEnabled = true
+        self.onSave = onSave
         _draft = SwiftUI.State(initialValue: selectedIDs)
     }
 
@@ -152,7 +190,13 @@ struct FilterMenuOverlay: View {
                             .padding(.vertical, Token.Space.cardPadding)
                             .ui2Element("C-049 LinkButton")
                     }
-                    optionList(bottomInset: closeTopOffset)
+                    Group {
+                        if let sections {
+                            tagFlow(sections, bottomInset: closeTopOffset)
+                        } else {
+                            optionList(bottomInset: closeTopOffset)
+                        }
+                    }
                         .mask { fadeMask(closeTopOffset: closeTopOffset) }
                         .ui2Element("Option list")
                 }
@@ -187,6 +231,49 @@ struct FilterMenuOverlay: View {
                     .ui2Element("Option row \(index + 1)")
                 }
             }
+            .padding(.horizontal, Token.Space.sectionGap)
+            .padding(.bottom, bottomInset)
+        }
+    }
+
+    /// §7 Tag flow: sections stacked `space-stack-gap` apart (Figma `Filters` gap 16), each an
+    /// optional `type-section-overline` header in `color-text-secondary` over a left-aligned flow
+    /// of tag chips `space-meta-gap` apart on both axes (Figma `Actions` gap 4), on the list's
+    /// `space-section-gap` inset, with the same bottom content inset as the option list.
+    private func tagFlow(_ sections: [Section], bottomInset: CGFloat) -> some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(alignment: .leading, spacing: Token.Space.stackGap) {
+                ForEach(Array(sections.enumerated()), id: \.offset) { sectionIndex, section in
+                    if let title = section.title {
+                        Text(title)
+                            .designTextStyle(Token.TypeStyle.sectionOverline)
+                            .textCase(.uppercase)
+                            .foregroundStyle(Token.textSecondary)
+                            .lineLimit(1)
+                            // The designed 24pt line box (Figma 4770:11346).
+                            .frame(minHeight: Token.TypeStyle.sectionOverline.lineHeight
+                                   ?? Token.TypeStyle.sectionOverline.size)
+                            .accessibilityAddTraits(.isHeader)
+                            .ui2Element("Section header \(sectionIndex + 1)")
+                    }
+                    TagFlowLayout(spacing: Token.Space.metaGap) {
+                        ForEach(section.options) { option in
+                            TagChip(
+                                label: option.label,
+                                selected: onSave != nil ? draft.contains(option.id) : selectedIDs.contains(option.id),
+                                onTap: {
+                                    if onSave != nil { draft = Self.toggled(draft, option.id) }
+                                    onSelect(option)
+                                }
+                            )
+                            .ui2Element("Tag chip \(option.id)")
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .ui2Element("Tag flow \(sectionIndex + 1)")
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Token.Space.sectionGap)
             .padding(.bottom, bottomInset)
         }
@@ -275,6 +362,96 @@ private extension FilterMenuOverlay {
                     .strokeBorder(Token.error, style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
                     .frame(width: GlyphSize.md.points, height: GlyphSize.md.points)
             }
+        }
+    }
+}
+
+// MARK: - Tag chip + flow layout (inline until minted — §7)
+
+private extension FilterMenuOverlay {
+
+    /// §7's two-state tag chip (Figma 4770:11316 `Tag clickable`): `type-block-label` (14/16)
+    /// on `space-button-padding` (8) all round, one line. Unselected: plain text, no fill,
+    /// `color-text-secondary` (§7). Selected: `color-layout-background` text on a white pill
+    /// (32pt tall, radius 16 = a capsule).
+    struct TagChip: View {
+        let label: String
+        let selected: Bool
+        var onTap: () -> Void = {}
+
+        var body: some View {
+            SwiftUI.Button(action: onTap) {
+                Text(label)
+                    .designTextStyle(Token.TypeStyle.blockLabel)
+                    .foregroundStyle(selected ? Token.layoutBackground : Token.textSecondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(minHeight: Token.TypeStyle.blockLabel.lineHeight ?? Token.TypeStyle.blockLabel.size)
+                    .padding(Token.Space.buttonPadding)
+                    .background {
+                        if selected {
+                            Capsule().fill(Token.white100)
+                        }
+                    }
+                    .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            // R-17: one button labelled by its label; selected carries `.isSelected`.
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(label)
+            .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+        }
+    }
+
+    /// §7 "the build supplies a flow layout inside the module": a leading-aligned wrapping flow
+    /// with one gap on both axes. A chip wider than the line is offered the line's width, so it
+    /// truncates rather than overflowing.
+    struct TagFlowLayout: Layout {
+        let spacing: CGFloat
+
+        func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+            let lines = lines(for: proposal.width ?? .infinity, subviews: subviews)
+            let height = lines.map(\.height).reduce(0, +) + spacing * CGFloat(max(lines.count - 1, 0))
+            let widest = lines.map(\.width).max() ?? 0
+            return CGSize(width: proposal.width ?? widest, height: height)
+        }
+
+        func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+            var y = bounds.minY
+            for line in lines(for: bounds.width, subviews: subviews) {
+                var x = bounds.minX
+                for item in line.items {
+                    subviews[item.index].place(at: CGPoint(x: x, y: y),
+                                               anchor: .topLeading,
+                                               proposal: ProposedViewSize(item.size))
+                    x += item.size.width + spacing
+                }
+                y += line.height + spacing
+            }
+        }
+
+        private struct Line {
+            var items: [(index: Int, size: CGSize)] = []
+            var width: CGFloat = 0
+            var height: CGFloat = 0
+        }
+
+        private func lines(for maxWidth: CGFloat, subviews: Subviews) -> [Line] {
+            var lines: [Line] = []
+            var current = Line()
+            for index in subviews.indices {
+                let ideal = subviews[index].sizeThatFits(.unspecified)
+                let size = CGSize(width: min(ideal.width, maxWidth), height: ideal.height)
+                if !current.items.isEmpty, current.width + spacing + size.width > maxWidth {
+                    lines.append(current)
+                    current = Line()
+                }
+                current.width = current.items.isEmpty ? size.width : current.width + spacing + size.width
+                current.height = max(current.height, size.height)
+                current.items.append((index, size))
+            }
+            if !current.items.isEmpty { lines.append(current) }
+            return lines
         }
     }
 }

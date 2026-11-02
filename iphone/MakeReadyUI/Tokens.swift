@@ -419,6 +419,7 @@ enum Token {
         static let subtitleSemibold = DesignTextStyle(weight: .semibold, size: 14, lineHeight: 20, tracking: 0)
         static let valueHero = DesignTextStyle(weight: .regular, size: 24, lineHeight: 32, tracking: 0)
         static let navLabel = DesignTextStyle(weight: .bold, size: 14, lineHeight: 16, tracking: 0)
+        static let sectionOverline = DesignTextStyle(weight: .bold, size: 10, lineHeight: 24, tracking: 1)
     }
 
     enum Space {

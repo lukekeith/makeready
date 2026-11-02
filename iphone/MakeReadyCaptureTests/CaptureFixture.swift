@@ -241,7 +241,10 @@ struct CaptureComponent: Codable {
     let timeAgo: String?
     let groupName: String?
     let activities: [CaptureLessonActivity]?   // CardLesson / CardEnrolled
-    let sections: [CaptureSectionProgress]?    // CardLesson progress mode
+    // RETYPED 2026-11-01 (/d2m:chat:apply C-036 tag-flow form): CardLesson's progress-mode
+    // `sections` ([CaptureSectionProgress]) and C-036 §7 `sections` ([FilterMenuOverlay.Section])
+    // share the name; the field decodes both shapes (`.progress` / `.filterMenu`).
+    let sections: CaptureSectionsField?
     let mode: String?                          // CardLesson: planning|lesson|progress|lessonList
     let lessonStatus: String?                  // complete | next | upcoming:<text>
     let images: [String]?                      // GroupPostCard image URLs
@@ -1608,6 +1611,42 @@ struct CaptureLessonActivity: Codable {
 struct CaptureSectionProgress: Codable {
     let name: String
     let completed: Bool?
+}
+
+/// `sections` decodes CardLesson progress sections OR C-036 §7 tag-flow sections — see the
+/// RETYPED note on the field.
+struct CaptureSectionsField: Codable {
+    let progress: [CaptureSectionProgress]?
+    let filterMenu: [CaptureFilterMenuSection]?
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let p = try? container.decode([CaptureSectionProgress].self) {
+            progress = p
+            filterMenu = nil
+        } else if let f = try? container.decode([CaptureFilterMenuSection].self) {
+            filterMenu = f
+            progress = nil
+        } else {
+            progress = nil
+            filterMenu = nil
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        if let p = progress {
+            try container.encode(p)
+        } else {
+            try container.encode(filterMenu)
+        }
+    }
+}
+
+/// C-036 §7 `FilterMenuOverlay.Section`: optional `title` (nil = no header) + its options.
+struct CaptureFilterMenuSection: Codable {
+    let title: String?
+    let options: [CaptureFilterMenuOption]
 }
 
 // MARK: - Group capture models
