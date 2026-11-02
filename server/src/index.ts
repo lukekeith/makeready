@@ -1,3 +1,4 @@
+import invitationsRoutes from './routes/invitations.js'
 import { memberInvitationWhere, legacyRequestStatusWhere, toLegacyJoinRequest } from './services/invitation.js'
 import express from 'express'
 import cors from 'cors'
@@ -351,6 +352,7 @@ app.use('/api/sms-campaigns', smsCampaignsRoutes)
 
 // Invites routes (Group invitations)
 app.use('/api/invites', invitesRoutes)
+app.use('/api/invitations', invitationsRoutes)
 
 // QR Code routes (QR code generation)
 app.use('/api/qrcode', qrcodeRoutes)

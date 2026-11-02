@@ -2,7 +2,7 @@ import { prisma, Prisma } from '../lib/prisma.js'
 import type { Invitation } from '../generated/prisma/index.js'
 import { normalizePhone } from './member-fields.js'
 import { recordMembershipEvent } from './membership-event.js'
-import { groupManageFilter } from './permission.js'
+import { groupManageFilter, getManageableOrgIds, isSuperAdmin } from './permission.js'
 import { generateUniqueGroupCode } from '../lib/group-code.js'
 
 type Db = Prisma.TransactionClient
@@ -271,4 +271,167 @@ export async function finishInvitationSend(id: string, crossRequest: boolean, ac
     }
     return true
   })
+}
+
+export type InvitationKind = 'invite' | 'request'
+export type InvitationDisplayStatus = 'sent' | 'requested' | 'accepted' | 'rejected' | 'expired'
+export interface InvitationFeedItem {
+  id: string; kind: InvitationKind; status: InvitationDisplayStatus;
+  recipientPhone: string | null; recipientName: string | null; memberId: string | null;
+  groupId: string | null; groupName: string | null; organizationId: string;
+  inviterId: string | null; inviterName: string | null; date: string; createdAt: string;
+}
+export interface InvitationFeed {
+  items: InvitationFeedItem[]; total: number;
+  filters: { orgs: { id: string; name: string }[]; groups: { id: string; name: string; organizationId: string }[]; leaders: { id: string; name: string }[] };
+}
+export interface InvitationDetail {
+  id: string; kind: InvitationKind; status: InvitationDisplayStatus | 'withdrawn';
+  recipientPhone: string | null; recipientName: string | null; inviterName: string | null; message: string | null; createdAt: string;
+  member: { id: string; name: string; picture: string | null; age: number | null; role: string | null; birthday: string | null; joinedAt: string | null } | null;
+  invitations: { id: string; kind: InvitationKind; groupId: string | null; groupName: string | null; groupPicture: string | null; status: InvitationDisplayStatus | 'withdrawn'; date: string }[];
+  events: { id: string; type: InvitationEventType; at: string; groupId: string | null; groupName: string | null; invitationId: string }[];
+  canResend: boolean; canWithdraw: boolean;
+}
+export interface InvitationFeedFilters { orgId?: string; groupId?: string; leaderId?: string; status?: InvitationDisplayStatus; limit?: number }
+export class InvitationReadError extends Error {
+  constructor(public readonly status: 403 | 404, message: string) { super(message) }
+}
+
+const invitationKind = (row: Pick<Invitation, 'initiatedBy'>): InvitationKind => row.initiatedBy === 'member' ? 'request' : 'invite'
+type DisplayRow = Pick<Invitation, 'status' | 'initiatedBy' | 'expiresAt' | 'acceptedAt' | 'respondedAt' | 'createdAt'>
+export function invitationDisplayStatus(row: Pick<DisplayRow, 'status' | 'initiatedBy' | 'expiresAt'>, now: Date): InvitationDisplayStatus | 'withdrawn' {
+  if (row.status === 'withdrawn' || row.status === 'accepted' || row.status === 'rejected') return row.status
+  if (row.status === 'expired' || (row.status === 'pending' && row.expiresAt !== null && row.expiresAt < now)) return 'expired'
+  return row.initiatedBy === 'member' ? 'requested' : 'sent'
+}
+export function invitationDisplayDate(row: DisplayRow, now: Date): Date {
+  switch (invitationDisplayStatus(row, now)) {
+    case 'accepted': return row.acceptedAt ?? row.respondedAt ?? row.createdAt
+    case 'rejected': return row.respondedAt ?? row.createdAt
+    case 'expired': return row.expiresAt ?? row.createdAt
+    default: return row.createdAt
+  }
+}
+
+/** Never pass a creator ID: a resource creator alone cannot expand organization access. */
+export async function getInvitationOrganizations(userId: string) {
+  const superAdmin = await isSuperAdmin(userId)
+  return prisma.organization.findMany({
+    where: superAdmin ? {} : { id: { in: await getManageableOrgIds(userId) } },
+    select: { id: true, name: true }, orderBy: [{ name: 'asc' }, { id: 'asc' }],
+  })
+}
+const projectedRelations = {
+  group: { select: { id: true, name: true, coverImageUrl: true, organizationId: true } },
+  inviter: { select: { name: true } },
+} satisfies Prisma.InvitationInclude
+
+async function invitationFilterOptions(orgs: { id: string; name: string }[]): Promise<InvitationFeed['filters']> {
+  const orgIds = orgs.map(org => org.id)
+  if (!orgIds.length) return { orgs: [], groups: [], leaders: [] }
+  const [groups, leaders] = await Promise.all([
+    prisma.group.findMany({ where: { organizationId: { in: orgIds } }, select: { id: true, name: true, organizationId: true }, orderBy: [{ name:'asc' }, { id:'asc' }] }),
+    prisma.user.findMany({
+      where: { OR: [
+        { ownedOrganization: { id: { in: orgIds } } },
+        { roles: { some: { organizationId: { in: orgIds } } } },
+        { createdGroups: { some: { organizationId: { in: orgIds } } } },
+        { sentInvitations: { some: { organizationId: { in: orgIds }, initiatedBy: 'leader' } } },
+      ] }, select: { id:true, name:true }, orderBy: [{ name:'asc' }, { id:'asc' }],
+    }),
+  ])
+  return { orgs, groups, leaders }
+}
+
+export async function getInvitationFeed(userId: string, filters: InvitationFeedFilters = {}, now = new Date()): Promise<InvitationFeed> {
+  const orgs = await getInvitationOrganizations(userId)
+  const orgIds = orgs.map(org => org.id)
+  const options = await invitationFilterOptions(orgs)
+  if (!orgIds.length) return { items: [], total: 0, filters: options }
+  const predicates: Prisma.Sql[] = [Prisma.sql`i."organizationId" IN (${Prisma.join(orgIds.map(id => Prisma.sql`${id}::uuid`))})`, Prisma.sql`i.status <> 'withdrawn'`]
+  if (filters.orgId) predicates.push(Prisma.sql`i."organizationId" = ${filters.orgId}::uuid`)
+  if (filters.groupId) predicates.push(Prisma.sql`i."groupId" = ${filters.groupId}::uuid`)
+  if (filters.leaderId) {
+    const groups = await prisma.group.findMany({ where: { AND: [{ organizationId: { in: orgIds } }, await groupManageFilter(filters.leaderId)] }, select: { id:true } })
+    const requests = groups.length ? Prisma.sql`i."groupId" IN (${Prisma.join(groups.map(group => Prisma.sql`${group.id}::uuid`))})` : Prisma.sql`FALSE`
+    predicates.push(Prisma.sql`((i."initiatedBy" = 'leader' AND i."inviterId" = ${filters.leaderId}::uuid) OR (i."initiatedBy" = 'member' AND ${requests}))`)
+  }
+  // Compute both status and date in SQL before applying the requested status, order and cap.
+  // The branches mirror the total mapping helpers used by detail projections.
+  const status = Prisma.sql`CASE WHEN i.status IN ('accepted','rejected','expired') THEN i.status WHEN i.status = 'pending' AND i."expiresAt" < ${now} THEN 'expired' WHEN i."initiatedBy" = 'member' THEN 'requested' ELSE 'sent' END`
+  const date = Prisma.sql`CASE WHEN i.status = 'accepted' THEN COALESCE(i."acceptedAt",i."respondedAt",i."createdAt") WHEN i.status = 'rejected' THEN COALESCE(i."respondedAt",i."createdAt") WHEN i.status = 'expired' OR (i.status = 'pending' AND i."expiresAt" < ${now}) THEN COALESCE(i."expiresAt",i."createdAt") ELSE i."createdAt" END`
+  const cte = Prisma.sql`WITH matching AS (SELECT i.id, ${status} AS "displayStatus", ${date} AS "displayDate" FROM invitations i WHERE ${Prisma.join(predicates, ' AND ')})`
+  const statusFilter = filters.status ? Prisma.sql`WHERE "displayStatus" = ${filters.status}` : Prisma.empty
+  return prisma.$transaction(async tx => {
+    const [ids, counts] = await Promise.all([
+      tx.$queryRaw<{ id: string }[]>(Prisma.sql`${cte} SELECT id FROM matching ${statusFilter} ORDER BY "displayDate" DESC, id DESC LIMIT ${Math.min(filters.limit ?? 200, 200)}`),
+      tx.$queryRaw<{ total: bigint }[]>(Prisma.sql`${cte} SELECT count(*) AS total FROM matching ${statusFilter}`),
+    ])
+    const rows = await tx.invitation.findMany({ where: { id: { in: ids.map(row => row.id) }, organizationId: { in: orgIds } }, include: projectedRelations })
+    const byId = new Map(rows.map(row => [row.id, row]))
+    const items: InvitationFeedItem[] = ids.flatMap(({ id }) => {
+      const row = byId.get(id)
+      if (!row || !row.organizationId) return []
+      const group = row.group && orgIds.includes(row.group.organizationId) ? row.group : null
+      return [{ id: row.id, kind: invitationKind(row), status: invitationDisplayStatus(row, now) as InvitationDisplayStatus,
+        recipientPhone: row.recipientPhone, recipientName: row.recipientName, memberId: row.memberId,
+        groupId: row.groupId, groupName: group?.name ?? null, organizationId: row.organizationId,
+        inviterId: row.inviterId, inviterName: row.inviter?.name ?? null, date: invitationDisplayDate(row, now).toISOString(), createdAt: row.createdAt.toISOString() }]
+    })
+    return { items, total: Number(counts[0].total), filters: options }
+  }, { isolationLevel: 'RepeatableRead' })
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const eventTypes: InvitationEventType[] = ['sent','resent','link_clicked','accepted','withdrawn','expired','requested','approved','rejected']
+function memberAge(birthday: Date | null, now: Date): number | null {
+  if (!birthday || !Number.isFinite(birthday.getTime()) || birthday > now) return null
+  const beforeBirthday = now.getUTCMonth() < birthday.getUTCMonth() || (now.getUTCMonth() === birthday.getUTCMonth() && now.getUTCDate() < birthday.getUTCDate())
+  return now.getUTCFullYear() - birthday.getUTCFullYear() - (beforeBirthday ? 1 : 0)
+}
+
+export async function getInvitationDetail(userId: string, invitationId: string, now = new Date()): Promise<InvitationDetail> {
+  if (!UUID.test(invitationId)) throw new InvitationReadError(404, 'Invitation not found')
+  const orgIds = (await getInvitationOrganizations(userId)).map(org => org.id)
+  return prisma.$transaction(async tx => {
+    const selected = await tx.invitation.findUnique({ where: { id: invitationId.toLowerCase() }, include: projectedRelations })
+    if (!selected) throw new InvitationReadError(404, 'Invitation not found')
+    if (!selected.organizationId || !orgIds.includes(selected.organizationId)) throw new InvitationReadError(403, 'Forbidden')
+    const rows = await tx.invitation.findMany({
+      where: { organizationId: { in: orgIds }, ...(selected.recipientPhone === null ? { id: selected.id } : { recipientPhone: selected.recipientPhone }) },
+      include: projectedRelations,
+    })
+    rows.sort((a,b) => invitationDisplayDate(b,now).getTime() - invitationDisplayDate(a,now).getTime() || b.id.localeCompare(a.id))
+    const events = await tx.inviteEvent.findMany({ where: { invitationId: { in: rows.map(row => row.id) }, type: { in: eventTypes } }, orderBy: [{ at:'desc' }, { id:'desc' }] })
+    const historicalGroupIds = [...new Set(events.flatMap(event => event.groupId && UUID.test(event.groupId) ? [event.groupId.toLowerCase()] : []))]
+    const historicalGroups = await tx.group.findMany({ where: { id: { in: historicalGroupIds }, organizationId: { in: orgIds } }, select: { id:true, name:true } })
+    const groupNames = new Map(historicalGroups.map(group => [group.id, group.name]))
+    const normalizedPhone = selected.recipientPhone ? normalizePhone(selected.recipientPhone) : null
+    const linked = selected.memberId
+      ? await tx.member.findUnique({ where: { id: selected.memberId } })
+      : normalizedPhone ? await tx.member.findFirst({ where: { phoneNumber: normalizedPhone, organizations: { some: { organizationId: selected.organizationId } } } }) : null
+    let member: InvitationDetail['member'] = null
+    if (linked) {
+      const [groupMembership, orgMembership] = await Promise.all([
+        selected.group && selected.group.organizationId === selected.organizationId ? tx.groupMember.findFirst({ where: { groupId:selected.group.id, memberId:linked.id, isActive:true }, select: { role:true, joinedAt:true } }) : null,
+        tx.memberOrganization.findUnique({ where: { memberId_organizationId: { memberId:linked.id, organizationId:selected.organizationId } }, select: { joinedAt:true } }),
+      ])
+      member = { id:linked.id, name:[linked.firstName,linked.lastName].filter(Boolean).join(' ').trim() || linked.phoneNumber,
+        picture:linked.profilePicture, age:memberAge(linked.birthday,now), role:groupMembership?.role ?? null,
+        birthday:linked.birthday?.toISOString() ?? null, joinedAt:(groupMembership?.joinedAt ?? orgMembership?.joinedAt)?.toISOString() ?? null }
+    }
+    const eligible = rows.filter(row => row.initiatedBy === 'leader' && row.status === 'pending' && row.recipientPhone !== null)
+    return {
+      id:selected.id, kind:invitationKind(selected), status:invitationDisplayStatus(selected,now), recipientPhone:selected.recipientPhone,
+      recipientName:selected.recipientName, inviterName:selected.inviter?.name ?? null, message:selected.message, createdAt:selected.createdAt.toISOString(), member,
+      invitations:rows.map(row => {
+        const group = row.group && orgIds.includes(row.group.organizationId) ? row.group : null
+        return { id:row.id, kind:invitationKind(row), groupId:row.groupId, groupName:group?.name ?? null, groupPicture:group?.coverImageUrl ?? null, status:invitationDisplayStatus(row,now), date:invitationDisplayDate(row,now).toISOString() }
+      }),
+      events:events.map(event => ({ id:event.id, type:event.type as InvitationEventType, at:event.at.toISOString(), groupId:event.groupId, groupName:event.groupId ? groupNames.get(event.groupId.toLowerCase()) ?? null : null, invitationId:event.invitationId })),
+      canResend:selected.recipientPhone !== null && eligible.some(row => row.expiresAt === null || row.expiresAt >= now),
+      canWithdraw:selected.recipientPhone !== null && eligible.length > 0,
+    }
+  }, { isolationLevel: 'RepeatableRead' })
 }
