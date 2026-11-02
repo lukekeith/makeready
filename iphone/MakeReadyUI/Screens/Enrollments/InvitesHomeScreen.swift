@@ -3,8 +3,9 @@
 //  MakeReadyUI — the UI 2.0 module
 //
 //  Built from screen invites-home in d2m (§2 layout, §3 states, §4 components).
-//  §5 endpoints, cited only — this view calls none: GET /api/invites
-//  (org-wide scope with `orgId` / `inviterId` filters, and a `rejected` status with decline
+//  §5 endpoints, cited only — this view calls none: GET /api/invites and
+//  GET /api/groups/{groupId}/join-requests?status=pending (org-wide scope with `orgId` /
+//  `inviterId` filters, org-wide join-request listing, and a `rejected` status with decline
 //  capture, are API-GAPs in §5).
 //  PREVIEW ONLY: referenced by no app screen, route, tab, flag or navigation case.
 //
@@ -12,9 +13,9 @@
 import SwiftUI
 
 /// Invites — the Invites tab root of the Home section switcher (§6): the org-wide list of sent
-/// invites. The collapsed C-019 nav row, a header of C-034 search over four C-035 filter chips,
-/// then the invite list of C-089 rows with no dividers (§2). Composed only of §4's C-019, C-034,
-/// C-035 and C-089. C-036 FilterMenuOverlay is presented by a chip but is not on §4's roll-call,
+/// invites mixed with pending group join requests (§3 row kinds). The collapsed C-019 nav row, a
+/// header of C-034 search over a C-130 FilterRail of four C-035 filter chips, then the list of
+/// C-089 rows with no dividers (§2). Composed only of §4's C-019, C-034, C-130, C-035 and C-089. C-036 FilterMenuOverlay is presented by a chip but is not on §4's roll-call,
 /// so a chip tap leaves the screen through `onOpenFilter`.
 ///
 /// §3 names five states: `populated`, `loading`, `empty`, `no results` and `error`. `loading` is
@@ -23,7 +24,7 @@ import SwiftUI
 struct InvitesHomeScreen: View {
 
     /// One §3 state's inputs. Every §3 state is reachable by these alone. Parallel arrays, one
-    /// entry per invite row, because the preview's props are JSON and C-089 takes flat
+    /// entry per row (an invite or a join request), because the preview's props are JSON and C-089 takes flat
     /// parameters (R-05).
     struct State {
         // ── Header (§2.2) ──
@@ -41,7 +42,8 @@ struct InvitesHomeScreen: View {
         // ── List (§2.3): one C-089 per entry ──
         /// C-089 `recipient`: the formatted phone (or the member's name, OQ-C-089-3).
         var inviteRecipients: [String]
-        /// C-089 `status`: "sent" | "accepted" | "rejected" | "expired" (OQ-invites-home-001).
+        /// C-089 `status`: "sent" | "requested" | "accepted" | "rejected" | "expired" (§3's five).
+        /// "requested" marks a join-request row; every other status is an invite row.
         var inviteStatuses: [String]
         /// C-089 `groupName`.
         var inviteGroupNames: [String]
@@ -56,7 +58,8 @@ struct InvitesHomeScreen: View {
     var onToggleNav: () -> Void = {}                // C-019 collapse ⇄ expand
     var onSearch: (String) -> Void = { _ in }       // §3: typing filters on phone + group name
     var onOpenFilter: (String) -> Void = { _ in }   // §3: chip tap → C-036 for that dimension
-    var onOpenInvite: (Int) -> Void = { _ in }      // §3: row tap → push invite-home, by row
+    var onOpenInvite: (Int) -> Void = { _ in }      // §3: invite row tap → push invite-home, by row
+    var onOpenRequest: (Int) -> Void = { _ in }     // §3: Requested row tap → push request-detail, by row
 
     // R-31 ephemeral UI: the query as typed. §3: "The search text is ephemeral screen state
     // (D43)."
@@ -68,7 +71,8 @@ struct InvitesHomeScreen: View {
         onToggleNav: @escaping () -> Void = {},
         onSearch: @escaping (String) -> Void = { _ in },
         onOpenFilter: @escaping (String) -> Void = { _ in },
-        onOpenInvite: @escaping (Int) -> Void = { _ in }
+        onOpenInvite: @escaping (Int) -> Void = { _ in },
+        onOpenRequest: @escaping (Int) -> Void = { _ in }
     ) {
         self.state = state
         self.onSelectTab = onSelectTab
@@ -76,6 +80,7 @@ struct InvitesHomeScreen: View {
         self.onSearch = onSearch
         self.onOpenFilter = onOpenFilter
         self.onOpenInvite = onOpenInvite
+        self.onOpenRequest = onOpenRequest
         _query = SwiftUI.State(initialValue: state.searchText)
     }
 
@@ -135,7 +140,8 @@ struct InvitesHomeScreen: View {
 
     // MARK: §2.2 Header
 
-    /// §2.2: "Header (y79, padding `space-page-margin` 16 on all sides, vertical gap 16)".
+    /// §2.2: "Header (y79, vertical gap 16)": C-034 keeps its own 16 side inset; the C-130 rail is
+    /// full bleed.
     private var header: some View {
         VStack(alignment: .leading, spacing: Self.headerGap) {
             // §4: C-034 `state=Default`, derived by C-034 from `text.isEmpty × focused`. This
@@ -160,9 +166,8 @@ struct InvitesHomeScreen: View {
         .padding(.vertical, Token.Space.pageMargin)
     }
 
-    /// §2.2: "Filter chip row: … height 24, gap `space-element-gap` 8 … The row is wider than
-    /// the screen and scrolls horizontally, with the leading inset 16." A horizontal carousel
-    /// keeps its own ScrollView (D22).
+    /// §2.2: "C-130 FilterRail at y155, **full bleed** … chip height 24, gap `space-element-gap`
+    /// 8." The 16 inset is inside the rail's scroll content; it always swipes horizontally.
     private var chipRow: some View {
         // Owner 2026-11-01: the shared FilterRail (docs/ui2/references/filter-rail.md).
         FilterRail {
@@ -175,6 +180,7 @@ struct InvitesHomeScreen: View {
                 .ui2Element(Self.partName("C-035 FilterChip", ordinal: index + 1))
             }
         }
+        .ui2Element("C-130 FilterRail")
     }
 
     // MARK: §2.3 List
@@ -199,14 +205,23 @@ struct InvitesHomeScreen: View {
         .padding(.vertical, Self.listPadding)
     }
 
-    /// §4: one C-089 per invite: recipient, status word, group, date and chevron.
+    /// §4: one C-089 per invite or join request: recipient, status word, group, date and chevron.
+    /// §3: the tap's destination depends on the row's kind — a Requested row pushes
+    /// request-detail, every invite row pushes invite-home.
     private func inviteRow(at index: Int) -> some View {
-        InviteStatusRow(
+        let status = InviteStatusRow.Status(rawValue: state.inviteStatuses[safe: index] ?? "") ?? .sent
+        return InviteStatusRow(
             recipient: state.inviteRecipients[index],
-            status: InviteStatusRow.Status(rawValue: state.inviteStatuses[safe: index] ?? "") ?? .sent,
+            status: status,
             groupName: state.inviteGroupNames[safe: index] ?? "",
             date: state.inviteDates[safe: index] ?? "",
-            onTap: { onOpenInvite(index) }
+            onTap: {
+                if status == .requested {
+                    onOpenRequest(index)
+                } else {
+                    onOpenInvite(index)
+                }
+            }
         )
         .ui2Element(Self.partName("C-089 InviteStatusRow", ordinal: index + 1))
     }
@@ -258,8 +273,9 @@ private extension Array {
 
 extension InvitesHomeScreen.State {
 
-    /// §3 `populated`: every value is the text on the frozen frame `default` (node 3830:6919;
-    /// §1 deviation 2: sample content), in the frame's order. Dates follow OQ-invites-home-005's
+    /// §3 `populated`: every value is the text on the frame `default` (node 3830:6919;
+    /// §1 deviation 2: sample content), in the frame's order. The fifth row is the Requested
+    /// join request (instance 4632:41182). Dates follow OQ-invites-home-005's
     /// "Aug 5, 2026" format rather than the frame's "July 17, 2026" (§1 deviation 2).
     static let populated = Self(
         searchText: "",
@@ -268,10 +284,12 @@ extension InvitesHomeScreen.State {
         leaderFilterLabel: "All Leaders",
         statusFilterLabel: "All status",
         loading: false,
-        inviteRecipients: ["(214) 862-3686", "(214) 901-6271", "(469) 728-9102", "(972) 789-0196"],
-        inviteStatuses: ["sent", "accepted", "sent", "rejected"],
-        inviteGroupNames: ["Young Professionals", "Young Professionals", "Young Professionals", "Young Professionals"],
-        inviteDates: ["Just now", "Aug 5, 2026", "Jul 17, 2026", "May 5, 2026"]
+        inviteRecipients: ["(214) 862-3686", "(214) 901-6271", "(469) 728-9102", "(972) 789-0196", "(214) 862-3686"],
+        inviteStatuses: ["sent", "accepted", "sent", "rejected", "requested"],
+        inviteGroupNames: [
+            "Young Professionals", "Young Professionals", "Young Professionals", "Young Professionals", "Young Professionals"
+        ],
+        inviteDates: ["Just now", "Aug 5, 2026", "Jul 17, 2026", "May 5, 2026", "Jul 17, 2024"]
     )
 
     /// §3 `loading`: "A cold first load shows the header with an empty list area."
@@ -302,7 +320,7 @@ extension InvitesHomeScreen.State {
         inviteDates: []
     )
 
-    /// §3 `no results`: the Status filter set to "Expired" (one of §3's four statuses) matches
+    /// §3 `no results`: the Status filter set to "Expired" (one of §3's five statuses) matches
     /// nothing, so that chip is active and the list shows OQ-invites-home-003's no-results line.
     static let noResults = Self(
         searchText: "",

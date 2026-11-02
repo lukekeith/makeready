@@ -13,9 +13,9 @@
 import SwiftUI
 
 /// Join request — the leader opens one group join request to see who asked (phone), when, which
-/// group and the history that led to it, and approves or rejects it (§3 purpose). A pushed page:
+/// group and the history that led to it, and accepts or rejects it (§3 purpose). A pushed page:
 /// C-040 header, then the requester hero, the request meta, Group requested, the Request
-/// timeline and the Approve / Reject actions, separated by C-088 hairlines (§2). Composed only of
+/// timeline and the Accept / Reject actions, separated by C-088 hairlines (§2). Composed only of
 /// §4's C-040, C-022, C-088, C-020, C-037, C-065 and C-048; C-038 and C-043 render only inside
 /// C-037 (its photo and its `chips` prop).
 ///
@@ -51,7 +51,7 @@ struct RequestDetailScreen: View {
         /// "" = no highlight.
         var eventHighlights: [String]
         // ── Respond actions (§2.7) ──
-        /// §3 `responding`: Approve or Reject was tapped and the server has not answered.
+        /// §3 `responding`: Accept or Reject was tapped and the server has not answered.
         var responding: Bool
     }
 
@@ -63,8 +63,8 @@ struct RequestDetailScreen: View {
     // OQ-request-detail-006 (owner): "Each one will produce a confirmation dialog before
     // performing the action" — the dialog is the caller's, presented when these fire; the
     // screen only emits the tap (§3 still reads "no confirmation step" — see the report).
-    var onApprove: () -> Void = {}    // C-048 affirmative → POST …/approve, pop on success
-    var onReject: () -> Void = {}     // C-048 destructive → POST …/reject, pop on success
+    var onApprove: () -> Void = {}    // C-048 affirmative "Accept" → POST …/approve, pop to whichever screen pushed (groups-detail or invites-home)
+    var onReject: () -> Void = {}     // C-048 destructive → POST …/reject, pop to whichever screen pushed
 
     init(
         state: State,
@@ -98,7 +98,7 @@ struct RequestDetailScreen: View {
     /// §3 `timeline-empty` (proposed default, OQ-groups-detail-006's section-empty rule).
     private static let timelineEmptyText = "No history yet"
     /// §2.7: the two action labels.
-    private static let approveLabel = "Approve"
+    private static let approveLabel = "Accept"
     private static let rejectLabel = "Reject"
     /// §3 (OQ-003 owner): the chip's status word per `GroupJoinRequest.status`.
     private static let pendingWord = "Requested"
@@ -279,7 +279,7 @@ struct RequestDetailScreen: View {
 
     // MARK: §2.7 Respond actions
 
-    /// §2.7 (owner ruling OQ-001; undesigned geometry): "C-048 PageActionButton "Approve"
+    /// §2.7 (owner ruling OQ-001; frame label "Accept", 2026-11-01): "C-048 PageActionButton "Accept"
     /// (`role=affirmative`) over C-048 "Reject" (`role=destructive`), each full content width at
     /// the contract's 38pt height, stacked with a 16 gap between them" (owner ruling, note
     /// 2026-10-18T07:10:36.203Z — supersedes OQ-006's 8). §3 `responding`: both render

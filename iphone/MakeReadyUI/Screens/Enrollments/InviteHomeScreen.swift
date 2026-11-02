@@ -4,9 +4,9 @@
 //
 //  Built from screen invite-home in d2m (§2 layout, §3 states, §4 components).
 //  §5 endpoints, cited only — this view calls none: GET /api/invites/{token} ·
-//  GET /api/members/{memberId}/profile
-//  (the leader-facing by-recipient invite detail and the invite event history are API-GAPs
-//  in §5).
+//  GET /api/members/{memberId}/profile · proposed POST resend · proposed POST withdraw
+//  (the leader-facing by-recipient invite detail, the invite event history and both writes
+//  are API-GAPs in §5).
 //  PREVIEW ONLY: referenced by no app screen, route, tab, flag or navigation case.
 //
 
@@ -15,8 +15,9 @@ import SwiftUI
 /// Invite detail — the page that comes up when the leader taps an invite, so they can monitor
 /// its status (§3 purpose, owner, OQ-invite-home-1). A pushed page: C-040 header, then the
 /// recipient hero, the identity block, Group invitations and the Invitation timeline,
-/// separated by hairlines (§2). Composed only of §4's C-020, C-022, C-037, C-038, C-040 and
-/// C-065; C-043 renders only inside C-037 (its `chips` prop).
+/// separated by hairlines (§2), then — while the invite is pending — the Buttons stack (§2.7).
+/// Composed only of §4's C-020, C-022, C-037, C-038, C-040, C-048 and C-065; C-043 renders only
+/// inside C-037 (its `chips` prop).
 ///
 /// §3 names four states — `unlinked`, `linked`, `loading`, `error`. This build renders
 /// `unlinked` and `linked`; `loading` (section skeletons) and `error` (a section-level inline
@@ -73,17 +74,23 @@ struct InviteHomeScreen: View {
     var onBack: () -> Void = {}                         // C-040 back — pops to the presenter
     var onOpenGroupInvitation: (Int) -> Void = { _ in } // Sent row (chevron) → deferred (OQ-2)
     var onOpenMember: () -> Void = {}                   // linked-member block → members-profile (OQ-6)
+    var onResendInvitation: () -> Void = {}             // Resend invitation → the resend write (§5)
+    var onWithdrawInvitation: () -> Void = {}           // Withdraw invitation → confirm, then withdraw (§3)
 
     init(
         state: State,
         onBack: @escaping () -> Void = {},
         onOpenGroupInvitation: @escaping (Int) -> Void = { _ in },
-        onOpenMember: @escaping () -> Void = {}
+        onOpenMember: @escaping () -> Void = {},
+        onResendInvitation: @escaping () -> Void = {},
+        onWithdrawInvitation: @escaping () -> Void = {}
     ) {
         self.state = state
         self.onBack = onBack
         self.onOpenGroupInvitation = onOpenGroupInvitation
         self.onOpenMember = onOpenMember
+        self.onResendInvitation = onResendInvitation
+        self.onWithdrawInvitation = onWithdrawInvitation
     }
 
     // §3 has no UI-only rule on this screen: every interaction leaves it and the timeline is
@@ -110,6 +117,9 @@ struct InviteHomeScreen: View {
     /// §2.4: the two designed lifecycle words.
     private static let sentStatus = "Sent"
     private static let acceptedStatus = "Accepted"
+    /// §2.7: the two C-048 labels.
+    private static let resendLabel = "Resend invitation"
+    private static let withdrawLabel = "Withdraw invitation"
 
     // MARK: - §2 geometry the screen owns
 
@@ -160,6 +170,11 @@ struct InviteHomeScreen: View {
                 groupInvitations
                 sectionDivider
                 timeline
+                // §3 visibility rule: the stack — with its 32 section gap — renders only while
+                // the invite is pending (at least one group invitation is Sent).
+                if isPending {
+                    buttonsStack
+                }
             }
             .padding(Token.Space.pageMargin)
         }
@@ -342,6 +357,43 @@ struct InviteHomeScreen: View {
             .padding(.bottom, Self.connectorBottomInset)
             .offset(x: Self.connectorX - Self.connectorWidth / 2)
             .accessibilityHidden(true)
+    }
+
+    // MARK: §2.7 Buttons stack
+
+    /// §3: "the Buttons stack renders only while the invite is pending — at least one of its
+    /// group invitations is Sent."
+    private var isPending: Bool {
+        state.groupStatuses.contains(Self.sentStatus)
+    }
+
+    /// §2.7: "full content width (408), vertical stack … C-048 PageActionButton "Resend
+    /// invitation" (accent, send glyph trailing, spread) above C-048 PageActionButton "Withdraw
+    /// invitation" (secondary)". Gap: Figma `4773:11378` places the 38pt buttons at y 0 and 54 —
+    /// 16, `space-stack-gap` (§2.7's proposed 12 is confirmed from the frame as 16).
+    private var buttonsStack: some View {
+        VStack(spacing: Token.Space.stackGap) {
+            PageActionButton(
+                label: Self.resendLabel,
+                role: .accent,
+                size: .md,
+                glyph: .sendFilled,
+                glyphPosition: .trailing,
+                layout: .spread,
+                onTap: onResendInvitation
+            )
+            .frame(maxWidth: .infinity)
+            .ui2Element("C-048 PageActionButton")
+            PageActionButton(
+                label: Self.withdrawLabel,
+                role: .secondary,
+                size: .md,
+                onTap: onWithdrawInvitation
+            )
+            .frame(maxWidth: .infinity)
+            .ui2Element("C-048 PageActionButton 2")
+        }
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Derived
