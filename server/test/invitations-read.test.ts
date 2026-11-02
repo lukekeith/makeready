@@ -29,6 +29,9 @@ async function cleanup() {
   // Restrict deletion to this fixture's identities; never truncate shared tables.
   await prisma.$executeRaw`DELETE FROM session WHERE sess->>'memberId' = ANY(${ids}::text[]) OR sess->'passport'->>'user' = ANY(${ids}::text[])`
   await prisma.activityLog.deleteMany({ where: { OR: [{ userId: { in: ids } }, { memberId: { in: ids } }, { groupId: legacyId(4) }] } })
+  // Some nullable mapping fixtures have no cascading group/member/inviter relation.
+  // Delete our org's rows before its SetNull relation can orphan them across suites.
+  await prisma.invitation.deleteMany({ where: { organizationId: legacyId(3) } })
   await prisma.group.deleteMany({ where: { id: legacyId(4) } })
   await prisma.member.deleteMany({ where: { id: { in: ids } } })
   await prisma.organization.deleteMany({ where: { id: legacyId(3) } })
@@ -92,6 +95,83 @@ describe('managed invitation feed and detail', () => {
     expect(all.body.items.some((row:any)=>row.id===foreign.row.id)).toBe(true)
     expect(all.body.items.some((row:any)=>row.id===fixture.invites.unresolvedOrg.id)).toBe(false)
     expect((await stranger.get(`/api/invitations/${fixture.invites.unresolvedOrg.id}`)).status).toBe(403)
+  })
+
+  it('moves invitation access, history, member metadata and options with the current group organization', async () => {
+    const foreign = await foreignWorld()
+    const roleA = await prisma.role.create({ data: { name: 'A colleague', organizationId: fixture.org.id } })
+    const roleB = await prisma.role.create({ data: { name: 'B mover', organizationId: foreign.org.id } })
+    await prisma.userRole.createMany({ data: [
+      { userId: fixture.outsider.id, roleId: roleA.id, organizationId: fixture.org.id },
+      { userId: fixture.leader.id, roleId: roleB.id, organizationId: foreign.org.id },
+    ] })
+    const member = fixture.members[0]
+    const birthday = new Date('1991-02-03T00:00:00Z')
+    await prisma.member.update({ where: { id: member.id }, data: { birthday } })
+    // This sender has no org role or created group: the invitation alone supplies its filter option.
+    await prisma.invitation.update({ where: { id: fixture.invites.pending.id }, data: { recipientPhone: member.phoneNumber, inviterId: member.id } })
+    await prisma.invitation.update({ where: { id: fixture.invites.nullGroup.id }, data: { recipientPhone: member.phoneNumber, status: 'rejected' } })
+    await prisma.invitation.update({ where: { id: fixture.invites.nullPhone.id }, data: { organizationId: null } })
+    await prisma.inviteEvent.create({ data: { invitationId: fixture.invites.pending.id, type: 'sent', groupId: fixture.group.id } })
+    const oldA = await legacyAgent(app, { userId: fixture.outsider.id })
+    const newB = await legacyAgent(app, { userId: foreign.owner.id })
+    const mover = await legacyAgent(app, { userId: fixture.leader.id })
+    expect((await oldA.get(`/api/invitations/${fixture.requests.pending.id}`)).status).toBe(200)
+    expect((await newB.get(`/api/invitations/${fixture.requests.pending.id}`)).status).toBe(403)
+
+    const transfer = await mover.patch(`/api/groups/${fixture.group.id}`).send({ organizationId: foreign.org.id.toUpperCase() })
+    expect(transfer.status, JSON.stringify(transfer.body)).toBe(200)
+    expect(transfer.body).toMatchObject({ success: true, group: { id: fixture.group.id, organizationId: foreign.org.id } })
+    // Existing records remain lossless; authorization cannot rely on rewriting this cached org.
+    expect((await prisma.invitation.findUniqueOrThrow({ where: { id: fixture.requests.pending.id } })).organizationId).toBe(fixture.org.id)
+    const oldFeed = await oldA.get('/api/invitations/feed')
+    expect(oldFeed.status).toBe(200)
+    expect(oldFeed.body.items.map((row: any) => row.id)).toEqual([fixture.invites.nullGroup.id])
+    expect(oldFeed.body.total).toBe(1)
+    expect(oldFeed.body.filters.groups.some((row: any) => row.id === fixture.group.id)).toBe(false)
+    expect(oldFeed.body.filters.leaders.some((row: any) => row.id === member.id)).toBe(false)
+    expect((await oldA.get(`/api/invitations/${fixture.invites.pending.id}`)).status).toBe(403)
+    expect((await oldA.get(`/api/invitations/${fixture.requests.pending.id}`)).status).toBe(403)
+    const newFeed = await newB.get('/api/invitations/feed').query({ orgId: foreign.org.id.toUpperCase(), groupId: fixture.group.id.toUpperCase() })
+    expect(newFeed.status).toBe(200)
+    expect(newFeed.body.total).toBe(9)
+    expect(newFeed.body.items).toHaveLength(9)
+    expect(newFeed.body.items.every((row: any) => row.organizationId === foreign.org.id && row.groupName === fixture.group.name)).toBe(true)
+    expect(newFeed.body.items.some((row: any) => row.id === fixture.invites.nullPhone.id)).toBe(true)
+    expect(newFeed.body.filters.leaders).toContainEqual({ id: member.id, name: member.firstName })
+    const staleFilter = await newB.get('/api/invitations/feed').query({ orgId: fixture.org.id })
+    expect(staleFilter.body).toMatchObject({ items: [], total: 0 })
+    const senderFilter = await newB.get('/api/invitations/feed').query({ leaderId: member.id })
+    expect(senderFilter.body.items.map((row: any) => row.id)).toEqual([fixture.invites.pending.id])
+
+    const approval = await newB.post(`/api/groups/${fixture.group.id}/join-requests/${fixture.requests.pending.id}/approve`).send({})
+    expect(approval.status, JSON.stringify(approval.body)).toBe(200)
+    const newDetail = await newB.get(`/api/invitations/${fixture.invites.pending.id}`)
+    expect(newDetail.status).toBe(200)
+    expect(newDetail.body.member).toMatchObject({ id: member.id, birthday: birthday.toISOString(), role: 'member' })
+    expect(newDetail.body.member.joinedAt).toBeTruthy()
+    expect(newDetail.body.events.map((row: any) => row.type).sort()).toEqual(['approved', 'sent'])
+    expect(newDetail.body.events.every((row: any) => row.groupName === fixture.group.name)).toBe(true)
+    expect(newDetail.body.invitations.map((row: any) => row.id).sort()).toEqual([fixture.invites.pending.id, fixture.requests.pending.id].sort())
+    expect(newDetail.body).toMatchObject({ canResend: true, canWithdraw: true })
+    const oldDetail = await oldA.get(`/api/invitations/${fixture.invites.nullGroup.id}`)
+    expect(oldDetail.status).toBe(200)
+    expect(oldDetail.body).toMatchObject({ member: null, events: [], canResend: false, canWithdraw: false })
+    expect(oldDetail.body.invitations.map((row: any) => row.id)).toEqual([fixture.invites.nullGroup.id])
+    expect((await oldA.get(`/api/invitations/${fixture.requests.pending.id}`)).status).toBe(403)
+    expect((await newB.get(`/api/invitations/${fixture.invites.nullGroup.id}`)).status).toBe(403)
+  })
+
+  it('fails closed for an unresolved current group org without falling back to its stored org', async () => {
+    await prisma.group.update({ where: { id: fixture.group.id }, data: { organizationId: 'obsolete-not-a-uuid' } })
+    const user = await legacyAgent(app, { userId: fixture.leader.id })
+    const feed = await user.get('/api/invitations/feed')
+    expect(feed.status, JSON.stringify(feed.body)).toBe(200)
+    expect(feed.body.total).toBe(1)
+    expect(feed.body.items.map((row: any) => row.id)).toEqual([fixture.invites.nullGroup.id])
+    expect(feed.body.filters.groups).toEqual([])
+    expect((await user.get(`/api/invitations/${fixture.invites.pending.id}`)).status).toBe(403)
+    expect((await user.get(`/api/invitations/${fixture.invites.nullGroup.id}`)).status).toBe(200)
   })
 
   it('filters and sorts display dates before limiting and reports total before the 200 cap', async () => {

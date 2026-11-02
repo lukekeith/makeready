@@ -67,6 +67,7 @@ describe('merged storage preserves legacy endpoint boundaries', () => {
     const { createApiKeyForUser } = await import('./helpers/api-auth.js')
     const admin = await createApiKeyForUser(leader.id)
     const adminList = await request(app).get('/api/admin/join-requests').set('Authorization', `Bearer ${admin.token}`)
+    expect(adminList.status, JSON.stringify(adminList.body)).toBe(200)
     expect(adminList.body.requests.map((row: { id: string }) => row.id)).toEqual([requests.pending.id])
     for (const status of ['accepted', 'withdrawn']) {
       const response = await user.get(`/api/groups/${group.id}/join-requests`).query({ status })
