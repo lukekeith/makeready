@@ -20,7 +20,6 @@ enum InvitesHomeMapper {
         func selection(atRow row: Int) -> InvitationRowSelection? { rows.indices.contains(row) ? rows[row] : nil }
         func rowDate(at row: Int) -> String? { state.inviteDates.indices.contains(row) ? state.inviteDates[row] : nil }
     }
-    static let allID = "__all__"
     static func options(_ dimension: Dimension, filters: InvitationFilters?) -> [FilterMenuOverlay.Option] {
         let options: [(String, String)]
         switch dimension {
@@ -29,7 +28,8 @@ enum InvitesHomeMapper {
         case .leader: options = (filters?.leaders ?? []).map { ($0.id, $0.name) }
         case .status: options = InvitationDisplayStatus.allCases.map { ($0.rawValue, $0.rawValue.capitalized) }
         }
-        return [.init(id: allID, label: "All \(dimension.rawValue)")] + options.map { .init(id: $0.0, label: $0.1) }
+        // Owner 2026-10-30: no "All …" row — the menu's Clear is how a filter goes back to rest.
+        return options.map { .init(id: $0.0, label: $0.1) }
     }
     static func selectedID(_ dimension: Dimension, _ selection: Selection) -> String? {
         switch dimension {
@@ -41,7 +41,7 @@ enum InvitesHomeMapper {
     }
     static func saving(_ ids: Set<String>, in dimension: Dimension, selection: Selection) -> Selection {
         var next = selection
-        let id = ids.first.flatMap { $0 == allID ? nil : $0 }
+        let id = ids.first
         switch dimension {
         case .org: next.orgID = id
         case .group: next.groupID = id
@@ -64,8 +64,9 @@ enum InvitesHomeMapper {
                 || (item.groupName?.localizedCaseInsensitiveContains(needle) ?? false)
         }
         func label(_ dimension: Dimension) -> String {
-            let menu = options(dimension, filters: filters)
-            return menu.first { $0.id == selectedID(dimension, selection) }?.label ?? menu[0].label
+            // Owner 2026-10-30: a chip at rest names its dimension ("Groups"), never "All groups".
+            options(dimension, filters: filters).first { $0.id == selectedID(dimension, selection) }?.label
+                ?? dimension.rawValue
         }
         let state = InvitesHomeScreen.State(
             searchText: selection.search, orgFilterLabel: label(.org), groupFilterLabel: label(.group),

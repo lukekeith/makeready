@@ -33,8 +33,8 @@ struct InvitesHomeScreen: View {
         // ── Header (§2.2) ──
         /// C-034 `text`: the current query. "" shows the placeholder (§4 `state=Default`).
         var searchText: String
-        /// C-035 `label` per chip: the filter's current selection. §2 defaults: "All Orgs",
-        /// "All groups", "All Leaders", "All status".
+        /// C-035 `label` per chip: the filter's current selection. At rest each chip names its
+        /// dimension — "Orgs", "Groups", "Leaders", "Status" — never "All …" (owner 2026-10-30).
         var orgFilterLabel: String
         var groupFilterLabel: String
         var leaderFilterLabel: String
@@ -214,7 +214,10 @@ struct InvitesHomeScreen: View {
             .padding(.horizontal, Token.Space.pageMargin)
             chipRow
         }
-        .padding(.vertical, Token.Space.pageMargin)
+        // Owner 2026-11-01 (enrollments-home): under the shell's TopNav its nav gap (16) already is
+        // the space above the field, so the top inset applies only to the screen's own nav row.
+        .padding(.top, showsNav ? Token.Space.pageMargin : 0)
+        .padding(.bottom, Token.Space.pageMargin)
     }
 
     /// §2.2: "C-130 FilterRail at y155, **full bleed** … chip height 24, gap `space-element-gap`
@@ -226,7 +229,7 @@ struct InvitesHomeScreen: View {
                 let label = chipLabels[index]
                 // §3: "A chip whose filter is not \"All\" shows C-035's active state."
                 // A trailing closure binds to `onSelect`; `.menu` fires `onTap`, so pass it by name.
-                FilterChip(type: .menu, active: !Self.isAll(label), label: label,
+                FilterChip(type: .menu, active: !Self.isResting(label, index), label: label,
                            onTap: { onOpenFilter(Self.filterDimensions[index]) })
                 .ui2Element(Self.partName("C-035 FilterChip", ordinal: index + 1))
             }
@@ -299,14 +302,13 @@ struct InvitesHomeScreen: View {
     /// "no results" when a search or a non-"All" filter is narrowing the list.
     private var listMessage: String? {
         guard visibleRows.isEmpty, !state.loading else { return nil }
-        let narrowed = !query.isEmpty || chipLabels.contains { !Self.isAll($0) }
+        let narrowed = !query.isEmpty || chipLabels.indices.contains { !Self.isResting(chipLabels[$0], $0) }
         return narrowed ? Self.noMatchMessage : Self.emptyMessage
     }
 
-    /// A chip label is its dimension's "All …" option (OQ-invites-home-004: "an \"All …\" option
-    /// first").
-    private static func isAll(_ label: String) -> Bool {
-        label.hasPrefix("All ")
+    /// A chip is at rest when its label is its dimension's name (owner 2026-10-30: no "All …").
+    private static func isResting(_ label: String, _ index: Int) -> Bool {
+        filterDimensions.indices.contains(index) && label == filterDimensions[index]
     }
 
     /// `"C-### <Name>"`, with `" N"` from the second instance on (D11).
@@ -332,10 +334,10 @@ extension InvitesHomeScreen.State {
     /// "Aug 5, 2026" format rather than the frame's "July 17, 2026" (§1 deviation 2).
     static let populated = Self(
         searchText: "",
-        orgFilterLabel: "All Orgs",
-        groupFilterLabel: "All groups",
-        leaderFilterLabel: "All Leaders",
-        statusFilterLabel: "All status",
+        orgFilterLabel: "Orgs",
+        groupFilterLabel: "Groups",
+        leaderFilterLabel: "Leaders",
+        statusFilterLabel: "Status",
         loading: false,
         inviteRecipients: ["(214) 862-3686", "(214) 901-6271", "(469) 728-9102", "(972) 789-0196", "(214) 862-3686"],
         inviteStatuses: ["sent", "accepted", "sent", "rejected", "requested"],
@@ -348,10 +350,10 @@ extension InvitesHomeScreen.State {
     /// §3 `loading`: "A cold first load shows the header with an empty list area."
     static let loading = Self(
         searchText: "",
-        orgFilterLabel: "All Orgs",
-        groupFilterLabel: "All groups",
-        leaderFilterLabel: "All Leaders",
-        statusFilterLabel: "All status",
+        orgFilterLabel: "Orgs",
+        groupFilterLabel: "Groups",
+        leaderFilterLabel: "Leaders",
+        statusFilterLabel: "Status",
         loading: true,
         inviteRecipients: [],
         inviteStatuses: [],
@@ -362,10 +364,10 @@ extension InvitesHomeScreen.State {
     /// §3 `empty`: no invites yet and every filter at "All" (OQ-invites-home-003).
     static let empty = Self(
         searchText: "",
-        orgFilterLabel: "All Orgs",
-        groupFilterLabel: "All groups",
-        leaderFilterLabel: "All Leaders",
-        statusFilterLabel: "All status",
+        orgFilterLabel: "Orgs",
+        groupFilterLabel: "Groups",
+        leaderFilterLabel: "Leaders",
+        statusFilterLabel: "Status",
         loading: false,
         inviteRecipients: [],
         inviteStatuses: [],
@@ -377,9 +379,9 @@ extension InvitesHomeScreen.State {
     /// nothing, so that chip is active and the list shows OQ-invites-home-003's no-results line.
     static let noResults = Self(
         searchText: "",
-        orgFilterLabel: "All Orgs",
-        groupFilterLabel: "All groups",
-        leaderFilterLabel: "All Leaders",
+        orgFilterLabel: "Orgs",
+        groupFilterLabel: "Groups",
+        leaderFilterLabel: "Leaders",
         statusFilterLabel: "Expired",
         loading: false,
         inviteRecipients: [],

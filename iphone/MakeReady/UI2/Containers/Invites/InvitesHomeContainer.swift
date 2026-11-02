@@ -38,9 +38,9 @@ struct InvitesHomeContainer: View {
         .preference(key: UI2HidesTopNavKey.self, value: searchActive)
         .filterMenuPresentation(isPresented: openMenu != nil, onDismiss: { openMenu = nil }) {
             if let dimension = openMenu {
-                let selected = InvitesHomeMapper.selectedID(dimension, selection) ?? InvitesHomeMapper.allID
+                let selected = InvitesHomeMapper.selectedID(dimension, selection).map { Set([$0]) } ?? []
                 FilterMenuOverlay(options: InvitesHomeMapper.options(dimension, filters: app.invitationFilters),
-                                  selectionMode: .single, selectedIDs: [selected],
+                                  selectionMode: .single, selectedIDs: selected,
                                   onClose: { openMenu = nil }, onSave: { ids in
                     selection = InvitesHomeMapper.saving(ids, in: dimension, selection: selection)
                     openMenu = nil

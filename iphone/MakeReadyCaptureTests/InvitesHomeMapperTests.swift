@@ -41,14 +41,19 @@ final class InvitesHomeMapperTests: XCTestCase {
     func testDraftClearAndSaveLeaveAppliedSelectionAloneUntilSave() {
         var applied = InvitesHomeMapper.Selection()
         applied.orgID = "original"
-        let draft = FilterMenuOverlay.drafted(["original"], InvitesHomeMapper.allID, mode: .single)
+        let draft = FilterMenuOverlay.drafted(["original"], "other", mode: .single)
         XCTAssertEqual(applied.orgID, "original")
         let cleared = InvitesHomeMapper.saving([], in: .org, selection: applied)
         XCTAssertNil(cleared.orgID)
         let saved = InvitesHomeMapper.saving(draft, in: .org, selection: applied)
-        XCTAssertNil(saved.orgID)
+        XCTAssertEqual(saved.orgID, "other")
         XCTAssertEqual(applied.orgID, "original")
-        XCTAssertEqual(InvitesHomeMapper.options(.org, filters: nil).first?.id, InvitesHomeMapper.allID)
+        // Owner 2026-10-30: no "All …" row in any menu, and every chip at rest names its dimension.
+        XCTAssertTrue(InvitesHomeMapper.options(.status, filters: nil).allSatisfy { !$0.label.hasPrefix("All") })
+        let rest = InvitesHomeMapper.output(window: nil, entities: [:], filters: nil, selection: .init(),
+                                            now: .now, timeZone: .gmt).state
+        XCTAssertEqual([rest.orgFilterLabel, rest.groupFilterLabel, rest.leaderFilterLabel, rest.statusFilterLabel],
+                       ["Orgs", "Groups", "Leaders", "Status"])
     }
 
     func testMismatchedWindowIsNeverDisplayedDuringLoadFailureOrReentry() {
