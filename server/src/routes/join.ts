@@ -6,8 +6,8 @@ import { recordInvitationLinkClick } from '../services/invitation.js';
  *     description: |
  *       Open Graph meta tag pages for social media link previews.
  *       These endpoints serve HTML pages designed to be shared on social media, iMessage, etc.
- *       They include Open Graph and Twitter Card meta tags for rich previews and automatically
- *       redirect users to the client application.
+ *       They include Open Graph and Twitter Card meta tags for rich previews and normally
+ *       redirect users to the client application. Withdrawn invite links remain on the invalid page.
  *
  *       **Note:** These endpoints return HTML content, not JSON. They are public endpoints
  *       that do not require authentication.
@@ -25,7 +25,7 @@ import { recordInvitationLinkClick } from '../services/invitation.js';
  *         - Open Graph meta tags (og:title, og:description, og:image, etc.)
  *         - Twitter Card meta tags
  *         - Apple/iMessage meta tags
- *         - Automatic redirect to the client application
+ *         - Automatic redirect to the client application, except for withdrawn invite links
  *         - Fallback content for users with JavaScript disabled
  *       example: |
  *         <!DOCTYPE html>
@@ -271,7 +271,8 @@ router.get('/group/:code/event/:eventCode', async (req, res) => {
  *           - **Valid invite:** Shows group name, inviter name, and "Join Group" button
  *           - **Invalid/expired invite:** Shows "Invite Not Found" message with link to homepage
  *
- *           In both cases, the page automatically redirects to the client app.
+ *           The page automatically redirects to the client app, except for a
+ *           withdrawn invite, which keeps the invalid message visible.
  *         content:
  *           text/html:
  *             schema:
@@ -361,6 +362,7 @@ router.get('/:token', async (req, res) => {
       inviterName,
       isValid,
       clientUrl,
+      redirect: invite?.status !== 'withdrawn',
     });
 
     res.setHeader('Content-Type', 'text/html');
@@ -402,6 +404,7 @@ interface InviteHtmlOptions {
   inviterName: string;
   isValid: boolean;
   clientUrl: string;
+  redirect?: boolean;
 }
 
 function escapeHtml(text: string): string {
@@ -425,6 +428,7 @@ function generateInviteHtml(options: InviteHtmlOptions): string {
     inviterName,
     isValid,
     clientUrl,
+    redirect = true,
   } = options;
 
   const hasCustomImage = !imageUrl.includes('og-default');
@@ -456,8 +460,8 @@ function generateInviteHtml(options: InviteHtmlOptions): string {
   <meta name="apple-mobile-web-app-title" content="MakeReady">
   <link rel="apple-touch-icon" href="${clientUrl}/apple-touch-icon.png">
 
-  <!-- Redirect to client app -->
-  <meta http-equiv="refresh" content="0;url=${escapeHtml(url)}">
+  ${redirect ? `<!-- Redirect to client app -->
+  <meta http-equiv="refresh" content="0;url=${escapeHtml(url)}">` : ''}
 
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -524,9 +528,9 @@ function generateInviteHtml(options: InviteHtmlOptions): string {
     <h1>${escapeHtml(isValid ? `Join ${groupName}` : 'Invite Not Found')}</h1>
     <p>${escapeHtml(isValid ? `${inviterName} invited you to join this group.` : 'This invite link is invalid or has expired.')}</p>
     ${isValid ? `<a href="${escapeHtml(url)}" class="button">Join Group</a>` : `<a href="${clientUrl}" class="button">Go to MakeReady</a>`}
-    <p class="redirect-text">Redirecting you automatically...</p>
+    ${redirect ? '<p class="redirect-text">Redirecting you automatically...</p>' : ''}
   </div>
-  <script>window.location.href = '${escapeHtml(url)}';</script>
+  ${redirect ? `<script>window.location.href = '${escapeHtml(url)}';</script>` : ''}
 </body>
 </html>`;
 }
