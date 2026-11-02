@@ -1,7 +1,7 @@
 size: lg
 state: signed-off
 next: "Wait final phase and held merge, verify exact HEAD, then local delivery and owned walk cleanup"
-head: 9da5d240
+head: 63056c4f
 ticket: none
 branch: builder/invites
 pr: none
@@ -9,9 +9,9 @@ apps: server+iphone
 contract: frozen
 hold: none
 go-ahead: owner 2026-11-02 agent --auto
-walk: none
-verify: none
-ready: none
+walk: agent-pass
+verify: phase-green fae9168f
+ready: merge-green mvzeynfn-a0b5b4
 ui2: invites-home, invite-home, request-detail (d2m; Figma section 4773:11377; all built, updated 9da5d240)
 auto: on
 blocked: none

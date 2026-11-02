@@ -1,19 +1,16 @@
 # Continue — invites
 
 ## Last action
-All eight implementation tasks are coded. Independent source reviews and scoped final fixes passed. The complete W1–W12 owned simulator/browser acceptance walk passed; see WALK.md. Agent-tested, not human-tested. Final app source: 63056c4f, including native fix aa547d20.
+All8tasks accepted; W1–W12 actual simulator/browser acceptance PASS. Agent-tested, not human-tested. Application fixes aa547d20 and63056c4f independently reviewed. Phase mvzeyn2c-5d2d31 GREEN atfae9168f (83s,1flake/1known); final all-suite held merge mvzeynfn-a0b5b4 GREEN (1104s,2flakes/12known,0regressions/broken). See DELIVERY.md and WALK.md.
 
 ## Next action
-Wait for fresh final feature phase and held merged-result verification at the walk evidence checkpoint. Close Task8 acceptance, checkpoint verified at exact clean HEAD, restore only six exact owned bootstrap/D2M deltas in the primary checkout, then deliver through the held merge queue to feature/invites. No push/deploy/shared dev migration.
+Verify this final registry-only clean HEAD with phase tier; runtime checkpoint verified at exact HEAD. Run the guarded restore-owned-primary.py to remove only six own bootstrap/D2M deltas, then lifecycle deliver invites carries the tested merge into immutable target feature/invites. Confirm merge ancestry and all316 protected primary hashes. No push/deploy/shared dev migration.
 
-## Why
-The last server fix makes new withdrawn-link invalid HTML readable without automatic navigation; legacy HTML/JSON and all75 frozen snapshots are unchanged. Earlier d87fd87f phase and full merged result were GREEN (12 known server UUID-test failures), but cannot authorize changed server source.
-
-## Open threads
-Native transient harness/project/build-version changes were hash-guarded and removed; source files match HEAD. Evidence exported under .builder/invites/walk-evidence. Own walk services remain for cleanup: record walk-runtime.json, own DB/bucket suffix7ed780ea, server process group87940 and client54261, simulator50953498-A295-4806-A6C5-8DCBA5A19E80. Root owns cleanup after proof/delivery, never shared containers. No fixture reset occurred between decisions and cross-app checks.
+## Cleanup and evidence
+Owned walk processes, simulator, database, bucket, temp build/results and expired fixture sessions were removed after export. Runtime walk-runtime.json records closed state. The retained feature worktree has185 native attachments with manifests/hashes, browser screenshots/DOM/JSON and debug logs under .builder/invites/walk-evidence. No active walk environment remains.
 
 ## Protected work
-Primary checkout own temporary verifier config/helper and D2M bytes have strict restoration guards in .builder/invites/restore-owned-primary.py, backed by Git-common runtime-bootstrap/invites and d2m-delivery-record.json. Run only after final checks, then deliver immediately. All other primary dirty work belongs to the owner and must remain untouched.
+Primary own temporary verifier config/helper and D2M bytes have strict guards in .builder/invites/restore-owned-primary.py, backed by Git-common runtime-bootstrap/invites and d2m-delivery-record.json. All other primary dirty work belongs to the owner. Protected working hashes are saved in protected-primary-before.json.
 
 ## Constraints
-Never read server/.env (1Password FIFO), run real providers, migrate shared dev/production DB, restart shared stack, or use the human simulator. Frozen snapshot hash e9d897755a15ca48bffcd26e4709855e29f17c719c1e6c70d07852e905d98d9a.
+Never read server/.env (1Password FIFO), run real providers, migrate shared dev/production DB, restart shared stack, or use the human simulator. Frozen75snapshot hash e9d897755a15ca48bffcd26e4709855e29f17c719c1e6c70d07852e905d98d9a. After landing the developer database still needs the manual migration/regeneration commands reported by lifecycle delivery; this agent does not apply them.
