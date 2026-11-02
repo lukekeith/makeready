@@ -1,8 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const prismaMock = vi.hoisted(() => ({
-  invitation: { create: vi.fn(), delete: vi.fn() },
-  group: { findUnique: vi.fn() },
+  invitation: { create: vi.fn(), delete: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn() },
+  inviteEvent: { create: vi.fn() },
+  member: { findUnique: vi.fn() },
+  $queryRaw: vi.fn(),
+  $transaction: vi.fn(),
+  group: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn() },
 }))
 vi.mock('../../lib/prisma.js', () => ({ prisma: prismaMock, Prisma: {} }))
 vi.mock('../sms-campaign.js', () => ({ sendCampaignSms: vi.fn() }))
@@ -12,7 +16,12 @@ import { sendGroupInvite } from '../invite.js'
 
 beforeEach(() => {
   vi.clearAllMocks()
-  prismaMock.invitation.create.mockResolvedValue({ id: 'inv1' })
+  prismaMock.$transaction.mockImplementation((callback) => callback(prismaMock))
+  prismaMock.$queryRaw.mockResolvedValue([])
+  prismaMock.member.findUnique.mockResolvedValue(null)
+  prismaMock.invitation.findUnique.mockResolvedValue({ id: 'inv1', initiatedBy: 'leader', status: 'pending', groupId: 'g1', recipientPhone: '+15555550123' })
+  prismaMock.invitation.create.mockResolvedValue({ id: 'inv1', createdAt: new Date() })
+  prismaMock.group.findUniqueOrThrow.mockResolvedValue({ code: 'ABC123', organizationId: 'org1' })
   prismaMock.group.findUnique.mockResolvedValue({ code: 'ABC123', organizationId: 'org1' })
   vi.mocked(sendCampaignSms).mockResolvedValue({ success: true, smsLogId: 's1', messageSid: 'SM1' } as never)
 })

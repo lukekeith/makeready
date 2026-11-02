@@ -3,7 +3,7 @@ import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
 import { sendVerificationCode, verifyCode } from '../services/twilio.js';
 import { prisma } from '../lib/prisma.js';
-import { acceptInvite } from '../services/invite.js';
+import { acceptInvitationByToken } from '../services/invitation.js';
 import type { User } from '../generated/prisma/index.js';
 import { logSuccess, logFailure } from '../lib/activity-log.js';
 import { ActivityTypes } from '../lib/activity-types.js';
@@ -536,7 +536,7 @@ router.post('/verify', verifyCodeLimiter, async (req, res) => {
       userId = user.id;
 
       // Accept the invite
-      const acceptResult = await acceptInvite(invite.id, user.id);
+      const acceptResult = await acceptInvitationByToken(inviteToken, user.id);
 
       if (!acceptResult.success) {
         return res.status(400).json({

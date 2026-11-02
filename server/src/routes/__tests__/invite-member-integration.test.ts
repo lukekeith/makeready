@@ -339,7 +339,7 @@ describe('Invite + Member Integration', () => {
       const updatedInvite = await prisma.invitation.findUnique({
         where: { id: invite.id },
       })
-      expect(updatedInvite?.status).toBe('expired')
+      expect(updatedInvite?.status).toBe('pending')
     })
   })
 

@@ -1,3 +1,4 @@
+import { recordInvitationLinkClick } from '../services/invitation.js';
 /**
  * @openapi
  * tags:
@@ -314,6 +315,8 @@ router.get('/:token', async (req, res) => {
         inviter: true,
       },
     });
+
+    if (invite) await recordInvitationLinkClick(invite.id);
 
     // Default values for invalid/expired invites
     let title = 'Join on MakeReady';

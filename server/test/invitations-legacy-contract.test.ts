@@ -209,23 +209,24 @@ describe('old-schema invitation HTTP contracts (immutable baseline)', () => {
 })
 
 describe('separate mutable D14 characterization and migration safety', () => {
-  it('old rerequest behavior is characterized separately (no immutable snapshot)', async () => {
+  it('D14 rerequests preserve reviewed rows (no immutable snapshot)', async () => {
     const { group, requests } = fixture
     const member = await legacyAgent(app, { memberId: requests.rejected.memberId })
     const response = await member.post(`/api/groups/${group.id}/join-requests`).send({ message: 'Again' })
     expect(response.status).toBe(201)
-    expect(response.body.request.id).toBe(requests.rejected.id)
-    expect(response.body.request.createdAt).toBe(requests.rejected.createdAt.toISOString())
+    expect(response.body.request.id).not.toBe(requests.rejected.id)
+    expect(Date.parse(response.body.request.createdAt)).toBeGreaterThan(requests.rejected.createdAt.getTime())
     expect(response.body.request.status).toBe('pending')
     const row = await readLegacyRequest(prisma, requests.rejected.id)
-    expect(row.reviewedAt).toBeNull()
-    expect(row.reviewedById).toBeNull()
-    // The confirmation route historically also resets a rejected row. Keep
-    // this intentionally changing D14 rule outside the frozen wire snapshots.
-    await prisma.invitation.update({ where: { id: row.id, initiatedBy: 'member' }, data: { status: 'rejected', respondedById: fixture.leader.id, respondedAt: new Date('2025-02-02T00:00:00Z') } })
+    expect(row.reviewedAt).toEqual(requests.rejected.reviewedAt)
+    expect(row.reviewedById).toBe(requests.rejected.reviewedById)
+    // Reject the new attempt, then confirmation must create another historical row.
+    // These D14 assertions remain separate from the frozen wire snapshots.
+    await prisma.invitation.update({ where: { id: response.body.request.id, initiatedBy: 'member' }, data: { status: 'rejected', respondedById: fixture.leader.id, respondedAt: new Date('2025-02-02T00:00:00Z') } })
     const confirmed = await request(app).post('/api/members/confirm-verification').send({ phoneNumber: fixture.members[2].phoneNumber, code: '123456', groupId: group.id })
     expect(confirmed.status).toBe(200)
-    expect(confirmed.body.joinRequest.id).toBe(row.id)
+    expect(confirmed.body.joinRequest.id).not.toBe(row.id)
+    expect(confirmed.body.joinRequest.id).not.toBe(response.body.request.id)
     expect(confirmed.body.joinRequest.reviewedById).toBeNull()
     expect(confirmed.body.wasNewRequest).toBe(true)
   })

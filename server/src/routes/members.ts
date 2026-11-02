@@ -1,4 +1,4 @@
-import { createMemberInvitation, findLatestLegacyJoinRequest, memberInvitationWhere, toLegacyJoinRequest } from '../services/invitation.js'
+import { submitInvitationRequest, memberInvitationWhere } from '../services/invitation.js'
 import { Router, type Request, type RequestHandler } from 'express'
 import { z } from 'zod'
 import multer from 'multer'
@@ -864,42 +864,11 @@ router.post('/confirm-verification', async (req, res) => {
     if (joinGroupId && member) {
       const groupId = joinGroupId
       try {
-        const group = await prisma.group.findFirst({
-          where: { id: groupId, isActive: true },
-          select: { id: true, name: true },
-        })
-
-        if (group) {
-          // Check not already a member
-          const existingMembership = await prisma.groupMember.findFirst({
-            where: { groupId, memberId: member.id, isActive: true },
-          })
-
-          if (!existingMembership) {
-            // Check for existing pending request
-            const existingRequest = await findLatestLegacyJoinRequest(groupId, member.id)
-
-            if (!existingRequest || existingRequest.status === 'rejected') {
-              if (existingRequest) {
-                // Re-submit after rejection
-                joinRequest = toLegacyJoinRequest(await prisma.invitation.update({
-                  where: { id: existingRequest.id, initiatedBy: 'member' },
-                  data: { status: 'pending', respondedAt: null, respondedById: null },
-                }))
-              } else {
-                joinRequest = toLegacyJoinRequest(await createMemberInvitation({ groupId, memberId: member.id, status: 'pending' }))
-              }
-              wasNewRequest = true
-              console.log(`✅ Join request created for group ${group.name}`)
-            } else {
-              console.log(`⚠ Join request already exists (${existingRequest.status}) for group ${group.name}`)
-              joinRequest = existingRequest
-              wasNewRequest = false
-            }
-          } else {
-            console.log(`⚠ Already a member of group ${group.name}`)
-            alreadyMember = true
-          }
+        const result = await submitInvitationRequest(member.id, groupId, undefined, 'confirmation')
+        if (result.kind === 'already-member' || result.kind === 'joined') alreadyMember = true
+        if (result.kind === 'pending-created' || result.kind === 'duplicate-pending') {
+          joinRequest = result.request
+          wasNewRequest = result.kind === 'pending-created'
         }
       } catch (joinError) {
         console.error('Error creating join request:', joinError)

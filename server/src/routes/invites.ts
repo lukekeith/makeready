@@ -1,8 +1,7 @@
-import { createLeaderInvitation, leaderInvitationWhere } from '../services/invitation.js';
+import { createLeaderInvitation, leaderInvitationWhere, patchLegacyInvitation, recordInvitationLinkClick } from '../services/invitation.js';
 import { Router } from 'express';
 import { z } from 'zod';
 import { sendGroupInvite, getInviteByToken } from '../services/invite.js';
-import { recordMembershipEvent } from '../services/membership-event.js';
 import { prisma } from '../lib/prisma.js';
 import { isValidPhoneNumber } from '../services/twilio.js';
 import { canManageOrgContent } from '../services/permission.js';
@@ -460,25 +459,6 @@ router.post('/send', requireAuth, async (req, res) => {
       });
     }
 
-    // Record an INVITED event when the recipient is already a known member, so
-    // the invite shows up in their membership history (keyed by phone number).
-    // Unknown phones have no Member yet — their history begins when they join.
-    const invitedMember = await prisma.member.findUnique({
-      where: { phoneNumber: recipientPhone },
-      select: { id: true },
-    });
-    if (invitedMember) {
-      await recordMembershipEvent({
-        memberId: invitedMember.id,
-        action: 'INVITED',
-        groupId,
-        organizationId: group.organizationId,
-        actorId: user.id,
-        actorType: 'user',
-        metadata: { inviteId: result.inviteId, recipientPhone },
-      });
-    }
-
     res.json({
       success: true,
       inviteId: result.inviteId,
@@ -671,15 +651,11 @@ router.patch('/:id', requireAuth, async (req, res) => {
 
     const body = schema.parse(req.body);
 
-    const updated = await prisma.invitation.update({
-      where: { id, initiatedBy: 'leader' },
-      data: {
-        ...body,
-        expiresAt: body.expiresAt !== undefined
-          ? (body.expiresAt ? new Date(body.expiresAt) : null)
-          : undefined,
-      },
+    const updated = await patchLegacyInvitation(id, user.id, {
+      ...body,
+      expiresAt: body.expiresAt !== undefined ? (body.expiresAt ? new Date(body.expiresAt) : null) : undefined,
     });
+    if (!updated) return res.status(404).json({ success: false, error: 'Invite not found' });
 
     res.json({
       success: true,
@@ -768,6 +744,8 @@ router.get('/:token', async (req, res) => {
       });
     }
 
+    const known = await prisma.invitation.findUnique({ where: { token, initiatedBy: 'leader' }, select: { id: true } });
+    if (known) await recordInvitationLinkClick(known.id);
     const invite = await getInviteByToken(token);
 
     if (!invite) {
