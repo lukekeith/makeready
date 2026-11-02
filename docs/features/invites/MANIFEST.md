@@ -1,6 +1,6 @@
 size: lg
 state: signed-off
-next: "Wait final phase and held merge, verify exact HEAD, then local delivery and owned walk cleanup"
+next: "🔒 human walk on device (Profile → Local), then /builder:signoff --path docs/features/invites"
 head: 63056c4f
 ticket: none
 branch: builder/invites
@@ -11,7 +11,7 @@ hold: none
 go-ahead: owner 2026-11-02 agent --auto
 walk: agent-pass
 verify: phase-green fae9168f
-ready: merge-green mvzeynfn-a0b5b4
+ready: yes 2026-11-02 63227932
 ui2: invites-home, invite-home, request-detail (d2m; Figma section 4773:11377; all built, updated 9da5d240)
 auto: on
 blocked: none
