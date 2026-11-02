@@ -3201,6 +3201,9 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
     case "screen.2.0.media-home":
         // Out of line for the same stack-frame reason as C-083.
         return try buildScreenMediaHome(fixture)
+    case "component.ui2.C-130":
+        // Out of line for the same stack-frame reason as C-083.
+        return try buildUI2C130(fixture)
     default:
         return nil
     }
@@ -5411,7 +5414,47 @@ enum ViewRegistry {
         "screen.2.0.groups-enroll-program",
         "component.ui2.C-129",
         "screen.2.0.media-home",
+        "component.ui2.C-130",
     ]
+}
+
+/// `component.ui2.C-130` — C-130 FilterRail. See the case in `buildCaptureViewPart10`.
+@MainActor @inline(never)
+private func buildUI2C130(_ fixture: CaptureFixture) throws -> AnyView {
+    guard let c = fixture.state?.component else {
+        throw ViewRegistryError.unknownView("component.ui2.C-130: missing state.component")
+    }
+    // C-130 §4 (R-07): `chips` is the required slot. The fixture lists it as C-035 entries
+    // (`type · active · label`, §4 "Fixture (capture)"); each entry renders one C-035 FilterChip,
+    // with C-035's own value set for `type` — an unrecognised one throws, as C-035's case does.
+    guard let raw = c.chips, !raw.isEmpty else {
+        throw ViewRegistryError.unknownView("component.ui2.C-130: props.chips is required and never empty")
+    }
+    let chips: [(type: MakeReadyUI.FilterChip.ChipType, active: Bool, label: String)] =
+        try raw.enumerated().map { index, entry in
+            guard let typeRaw = entry.type,
+                  let type = MakeReadyUI.FilterChip.ChipType(rawValue: typeRaw),
+                  type != .font else {
+                throw ViewRegistryError.unknownView("component.ui2.C-130: chips[\(index)].type must be Menu|Button")
+            }
+            guard let active = entry.active, let label = entry.label else {
+                throw ViewRegistryError.unknownView("component.ui2.C-130: chips[\(index)] needs active and label")
+            }
+            return (type, active, label)
+        }
+    // §2: the rail fills the width it is given and its 16pt inset is inside its scroll content,
+    // so it is captured full-bleed at the 440 device width (no horizontal page margin; the C-106
+    // ChipStrip precedent).
+    return declareCase(
+        MakeReadyUI.FilterRail {
+            // No per-chip `.ui2Element` here: the name is ambiguous in this file (MakeReady and
+            // MakeReadyUI both declare it), so the chips are named by C-035 itself.
+            ForEach(Array(chips.enumerated()), id: \.offset) { _, chip in
+                MakeReadyUI.FilterChip(type: chip.type, active: chip.active, label: chip.label)
+            }
+        },
+        PreviewFrame(width: 440, marginEdges: .vertical, alignment: .leading)
+    )
 }
 
 /// `component.ui2.C-129` — C-129 MediaBrowser. See the case in `buildCaptureViewPart10`.

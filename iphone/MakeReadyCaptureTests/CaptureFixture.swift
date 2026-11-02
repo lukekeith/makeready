@@ -1589,6 +1589,9 @@ struct CaptureDataItem: Codable {
     let state: String?                // C-054 `metadata` entry → C-043 `state` (default|purple|complete; "accent" per OQ-C-043-5)
     let labelPosition: String?        // C-054 `metadata` entry → C-043 `align` (OQ-C-043-1: trailing = left, leading = right)
     let align: String?                // C-037 `chips` entry → C-043 `align` (left|right), C-043 §4's own name
+    // ── preview props ──
+    let type: String?                 // C-130 `chips` entry → C-035 `type` (Menu|Button)
+    let active: Bool?                 // C-130 `chips` entry → C-035 `active`
 }
 
 /// A lesson activity box (CardLesson .lesson/.planning, CardEnrolled).

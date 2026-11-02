@@ -14,10 +14,11 @@
 import SwiftUI
 
 /// Enrollments — the Enrollments tab of the Home section switcher (§6): the org-wide enrollment
-/// directory, grouped by group. A header of C-034 search over four C-035 filter chips, pinned below
+/// directory, grouped by group. A header of C-034 search over a C-130 FilterRail of four C-035
+/// filter chips, pinned below
 /// the shell's TopNav, then one section per group — a C-058 header over its C-059 rows — with a
 /// C-088 rule between consecutive sections (§2). The C-019 TopNav is the shell's (§1 deviation 3).
-/// Composed only of §4's C-034, C-035, C-058, C-059, C-033 and C-088; C-038 renders inside C-058 (C-021 no longer — the header shows a count), C-057 and C-043 inside C-059.
+/// Composed only of §4's C-034, C-130, C-035, C-058, C-059, C-033 and C-088; C-038 renders inside C-058 (C-021 no longer — the header shows a count), C-057 and C-043 inside C-059.
 /// §2 `rail` layout (enrollments-rail, 2026-10-30): each group's enrollments are a horizontal
 /// rail of C-033 ObjectCards instead of C-059 rows — `program` per enrollment, `pending` per draft.
 /// C-036 FilterMenuOverlay is presented by a chip but §4 drops it ("presented, not on the
@@ -45,7 +46,7 @@ struct EnrollmentsHomeScreen: View {
         /// C-034 `text`: the current query. "" shows the placeholder (§4 `Default`).
         var searchText: String
         /// C-035 `label` per chip: "label = current selection per C-035 contract" (§2). §2's
-        /// resting labels: "Orgs" · "Groups" · "Leaders" · "Active".
+        /// resting labels: "Orgs" · "Groups" · "Leaders" · "Status".
         var orgFilterLabel: String
         var groupFilterLabel: String
         var leaderFilterLabel: String
@@ -237,7 +238,8 @@ struct EnrollmentsHomeScreen: View {
     /// the rail scrolls horizontally with the 16 leading inset; a horizontal carousel keeps its
     /// own ScrollView (D22).
     private var chipRow: some View {
-        // Owner 2026-11-01: the shared FilterRail (docs/ui2/references/filter-rail.md).
+        // §4 C-130 FilterRail (owner 2026-11-01, filter-rail.md): full bleed — it sits outside the
+        // header's side padding; its 16 inset is inside the scroll content.
         FilterRail {
             ForEach(chipLabels.indices, id: \.self) { index in
                 // Owner 2026-10-30: a chip with a setting (its label off its resting text) is active.
@@ -248,6 +250,7 @@ struct EnrollmentsHomeScreen: View {
                 .ui2Element(Self.partName("C-035 FilterChip", ordinal: index + 1))
             }
         }
+        .ui2Element("C-130 FilterRail")
     }
 
     /// §3: a chip tap presents C-036. `onTap:` is passed by label: an unlabelled trailing closure on
@@ -493,7 +496,7 @@ extension EnrollmentsHomeScreen.State {
     /// (node 3823:34548; §1 deviation 1: sample content), in the frame's order. Fills are the
     /// frame's bar widths over 408 (0.12 · 0.54 · 0.31 · 0.05). The frame draws no completed-count
     /// or hours chip (§1 deviation 6), so those take C-059's own `Progress` sample ("12 complete"
-    /// · "15 hours"). Photos and covers are stand-in URLs (the component previews' picsum seeds).
+    /// · "15 hours"). Photos and covers are catalog images (image-fixtures), one per slot.
     static let populated = Self(
         searchText: "",
         orgFilterLabel: "Orgs",
@@ -505,8 +508,8 @@ extension EnrollmentsHomeScreen.State {
         groupNames: ["Stickane Family", "Young Professionals"],
         groupLeaderNames: ["Scott Stickane", "Luke Keith"],
         groupPhotoURLs: [
-            "https://picsum.photos/seed/enrollments-home-group-1/256",
-            "https://picsum.photos/seed/enrollments-home-group-2/256"
+            "http://localhost:5961/api/projects/makeready/images/image-6",
+            "http://localhost:5961/api/projects/makeready/images/image-12"
         ],
         programGroupIndexes: [0, 0, 0, 1],
         programTitles: ["Daily Inspiration", "Romans in 30 days", "John 1:1-18", "Daily Inspiration"],
@@ -515,10 +518,10 @@ extension EnrollmentsHomeScreen.State {
         programHours: ["15", "15", "15", "15"],
         programEnrolledDates: ["Jan 3, 2025", "Jan 3, 2025", "Jan 3, 2025", "Jan 3, 2025"],
         programCoverURLs: [
-            "https://picsum.photos/seed/c059/128/176",
-            "https://picsum.photos/seed/enrollments-home-2/128/176",
-            "https://picsum.photos/seed/enrollments-home-3/128/176",
-            "https://picsum.photos/seed/c059/128/176"
+            "http://localhost:5961/api/projects/makeready/images/psalms-creation-praise",
+            "http://localhost:5961/api/projects/makeready/images/romans-new-life-baptism",
+            "http://localhost:5961/api/projects/makeready/images/john-vine-branches",
+            "http://localhost:5961/api/projects/makeready/images/psalms-shepherd-valley"
         ]
     )
 
@@ -555,7 +558,7 @@ extension EnrollmentsHomeScreen.State {
     /// §3 `populated`, capture state `populated-rail` (enrollments-rail): `populated`'s groups and
     /// enrollments in the `rail` layout, plus one draft (with-draft's "Wisdom at Work", 2 of 6
     /// steps) second in the first group, so the capture shows its `pending` card. Members and
-    /// days are C-033's own samples ("9", "15").
+    /// days are C-033's own samples ("9", "15"; an enrollment card's unread days are "0").
     static let populatedRail = Self(
         searchText: "",
         orgFilterLabel: "Orgs",
@@ -567,8 +570,8 @@ extension EnrollmentsHomeScreen.State {
         groupNames: ["Stickane Family", "Young Professionals"],
         groupLeaderNames: ["Scott Stickane", "Luke Keith"],
         groupPhotoURLs: [
-            "https://picsum.photos/seed/enrollments-home-group-1/256",
-            "https://picsum.photos/seed/enrollments-home-group-2/256"
+            "http://localhost:5961/api/projects/makeready/images/image-6",
+            "http://localhost:5961/api/projects/makeready/images/image-12"
         ],
         programGroupIndexes: [0, 0, 0, 0, 1],
         programTitles: ["Daily Inspiration", "Wisdom at Work", "Romans in 30 days", "John 1:1-18", "Daily Inspiration"],
@@ -577,17 +580,17 @@ extension EnrollmentsHomeScreen.State {
         programHours: ["15", "", "15", "15", "15"],
         programEnrolledDates: ["Jan 3, 2025", "", "Jan 3, 2025", "Jan 3, 2025", "Jan 3, 2025"],
         programCoverURLs: [
-            "https://picsum.photos/seed/c059/128/176",
-            "https://picsum.photos/seed/enrollments-home-4/128/176",
-            "https://picsum.photos/seed/enrollments-home-2/128/176",
-            "https://picsum.photos/seed/enrollments-home-3/128/176",
-            "https://picsum.photos/seed/c059/128/176"
+            "http://localhost:5961/api/projects/makeready/images/psalms-creation-praise",
+            "http://localhost:5961/api/projects/makeready/images/proverbs-wisdom-at-work",
+            "http://localhost:5961/api/projects/makeready/images/romans-new-life-baptism",
+            "http://localhost:5961/api/projects/makeready/images/john-vine-branches",
+            "http://localhost:5961/api/projects/makeready/images/psalms-shepherd-valley"
         ],
         programDraftLabels: ["", "Draft · 2/6", "", "", ""],
         programDraftStarters: ["", "Started by Jane Doe", "", "", ""],
         programLayout: .rail,
         programMemberCounts: ["9", "", "9", "9", "9"],
-        programDayCounts: ["", "15", "", "", ""]
+        programDayCounts: ["0", "15", "0", "0", "0"]
     )
 
     /// §3 `loading`: "first launch with no cached data … search + chips render immediately".
@@ -715,15 +718,15 @@ extension EnrollmentsHomeScreen.State {
         .frame(minHeight: 956, alignment: .top)
 }
 
-#Preview("populated-rail") {
-    EnrollmentsHomeScreen(state: .populatedRail)
+#Preview("with-draft") {
+    EnrollmentsHomeScreen(state: .withDraft)
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)
 }
 
-#Preview("with-draft") {
-    EnrollmentsHomeScreen(state: .withDraft)
+#Preview("populated-rail") {
+    EnrollmentsHomeScreen(state: .populatedRail)
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)
