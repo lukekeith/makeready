@@ -1,4 +1,5 @@
 # tag-categories — spec
+> ✅ SIGNED OFF 2026-11-01 — 867a034b · by Luke: "looks good"
 > lg · ticket none
 
 ## Idea
@@ -191,13 +192,3 @@ spellings; Title Case labels; categories empty (failed load) → untitled A→Z.
 | T5 | iphone: request the tag chip-flow form of C-036 + the tag chip from d2m (Figma 4770:11375), then wire Media's Tags menu to it. `MakeReadyUI` has no wrapping layout (the app target's `FlowLayout` isn't reachable from it), so d2m supplies one with the form | trailing |
 | F3 | audit: contract parity — the one §Contract row is read only by the iPhone mapper via `AppState.tagCategories`; every field it returns is read (key/name/position for sections, tags[].tag/label/position for options). Additive for released builds. §Apps client ⬜ re-derived: `library-view.vue` keeps its own tag lists from `/api/media/tags` and `/api/programs/tags`, which are unchanged. READY | audit exit |
 | F4 | the d2m-built form's states (sections, no-headers, selected pill) have never been rendered | build-time risk — settled by T5's d2m captures |
-
-## Plan
-
-The plan, with its code: `docs/features/tag-categories/PLAN.md` (§PLAN.md).
-
-- Phase 1 · Task 1 · Tag-category tables and the Books of the Bible seed
-- Phase 1 · Task 2 · GET /api/tags/categories
-- Phase 2 · Task 3 · Tag categories in AppState, loaded by MediaActions
-- Phase 2 · Task 4 · Media's tag sections — order, labels, one chip per book
-- Phase 3 · Task 5 · The Tags overlay becomes the sectioned chip flow
