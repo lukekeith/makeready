@@ -131,7 +131,7 @@ Role: implementation
 - Modify `server/src/services/invite.ts`; `server/src/routes/invites.ts`, `group-join-requests.ts`, `verification.ts`, `members.ts`, `groups.ts`, `join.ts`; `server/src/index.ts` — replace every old model access while preserving endpoint behavior/envelopes.
 - Modify `server/fixtures/screens/invite-member.ts`, `groups-detail.ts`; `server/fixtures/__tests__/invite-member.db.test.ts`, `groups-browse.db.test.ts`; `server/prisma/seed-dev.ts` — seeds/fixtures/cleanup on new models.
 - Modify `server/src/services/__tests__/invite-recipient-name.test.ts`; `server/src/routes/__tests__/invites-recipient-name-reads.request.test.ts`, `invite-member-integration.test.ts`; `server/test/invite-authorization.test.ts` — only necessary model/mocks/fixture adaptation.
-- Modify `server/test/helpers/invitations-legacy-fixtures.ts` — same logical seed cases on new storage; immutable snapshot values unchanged.
+- Modify `server/test/helpers/invitations-legacy-fixtures.ts` and storage-only lookups in `server/test/invitations-legacy-contract.test.ts` — same logical cases on new storage, preferably through the fixture adapter; immutable snapshot bytes/HTTP expectations stay unchanged. D14 remains separate.
 - Create `server/test/invitations-migration.test.ts` and `server/test/invitations-legacy-serializers.test.ts` — actual SQL preservation and field whitelist proof.
 
 **Interfaces:**
