@@ -121,7 +121,8 @@ export async function lockInvitationPerson(tx: Db, groupId: string | null, phone
   await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(${key}, 0))`
 }
 async function lockInvitationRow(tx: Db, id: string) {
-  await tx.$queryRaw`SELECT id FROM invitations WHERE id = ${id}::uuid FOR UPDATE`
+  // Ids compare as text: dev/prod ids are text (Prisma-era schema), migration-built ones uuid.
+  await tx.$queryRaw`SELECT id FROM invitations WHERE id::text = ${id} FOR UPDATE`
 }
 async function lockExistingInvitation(tx: Db, id: string, kind: 'leader' | 'member') {
   const identity = await tx.invitation.findUnique({ where: { id, initiatedBy: kind }, include: { member: { select: { phoneNumber: true } } } })
@@ -236,7 +237,7 @@ export async function patchLegacyInvitation(id: string, actorId: string, data: {
 
 /** Legacy send permission includes creator authority; it is deliberately distinct from org-only C1–C4 scope. */
 async function lockManagedLegacySendGroup(tx: Db, groupId: string, actorId: string) {
-  await tx.$queryRaw`SELECT id FROM groups WHERE id = ${groupId}::uuid FOR SHARE`
+  await tx.$queryRaw`SELECT id FROM groups WHERE id::text = ${groupId} FOR SHARE`
   const group = await tx.group.findUnique({ where: { id: groupId } })
   if (!group) return null
   if (group.creatorId === actorId) return group
@@ -388,11 +389,11 @@ export async function getInvitationFeed(userId: string, filters: InvitationFeedF
   const organization = Prisma.sql`CASE WHEN i."groupId" IS NULL THEN i."organizationId"::text ELSE lower(g."organizationId") END`
   const predicates: Prisma.Sql[] = [Prisma.sql`(${organization}) IN (${Prisma.join(orgIds)})`, Prisma.sql`i.status <> 'withdrawn'`]
   if (filters.orgId) predicates.push(Prisma.sql`(${organization}) = ${filters.orgId}`)
-  if (filters.groupId) predicates.push(Prisma.sql`i."groupId" = ${filters.groupId}::uuid`)
+  if (filters.groupId) predicates.push(Prisma.sql`i."groupId"::text = ${filters.groupId}`)
   if (filters.leaderId) {
     const groups = await prisma.group.findMany({ where: { AND: [{ organizationId: { in: orgIds, mode: 'insensitive' } }, await groupManageFilter(filters.leaderId)] }, select: { id:true } })
-    const requests = groups.length ? Prisma.sql`i."groupId" IN (${Prisma.join(groups.map(group => Prisma.sql`${group.id}::uuid`))})` : Prisma.sql`FALSE`
-    predicates.push(Prisma.sql`((i."initiatedBy" = 'leader' AND i."inviterId" = ${filters.leaderId}::uuid) OR (i."initiatedBy" = 'member' AND ${requests}))`)
+    const requests = groups.length ? Prisma.sql`i."groupId"::text IN (${Prisma.join(groups.map(group => group.id))})` : Prisma.sql`FALSE`
+    predicates.push(Prisma.sql`((i."initiatedBy" = 'leader' AND i."inviterId"::text = ${filters.leaderId}) OR (i."initiatedBy" = 'member' AND ${requests}))`)
   }
   // Compute both status and date in SQL before applying the requested status, order and cap.
   // The branches mirror the total mapping helpers used by detail projections.
@@ -512,7 +513,7 @@ async function lockActionRows(tx: Db, rows: ActionRow[]) {
   for (const [, person] of [...people].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) await lockInvitationPerson(tx, person.groupId, person.phone)
   for (const id of [...new Set(rows.map(row => row.id))].sort()) await lockInvitationRow(tx, id)
   const groupIds = [...new Set(rows.flatMap(row => row.groupId ? [row.groupId] : []))].sort()
-  if (groupIds.length) await tx.$queryRaw(Prisma.sql`SELECT id FROM groups WHERE id IN (${Prisma.join(groupIds.map(id => Prisma.sql`${id}::uuid`))}) ORDER BY id FOR SHARE`)
+  if (groupIds.length) await tx.$queryRaw(Prisma.sql`SELECT id FROM groups WHERE id::text IN (${Prisma.join(groupIds)}) ORDER BY id FOR SHARE`)
 }
 
 export async function withdrawInvitations(userId: string, invitationId: string, now = new Date()): Promise<InvitationDetail> {

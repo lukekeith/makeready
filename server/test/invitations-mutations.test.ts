@@ -209,7 +209,7 @@ describe('managed invitation mutations', () => {
     const foreignOrg = await prisma.organization.create({ data: { id: id(2), name: 'Destination', ownerId: fixture.outsider.id } })
     const entered = barrier(), finish = barrier()
     const moving = prisma.$transaction(async tx => {
-      await tx.$queryRaw`SELECT id FROM groups WHERE id = ${fixture.group.id}::uuid FOR UPDATE`
+      await tx.$queryRaw`SELECT id FROM groups WHERE id::text = ${fixture.group.id} FOR UPDATE`
       entered.release()
       await finish.wait
       await tx.group.update({ where: { id: fixture.group.id }, data: { organizationId: foreignOrg.id } })
