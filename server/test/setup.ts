@@ -6,6 +6,28 @@
 
 import { beforeAll, afterAll } from 'vitest';
 import dotenv from 'dotenv';
+import { lstatSync, statSync } from 'node:fs';
+import { assertInvitationTestDatabase } from './helpers/invitations-migration-db.js';
+
+// A focused invitation run must fail before dotenv can open the human's env pipe.
+if (process.argv.some(arg => arg.includes('invitations-legacy-contract'))) {
+  const leased = assertInvitationTestDatabase(process.env.TEST_DATABASE_URL);
+  if (process.env.DATABASE_URL !== leased || process.env.DIRECT_URL !== leased) {
+    throw new Error('Invitation tests require all database URLs to match the lease');
+  }
+}
+
+// Never open a named pipe, even in a full-suite run or through a symlink.
+for (const path of ['.env.test', '.env']) {
+  try {
+    const entry = lstatSync(path);
+    if (entry.isFIFO() || (entry.isSymbolicLink() && statSync(path).isFIFO())) {
+      throw new Error(`Test setup refuses named pipe ${path}`);
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
+}
 
 // Load test environment variables
 dotenv.config({ path: '.env.test' });

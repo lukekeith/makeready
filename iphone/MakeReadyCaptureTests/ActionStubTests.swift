@@ -109,18 +109,23 @@ final class ActionStubTests: XCTestCase {
         api.stub("GET", "/api/groups", json: """
         {"success":true,"groups":[\(groupJSON(id: "g1", name: "Alpha"))]}
         """)
+        // The initial load also prefetches join requests asynchronously.
+        api.stub("GET", "/api/groups/g1/join-requests", json: #"{"success":true,"requests":[]}"#)
         try await GroupActions(api: api, state: state).loadGroups(forceRefresh: true)
 
-        api.errorToThrow = APIError.serverError("boom")
+        api.errorFor = { endpoint, _ in
+            endpoint == "/api/groups" ? APIError.serverError("boom") : nil
+        }
         try await GroupActions(api: api, state: state).loadGroups(forceRefresh: false)
 
-        // The refresh runs in an unstructured Task — yield until it lands.
-        for _ in 0..<2000 where state.errors.isEmpty {
+        let refreshContext = "GroupActions.loadGroups (background refresh)"
+        // The refresh runs in an unstructured Task — yield until its error lands.
+        for _ in 0..<2000 where !state.errors.contains(where: { $0.context == refreshContext }) {
             await Task.yield()
         }
 
         XCTAssertEqual(state.errors.count, 1)
-        XCTAssertEqual(state.errors.first?.context, "GroupActions.loadGroups (background refresh)")
+        XCTAssertEqual(state.errors.first?.context, refreshContext)
         // Cached data untouched by the failed refresh
         XCTAssertEqual(state.groups["g1"]?.name, "Alpha")
     }

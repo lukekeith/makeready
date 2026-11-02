@@ -1,3 +1,4 @@
+import { leaderInvitationWhere, toLegacyInvite, prepareInvitationSend, finishInvitationSend, ensureInvitationGroupCode, acceptInvitationById } from './invitation.js';
 import { randomBytes } from 'crypto';
 import { prisma } from '../lib/prisma.js';
 import { sendCampaignSms } from './sms-campaign.js';
@@ -50,29 +51,12 @@ export async function sendGroupInvite(
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
-    // Create invite record in database
-    const invite = await prisma.invite.create({
-      data: {
-        token,
-        groupId,
-        inviterId,
-        recipientPhone,
-        recipientName: recipientName ?? null,
-        status: 'pending',
-        expiresAt,
-      },
-    });
-
-    // Look up group code for the URL
-    const group = await prisma.group.findUnique({
-      where: { id: groupId },
-      select: { code: true },
-    });
-
-    // Generate invite URL pointing to the client's join flow
-    const inviteUrl = group?.code
-      ? `${baseUrl}/join/group/${group.code}?invite=${token}`
-      : `${baseUrl}/join/group?invite=${token}`;
+    const prepared = await prepareInvitationSend({ token, groupId, inviterId, recipientPhone, recipientName, expiresAt });
+    const invite = prepared.row;
+    const code = prepared.crossRequest && !prepared.code ? await ensureInvitationGroupCode(groupId) : prepared.code;
+    const inviteUrl = prepared.crossRequest
+      ? `${baseUrl}/join/group/${code}`
+      : code ? `${baseUrl}/join/group/${code}?invite=${token}` : `${baseUrl}/join/group?invite=${token}`;
 
     // Send SMS via campaign system
     const smsResult = await sendCampaignSms({
@@ -85,16 +69,11 @@ export async function sendGroupInvite(
       },
       sentById: inviterId,
       metadata: { groupId, inviteId: invite.id },
-    });
+    }).catch((error: unknown) => ({ success: false, error: error instanceof Error ? error.message : 'Failed to send SMS' }));
 
-    if (!smsResult.success) {
-      // Delete invite if SMS failed
-      await prisma.invite.delete({ where: { id: invite.id } });
-
-      return {
-        success: false,
-        error: smsResult.error || 'Failed to send SMS',
-      };
+    const committed = await finishInvitationSend(invite.id, prepared.crossRequest, inviterId, recipientPhone, smsResult.success);
+    if (!smsResult.success || !committed) {
+      return { success: false, error: smsResult.error || (!smsResult.success ? 'Failed to send SMS' : 'Invite is no longer valid') };
     }
 
     console.log(`[Invite] Sent group invite to ${recipientPhone} for group ${groupId}`);
@@ -120,8 +99,8 @@ export async function sendGroupInvite(
  */
 export async function getInviteByToken(token: string) {
   try {
-    const invite = await prisma.invite.findUnique({
-      where: { token },
+    const invite = await prisma.invitation.findFirst({
+      where: leaderInvitationWhere({ token }),
       include: {
         group: true,
         inviter: {
@@ -138,22 +117,15 @@ export async function getInviteByToken(token: string) {
       return null;
     }
 
-    // Check if expired
-    if (invite.expiresAt && new Date() > invite.expiresAt) {
-      // Update status to expired
-      await prisma.invite.update({
-        where: { id: invite.id },
-        data: { status: 'expired' },
-      });
-      return null;
-    }
+    if (invite.expiresAt && new Date() > invite.expiresAt) return null;
 
     // Check if already accepted
-    if (invite.status === 'accepted') {
+    if (invite.status === 'accepted' || invite.status === 'withdrawn') {
       return null;
     }
 
-    return invite;
+    if (!invite.inviter) return null;
+    return { ...toLegacyInvite(invite), group: invite.group, inviter: invite.inviter };
   } catch (error: any) {
     console.error('[Invite] Error getting invite:', error.message);
     return null;
@@ -163,107 +135,16 @@ export async function getInviteByToken(token: string) {
 /**
  * Accept an invite and add member to group
  * @param inviteId - ID of the invite
- * @param userId - ID of the user accepting the invite (deprecated, not used)
+ * @param userId - ID of the user accepting the invite, recorded as the event actor
  * @returns Success status
  *
  * NOTE: This function has been updated to work with the new Members-based architecture.
- * The userId parameter is kept for backwards compatibility but is not used.
- * Instead, the function uses the recipientPhone from the invite to find the member.
+ * The userId parameter is retained for audit attribution. Membership identity uses the recipientPhone from the invite to find the member.
  */
 export async function acceptInvite(
   inviteId: string,
-  _userId: string // Prefixed with _ to indicate intentionally unused
+  userId: string
 ): Promise<{ success: boolean; error?: string; groupId?: string }> {
-  try {
-    const invite = await prisma.invite.findUnique({
-      where: { id: inviteId },
-    });
-
-    if (!invite) {
-      return { success: false, error: 'Invite not found' };
-    }
-
-    if (invite.status !== 'pending') {
-      return { success: false, error: 'Invite is no longer valid' };
-    }
-
-    if (invite.expiresAt && new Date() > invite.expiresAt) {
-      return { success: false, error: 'Invite has expired' };
-    }
-
-    // Validate groupId exists
-    if (!invite.groupId) {
-      return { success: false, error: 'Invalid invite: no group specified' };
-    }
-
-    // TODO: Refactor to use Members instead of Users
-    // For now, find member by phone number from invite
-    if (!invite.recipientPhone) {
-      return { success: false, error: 'Invite missing recipient phone number' };
-    }
-
-    // Find member by phone number
-    const member = await prisma.member.findUnique({
-      where: { phoneNumber: invite.recipientPhone },
-    });
-
-    if (!member) {
-      return { success: false, error: 'Member not found for this phone number' };
-    }
-
-    // Check if member is already in group
-    const existingMembership = await prisma.groupMember.findFirst({
-      where: {
-        groupId: invite.groupId,
-        memberId: member.id,
-      },
-    });
-
-    if (existingMembership) {
-      // Mark invite as accepted even if already a member
-      await prisma.invite.update({
-        where: { id: inviteId },
-        data: {
-          status: 'accepted',
-          acceptedAt: new Date(),
-        },
-      });
-
-      return {
-        success: true,
-        groupId: invite.groupId,
-      };
-    }
-
-    // Add member to group and mark invite as accepted
-    await prisma.$transaction([
-      prisma.groupMember.create({
-        data: {
-          groupId: invite.groupId,
-          memberId: member.id,
-          role: 'member',
-        },
-      }),
-      prisma.invite.update({
-        where: { id: inviteId },
-        data: {
-          status: 'accepted',
-          acceptedAt: new Date(),
-        },
-      }),
-    ]);
-
-    console.log(`[Invite] Member ${member.id} (phone: ${member.phoneNumber}) accepted invite ${inviteId} and joined group ${invite.groupId}`);
-
-    return {
-      success: true,
-      groupId: invite.groupId,
-    };
-  } catch (error: any) {
-    console.error('[Invite] Error accepting invite:', error.message);
-    return {
-      success: false,
-      error: error.message || 'Failed to accept invite',
-    };
-  }
+  try { return await acceptInvitationById(inviteId, userId); }
+  catch (error: any) { return { success: false, error: error.message || 'Failed to accept invite' }; }
 }

@@ -236,6 +236,8 @@ struct MemberRequestProfilePage: View {
     }
 
     private func approveRequest() async {
+        let generation = state.initialLoad.generation
+        guard !Task.isCancelled else { return }
         do {
             // Synchronous AppState removal inside the action so the red-dot
             // indicators update instantly when this is the last pending
@@ -244,9 +246,12 @@ struct MemberRequestProfilePage: View {
                 groupId: groupId,
                 requestId: requestId
             )
+            guard state.initialLoad.isCurrent(generation), !Task.isCancelled else { return }
             overlayManager.dismiss(.memberRequestProfile)
             onApprove?()
         } catch {
+            // Silent: retired/cancelled decisions cannot leave a banner or retry in another session.
+            guard state.initialLoad.isCurrent(generation), !Task.isCancelled, !GroupActions.isCancellation(error) else { return }
             // User tapped Accept — surface; approval by id is safe to re-run
             // (the page only dismisses on success, so the ids are still valid).
             state.recordError(
@@ -254,7 +259,12 @@ struct MemberRequestProfilePage: View {
                 context: "MemberRequestProfilePage.approveRequest",
                 surface: true,
                 friendlyMessage: "Couldn't approve the request",
-                retry: { Task { await approveRequest() } }
+                retry: {
+                    Task {
+                        guard state.initialLoad.isCurrent(generation), !Task.isCancelled else { return }
+                        await approveRequest()
+                    }
+                }
             )
         }
     }

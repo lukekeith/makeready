@@ -19,6 +19,7 @@ struct AddMenu: View {
     @State private var mainMenuOffset: CGFloat = 0
     @State private var submenuOffset: CGFloat = 500
     @State private var isCreatingInvite: Bool = false
+    @State private var createOperation: UUID?
 
     var body: some View {
         // Menu content only - ManagedMenuView provides chrome
@@ -177,53 +178,32 @@ struct AddMenu: View {
 
     private func createInviteAndShowQR() {
         guard !isCreatingInvite else { return }
-
+        let generation = AppState.shared.initialLoad.generation
+        let operation = UUID()
+        createOperation = operation
         isCreatingInvite = true
-        NSLog("🔵 QR Code button tapped - Creating invite...")
-
-        Task {
+        Task { @MainActor in
+            guard AppState.shared.initialLoad.isCurrent(generation), createOperation == operation, !Task.isCancelled else { return }
             do {
-                NSLog("📤 API Request: POST /api/invites")
-                NSLog("📤 Request body: { groupId: nil, expiresAt: nil }")
-
-                // Create invite via API
                 let invite = try await InviteActions().createInvite()
-
-                NSLog("📥 API Response received:")
-                NSLog("📥   success: true")
-                NSLog("📥   invite.id: %@", invite.id)
-                NSLog("📥   invite.code: %@", invite.code)
-                NSLog("📥   invite.userId: %@", invite.userId)
-                NSLog("📥   invite.groupId: %@", invite.groupId ?? "nil")
-                NSLog("📥   invite.createdAt: %@", invite.createdAt)
-                NSLog("📥   invite.expiresAt: %@", invite.expiresAt ?? "nil")
-                NSLog("✅ Invite created successfully - Opening share sheet...")
-
-                await MainActor.run {
-                    self.isCreatingInvite = false
-
-                    // Present share invite modal
+                guard AppState.shared.initialLoad.isCurrent(generation), createOperation == operation, !Task.isCancelled else { return }
+                isCreatingInvite = false
+                // Use the existing completed-dismissal callback; no delayed work crosses sessions.
+                dismissMenu {
+                    guard AppState.shared.initialLoad.isCurrent(generation), createOperation == operation else { return }
+                    createOperation = nil
                     overlayManager.present(.shareInvite) {
-                        ShareInviteSheet(
-                            inviteCode: invite.code,
-                            overlayManager: overlayManager
-                        )
-                        .environment(authManager)
-                    }
-
-                    // Dismiss menu after a short delay to allow sheet to present
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        dismissMenu()
+                        ShareInviteSheet(inviteCode: invite.code, overlayManager: overlayManager)
+                            .environment(authManager)
                     }
                 }
             } catch {
-                await MainActor.run {
-                    self.isCreatingInvite = false
-                    NSLog("❌ API Error: Failed to create invite")
-                    NSLog("❌ Error: %@", error.localizedDescription)
-                    // Still dismiss menu even on error
-                    dismissMenu()
-                }
+                guard AppState.shared.initialLoad.isCurrent(generation), createOperation == operation else { return }
+                createOperation = nil
+                isCreatingInvite = false
+                // Silent on cancellation; a current failure retains this menu's existing dismiss recovery.
+                guard !Task.isCancelled, !GroupActions.isCancellation(error) else { return }
+                dismissMenu()
             }
         }
     }

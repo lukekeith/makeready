@@ -1,12 +1,11 @@
+import { submitInvitationRequest, decideInvitationRequest, findLatestLegacyJoinRequest, memberInvitationWhere, legacyRequestStatusWhere, legacyRequestStatus, toLegacyJoinRequest, requiredRelation } from '../services/invitation.js'
 import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
-import { Prisma } from '../generated/prisma/index.js'
 import { requireAuth, requireMemberAuth } from '../middleware/auth.js'
 import { logSuccess, logWarning } from '../lib/activity-log.js'
 import { ActivityTypes } from '../lib/activity-types.js'
 import { trackActivity } from '../services/activity.js'
-import { recordMembershipEvent } from '../services/membership-event.js'
 import { groupManageFilter } from '../services/permission.js'
 
 const router = Router({ mergeParams: true }) // Access :groupId from parent
@@ -225,153 +224,27 @@ router.post('/', async (req, _res, next) => {
 
     const { message } = validation.data
 
-    // Check group exists and is active (include creatorId for push notification)
-    const group = await prisma.group.findFirst({
-      where: { id: groupId, isActive: true },
-      select: { id: true, name: true, creatorId: true, organizationId: true },
-    })
-
-    if (!group) {
-      return res.status(404).json({
-        success: false,
-        error: 'Group not found',
-      })
+    const result = await submitInvitationRequest(memberId, groupId, message)
+    if (result.kind === 'group-not-found') return res.status(404).json({ success: false, error: 'Group not found' })
+    const { group, member: memberRecord } = result
+    if (result.kind === 'already-member') {
+      logWarning(ActivityTypes.JOIN.GROUP_ALREADY_MEMBER, req, { memberId, groupId, groupName: group.name })
+      return res.status(400).json({ success: false, error: 'You are already a member of this group' })
     }
-
-    // Check if member is already in the group
-    const existingMembership = await prisma.groupMember.findFirst({
-      where: {
-        groupId,
-        memberId,
-        isActive: true,
-      },
-    })
-
-    if (existingMembership) {
-      logWarning(ActivityTypes.JOIN.GROUP_ALREADY_MEMBER, req, {
-        memberId,
-        groupId,
-        groupName: group.name,
-      })
-      return res.status(400).json({
-        success: false,
-        error: 'You are already a member of this group',
-      })
+    if (result.kind === 'duplicate-pending') {
+      logWarning(ActivityTypes.JOIN.GROUP_REQUEST_DUPLICATE, req, { memberId, groupId, groupName: group.name })
+      return res.status(400).json({ success: false, error: 'You already have a pending request for this group' })
     }
-
-    // Check if the member was invited — auto-join if so
-    const memberRecord = await prisma.member.findUnique({
-      where: { id: memberId },
-      select: { phoneNumber: true, firstName: true, lastName: true },
-    })
-
-    if (memberRecord?.phoneNumber) {
-      const invite = await prisma.invite.findFirst({
-        where: {
-          groupId,
-          recipientPhone: memberRecord.phoneNumber,
-          status: 'pending',
-        },
-      })
-
-      if (invite) {
-        // Auto-add to group
-        await prisma.groupMember.upsert({
-          where: { groupId_memberId: { groupId, memberId } },
-          update: { isActive: true },
-          create: { groupId, memberId },
-        })
-
-        // Mark invite as accepted
-        await prisma.invite.update({
-          where: { id: invite.id },
-          data: { status: 'accepted', acceptedAt: new Date() },
-        })
-
-        const memberName = `${memberRecord.firstName || ''} ${memberRecord.lastName || ''}`.trim() || 'Someone'
-
-        // Notify group leader via unified activity
-        trackActivity({
-          actorId: memberId,
-          action: 'JOINED',
-          resourceType: 'MEMBER',
-          resourceId: memberId,
-          resourceName: `${memberName} joined ${group.name}`,
-          organizationId: group.organizationId,
-          groupId,
-          targetUserId: group.creatorId,
-          title: 'Invited Member Joined',
-          body: `${memberName} has joined ${group.name}`,
-          metadata: { source: 'invite' },
-        })
-
-        logSuccess(ActivityTypes.JOIN.GROUP_REQUEST_SUBMITTED, req, {
-          memberId,
-          groupId,
-          groupName: group.name,
-        })
-
-        return res.status(201).json({
-          success: true,
-          status: 'joined',
-        })
-      }
+    if (result.kind === 'joined') {
+      const memberName = `${memberRecord.firstName || ''} ${memberRecord.lastName || ''}`.trim() || 'Someone'
+      trackActivity({ actorId: memberId, action: 'JOINED', resourceType: 'MEMBER', resourceId: memberId,
+        resourceName: `${memberName} joined ${group.name}`, organizationId: group.organizationId, groupId,
+        targetUserId: group.creatorId, title: 'Invited Member Joined', body: `${memberName} has joined ${group.name}`, metadata: { source: 'invite' } })
+      logSuccess(ActivityTypes.JOIN.GROUP_REQUEST_SUBMITTED, req, { memberId, groupId, groupName: group.name })
+      return res.status(201).json({ success: true, status: 'joined' })
     }
-
-    // Check if there's already a pending request
-    const existingRequest = await prisma.groupJoinRequest.findUnique({
-      where: {
-        groupId_memberId: { groupId, memberId },
-      },
-    })
-
-    if (existingRequest) {
-      if (existingRequest.status === 'pending') {
-        logWarning(ActivityTypes.JOIN.GROUP_REQUEST_DUPLICATE, req, {
-          memberId,
-          groupId,
-          groupName: group.name,
-        })
-        return res.status(400).json({
-          success: false,
-          error: 'You already have a pending request for this group',
-        })
-      }
-
-    }
-
-    // Create or revive the join request. We NEVER delete the prior row — the
-    // unique (groupId, memberId) request is reset to pending so the member's
-    // identity and prior decisions are preserved. The full history lives in the
-    // immutable MembershipEvent trail recorded below.
-    const requestSelect = {
-      id: true,
-      groupId: true,
-      status: true,
-      message: true,
-      createdAt: true,
-    } as const
-
-    const request = existingRequest
-      ? await prisma.groupJoinRequest.update({
-          where: { id: existingRequest.id },
-          data: {
-            message,
-            status: 'pending',
-            reviewedById: null,
-            reviewedAt: null,
-          },
-          select: requestSelect,
-        })
-      : await prisma.groupJoinRequest.create({
-          data: {
-            groupId,
-            memberId,
-            message,
-            status: 'pending',
-          },
-          select: requestSelect,
-        })
+    const legacy = result.request
+    const request = { id: legacy.id, groupId: legacy.groupId, status: legacy.status, message: legacy.message, createdAt: legacy.createdAt }
 
     // Log successful submission
     logSuccess(ActivityTypes.JOIN.GROUP_REQUEST_SUBMITTED, req, {
@@ -396,19 +269,6 @@ router.post('/', async (req, _res, next) => {
       targetUserId: group.creatorId,
       title: 'New Join Request',
       body: `${memberName} wants to join ${group.name}`,
-      metadata: { requestId: request.id },
-    })
-
-    // Immutable audit trail — captures every (re)request against the same
-    // member, including re-requests after a prior rejection.
-    await recordMembershipEvent({
-      memberId,
-      action: 'REQUESTED',
-      groupId,
-      organizationId: group.organizationId,
-      actorId: memberId,
-      actorType: 'member',
-      note: message || null,
       metadata: { requestId: request.id },
     })
 
@@ -570,18 +430,11 @@ router.get('/me', requireMemberAuth, async (req, res) => {
     }
 
     // Check for join request
-    const request = await prisma.groupJoinRequest.findUnique({
-      where: {
-        groupId_memberId: { groupId, memberId },
-      },
-      select: {
-        id: true,
-        status: true,
-        message: true,
-        createdAt: true,
-        reviewedAt: true,
-      },
-    })
+    const latestRequest = await findLatestLegacyJoinRequest(groupId, memberId)
+    const request = latestRequest ? {
+      id: latestRequest.id, status: latestRequest.status, message: latestRequest.message,
+      createdAt: latestRequest.createdAt, reviewedAt: latestRequest.reviewedAt,
+    } : null
 
     if (request) {
       return res.json({
@@ -717,11 +570,8 @@ router.get('/', requireAuth, async (req, res) => {
     // Get status filter (default: pending)
     const status = (req.query.status as string) || 'pending'
 
-    const requests = await prisma.groupJoinRequest.findMany({
-      where: {
-        groupId,
-        status,
-      },
+    const requests = await prisma.invitation.findMany({
+      where: memberInvitationWhere({ groupId, ...legacyRequestStatusWhere(status), NOT: { status: 'withdrawn' } }),
       include: {
         member: {
           select: {
@@ -742,14 +592,14 @@ router.get('/', requireAuth, async (req, res) => {
       success: true,
       requests: requests.map((r) => ({
         id: r.id,
-        status: r.status,
+        status: legacyRequestStatus(r.status),
         message: r.message,
         createdAt: r.createdAt,
         member: {
-          id: r.member.id,
-          firstName: r.member.firstName,
-          lastName: r.member.lastName,
-          avatarUrl: r.member.profilePicture,
+          id: requiredRelation(r.member).id,
+          firstName: requiredRelation(r.member).firstName,
+          lastName: requiredRelation(r.member).lastName,
+          avatarUrl: requiredRelation(r.member).profilePicture,
         },
       })),
       count: requests.length,
@@ -870,113 +720,11 @@ router.post('/:requestId/approve', requireAuth, async (req, res) => {
     const { groupId, requestId } = req.params
     const userId = (req.user as any)?.id
 
-    // Creator, the group org's owner/role-holders, or a super admin may decide.
-    const group = await prisma.group.findFirst({
-      where: { id: groupId, ...(await groupManageFilter(userId)), isActive: true },
-      select: { id: true, organizationId: true },
-    })
-
-    if (!group) {
-      return res.status(404).json({
-        success: false,
-        error: 'Group not found or you cannot manage this group',
-      })
-    }
-
-    // Find the request
-    const request = await prisma.groupJoinRequest.findFirst({
-      where: {
-        id: requestId,
-        groupId,
-        status: 'pending',
-      },
-      include: {
-        member: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
-      },
-    })
-
-    if (!request) {
-      return res.status(404).json({
-        success: false,
-        error: 'Pending request not found',
-      })
-    }
-
-    // Transaction: update request status, add member to group, and ensure the
-    // member is recorded in the group's organization (an approved member IS an
-    // org member — without this they can't later be added to other groups in
-    // the org, e.g. via transfer).
-    const ops: Prisma.PrismaPromise<unknown>[] = [
-      prisma.groupJoinRequest.update({
-        where: { id: requestId },
-        data: {
-          status: 'approved',
-          reviewedById: userId,
-          reviewedAt: new Date(),
-        },
-        select: {
-          id: true,
-          status: true,
-          reviewedAt: true,
-        },
-      }),
-      // Add member to group (or reactivate if soft-deleted)
-      prisma.groupMember.upsert({
-        where: {
-          groupId_memberId: { groupId, memberId: request.memberId },
-        },
-        create: {
-          groupId,
-          memberId: request.memberId,
-          role: 'member',
-          isActive: true,
-        },
-        update: {
-          isActive: true,
-          role: 'member',
-          joinedAt: new Date(),
-        },
-      }),
-    ]
-
-    if (group.organizationId) {
-      ops.push(
-        prisma.memberOrganization.upsert({
-          where: {
-            memberId_organizationId: {
-              memberId: request.memberId,
-              organizationId: group.organizationId,
-            },
-          },
-          create: {
-            memberId: request.memberId,
-            organizationId: group.organizationId,
-          },
-          update: {},
-        })
-      )
-    }
-
-    const [updatedRequest] = await prisma.$transaction(ops)
-
-    // Append to the immutable membership audit trail. The upsert reactivates a
-    // prior (soft-deleted) membership when present, so none of the member's
-    // existing group data is lost.
-    await recordMembershipEvent({
-      memberId: request.memberId,
-      action: 'APPROVED',
-      groupId,
-      organizationId: group.organizationId,
-      actorId: userId,
-      actorType: 'user',
-      metadata: { requestId },
-    })
+    const result = await decideInvitationRequest(requestId, groupId, userId, 'approve')
+    if (result.kind === 'group-not-found') return res.status(404).json({ success: false, error: 'Group not found or you cannot manage this group' })
+    if (result.kind === 'not-pending') return res.status(404).json({ success: false, error: 'Pending request not found' })
+    const request = { ...toLegacyJoinRequest(result.row), member: result.member }
+    const updatedRequest = { id: request.id, status: request.status, reviewedAt: request.reviewedAt }
 
     // Log approval
     logSuccess(ActivityTypes.JOIN.GROUP_REQUEST_APPROVED, req, {
@@ -1098,63 +846,11 @@ router.post('/:requestId/reject', requireAuth, async (req, res) => {
     const userId = (req.user as any)?.id
     const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : undefined
 
-    // Creator, the group org's owner/role-holders, or a super admin may decide.
-    const group = await prisma.group.findFirst({
-      where: { id: groupId, ...(await groupManageFilter(userId)), isActive: true },
-      select: { id: true, organizationId: true },
-    })
-
-    if (!group) {
-      return res.status(404).json({
-        success: false,
-        error: 'Group not found or you cannot manage this group',
-      })
-    }
-
-    // Find the request
-    const request = await prisma.groupJoinRequest.findFirst({
-      where: {
-        id: requestId,
-        groupId,
-        status: 'pending',
-      },
-    })
-
-    if (!request) {
-      return res.status(404).json({
-        success: false,
-        error: 'Pending request not found',
-      })
-    }
-
-    // Mark rejected. The request row is KEPT (not deleted) so the decision is
-    // preserved; a later re-request resets this same row to pending.
-    const updatedRequest = await prisma.groupJoinRequest.update({
-      where: { id: requestId },
-      data: {
-        status: 'rejected',
-        reviewedById: userId,
-        reviewedAt: new Date(),
-      },
-      select: {
-        id: true,
-        status: true,
-        reviewedAt: true,
-      },
-    })
-
-    // Append to the immutable membership audit trail so the leader can later
-    // find this person (search by name/phone) and reverse the decision.
-    await recordMembershipEvent({
-      memberId: request.memberId,
-      action: 'REJECTED',
-      groupId,
-      organizationId: group.organizationId,
-      actorId: userId,
-      actorType: 'user',
-      note: reason || null,
-      metadata: { requestId },
-    })
+    const result = await decideInvitationRequest(requestId, groupId, userId, 'reject', reason)
+    if (result.kind === 'group-not-found') return res.status(404).json({ success: false, error: 'Group not found or you cannot manage this group' })
+    if (result.kind === 'not-pending') return res.status(404).json({ success: false, error: 'Pending request not found' })
+    const request = { ...toLegacyJoinRequest(result.row), member: result.member }
+    const updatedRequest = { id: request.id, status: request.status, reviewedAt: request.reviewedAt }
 
     // Log rejection
     logSuccess(ActivityTypes.JOIN.GROUP_REQUEST_REJECTED, req, {

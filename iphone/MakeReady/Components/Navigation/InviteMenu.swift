@@ -17,6 +17,7 @@ struct InviteMenu: View {
     @Environment(\.dismissOverlayThen) private var dismissOverlayThen
 
     @State private var isCreatingInvite = false
+    @State private var createOperation: UUID?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -84,32 +85,32 @@ struct InviteMenu: View {
 
     private func createInviteAndShowQR() {
         guard !isCreatingInvite else { return }
+        let generation = AppState.shared.initialLoad.generation
+        let operation = UUID()
+        createOperation = operation
         isCreatingInvite = true
-
-        Task {
+        Task { @MainActor in
+            guard AppState.shared.initialLoad.isCurrent(generation), createOperation == operation, !Task.isCancelled else { return }
             do {
                 let invite = try await InviteActions().createInvite()
-
-                await MainActor.run {
-                    isCreatingInvite = false
-
+                guard AppState.shared.initialLoad.isCurrent(generation), createOperation == operation, !Task.isCancelled else { return }
+                isCreatingInvite = false
+                // Use the existing completed-dismissal callback; no delayed work crosses sessions.
+                dismissMenu {
+                    guard AppState.shared.initialLoad.isCurrent(generation), createOperation == operation else { return }
+                    createOperation = nil
                     overlayManager.present(.shareInvite) {
-                        ShareInviteSheet(
-                            inviteCode: invite.code,
-                            overlayManager: overlayManager
-                        )
-                        .environment(authManager)
-                    }
-
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        dismissMenu()
+                        ShareInviteSheet(inviteCode: invite.code, overlayManager: overlayManager)
+                            .environment(authManager)
                     }
                 }
             } catch {
-                await MainActor.run {
-                    isCreatingInvite = false
-                    dismissMenu()
-                }
+                guard AppState.shared.initialLoad.isCurrent(generation), createOperation == operation else { return }
+                createOperation = nil
+                isCreatingInvite = false
+                // Silent on cancellation; a current failure retains this menu's existing dismiss recovery.
+                guard !Task.isCancelled, !GroupActions.isCancellation(error) else { return }
+                dismissMenu()
             }
         }
     }

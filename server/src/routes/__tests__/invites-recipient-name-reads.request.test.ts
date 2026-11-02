@@ -3,7 +3,10 @@ import request from 'supertest'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const prismaMock = vi.hoisted(() => ({
-  invite: { findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
+  invitation: { findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
+  inviteEvent: { create: vi.fn(), findFirst: vi.fn() },
+  $queryRaw: vi.fn(),
+  $transaction: vi.fn(),
 }))
 vi.mock('../../lib/prisma.js', () => ({ prisma: prismaMock, Prisma: {} }))
 vi.mock('../../services/invite.js', () => ({ sendGroupInvite: vi.fn(), getInviteByToken: vi.fn() }))
@@ -33,9 +36,11 @@ const row = {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  prismaMock.invite.findMany.mockResolvedValue([row])
-  prismaMock.invite.findUnique.mockResolvedValue(row)
-  prismaMock.invite.update.mockResolvedValue(row)
+  prismaMock.$transaction.mockImplementation(callback => callback(prismaMock))
+  prismaMock.$queryRaw.mockResolvedValue([])
+  prismaMock.invitation.findMany.mockResolvedValue([row])
+  prismaMock.invitation.findUnique.mockResolvedValue(row)
+  prismaMock.invitation.update.mockResolvedValue(row)
 })
 
 describe('recipientName on leader reads (D6)', () => {

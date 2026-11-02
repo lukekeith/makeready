@@ -1,3 +1,5 @@
+import invitationsRoutes from './routes/invitations.js'
+import { memberInvitationWhere, legacyRequestStatusWhere, toLegacyJoinRequest } from './services/invitation.js'
 import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
@@ -350,6 +352,7 @@ app.use('/api/sms-campaigns', smsCampaignsRoutes)
 
 // Invites routes (Group invitations)
 app.use('/api/invites', invitesRoutes)
+app.use('/api/invitations', invitationsRoutes)
 
 // QR Code routes (QR code generation)
 app.use('/api/qrcode', qrcodeRoutes)
@@ -380,8 +383,8 @@ app.get('/api/admin/join-requests', requireAuth, async (req, res) => {
     const status = (req.query.status as string) || 'pending'
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 200)
 
-    const requests = await prisma.groupJoinRequest.findMany({
-      where: { status },
+    const requests = await prisma.invitation.findMany({
+      where: memberInvitationWhere({ ...legacyRequestStatusWhere(status), NOT: { status: 'withdrawn' } }),
       orderBy: { createdAt: 'desc' },
       take: limit,
       include: {
@@ -394,7 +397,7 @@ app.get('/api/admin/join-requests', requireAuth, async (req, res) => {
       },
     })
 
-    res.json({ success: true, requests, count: requests.length })
+    res.json({ success: true, requests: requests.map(row => ({ ...toLegacyJoinRequest(row), member: row.member, group: row.group })), count: requests.length })
   } catch (error) {
     console.error('Error fetching admin join requests:', error)
     res.status(500).json({ success: false, error: 'Internal server error' })

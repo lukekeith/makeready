@@ -1,3 +1,4 @@
+import { submitInvitationRequest, memberInvitationWhere } from '../services/invitation.js'
 import { Router, type Request, type RequestHandler } from 'express'
 import { z } from 'zod'
 import multer from 'multer'
@@ -863,46 +864,11 @@ router.post('/confirm-verification', async (req, res) => {
     if (joinGroupId && member) {
       const groupId = joinGroupId
       try {
-        const group = await prisma.group.findFirst({
-          where: { id: groupId, isActive: true },
-          select: { id: true, name: true },
-        })
-
-        if (group) {
-          // Check not already a member
-          const existingMembership = await prisma.groupMember.findFirst({
-            where: { groupId, memberId: member.id, isActive: true },
-          })
-
-          if (!existingMembership) {
-            // Check for existing pending request
-            const existingRequest = await prisma.groupJoinRequest.findUnique({
-              where: { groupId_memberId: { groupId, memberId: member.id } },
-            })
-
-            if (!existingRequest || existingRequest.status === 'rejected') {
-              if (existingRequest) {
-                // Re-submit after rejection
-                joinRequest = await prisma.groupJoinRequest.update({
-                  where: { id: existingRequest.id },
-                  data: { status: 'pending', reviewedAt: null, reviewedBy: { disconnect: true } },
-                })
-              } else {
-                joinRequest = await prisma.groupJoinRequest.create({
-                  data: { groupId, memberId: member.id, status: 'pending' },
-                })
-              }
-              wasNewRequest = true
-              console.log(`✅ Join request created for group ${group.name}`)
-            } else {
-              console.log(`⚠ Join request already exists (${existingRequest.status}) for group ${group.name}`)
-              joinRequest = existingRequest
-              wasNewRequest = false
-            }
-          } else {
-            console.log(`⚠ Already a member of group ${group.name}`)
-            alreadyMember = true
-          }
+        const result = await submitInvitationRequest(member.id, groupId, undefined, 'confirmation')
+        if (result.kind === 'already-member' || result.kind === 'joined') alreadyMember = true
+        if (result.kind === 'pending-created' || result.kind === 'duplicate-pending') {
+          joinRequest = result.request
+          wasNewRequest = result.kind === 'pending-created'
         }
       } catch (joinError) {
         console.error('Error creating join request:', joinError)
@@ -1057,12 +1023,8 @@ router.get('/:memberId/profile', requireAuth, async (req, res) => {
 
     if (!hasAccess) {
       // Check if member has a pending join request for a group the user manages.
-      const pendingRequest = await prisma.groupJoinRequest.findFirst({
-        where: {
-          memberId: memberId,
-          status: 'pending',
-          group: manageFilter,
-        },
+      const pendingRequest = await prisma.invitation.findFirst({
+        where: memberInvitationWhere({ memberId, status: 'pending', group: manageFilter }),
       })
       if (pendingRequest) {
         hasAccess = true

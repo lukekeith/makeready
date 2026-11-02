@@ -1,7 +1,7 @@
+import { createLeaderInvitation, leaderInvitationWhere, patchLegacyInvitation, recordInvitationLinkClick } from '../services/invitation.js';
 import { Router } from 'express';
 import { z } from 'zod';
 import { sendGroupInvite, getInviteByToken } from '../services/invite.js';
-import { recordMembershipEvent } from '../services/membership-event.js';
 import { prisma } from '../lib/prisma.js';
 import { isValidPhoneNumber } from '../services/twilio.js';
 import { canManageOrgContent } from '../services/permission.js';
@@ -71,8 +71,8 @@ router.get('/', requireAuth, async (req, res) => {
     if (groupId) where.groupId = groupId as string;
     if (status) where.status = status as string;
 
-    const invites = await prisma.invite.findMany({
-      where,
+    const invites = await prisma.invitation.findMany({
+      where: { AND: [leaderInvitationWhere(where), { status: { not: 'withdrawn' } }] },
       orderBy: { createdAt: 'desc' },
       include: {
         group: { select: { id: true, name: true } },
@@ -225,10 +225,10 @@ router.post('/', requireAuth, async (req, res) => {
     let token = generateInviteToken();
 
     // Ensure token is unique
-    let existing = await prisma.invite.findUnique({ where: { token } });
+    let existing = await prisma.invitation.findUnique({ where: { token } });
     while (existing) {
       token = generateInviteToken();
-      existing = await prisma.invite.findUnique({ where: { token } });
+      existing = await prisma.invitation.findUnique({ where: { token } });
     }
 
     // If groupId provided, verify group exists and user is the creator
@@ -254,14 +254,12 @@ router.post('/', requireAuth, async (req, res) => {
     }
 
     // Create invite
-    const invite = await prisma.invite.create({
-      data: {
+    const invite = await createLeaderInvitation({
         token,
         inviterId: user.id,
         groupId: body.groupId,
         expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
         status: 'pending',
-      },
     });
 
     // Return invite in format expected by iPhone app
@@ -461,25 +459,6 @@ router.post('/send', requireAuth, async (req, res) => {
       });
     }
 
-    // Record an INVITED event when the recipient is already a known member, so
-    // the invite shows up in their membership history (keyed by phone number).
-    // Unknown phones have no Member yet — their history begins when they join.
-    const invitedMember = await prisma.member.findUnique({
-      where: { phoneNumber: recipientPhone },
-      select: { id: true },
-    });
-    if (invitedMember) {
-      await recordMembershipEvent({
-        memberId: invitedMember.id,
-        action: 'INVITED',
-        groupId,
-        organizationId: group.organizationId,
-        actorId: user.id,
-        actorType: 'user',
-        metadata: { inviteId: result.inviteId, recipientPhone },
-      });
-    }
-
     res.json({
       success: true,
       inviteId: result.inviteId,
@@ -647,8 +626,8 @@ router.patch('/:id', requireAuth, async (req, res) => {
     const user = req.user as User;
     const { id } = req.params;
 
-    const invite = await prisma.invite.findUnique({
-      where: { id },
+    const invite = await prisma.invitation.findUnique({
+      where: { id, initiatedBy: 'leader' },
       include: { group: { select: { organizationId: true, creatorId: true } } },
     });
 
@@ -672,15 +651,11 @@ router.patch('/:id', requireAuth, async (req, res) => {
 
     const body = schema.parse(req.body);
 
-    const updated = await prisma.invite.update({
-      where: { id },
-      data: {
-        ...body,
-        expiresAt: body.expiresAt !== undefined
-          ? (body.expiresAt ? new Date(body.expiresAt) : null)
-          : undefined,
-      },
+    const updated = await patchLegacyInvitation(id, user.id, {
+      ...body,
+      expiresAt: body.expiresAt !== undefined ? (body.expiresAt ? new Date(body.expiresAt) : null) : undefined,
     });
+    if (!updated) return res.status(404).json({ success: false, error: 'Invite not found' });
 
     res.json({
       success: true,
@@ -731,8 +706,8 @@ router.delete('/:id', requireAuth, async (req, res) => {
     const user = req.user as User;
     const { id } = req.params;
 
-    const invite = await prisma.invite.findUnique({
-      where: { id },
+    const invite = await prisma.invitation.findUnique({
+      where: { id, initiatedBy: 'leader' },
       include: { group: { select: { organizationId: true, creatorId: true } } },
     });
 
@@ -749,7 +724,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
       return res.status(403).json({ success: false, error: 'Not authorized to delete this invite' });
     }
 
-    await prisma.invite.delete({ where: { id } });
+    await prisma.invitation.delete({ where: { id, initiatedBy: 'leader' } });
 
     res.json({ success: true });
   } catch (error) {
@@ -769,6 +744,8 @@ router.get('/:token', async (req, res) => {
       });
     }
 
+    const known = await prisma.invitation.findUnique({ where: { token, initiatedBy: 'leader' }, select: { id: true } });
+    if (known) await recordInvitationLinkClick(known.id);
     const invite = await getInviteByToken(token);
 
     if (!invite) {

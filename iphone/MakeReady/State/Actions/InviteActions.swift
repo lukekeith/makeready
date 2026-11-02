@@ -31,10 +31,13 @@ struct QRCodeResponse: Codable {
 struct InviteActions {
 
     private let api: APIClientProtocol
+    private let stateOverride: AppState?
+    @MainActor private var state: AppState { stateOverride ?? AppState.shared }
 
     /// - Parameter api: client for network calls; stub in tests
-    init(api: APIClientProtocol = APIClient.shared) {
+    init(api: APIClientProtocol = APIClient.shared, state: AppState? = nil) {
         self.api = api
+        self.stateOverride = state
     }
 
     // MARK: - Invite Creation
@@ -42,6 +45,8 @@ struct InviteActions {
     /// Create an invite (optionally scoped to a group, optionally expiring).
     @MainActor
     func createInvite(groupId: String? = nil, expiresAt: String? = nil) async throws -> Invite {
+        try Task.checkCancellation()
+        let generation = state.initialLoad.generation
         struct CreateInviteResponse: Codable {
             let success: Bool
             let invite: Invite?
@@ -56,42 +61,64 @@ struct InviteActions {
             body["expiresAt"] = expiresAt
         }
 
-        let response: CreateInviteResponse = try await api.post(
-            "/api/invites",
-            body: body.isEmpty ? nil : body,
-            responseType: CreateInviteResponse.self
-        )
+        do {
+            let response: CreateInviteResponse = try await api.post(
+                "/api/invites",
+                body: body.isEmpty ? nil : body,
+                responseType: CreateInviteResponse.self
+            )
 
-        guard response.success, let invite = response.invite else {
-            throw APIError.serverError(response.error ?? "Failed to create invite")
+            guard response.success, let invite = response.invite else {
+                throw APIError.serverError(response.error ?? "Failed to create invite")
+            }
+
+            guard state.initialLoad.isCurrent(generation), !Task.isCancelled else { throw CancellationError() }
+            state.invalidateInvitationSend(groupId: groupId)
+            return invite
+        } catch {
+            // Caller owns current errors; retirement/cancellation must never surface in a new session.
+            guard state.initialLoad.isCurrent(generation), !Task.isCancelled, !GroupActions.isCancellation(error) else {
+                throw CancellationError()
+            }
+            throw error
         }
-
-        return invite
     }
 
     // MARK: - SMS invite (invite-member)
 
     /// invite-member T7: `POST /api/invites/send` — the existing group-invite SMS, carrying the
-    /// invitee's name (D8). Returns the created invite's id. D5: no AppState write — no screen
-    /// reads invites yet.
+    /// invitee's name (D8). Returns the created invite's id; invites D22 invalidates projections
+    /// because sending may cross-accept an existing request.
     @MainActor
     func sendInvite(groupId: String, recipientPhone: String, recipientName: String) async throws -> String {
+        try Task.checkCancellation()
+        let generation = state.initialLoad.generation
         struct SendInviteResponse: Codable {
             let success: Bool
             let inviteId: String?
             let error: String?
         }
 
-        let response: SendInviteResponse = try await api.post(
-            "/api/invites/send",
-            body: ["groupId": groupId, "recipientPhone": recipientPhone, "recipientName": recipientName],
-            responseType: SendInviteResponse.self
-        )
+        do {
+            let response: SendInviteResponse = try await api.post(
+                "/api/invites/send",
+                body: ["groupId": groupId, "recipientPhone": recipientPhone, "recipientName": recipientName],
+                responseType: SendInviteResponse.self
+            )
 
-        guard response.success, let inviteId = response.inviteId else {
-            throw APIError.serverError(response.error ?? "Couldn't send the invite")
+            guard response.success, let inviteId = response.inviteId else {
+                throw APIError.serverError(response.error ?? "Couldn't send the invite")
+            }
+            guard state.initialLoad.isCurrent(generation), !Task.isCancelled else { throw CancellationError() }
+            state.invalidateInvitationSend(groupId: groupId)
+            return inviteId
+        } catch {
+            // Caller owns current errors; retirement/cancellation must never surface in a new session.
+            guard state.initialLoad.isCurrent(generation), !Task.isCancelled, !GroupActions.isCancellation(error) else {
+                throw CancellationError()
+            }
+            throw error
         }
-        return inviteId
     }
 
     // MARK: - QR Code Generation

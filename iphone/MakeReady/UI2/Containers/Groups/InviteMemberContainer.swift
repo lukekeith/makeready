@@ -8,10 +8,14 @@ enum InviteMemberSend {
     static func run(groupId: String, name: String, phone: String,
                     actions: InviteActions = InviteActions(), state: AppState? = nil) async -> Bool {
         let state = state ?? AppState.shared
+        let generation = state.initialLoad.generation
+        guard !Task.isCancelled else { return false }
         do {
             _ = try await actions.sendInvite(groupId: groupId, recipientPhone: phone, recipientName: name)
-            return true
+            return state.initialLoad.isCurrent(generation) && !Task.isCancelled
         } catch {
+            // Silent: the old send no longer belongs to this session or visible operation.
+            guard state.initialLoad.isCurrent(generation), !Task.isCancelled, !GroupActions.isCancellation(error) else { return false }
             let serverMessage: String? = { if case APIError.serverError(let m) = error { return m } else { return nil } }()
             state.recordError(error, context: "InviteMemberContainer.send", surface: true,
                               friendlyMessage: serverMessage ?? fallbackMessage)
@@ -33,6 +37,7 @@ struct InviteMemberContainer: View {
     @State private var sentName = ""
     @State private var sentDigits = ""
     @State private var sending = false
+    @State private var sendOperation: UUID?
 
     var body: some View {
         InviteMemberScreen(
@@ -49,10 +54,16 @@ struct InviteMemberContainer: View {
     private func send(name: String, phone: String) {
         guard !sending else { return }                          // §3 sending: one request in flight
         sending = true
+        let generation = AppState.shared.initialLoad.generation
+        let operation = UUID()
+        sendOperation = operation
         Task { @MainActor in
+            guard AppState.shared.initialLoad.isCurrent(generation), sendOperation == operation, !Task.isCancelled else { return }
             let ok = await InviteMemberSend.run(groupId: groupId, name: name, phone: phone)
+            guard AppState.shared.initialLoad.isCurrent(generation), sendOperation == operation else { return }
+            sendOperation = nil
             sending = false
-            if ok {
+            if ok, !Task.isCancelled {
                 sentName = name
                 sentDigits = String(phone.dropFirst(2))          // "+1" + 10 digits → the 10 digits
                 step = "sent"

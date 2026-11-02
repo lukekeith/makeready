@@ -15,6 +15,8 @@ struct UI2Navigator {
     /// ui2-groups-browse D8: replace the top entry (first) with a new page (second) — a no-op
     /// unless the first is still on top.
     var replaceTop: (UI2Destination, UI2Destination) -> Void = { _, _ in }
+    /// Current visible stack ownership; changes on every path mutation, including equal-ID replacement.
+    var ownership: () -> UUID? = { nil }
 }
 
 private struct UI2NavigatorKey: EnvironmentKey {

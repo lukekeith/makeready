@@ -91,9 +91,10 @@ models:
         type: one_to_many
         target: Group
         name: GroupCreator
-      sentInvites:
+      sentInvitations:
         type: one_to_many
-        target: Invite
+        target: Invitation
+        name: InvitationInviter
       ownedOrganization:
         type: one_to_one
         target: Organization
@@ -138,10 +139,10 @@ models:
         type: one_to_many
         target: Post
         name: PostAuthor
-      reviewedJoinRequests:
+      respondedInvitations:
         type: one_to_many
-        target: GroupJoinRequest
-        name: JoinRequestReviewer
+        target: Invitation
+        name: InvitationResponder
       createdEvents:
         type: one_to_many
         target: Event
@@ -370,9 +371,9 @@ models:
         name: GroupUpdater
         onDelete: SetNull
         nullable: true
-      invites:
+      invitations:
         type: one_to_many
-        target: Invite
+        target: Invitation
       media:
         type: one_to_many
         target: Media
@@ -388,9 +389,6 @@ models:
       posts:
         type: one_to_many
         target: Post
-      joinRequests:
-        type: one_to_many
-        target: GroupJoinRequest
       activities:
         type: one_to_many
         target: Activity
@@ -452,25 +450,42 @@ models:
   # ===========================================================================
   # Invites
   # ===========================================================================
-  Invite:
-    table_name: invites
+  Invitation:
+    table_name: invitations
     fields:
       id:
         type: uuid
         primary: true
         default: uuid()
+      initiatedBy:
+        type: string
+        description: "leader or member; preserves the legacy relationship kind"
       token:
         type: string
+        nullable: true
         unique: true
       groupId:
         type: string
         nullable: true
       inviterId:
         type: string
+        nullable: true
+      memberId:
+        type: string
+        nullable: true
+      organizationId:
+        type: string
+        nullable: true
       recipientPhone:
         type: string
         nullable: true
       recipientName:
+        type: string
+        nullable: true
+      message:
+        type: string
+        nullable: true
+      respondedById:
         type: string
         nullable: true
       status:
@@ -479,26 +494,98 @@ models:
       expiresAt:
         type: datetime
         nullable: true
-      createdAt:
+      respondedAt:
         type: datetime
-        default: now()
+        nullable: true
       acceptedAt:
         type: datetime
         nullable: true
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
     relations:
       group:
         type: many_to_one
         target: Group
         fields: [groupId]
         references: [id]
-        onDelete: Cascade
         nullable: true
+        onDelete: Cascade
       inviter:
         type: many_to_one
         target: User
         fields: [inviterId]
         references: [id]
+        nullable: true
         onDelete: Cascade
+        name: InvitationInviter
+      member:
+        type: many_to_one
+        target: Member
+        fields: [memberId]
+        references: [id]
+        nullable: true
+        onDelete: Cascade
+      organization:
+        type: many_to_one
+        target: Organization
+        fields: [organizationId]
+        references: [id]
+        nullable: true
+        onDelete: SetNull
+      respondedBy:
+        type: many_to_one
+        target: User
+        fields: [respondedById]
+        references: [id]
+        nullable: true
+        onDelete: NoAction
+        name: InvitationResponder
+      events:
+        type: one_to_many
+        target: InviteEvent
+    indexes:
+      - fields: [organizationId, createdAt]
+      - fields: [recipientPhone]
+      - fields: [groupId, memberId]
+      - fields: [groupId, status]
+      - fields: [memberId]
+
+  InviteEvent:
+    table_name: invite_events
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      invitationId:
+        type: string
+      type:
+        type: string
+      at:
+        type: datetime
+        default: now()
+      actorId:
+        type: string
+        nullable: true
+      groupId:
+        type: string
+        nullable: true
+      metadata:
+        type: json
+        nullable: true
+    relations:
+      invitation:
+        type: many_to_one
+        target: Invitation
+        fields: [invitationId]
+        references: [id]
+        onDelete: Cascade
+    indexes:
+      - fields: [invitationId, at]
 
   # ===========================================================================
   # Organizations
@@ -535,6 +622,9 @@ models:
         type: datetime
         updatedAt: true
     relations:
+      invitations:
+        type: one_to_many
+        target: Invitation
       members:
         type: one_to_many
         target: MemberOrganization
@@ -679,9 +769,9 @@ models:
       organizations:
         type: one_to_many
         target: MemberOrganization
-      joinRequests:
+      invitations:
         type: one_to_many
-        target: GroupJoinRequest
+        target: Invitation
       studyNotes:
         type: one_to_many
         target: StudyNote
@@ -3252,67 +3342,6 @@ models:
       - fields: [authorId]
       - fields: [type]
       - fields: [isActive]
-
-  # ===========================================================================
-  # Group Join Request
-  # ===========================================================================
-  GroupJoinRequest:
-    table_name: group_join_requests
-    fields:
-      id:
-        type: uuid
-        primary: true
-        default: uuid()
-      groupId:
-        type: string
-      memberId:
-        type: string
-      status:
-        type: string
-        default: "pending"
-        description: "pending, approved, rejected"
-      message:
-        type: string
-        nullable: true
-        description: "Optional message from requester"
-      reviewedById:
-        type: string
-        nullable: true
-        description: "User who approved/rejected"
-      reviewedAt:
-        type: datetime
-        nullable: true
-      createdAt:
-        type: datetime
-        default: now()
-      updatedAt:
-        type: datetime
-        updatedAt: true
-    relations:
-      group:
-        type: many_to_one
-        target: Group
-        fields: [groupId]
-        references: [id]
-        onDelete: Cascade
-      member:
-        type: many_to_one
-        target: Member
-        fields: [memberId]
-        references: [id]
-        onDelete: Cascade
-      reviewedBy:
-        type: many_to_one
-        target: User
-        fields: [reviewedById]
-        references: [id]
-        name: JoinRequestReviewer
-        nullable: true
-    indexes:
-      - fields: [groupId, status]
-      - fields: [memberId]
-    unique:
-      - fields: [groupId, memberId]
 
   # ===========================================================================
   # Study Notes Engine

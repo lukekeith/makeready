@@ -184,7 +184,7 @@ model User {
   isActive             Boolean @default(true) // Inactive users cannot authenticate or access leader/admin app surfaces
 
   createdGroups        Group[] @relation("GroupCreator")
-  sentInvites          Invite[]
+  sentInvitations      Invitation[] @relation("InvitationInviter")
   ownedOrganization    Organization? @relation("OrganizationOwner")
   roles                UserRole[]
   uploadedMedia        Media[] @relation("MediaUploader")
@@ -197,7 +197,7 @@ model User {
   enrollments          Enrollment[] @relation("EnrollmentCreator")
   enrollmentDrafts     EnrollmentDraft[] @relation("EnrollmentDraftCreator")
   posts                Post[] @relation("PostAuthor")
-  reviewedJoinRequests GroupJoinRequest[] @relation("JoinRequestReviewer")
+  respondedInvitations Invitation[] @relation("InvitationResponder")
   createdEvents        Event[] @relation("EventCreator")
   uploadedAttachments  EventAttachment[] @relation("AttachmentUploader")
   studyNotes           StudyNote[]
@@ -269,13 +269,12 @@ model Group {
   members              GroupMember[]
   creator              User @relation("GroupCreator", fields: [creatorId], references: [id], onDelete: Cascade)
   updatedBy            User? @relation("GroupUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
-  invites              Invite[]
+  invitations          Invitation[]
   media                Media[]
   enrollments          Enrollment[]
   enrollmentDrafts     EnrollmentDraft[]
   events               Event[]
   posts                Post[]
-  joinRequests         GroupJoinRequest[]
   activities           Activity[] @relation("ActivityGroup")
   membershipEvents     MembershipEvent[]
   @@index([organizationId])
@@ -304,21 +303,51 @@ model GroupMember {
   @@map("group_members")
 }
 
-model Invite {
+model Invitation {
   id                   String @id @default(uuid())
-  token                String @unique
+  initiatedBy          String // leader or member; preserves the legacy relationship kind
+  token                String? @unique
   groupId              String?
-  inviterId            String
+  inviterId            String?
+  memberId             String?
+  organizationId       String?
   recipientPhone       String?
   recipientName        String?
+  message              String?
+  respondedById        String?
   status               String @default("pending")
   expiresAt            DateTime?
-  createdAt            DateTime @default(now())
+  respondedAt          DateTime?
   acceptedAt           DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   group                Group? @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  inviter              User @relation(fields: [inviterId], references: [id], onDelete: Cascade)
-  @@map("invites")
+  inviter              User? @relation("InvitationInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+  member               Member? @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  organization         Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  respondedBy          User? @relation("InvitationResponder", fields: [respondedById], references: [id], onDelete: NoAction)
+  events               InviteEvent[]
+  @@index([organizationId, createdAt])
+  @@index([recipientPhone])
+  @@index([groupId, memberId])
+  @@index([groupId, status])
+  @@index([memberId])
+  @@map("invitations")
+}
+
+model InviteEvent {
+  id                   String @id @default(uuid())
+  invitationId         String
+  type                 String
+  at                   DateTime @default(now())
+  actorId              String?
+  groupId              String?
+  metadata             Json?
+
+  invitation           Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  @@index([invitationId, at])
+  @@map("invite_events")
 }
 
 model Organization {
@@ -331,6 +360,7 @@ model Organization {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
+  invitations          Invitation[]
   members              MemberOrganization[]
   owner                User @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   roles                Role[]
@@ -375,7 +405,7 @@ model Member {
 
   groupMemberships     GroupMember[]
   organizations        MemberOrganization[]
-  joinRequests         GroupJoinRequest[]
+  invitations          Invitation[]
   studyNotes           StudyNote[]
   activityProgress     MemberActivityProgress[]
   videoProgress        MemberVideoProgress[]
@@ -1290,27 +1320,6 @@ model Post {
   @@index([type])
   @@index([isActive])
   @@map("posts")
-}
-
-model GroupJoinRequest {
-  id                   String @id @default(uuid())
-  groupId              String
-  memberId             String
-  status               String @default("pending") // pending, approved, rejected
-  message              String? // Optional message from requester
-  reviewedById         String? // User who approved/rejected
-  reviewedAt           DateTime?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-
-  group                Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  member               Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  reviewedBy           User? @relation("JoinRequestReviewer", fields: [reviewedById], references: [id])
-
-  @@unique([groupId, memberId])
-  @@index([groupId, status])
-  @@index([memberId])
-  @@map("group_join_requests")
 }
 
 model StudyNote {

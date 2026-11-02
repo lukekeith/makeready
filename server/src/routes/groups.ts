@@ -1,3 +1,4 @@
+import { findLatestLegacyJoinRequest } from '../services/invitation.js'
 import { Router } from 'express'
 import { z } from 'zod'
 import QRCode from 'qrcode'
@@ -455,21 +456,11 @@ router.get('/code/:code', async (req, res) => {
     }
 
     // Check for existing join request
-    const joinRequest = await prisma.groupJoinRequest.findUnique({
-      where: {
-        groupId_memberId: {
-          groupId: group.id,
-          memberId: member.id,
-        },
-      },
-      select: {
-        id: true,
-        status: true,
-        message: true,
-        createdAt: true,
-        reviewedAt: true,
-      },
-    })
+    const latestRequest = await findLatestLegacyJoinRequest(group.id, member.id)
+    const joinRequest = latestRequest ? {
+      id: latestRequest.id, status: latestRequest.status, message: latestRequest.message,
+      createdAt: latestRequest.createdAt, reviewedAt: latestRequest.reviewedAt,
+    } : null
 
     if (joinRequest) {
       return res.json({

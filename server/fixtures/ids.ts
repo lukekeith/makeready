@@ -38,6 +38,7 @@ export const FIXTURE_KIND = {
   enrollmentDraft: '001b',
   // media-page D14: the Media page's tags.
   mediaTag: '001c',
+  inviteEvent: '001d',
 } as const
 
 export type FixtureKind = keyof typeof FIXTURE_KIND

@@ -31,8 +31,8 @@ struct GroupDetailContainer: View {
     @State private var coverFrame: CGRect?
 
     var body: some View {
-        let output = GroupDetailMapper.output(Self.input(groupId: groupId, name: name, state: AppState.shared),
-                                              now: Date(), timeZone: .current)
+        let input = Self.input(groupId: groupId, name: name, state: AppState.shared)
+        let output = GroupDetailMapper.output(input, now: Date(), timeZone: .current)
         let _ = imagesSeeded
         // D17: the screen reads images only from Ui2ImageCache, so an image reaches it once cached
         // and its arrival changes the screen's input.
@@ -63,6 +63,10 @@ struct GroupDetailContainer: View {
                     onOpenMember: { row in
                         guard let member = output.member(atRow: row) else { return }
                         navigator.push(.memberDetail(id: member.id, name: member.name))
+                    },
+                    onOpenRequest: { row in
+                        guard input.requests.indices.contains(row) else { return }
+                        navigator.push(.requestDetail(id: input.requests[row].id))
                     },
                     // ui2-enrollment-create D2: Enrollments `add` → the checklist with this group preloaded.
                     onEnrollProgram: { EnrollEntry.open(groupId: groupId, studyProgramId: nil, push: navigator.push) },
@@ -300,15 +304,19 @@ struct GroupDetailContainer: View {
     @MainActor
     static func attempt(_ context: String, state: AppState? = nil, onUnauthorized: @MainActor () async -> Void,
                         _ work: @MainActor () async throws -> Void) async {
+        let state = state ?? .shared
+        let generation = state.initialLoad.generation
+        guard !Task.isCancelled else { return }
         do {
             try await work()
         } catch {
-            if GroupActions.isCancellation(error) { return }
+            // Silent: a retired load must not record or sign out the replacement identity.
+            guard state.initialLoad.isCurrent(generation), !Task.isCancelled, !GroupActions.isCancellation(error) else { return }
             if AuthStatusPolicy.shouldSignOut(after: error) {
                 await onUnauthorized()
                 return
             }
-            (state ?? .shared).recordError(error, context: "GroupDetailContainer.\(context)", surface: false)
+            state.recordError(error, context: "GroupDetailContainer.\(context)", surface: false)
         }
     }
 }

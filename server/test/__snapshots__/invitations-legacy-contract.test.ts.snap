@@ -1,0 +1,2272 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > embedded member confirmation and verification acceptance retain complete JSON 1`] = `
+{
+  "body": {
+    "alreadyMember": false,
+    "data": {
+      "address": null,
+      "birthday": null,
+      "createdAt": "2025-01-02T03:04:05.000Z",
+      "email": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "firstName": "Member 0",
+      "gender": null,
+      "googleEmail": null,
+      "googleId": null,
+      "googleLinkedAt": null,
+      "googlePicture": null,
+      "id": "a1100000-0000-4000-8000-000000000010",
+      "isActive": true,
+      "lastName": null,
+      "lastVerifiedAt": "<generated clock>",
+      "organizations": [],
+      "phoneNumber": "+12025550100",
+      "phoneVerified": true,
+      "profilePicture": null,
+      "profilePictureFraming": null,
+      "profilePictureOriginalUrl": null,
+      "smsConsent": false,
+      "smsConsentAt": null,
+      "updatedAt": "<generated clock>",
+      "userId": null,
+      "userLinkedAt": null,
+    },
+    "joinRequest": {
+      "createdAt": "2025-01-02T03:04:05.000Z",
+      "groupId": "a1100000-0000-4000-8000-000000000004",
+      "id": "a1100000-0000-4000-8000-000000000050",
+      "memberId": "a1100000-0000-4000-8000-000000000010",
+      "message": null,
+      "reviewedAt": null,
+      "reviewedById": null,
+      "status": "pending",
+      "updatedAt": "2025-03-01T00:00:00.000Z",
+    },
+    "message": "Phone verified successfully",
+    "success": true,
+    "wasNewRequest": false,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > embedded member confirmation and verification acceptance retain complete JSON 2`] = `
+{
+  "body": {
+    "alreadyMember": false,
+    "data": {
+      "address": null,
+      "birthday": null,
+      "createdAt": "2025-01-02T03:04:05.000Z",
+      "email": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "firstName": "Member 4",
+      "gender": null,
+      "googleEmail": null,
+      "googleId": null,
+      "googleLinkedAt": null,
+      "googlePicture": null,
+      "id": "a1100000-0000-4000-8000-000000000014",
+      "isActive": true,
+      "lastName": "Legacy",
+      "lastVerifiedAt": "<generated clock>",
+      "organizations": [],
+      "phoneNumber": "+12025550104",
+      "phoneVerified": true,
+      "profilePicture": null,
+      "profilePictureFraming": null,
+      "profilePictureOriginalUrl": null,
+      "smsConsent": false,
+      "smsConsentAt": null,
+      "updatedAt": "<generated clock>",
+      "userId": null,
+      "userLinkedAt": null,
+    },
+    "joinRequest": {
+      "createdAt": "<generated clock>",
+      "groupId": "a1100000-0000-4000-8000-000000000004",
+      "id": "<confirmedRequest.id>",
+      "memberId": "a1100000-0000-4000-8000-000000000014",
+      "message": null,
+      "reviewedAt": null,
+      "reviewedById": null,
+      "status": "pending",
+      "updatedAt": "<generated clock>",
+    },
+    "message": "Phone verified successfully",
+    "success": true,
+    "wasNewRequest": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > embedded member confirmation and verification acceptance retain complete JSON 3`] = `
+{
+  "body": {
+    "groupId": "a1100000-0000-4000-8000-000000000004",
+    "message": "Phone number verified successfully",
+    "success": true,
+    "userId": "a1100000-0000-4000-8000-000000000005",
+    "valid": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 1`] = `
+{
+  "body": {
+    "count": 7,
+    "invites": [
+      {
+        "code": "LEGACY0007",
+        "createdAt": "2025-01-02T03:04:12.000Z",
+        "expiresAt": "2099-01-01T00:00:00.000Z",
+        "groupId": "a1100000-0000-4000-8000-000000000004",
+        "groupName": "Legacy Group",
+        "id": "a1100000-0000-4000-8000-000000000037",
+        "recipientName": null,
+        "recipientPhone": "+12025550106",
+        "status": "pending",
+      },
+      {
+        "code": "LEGACY0005",
+        "createdAt": "2025-01-02T03:04:10.000Z",
+        "expiresAt": null,
+        "groupId": "a1100000-0000-4000-8000-000000000004",
+        "groupName": "Legacy Group",
+        "id": "a1100000-0000-4000-8000-000000000035",
+        "recipientName": null,
+        "recipientPhone": null,
+        "status": "pending",
+      },
+      {
+        "code": "LEGACY0004",
+        "createdAt": "2025-01-02T03:04:09.000Z",
+        "expiresAt": null,
+        "groupId": null,
+        "groupName": null,
+        "id": "a1100000-0000-4000-8000-000000000034",
+        "recipientName": "Recipient 4",
+        "recipientPhone": "+12025550204",
+        "status": "pending",
+      },
+      {
+        "code": "LEGACY0003",
+        "createdAt": "2025-01-02T03:04:08.000Z",
+        "expiresAt": "2020-01-01T00:00:00.000Z",
+        "groupId": "a1100000-0000-4000-8000-000000000004",
+        "groupName": "Legacy Group",
+        "id": "a1100000-0000-4000-8000-000000000033",
+        "recipientName": null,
+        "recipientPhone": "+12025550203",
+        "status": "pending",
+      },
+      {
+        "code": "LEGACY0002",
+        "createdAt": "2025-01-02T03:04:07.000Z",
+        "expiresAt": null,
+        "groupId": "a1100000-0000-4000-8000-000000000004",
+        "groupName": "Legacy Group",
+        "id": "a1100000-0000-4000-8000-000000000032",
+        "recipientName": "Recipient 2",
+        "recipientPhone": "+12025550202",
+        "status": "expired",
+      },
+      {
+        "code": "LEGACY0001",
+        "createdAt": "2025-01-02T03:04:06.000Z",
+        "expiresAt": "2099-01-01T00:00:00.000Z",
+        "groupId": "a1100000-0000-4000-8000-000000000004",
+        "groupName": "Legacy Group",
+        "id": "a1100000-0000-4000-8000-000000000031",
+        "recipientName": null,
+        "recipientPhone": "+12025550201",
+        "status": "accepted",
+      },
+      {
+        "code": "LEGACY0000",
+        "createdAt": "2025-01-02T03:04:05.000Z",
+        "expiresAt": "2099-01-01T00:00:00.000Z",
+        "groupId": "a1100000-0000-4000-8000-000000000004",
+        "groupName": "Legacy Group",
+        "id": "a1100000-0000-4000-8000-000000000030",
+        "recipientName": "Recipient 0",
+        "recipientPhone": "+12025550200",
+        "status": "pending",
+      },
+    ],
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 2`] = `
+{
+  "body": {
+    "count": 4,
+    "invites": [
+      {
+        "code": "LEGACY0007",
+        "createdAt": "2025-01-02T03:04:12.000Z",
+        "expiresAt": "2099-01-01T00:00:00.000Z",
+        "groupId": "a1100000-0000-4000-8000-000000000004",
+        "groupName": "Legacy Group",
+        "id": "a1100000-0000-4000-8000-000000000037",
+        "recipientName": null,
+        "recipientPhone": "+12025550106",
+        "status": "pending",
+      },
+      {
+        "code": "LEGACY0005",
+        "createdAt": "2025-01-02T03:04:10.000Z",
+        "expiresAt": null,
+        "groupId": "a1100000-0000-4000-8000-000000000004",
+        "groupName": "Legacy Group",
+        "id": "a1100000-0000-4000-8000-000000000035",
+        "recipientName": null,
+        "recipientPhone": null,
+        "status": "pending",
+      },
+      {
+        "code": "LEGACY0003",
+        "createdAt": "2025-01-02T03:04:08.000Z",
+        "expiresAt": "2020-01-01T00:00:00.000Z",
+        "groupId": "a1100000-0000-4000-8000-000000000004",
+        "groupName": "Legacy Group",
+        "id": "a1100000-0000-4000-8000-000000000033",
+        "recipientName": null,
+        "recipientPhone": "+12025550203",
+        "status": "pending",
+      },
+      {
+        "code": "LEGACY0000",
+        "createdAt": "2025-01-02T03:04:05.000Z",
+        "expiresAt": "2099-01-01T00:00:00.000Z",
+        "groupId": "a1100000-0000-4000-8000-000000000004",
+        "groupName": "Legacy Group",
+        "id": "a1100000-0000-4000-8000-000000000030",
+        "recipientName": "Recipient 0",
+        "recipientPhone": "+12025550200",
+        "status": "pending",
+      },
+    ],
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 3`] = `
+{
+  "body": {
+    "count": 1,
+    "invites": [
+      {
+        "code": "LEGACY0001",
+        "createdAt": "2025-01-02T03:04:06.000Z",
+        "expiresAt": "2099-01-01T00:00:00.000Z",
+        "groupId": "a1100000-0000-4000-8000-000000000004",
+        "groupName": "Legacy Group",
+        "id": "a1100000-0000-4000-8000-000000000031",
+        "recipientName": null,
+        "recipientPhone": "+12025550201",
+        "status": "accepted",
+      },
+    ],
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 4`] = `
+{
+  "body": {
+    "count": 1,
+    "invites": [
+      {
+        "code": "LEGACY0002",
+        "createdAt": "2025-01-02T03:04:07.000Z",
+        "expiresAt": null,
+        "groupId": "a1100000-0000-4000-8000-000000000004",
+        "groupName": "Legacy Group",
+        "id": "a1100000-0000-4000-8000-000000000032",
+        "recipientName": "Recipient 2",
+        "recipientPhone": "+12025550202",
+        "status": "expired",
+      },
+    ],
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 5`] = `
+{
+  "body": {
+    "count": 1,
+    "invites": [
+      {
+        "code": "LEGACY0006",
+        "createdAt": "2025-01-02T03:04:11.000Z",
+        "expiresAt": null,
+        "groupId": null,
+        "groupName": null,
+        "id": "a1100000-0000-4000-8000-000000000036",
+        "recipientName": "Recipient 6",
+        "recipientPhone": "+12025550206",
+        "status": "pending",
+      },
+    ],
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 6`] = `
+{
+  "body": {
+    "invite": {
+      "code": "<generic.token>",
+      "createdAt": "<generated clock>",
+      "expiresAt": null,
+      "groupId": null,
+      "id": "<generic.id>",
+      "userId": "a1100000-0000-4000-8000-000000000001",
+    },
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 7`] = `
+{
+  "body": {
+    "invite": {
+      "code": "<scoped.token>",
+      "createdAt": "<generated clock>",
+      "expiresAt": "2099-01-01T00:00:00.000Z",
+      "groupId": "a1100000-0000-4000-8000-000000000004",
+      "id": "<scoped.id>",
+      "userId": "a1100000-0000-4000-8000-000000000001",
+    },
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 8`] = `
+{
+  "body": {
+    "inviteId": "<sent.id>",
+    "inviteUrl": "http://127.0.0.1:1/join/group/LGACY1?invite=<sent.token>",
+    "message": "Invite sent successfully",
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 9`] = `
+{
+  "body": {
+    "invite": {
+      "code": "LEGACY0000",
+      "expiresAt": null,
+      "groupId": "a1100000-0000-4000-8000-000000000004",
+      "id": "a1100000-0000-4000-8000-000000000030",
+      "recipientName": "Recipient 0",
+      "status": "expired",
+    },
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 10`] = `
+{
+  "body": {
+    "invite": {
+      "code": "LEGACY0000",
+      "expiresAt": null,
+      "groupId": "a1100000-0000-4000-8000-000000000004",
+      "id": "a1100000-0000-4000-8000-000000000030",
+      "recipientName": "Recipient 0",
+      "status": "pending",
+    },
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 11`] = `
+{
+  "body": {
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 12`] = `
+{
+  "body": {
+    "count": 1,
+    "requests": [
+      {
+        "createdAt": "2025-01-02T03:04:05.000Z",
+        "id": "a1100000-0000-4000-8000-000000000050",
+        "member": {
+          "avatarUrl": null,
+          "firstName": "Member 0",
+          "id": "a1100000-0000-4000-8000-000000000010",
+          "lastName": null,
+        },
+        "message": null,
+        "status": "pending",
+      },
+    ],
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 13`] = `
+{
+  "body": {
+    "request": {
+      "createdAt": "2025-01-02T03:04:05.000Z",
+      "id": "a1100000-0000-4000-8000-000000000050",
+      "message": null,
+      "reviewedAt": null,
+      "status": "pending",
+    },
+    "status": "pending",
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 14`] = `
+{
+  "body": {
+    "group": {
+      "code": "LGACY1",
+      "coverImageUrl": null,
+      "createdAt": "2025-01-02T03:04:05.000Z",
+      "creator": {
+        "id": "a1100000-0000-4000-8000-000000000001",
+        "name": "Legacy Leader",
+        "picture": null,
+      },
+      "description": "A legacy group",
+      "id": "a1100000-0000-4000-8000-000000000004",
+      "isPrivate": false,
+      "memberCount": 0,
+      "name": "Legacy Group",
+      "organizationId": "a1100000-0000-4000-8000-000000000003",
+    },
+    "member": {
+      "firstName": "Member 0",
+      "id": "a1100000-0000-4000-8000-000000000010",
+      "lastName": null,
+      "phoneNumber": "+12025550100",
+    },
+    "membershipStatus": "pending",
+    "request": {
+      "createdAt": "2025-01-02T03:04:05.000Z",
+      "id": "a1100000-0000-4000-8000-000000000050",
+      "message": null,
+      "reviewedAt": null,
+      "status": "pending",
+    },
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 15`] = `
+{
+  "body": {
+    "count": 1,
+    "requests": [
+      {
+        "createdAt": "2025-01-02T03:04:06.000Z",
+        "id": "a1100000-0000-4000-8000-000000000051",
+        "member": {
+          "avatarUrl": null,
+          "firstName": "Member 1",
+          "id": "a1100000-0000-4000-8000-000000000011",
+          "lastName": "Legacy",
+        },
+        "message": "approved message",
+        "status": "approved",
+      },
+    ],
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 16`] = `
+{
+  "body": {
+    "request": {
+      "createdAt": "2025-01-02T03:04:06.000Z",
+      "id": "a1100000-0000-4000-8000-000000000051",
+      "message": "approved message",
+      "reviewedAt": "2025-02-02T00:00:00.000Z",
+      "status": "approved",
+    },
+    "status": "approved",
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 17`] = `
+{
+  "body": {
+    "group": {
+      "code": "LGACY1",
+      "coverImageUrl": null,
+      "createdAt": "2025-01-02T03:04:05.000Z",
+      "creator": {
+        "id": "a1100000-0000-4000-8000-000000000001",
+        "name": "Legacy Leader",
+        "picture": null,
+      },
+      "description": "A legacy group",
+      "id": "a1100000-0000-4000-8000-000000000004",
+      "isPrivate": false,
+      "memberCount": 0,
+      "name": "Legacy Group",
+      "organizationId": "a1100000-0000-4000-8000-000000000003",
+    },
+    "member": {
+      "firstName": "Member 1",
+      "id": "a1100000-0000-4000-8000-000000000011",
+      "lastName": "Legacy",
+      "phoneNumber": "+12025550101",
+    },
+    "membershipStatus": "approved",
+    "request": {
+      "createdAt": "2025-01-02T03:04:06.000Z",
+      "id": "a1100000-0000-4000-8000-000000000051",
+      "message": "approved message",
+      "reviewedAt": "2025-02-02T00:00:00.000Z",
+      "status": "approved",
+    },
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 18`] = `
+{
+  "body": {
+    "count": 1,
+    "requests": [
+      {
+        "createdAt": "2025-01-02T03:04:07.000Z",
+        "id": "a1100000-0000-4000-8000-000000000052",
+        "member": {
+          "avatarUrl": null,
+          "firstName": "Member 2",
+          "id": "a1100000-0000-4000-8000-000000000012",
+          "lastName": "Legacy",
+        },
+        "message": "rejected message",
+        "status": "rejected",
+      },
+    ],
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 19`] = `
+{
+  "body": {
+    "request": {
+      "createdAt": "2025-01-02T03:04:07.000Z",
+      "id": "a1100000-0000-4000-8000-000000000052",
+      "message": "rejected message",
+      "reviewedAt": "2025-02-02T00:00:00.000Z",
+      "status": "rejected",
+    },
+    "status": "rejected",
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 20`] = `
+{
+  "body": {
+    "group": {
+      "code": "LGACY1",
+      "coverImageUrl": null,
+      "createdAt": "2025-01-02T03:04:05.000Z",
+      "creator": {
+        "id": "a1100000-0000-4000-8000-000000000001",
+        "name": "Legacy Leader",
+        "picture": null,
+      },
+      "description": "A legacy group",
+      "id": "a1100000-0000-4000-8000-000000000004",
+      "isPrivate": false,
+      "memberCount": 0,
+      "name": "Legacy Group",
+      "organizationId": "a1100000-0000-4000-8000-000000000003",
+    },
+    "member": {
+      "firstName": "Member 2",
+      "id": "a1100000-0000-4000-8000-000000000012",
+      "lastName": "Legacy",
+      "phoneNumber": "+12025550102",
+    },
+    "membershipStatus": "rejected",
+    "request": {
+      "createdAt": "2025-01-02T03:04:07.000Z",
+      "id": "a1100000-0000-4000-8000-000000000052",
+      "message": "rejected message",
+      "reviewedAt": "2025-02-02T00:00:00.000Z",
+      "status": "rejected",
+    },
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 21`] = `
+{
+  "body": {
+    "count": 1,
+    "requests": [
+      {
+        "createdAt": "2025-01-02T03:04:05.000Z",
+        "group": {
+          "code": "LGACY1",
+          "id": "a1100000-0000-4000-8000-000000000004",
+          "name": "Legacy Group",
+        },
+        "groupId": "a1100000-0000-4000-8000-000000000004",
+        "id": "a1100000-0000-4000-8000-000000000050",
+        "member": {
+          "firstName": "Member 0",
+          "id": "a1100000-0000-4000-8000-000000000010",
+          "lastName": null,
+          "phoneNumber": "+12025550100",
+        },
+        "memberId": "a1100000-0000-4000-8000-000000000010",
+        "message": null,
+        "reviewedAt": null,
+        "reviewedById": null,
+        "status": "pending",
+        "updatedAt": "2025-03-01T00:00:00.000Z",
+      },
+    ],
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 22`] = `
+{
+  "body": {
+    "count": 1,
+    "requests": [
+      {
+        "createdAt": "2025-01-02T03:04:06.000Z",
+        "group": {
+          "code": "LGACY1",
+          "id": "a1100000-0000-4000-8000-000000000004",
+          "name": "Legacy Group",
+        },
+        "groupId": "a1100000-0000-4000-8000-000000000004",
+        "id": "a1100000-0000-4000-8000-000000000051",
+        "member": {
+          "firstName": "Member 1",
+          "id": "a1100000-0000-4000-8000-000000000011",
+          "lastName": "Legacy",
+          "phoneNumber": "+12025550101",
+        },
+        "memberId": "a1100000-0000-4000-8000-000000000011",
+        "message": "approved message",
+        "reviewedAt": "2025-02-02T00:00:00.000Z",
+        "reviewedById": "a1100000-0000-4000-8000-000000000001",
+        "status": "approved",
+        "updatedAt": "2025-03-01T00:00:00.000Z",
+      },
+    ],
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 23`] = `
+{
+  "body": {
+    "count": 1,
+    "requests": [
+      {
+        "createdAt": "2025-01-02T03:04:07.000Z",
+        "group": {
+          "code": "LGACY1",
+          "id": "a1100000-0000-4000-8000-000000000004",
+          "name": "Legacy Group",
+        },
+        "groupId": "a1100000-0000-4000-8000-000000000004",
+        "id": "a1100000-0000-4000-8000-000000000052",
+        "member": {
+          "firstName": "Member 2",
+          "id": "a1100000-0000-4000-8000-000000000012",
+          "lastName": "Legacy",
+          "phoneNumber": "+12025550102",
+        },
+        "memberId": "a1100000-0000-4000-8000-000000000012",
+        "message": "rejected message",
+        "reviewedAt": "2025-02-02T00:00:00.000Z",
+        "reviewedById": "a1100000-0000-4000-8000-000000000001",
+        "status": "rejected",
+        "updatedAt": "2025-03-01T00:00:00.000Z",
+      },
+    ],
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 24`] = `
+{
+  "body": {
+    "status": "none",
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 25`] = `
+{
+  "body": {
+    "request": {
+      "createdAt": "<generated clock>",
+      "groupId": "a1100000-0000-4000-8000-000000000004",
+      "id": "<submitted.id>",
+      "message": "Please let me join",
+      "status": "pending",
+    },
+    "success": true,
+  },
+  "status": 201,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 26`] = `
+{
+  "body": {
+    "error": "You already have a pending request for this group",
+    "success": false,
+  },
+  "status": 400,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 27`] = `
+{
+  "body": {
+    "member": {
+      "firstName": "Member 0",
+      "id": "a1100000-0000-4000-8000-000000000010",
+      "lastName": null,
+    },
+    "request": {
+      "id": "a1100000-0000-4000-8000-000000000050",
+      "reviewedAt": "<generated clock>",
+      "status": "approved",
+    },
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 28`] = `
+{
+  "body": {
+    "count": 2,
+    "requests": [
+      {
+        "createdAt": "2025-01-02T03:04:06.000Z",
+        "group": {
+          "code": "LGACY1",
+          "id": "a1100000-0000-4000-8000-000000000004",
+          "name": "Legacy Group",
+        },
+        "groupId": "a1100000-0000-4000-8000-000000000004",
+        "id": "a1100000-0000-4000-8000-000000000051",
+        "member": {
+          "firstName": "Member 1",
+          "id": "a1100000-0000-4000-8000-000000000011",
+          "lastName": "Legacy",
+          "phoneNumber": "+12025550101",
+        },
+        "memberId": "a1100000-0000-4000-8000-000000000011",
+        "message": "approved message",
+        "reviewedAt": "2025-02-02T00:00:00.000Z",
+        "reviewedById": "a1100000-0000-4000-8000-000000000001",
+        "status": "approved",
+        "updatedAt": "2025-03-01T00:00:00.000Z",
+      },
+      {
+        "createdAt": "2025-01-02T03:04:05.000Z",
+        "group": {
+          "code": "LGACY1",
+          "id": "a1100000-0000-4000-8000-000000000004",
+          "name": "Legacy Group",
+        },
+        "groupId": "a1100000-0000-4000-8000-000000000004",
+        "id": "a1100000-0000-4000-8000-000000000050",
+        "member": {
+          "firstName": "Member 0",
+          "id": "a1100000-0000-4000-8000-000000000010",
+          "lastName": null,
+          "phoneNumber": "+12025550100",
+        },
+        "memberId": "a1100000-0000-4000-8000-000000000010",
+        "message": null,
+        "reviewedAt": "<generated clock>",
+        "reviewedById": "a1100000-0000-4000-8000-000000000001",
+        "status": "approved",
+        "updatedAt": "<generated clock>",
+      },
+    ],
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 29`] = `
+{
+  "body": {
+    "membership": {
+      "groupName": "Legacy Group",
+      "id": "<membership.id>",
+      "joinedAt": "<generated clock>",
+      "role": "member",
+    },
+    "status": "member",
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 30`] = `
+{
+  "body": {
+    "group": {
+      "code": "LGACY1",
+      "coverImageUrl": null,
+      "createdAt": "2025-01-02T03:04:05.000Z",
+      "creator": {
+        "id": "a1100000-0000-4000-8000-000000000001",
+        "name": "Legacy Leader",
+        "picture": null,
+      },
+      "description": "A legacy group",
+      "id": "a1100000-0000-4000-8000-000000000004",
+      "isPrivate": false,
+      "memberCount": 1,
+      "name": "Legacy Group",
+      "organizationId": "a1100000-0000-4000-8000-000000000003",
+    },
+    "member": {
+      "firstName": "Member 0",
+      "id": "a1100000-0000-4000-8000-000000000010",
+      "lastName": null,
+      "phoneNumber": "+12025550100",
+    },
+    "membership": {
+      "groupName": "Legacy Group",
+      "id": "<membership.id>",
+      "joinedAt": "<generated clock>",
+      "role": "member",
+    },
+    "membershipStatus": "member",
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 31`] = `
+{
+  "body": {
+    "error": "You are already a member of this group",
+    "success": false,
+  },
+  "status": 400,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > legacy contracts capture complete bodies 32`] = `
+{
+  "body": {
+    "request": {
+      "id": "<submitted.id>",
+      "reviewedAt": "<generated clock>",
+      "status": "rejected",
+    },
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > original unauthorized and forbidden HTTP envelopes remain exact 1`] = `
+{
+  "body": {
+    "error": "Authentication required",
+    "success": false,
+  },
+  "status": 401,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > original unauthorized and forbidden HTTP envelopes remain exact 2`] = `
+{
+  "body": {
+    "error": "Authentication required",
+    "success": false,
+  },
+  "status": 401,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > original unauthorized and forbidden HTTP envelopes remain exact 3`] = `
+{
+  "body": {
+    "error": "Authentication required",
+    "success": false,
+  },
+  "status": 401,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > original unauthorized and forbidden HTTP envelopes remain exact 4`] = `
+{
+  "body": {
+    "error": "Authentication required",
+    "success": false,
+  },
+  "status": 401,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > original unauthorized and forbidden HTTP envelopes remain exact 5`] = `
+{
+  "body": {
+    "error": "Authentication required",
+    "success": false,
+  },
+  "status": 401,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > original unauthorized and forbidden HTTP envelopes remain exact 6`] = `
+{
+  "body": {
+    "error": "Member not authenticated",
+    "success": false,
+  },
+  "status": 401,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > original unauthorized and forbidden HTTP envelopes remain exact 7`] = `
+{
+  "body": {
+    "error": "Member not authenticated",
+    "success": false,
+  },
+  "status": 401,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > original unauthorized and forbidden HTTP envelopes remain exact 8`] = `
+{
+  "body": {
+    "error": "Not authenticated",
+    "success": false,
+  },
+  "status": 401,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > original unauthorized and forbidden HTTP envelopes remain exact 9`] = `
+{
+  "body": {
+    "error": "Not authenticated",
+    "success": false,
+  },
+  "status": 401,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > original unauthorized and forbidden HTTP envelopes remain exact 10`] = `
+{
+  "body": {
+    "error": "Not authenticated",
+    "success": false,
+  },
+  "status": 401,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > original unauthorized and forbidden HTTP envelopes remain exact 11`] = `
+{
+  "body": {
+    "error": "Not authenticated",
+    "success": false,
+  },
+  "status": 401,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > original unauthorized and forbidden HTTP envelopes remain exact 12`] = `
+{
+  "body": {
+    "error": "Not authorized to send invites for this group",
+    "success": false,
+  },
+  "status": 403,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > original unauthorized and forbidden HTTP envelopes remain exact 13`] = `
+{
+  "body": {
+    "error": "Not authorized to send invites for this group",
+    "success": false,
+  },
+  "status": 403,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > original unauthorized and forbidden HTTP envelopes remain exact 14`] = `
+{
+  "body": {
+    "error": "Not authorized to update this invite",
+    "success": false,
+  },
+  "status": 403,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > original unauthorized and forbidden HTTP envelopes remain exact 15`] = `
+{
+  "body": {
+    "error": "Not authorized to delete this invite",
+    "success": false,
+  },
+  "status": 403,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > original unauthorized and forbidden HTTP envelopes remain exact 16`] = `
+{
+  "body": {
+    "error": "Group not found or you cannot manage this group",
+    "success": false,
+  },
+  "status": 404,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > original unauthorized and forbidden HTTP envelopes remain exact 17`] = `
+{
+  "body": {
+    "error": "Group not found or you cannot manage this group",
+    "success": false,
+  },
+  "status": 404,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > original unauthorized and forbidden HTTP envelopes remain exact 18`] = `
+{
+  "body": {
+    "error": "Group not found or you cannot manage this group",
+    "success": false,
+  },
+  "status": 404,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > original unauthorized and forbidden HTTP envelopes remain exact 19`] = `
+{
+  "body": {
+    "error": "Forbidden",
+    "success": false,
+  },
+  "status": 403,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > pending invite auto-join and optional send-name envelopes retain complete JSON 1`] = `
+{
+  "body": {
+    "status": "joined",
+    "success": true,
+  },
+  "status": 201,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > pending invite auto-join and optional send-name envelopes retain complete JSON 2`] = `
+{
+  "body": {
+    "inviteId": "<unnamedSent.id>",
+    "inviteUrl": "http://127.0.0.1:1/join/group/LGACY1?invite=<unnamedSent.token>",
+    "message": "Invite sent successfully",
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > pending invite auto-join and optional send-name envelopes retain complete JSON 3`] = `
+{
+  "body": {
+    "error": "Mock campaign rejected",
+    "success": false,
+  },
+  "status": 400,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > public token data stays whitelisted and landing HTML stays complete 1`] = `
+{
+  "body": {
+    "invite": {
+      "expiresAt": "2099-01-01T00:00:00.000Z",
+      "group": {
+        "description": "A legacy group",
+        "id": "a1100000-0000-4000-8000-000000000004",
+        "name": "Legacy Group",
+      },
+      "id": "a1100000-0000-4000-8000-000000000030",
+      "inviter": {
+        "id": "a1100000-0000-4000-8000-000000000001",
+        "name": "Legacy Leader",
+        "picture": null,
+      },
+      "recipientPhone": "+12025550200",
+      "token": "LEGACY0000",
+    },
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > public token data stays whitelisted and landing HTML stays complete 2`] = `
+{
+  "contentType": "text/html",
+  "html": "<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join Legacy Group on MakeReady</title>
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="http://127.0.0.1:1/join/group/LGACY1?invite=LEGACY0000">
+  <meta property="og:title" content="Join Legacy Group on MakeReady">
+  <meta property="og:description" content="Legacy Leader invited you to join Legacy Group. Tap to accept your invitation.">
+  <meta property="og:image" content="http://127.0.0.1:1/og-default.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:site_name" content="MakeReady">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Join Legacy Group on MakeReady">
+  <meta name="twitter:description" content="Legacy Leader invited you to join Legacy Group. Tap to accept your invitation.">
+  <meta name="twitter:image" content="http://127.0.0.1:1/og-default.png">
+
+  <!-- Apple / iMessage -->
+  <meta name="apple-mobile-web-app-title" content="MakeReady">
+  <link rel="apple-touch-icon" href="http://127.0.0.1:1/apple-touch-icon.png">
+
+  <!-- Redirect to client app -->
+  <meta http-equiv="refresh" content="0;url=http://127.0.0.1:1/join/group/LGACY1?invite=LEGACY0000">
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #0d101a;
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      text-align: center;
+    }
+    .container { max-width: 400px; width: 100%; }
+    .logo {
+      width: 80px; height: 80px;
+      background: linear-gradient(135deg, #6c47ff, #9747ff);
+      border-radius: 20px;
+      margin: 0 auto 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .cover-image {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem; }
+    p { color: rgba(255,255,255,0.7); font-size: 1rem; line-height: 1.5; margin-bottom: 1.5rem; }
+    .button {
+      display: inline-block;
+      background: #6c47ff;
+      color: white;
+      text-decoration: none;
+      padding: 1rem 2rem;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 1rem;
+      transition: background 0.2s;
+    }
+    .button:hover { background: #5a3dd6; }
+    .redirect-text { margin-top: 1.5rem; font-size: 0.875rem; color: rgba(255,255,255,0.5); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    </div>
+    <h1>Join Legacy Group</h1>
+    <p>Legacy Leader invited you to join this group.</p>
+    <a href="http://127.0.0.1:1/join/group/LGACY1?invite=LEGACY0000" class="button">Join Group</a>
+    <p class="redirect-text">Redirecting you automatically...</p>
+  </div>
+  <script>window.location.href = 'http://127.0.0.1:1/join/group/LGACY1?invite=LEGACY0000';</script>
+</body>
+</html>",
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > public token data stays whitelisted and landing HTML stays complete 3`] = `
+{
+  "body": {
+    "error": "Invite not found or expired",
+    "success": false,
+  },
+  "status": 404,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > public token data stays whitelisted and landing HTML stays complete 4`] = `
+{
+  "contentType": "text/html",
+  "html": "<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join on MakeReady</title>
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="http://127.0.0.1:1/join/group/LGACY1?invite=LEGACY0001">
+  <meta property="og:title" content="Join on MakeReady">
+  <meta property="og:description" content="You&#039;ve been invited to join a group on MakeReady.">
+  <meta property="og:image" content="http://127.0.0.1:1/og-default.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:site_name" content="MakeReady">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Join on MakeReady">
+  <meta name="twitter:description" content="You&#039;ve been invited to join a group on MakeReady.">
+  <meta name="twitter:image" content="http://127.0.0.1:1/og-default.png">
+
+  <!-- Apple / iMessage -->
+  <meta name="apple-mobile-web-app-title" content="MakeReady">
+  <link rel="apple-touch-icon" href="http://127.0.0.1:1/apple-touch-icon.png">
+
+  <!-- Redirect to client app -->
+  <meta http-equiv="refresh" content="0;url=http://127.0.0.1:1/join/group/LGACY1?invite=LEGACY0001">
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #0d101a;
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      text-align: center;
+    }
+    .container { max-width: 400px; width: 100%; }
+    .logo {
+      width: 80px; height: 80px;
+      background: linear-gradient(135deg, #6c47ff, #9747ff);
+      border-radius: 20px;
+      margin: 0 auto 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .cover-image {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem; }
+    p { color: rgba(255,255,255,0.7); font-size: 1rem; line-height: 1.5; margin-bottom: 1.5rem; }
+    .button {
+      display: inline-block;
+      background: #6c47ff;
+      color: white;
+      text-decoration: none;
+      padding: 1rem 2rem;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 1rem;
+      transition: background 0.2s;
+    }
+    .button:hover { background: #5a3dd6; }
+    .redirect-text { margin-top: 1.5rem; font-size: 0.875rem; color: rgba(255,255,255,0.5); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    </div>
+    <h1>Invite Not Found</h1>
+    <p>This invite link is invalid or has expired.</p>
+    <a href="http://127.0.0.1:1" class="button">Go to MakeReady</a>
+    <p class="redirect-text">Redirecting you automatically...</p>
+  </div>
+  <script>window.location.href = 'http://127.0.0.1:1/join/group/LGACY1?invite=LEGACY0001';</script>
+</body>
+</html>",
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > public token data stays whitelisted and landing HTML stays complete 5`] = `
+{
+  "body": {
+    "invite": {
+      "expiresAt": null,
+      "group": {
+        "description": "A legacy group",
+        "id": "a1100000-0000-4000-8000-000000000004",
+        "name": "Legacy Group",
+      },
+      "id": "a1100000-0000-4000-8000-000000000032",
+      "inviter": {
+        "id": "a1100000-0000-4000-8000-000000000001",
+        "name": "Legacy Leader",
+        "picture": null,
+      },
+      "recipientPhone": "+12025550202",
+      "token": "LEGACY0002",
+    },
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > public token data stays whitelisted and landing HTML stays complete 6`] = `
+{
+  "contentType": "text/html",
+  "html": "<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join on MakeReady</title>
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="http://127.0.0.1:1/join/group/LGACY1?invite=LEGACY0002">
+  <meta property="og:title" content="Join on MakeReady">
+  <meta property="og:description" content="You&#039;ve been invited to join a group on MakeReady.">
+  <meta property="og:image" content="http://127.0.0.1:1/og-default.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:site_name" content="MakeReady">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Join on MakeReady">
+  <meta name="twitter:description" content="You&#039;ve been invited to join a group on MakeReady.">
+  <meta name="twitter:image" content="http://127.0.0.1:1/og-default.png">
+
+  <!-- Apple / iMessage -->
+  <meta name="apple-mobile-web-app-title" content="MakeReady">
+  <link rel="apple-touch-icon" href="http://127.0.0.1:1/apple-touch-icon.png">
+
+  <!-- Redirect to client app -->
+  <meta http-equiv="refresh" content="0;url=http://127.0.0.1:1/join/group/LGACY1?invite=LEGACY0002">
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #0d101a;
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      text-align: center;
+    }
+    .container { max-width: 400px; width: 100%; }
+    .logo {
+      width: 80px; height: 80px;
+      background: linear-gradient(135deg, #6c47ff, #9747ff);
+      border-radius: 20px;
+      margin: 0 auto 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .cover-image {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem; }
+    p { color: rgba(255,255,255,0.7); font-size: 1rem; line-height: 1.5; margin-bottom: 1.5rem; }
+    .button {
+      display: inline-block;
+      background: #6c47ff;
+      color: white;
+      text-decoration: none;
+      padding: 1rem 2rem;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 1rem;
+      transition: background 0.2s;
+    }
+    .button:hover { background: #5a3dd6; }
+    .redirect-text { margin-top: 1.5rem; font-size: 0.875rem; color: rgba(255,255,255,0.5); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    </div>
+    <h1>Invite Not Found</h1>
+    <p>This invite link is invalid or has expired.</p>
+    <a href="http://127.0.0.1:1" class="button">Go to MakeReady</a>
+    <p class="redirect-text">Redirecting you automatically...</p>
+  </div>
+  <script>window.location.href = 'http://127.0.0.1:1/join/group/LGACY1?invite=LEGACY0002';</script>
+</body>
+</html>",
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > public token data stays whitelisted and landing HTML stays complete 7`] = `
+{
+  "body": {
+    "error": "Invite not found or expired",
+    "success": false,
+  },
+  "status": 404,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > public token data stays whitelisted and landing HTML stays complete 8`] = `
+{
+  "contentType": "text/html",
+  "html": "<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join on MakeReady</title>
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="http://127.0.0.1:1/join/group/LGACY1?invite=LEGACY0003">
+  <meta property="og:title" content="Join on MakeReady">
+  <meta property="og:description" content="You&#039;ve been invited to join a group on MakeReady.">
+  <meta property="og:image" content="http://127.0.0.1:1/og-default.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:site_name" content="MakeReady">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Join on MakeReady">
+  <meta name="twitter:description" content="You&#039;ve been invited to join a group on MakeReady.">
+  <meta name="twitter:image" content="http://127.0.0.1:1/og-default.png">
+
+  <!-- Apple / iMessage -->
+  <meta name="apple-mobile-web-app-title" content="MakeReady">
+  <link rel="apple-touch-icon" href="http://127.0.0.1:1/apple-touch-icon.png">
+
+  <!-- Redirect to client app -->
+  <meta http-equiv="refresh" content="0;url=http://127.0.0.1:1/join/group/LGACY1?invite=LEGACY0003">
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #0d101a;
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      text-align: center;
+    }
+    .container { max-width: 400px; width: 100%; }
+    .logo {
+      width: 80px; height: 80px;
+      background: linear-gradient(135deg, #6c47ff, #9747ff);
+      border-radius: 20px;
+      margin: 0 auto 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .cover-image {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem; }
+    p { color: rgba(255,255,255,0.7); font-size: 1rem; line-height: 1.5; margin-bottom: 1.5rem; }
+    .button {
+      display: inline-block;
+      background: #6c47ff;
+      color: white;
+      text-decoration: none;
+      padding: 1rem 2rem;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 1rem;
+      transition: background 0.2s;
+    }
+    .button:hover { background: #5a3dd6; }
+    .redirect-text { margin-top: 1.5rem; font-size: 0.875rem; color: rgba(255,255,255,0.5); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    </div>
+    <h1>Invite Not Found</h1>
+    <p>This invite link is invalid or has expired.</p>
+    <a href="http://127.0.0.1:1" class="button">Go to MakeReady</a>
+    <p class="redirect-text">Redirecting you automatically...</p>
+  </div>
+  <script>window.location.href = 'http://127.0.0.1:1/join/group/LGACY1?invite=LEGACY0003';</script>
+</body>
+</html>",
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > public token data stays whitelisted and landing HTML stays complete 9`] = `
+{
+  "body": {
+    "invite": {
+      "expiresAt": null,
+      "group": null,
+      "id": "a1100000-0000-4000-8000-000000000034",
+      "inviter": {
+        "id": "a1100000-0000-4000-8000-000000000001",
+        "name": "Legacy Leader",
+        "picture": null,
+      },
+      "recipientPhone": "+12025550204",
+      "token": "LEGACY0004",
+    },
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > public token data stays whitelisted and landing HTML stays complete 10`] = `
+{
+  "contentType": "text/html",
+  "html": "<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join MakeReady Group on MakeReady</title>
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="http://127.0.0.1:1/join/group?invite=LEGACY0004">
+  <meta property="og:title" content="Join MakeReady Group on MakeReady">
+  <meta property="og:description" content="Legacy Leader invited you to join MakeReady Group. Tap to accept your invitation.">
+  <meta property="og:image" content="http://127.0.0.1:1/og-default.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:site_name" content="MakeReady">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Join MakeReady Group on MakeReady">
+  <meta name="twitter:description" content="Legacy Leader invited you to join MakeReady Group. Tap to accept your invitation.">
+  <meta name="twitter:image" content="http://127.0.0.1:1/og-default.png">
+
+  <!-- Apple / iMessage -->
+  <meta name="apple-mobile-web-app-title" content="MakeReady">
+  <link rel="apple-touch-icon" href="http://127.0.0.1:1/apple-touch-icon.png">
+
+  <!-- Redirect to client app -->
+  <meta http-equiv="refresh" content="0;url=http://127.0.0.1:1/join/group?invite=LEGACY0004">
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #0d101a;
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      text-align: center;
+    }
+    .container { max-width: 400px; width: 100%; }
+    .logo {
+      width: 80px; height: 80px;
+      background: linear-gradient(135deg, #6c47ff, #9747ff);
+      border-radius: 20px;
+      margin: 0 auto 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .cover-image {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem; }
+    p { color: rgba(255,255,255,0.7); font-size: 1rem; line-height: 1.5; margin-bottom: 1.5rem; }
+    .button {
+      display: inline-block;
+      background: #6c47ff;
+      color: white;
+      text-decoration: none;
+      padding: 1rem 2rem;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 1rem;
+      transition: background 0.2s;
+    }
+    .button:hover { background: #5a3dd6; }
+    .redirect-text { margin-top: 1.5rem; font-size: 0.875rem; color: rgba(255,255,255,0.5); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    </div>
+    <h1>Join MakeReady Group</h1>
+    <p>Legacy Leader invited you to join this group.</p>
+    <a href="http://127.0.0.1:1/join/group?invite=LEGACY0004" class="button">Join Group</a>
+    <p class="redirect-text">Redirecting you automatically...</p>
+  </div>
+  <script>window.location.href = 'http://127.0.0.1:1/join/group?invite=LEGACY0004';</script>
+</body>
+</html>",
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > public token data stays whitelisted and landing HTML stays complete 11`] = `
+{
+  "body": {
+    "invite": {
+      "expiresAt": null,
+      "group": {
+        "description": "A legacy group",
+        "id": "a1100000-0000-4000-8000-000000000004",
+        "name": "Legacy Group",
+      },
+      "id": "a1100000-0000-4000-8000-000000000035",
+      "inviter": {
+        "id": "a1100000-0000-4000-8000-000000000001",
+        "name": "Legacy Leader",
+        "picture": null,
+      },
+      "recipientPhone": null,
+      "token": "LEGACY0005",
+    },
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > public token data stays whitelisted and landing HTML stays complete 12`] = `
+{
+  "contentType": "text/html",
+  "html": "<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join Legacy Group on MakeReady</title>
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="http://127.0.0.1:1/join/group/LGACY1?invite=LEGACY0005">
+  <meta property="og:title" content="Join Legacy Group on MakeReady">
+  <meta property="og:description" content="Legacy Leader invited you to join Legacy Group. Tap to accept your invitation.">
+  <meta property="og:image" content="http://127.0.0.1:1/og-default.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:site_name" content="MakeReady">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Join Legacy Group on MakeReady">
+  <meta name="twitter:description" content="Legacy Leader invited you to join Legacy Group. Tap to accept your invitation.">
+  <meta name="twitter:image" content="http://127.0.0.1:1/og-default.png">
+
+  <!-- Apple / iMessage -->
+  <meta name="apple-mobile-web-app-title" content="MakeReady">
+  <link rel="apple-touch-icon" href="http://127.0.0.1:1/apple-touch-icon.png">
+
+  <!-- Redirect to client app -->
+  <meta http-equiv="refresh" content="0;url=http://127.0.0.1:1/join/group/LGACY1?invite=LEGACY0005">
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #0d101a;
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      text-align: center;
+    }
+    .container { max-width: 400px; width: 100%; }
+    .logo {
+      width: 80px; height: 80px;
+      background: linear-gradient(135deg, #6c47ff, #9747ff);
+      border-radius: 20px;
+      margin: 0 auto 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .cover-image {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem; }
+    p { color: rgba(255,255,255,0.7); font-size: 1rem; line-height: 1.5; margin-bottom: 1.5rem; }
+    .button {
+      display: inline-block;
+      background: #6c47ff;
+      color: white;
+      text-decoration: none;
+      padding: 1rem 2rem;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 1rem;
+      transition: background 0.2s;
+    }
+    .button:hover { background: #5a3dd6; }
+    .redirect-text { margin-top: 1.5rem; font-size: 0.875rem; color: rgba(255,255,255,0.5); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    </div>
+    <h1>Join Legacy Group</h1>
+    <p>Legacy Leader invited you to join this group.</p>
+    <a href="http://127.0.0.1:1/join/group/LGACY1?invite=LEGACY0005" class="button">Join Group</a>
+    <p class="redirect-text">Redirecting you automatically...</p>
+  </div>
+  <script>window.location.href = 'http://127.0.0.1:1/join/group/LGACY1?invite=LEGACY0005';</script>
+</body>
+</html>",
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > public token data stays whitelisted and landing HTML stays complete 13`] = `
+{
+  "body": {
+    "invite": {
+      "expiresAt": null,
+      "group": null,
+      "id": "a1100000-0000-4000-8000-000000000036",
+      "inviter": {
+        "id": "a1100000-0000-4000-8000-000000000002",
+        "name": "Outsider",
+        "picture": null,
+      },
+      "recipientPhone": "+12025550206",
+      "token": "LEGACY0006",
+    },
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > public token data stays whitelisted and landing HTML stays complete 14`] = `
+{
+  "contentType": "text/html",
+  "html": "<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join MakeReady Group on MakeReady</title>
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="http://127.0.0.1:1/join/group?invite=LEGACY0006">
+  <meta property="og:title" content="Join MakeReady Group on MakeReady">
+  <meta property="og:description" content="Outsider invited you to join MakeReady Group. Tap to accept your invitation.">
+  <meta property="og:image" content="http://127.0.0.1:1/og-default.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:site_name" content="MakeReady">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Join MakeReady Group on MakeReady">
+  <meta name="twitter:description" content="Outsider invited you to join MakeReady Group. Tap to accept your invitation.">
+  <meta name="twitter:image" content="http://127.0.0.1:1/og-default.png">
+
+  <!-- Apple / iMessage -->
+  <meta name="apple-mobile-web-app-title" content="MakeReady">
+  <link rel="apple-touch-icon" href="http://127.0.0.1:1/apple-touch-icon.png">
+
+  <!-- Redirect to client app -->
+  <meta http-equiv="refresh" content="0;url=http://127.0.0.1:1/join/group?invite=LEGACY0006">
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #0d101a;
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      text-align: center;
+    }
+    .container { max-width: 400px; width: 100%; }
+    .logo {
+      width: 80px; height: 80px;
+      background: linear-gradient(135deg, #6c47ff, #9747ff);
+      border-radius: 20px;
+      margin: 0 auto 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .cover-image {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem; }
+    p { color: rgba(255,255,255,0.7); font-size: 1rem; line-height: 1.5; margin-bottom: 1.5rem; }
+    .button {
+      display: inline-block;
+      background: #6c47ff;
+      color: white;
+      text-decoration: none;
+      padding: 1rem 2rem;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 1rem;
+      transition: background 0.2s;
+    }
+    .button:hover { background: #5a3dd6; }
+    .redirect-text { margin-top: 1.5rem; font-size: 0.875rem; color: rgba(255,255,255,0.5); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    </div>
+    <h1>Join MakeReady Group</h1>
+    <p>Outsider invited you to join this group.</p>
+    <a href="http://127.0.0.1:1/join/group?invite=LEGACY0006" class="button">Join Group</a>
+    <p class="redirect-text">Redirecting you automatically...</p>
+  </div>
+  <script>window.location.href = 'http://127.0.0.1:1/join/group?invite=LEGACY0006';</script>
+</body>
+</html>",
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > public token data stays whitelisted and landing HTML stays complete 15`] = `
+{
+  "body": {
+    "invite": {
+      "expiresAt": "2099-01-01T00:00:00.000Z",
+      "group": {
+        "description": "A legacy group",
+        "id": "a1100000-0000-4000-8000-000000000004",
+        "name": "Legacy Group",
+      },
+      "id": "a1100000-0000-4000-8000-000000000037",
+      "inviter": {
+        "id": "a1100000-0000-4000-8000-000000000001",
+        "name": "Legacy Leader",
+        "picture": null,
+      },
+      "recipientPhone": "+12025550106",
+      "token": "LEGACY0007",
+    },
+    "success": true,
+  },
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > public token data stays whitelisted and landing HTML stays complete 16`] = `
+{
+  "contentType": "text/html",
+  "html": "<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join Legacy Group on MakeReady</title>
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="http://127.0.0.1:1/join/group/LGACY1?invite=LEGACY0007">
+  <meta property="og:title" content="Join Legacy Group on MakeReady">
+  <meta property="og:description" content="Legacy Leader invited you to join Legacy Group. Tap to accept your invitation.">
+  <meta property="og:image" content="http://127.0.0.1:1/og-default.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:site_name" content="MakeReady">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Join Legacy Group on MakeReady">
+  <meta name="twitter:description" content="Legacy Leader invited you to join Legacy Group. Tap to accept your invitation.">
+  <meta name="twitter:image" content="http://127.0.0.1:1/og-default.png">
+
+  <!-- Apple / iMessage -->
+  <meta name="apple-mobile-web-app-title" content="MakeReady">
+  <link rel="apple-touch-icon" href="http://127.0.0.1:1/apple-touch-icon.png">
+
+  <!-- Redirect to client app -->
+  <meta http-equiv="refresh" content="0;url=http://127.0.0.1:1/join/group/LGACY1?invite=LEGACY0007">
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #0d101a;
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      text-align: center;
+    }
+    .container { max-width: 400px; width: 100%; }
+    .logo {
+      width: 80px; height: 80px;
+      background: linear-gradient(135deg, #6c47ff, #9747ff);
+      border-radius: 20px;
+      margin: 0 auto 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .cover-image {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem; }
+    p { color: rgba(255,255,255,0.7); font-size: 1rem; line-height: 1.5; margin-bottom: 1.5rem; }
+    .button {
+      display: inline-block;
+      background: #6c47ff;
+      color: white;
+      text-decoration: none;
+      padding: 1rem 2rem;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 1rem;
+      transition: background 0.2s;
+    }
+    .button:hover { background: #5a3dd6; }
+    .redirect-text { margin-top: 1.5rem; font-size: 0.875rem; color: rgba(255,255,255,0.5); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    </div>
+    <h1>Join Legacy Group</h1>
+    <p>Legacy Leader invited you to join this group.</p>
+    <a href="http://127.0.0.1:1/join/group/LGACY1?invite=LEGACY0007" class="button">Join Group</a>
+    <p class="redirect-text">Redirecting you automatically...</p>
+  </div>
+  <script>window.location.href = 'http://127.0.0.1:1/join/group/LGACY1?invite=LEGACY0007';</script>
+</body>
+</html>",
+  "status": 200,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > public token data stays whitelisted and landing HTML stays complete 17`] = `
+{
+  "body": {
+    "error": "Invite not found or expired",
+    "success": false,
+  },
+  "status": 404,
+}
+`;
+
+exports[`old-schema invitation HTTP contracts (immutable baseline) > public token data stays whitelisted and landing HTML stays complete 18`] = `
+{
+  "html": "<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join on MakeReady</title>
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="http://127.0.0.1:1/join/group?invite=UNKNOWN">
+  <meta property="og:title" content="Join on MakeReady">
+  <meta property="og:description" content="You&#039;ve been invited to join a group on MakeReady.">
+  <meta property="og:image" content="http://127.0.0.1:1/og-default.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:site_name" content="MakeReady">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Join on MakeReady">
+  <meta name="twitter:description" content="You&#039;ve been invited to join a group on MakeReady.">
+  <meta name="twitter:image" content="http://127.0.0.1:1/og-default.png">
+
+  <!-- Apple / iMessage -->
+  <meta name="apple-mobile-web-app-title" content="MakeReady">
+  <link rel="apple-touch-icon" href="http://127.0.0.1:1/apple-touch-icon.png">
+
+  <!-- Redirect to client app -->
+  <meta http-equiv="refresh" content="0;url=http://127.0.0.1:1/join/group?invite=UNKNOWN">
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #0d101a;
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      text-align: center;
+    }
+    .container { max-width: 400px; width: 100%; }
+    .logo {
+      width: 80px; height: 80px;
+      background: linear-gradient(135deg, #6c47ff, #9747ff);
+      border-radius: 20px;
+      margin: 0 auto 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .cover-image {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem; }
+    p { color: rgba(255,255,255,0.7); font-size: 1rem; line-height: 1.5; margin-bottom: 1.5rem; }
+    .button {
+      display: inline-block;
+      background: #6c47ff;
+      color: white;
+      text-decoration: none;
+      padding: 1rem 2rem;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 1rem;
+      transition: background 0.2s;
+    }
+    .button:hover { background: #5a3dd6; }
+    .redirect-text { margin-top: 1.5rem; font-size: 0.875rem; color: rgba(255,255,255,0.5); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    </div>
+    <h1>Invite Not Found</h1>
+    <p>This invite link is invalid or has expired.</p>
+    <a href="http://127.0.0.1:1" class="button">Go to MakeReady</a>
+    <p class="redirect-text">Redirecting you automatically...</p>
+  </div>
+  <script>window.location.href = 'http://127.0.0.1:1/join/group?invite=UNKNOWN';</script>
+</body>
+</html>",
+  "status": 200,
+}
+`;
