@@ -80,6 +80,8 @@ export interface SendCampaignSmsParams {
   context: Record<string, string>;
   sentById?: string;
   metadata?: Record<string, any>;
+  /** Replaces the template's minIntervalMinutes for this send — a deliberate leader resend (invites D22). */
+  minIntervalMinutes?: number;
 }
 
 export interface SendCampaignSmsResult {
@@ -120,7 +122,7 @@ async function prepareMessage(params: SendCampaignSmsParams): Promise<PreparedMe
   // Match transport validation before reserving any sibling. Invalid identities are not normalized into another recipient.
   if (!/^\+[1-9]\d{1,14}$/.test(recipientPhone) || !messageBody.length) return { success: false, error: 'Invalid recipient phone or empty message body', errorCode: 'SEND_FAILED' };
   const isDev = isDevPhone(recipientPhone);
-  return { params, template, messageBody, isDev, interval: isDev ? DEV_RATE_LIMIT_MINUTES : template.minIntervalMinutes };
+  return { params, template, messageBody, isDev, interval: params.minIntervalMinutes ?? (isDev ? DEV_RATE_LIMIT_MINUTES : template.minIntervalMinutes) };
 }
 
 /**

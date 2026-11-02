@@ -73,8 +73,21 @@ describe('managed invitation mutations', () => {
     expect(events.map(row => row.type)).toEqual(['resent', 'resent'])
     expect(events.every(row => row.actorId === fixture.leader.id)).toBe(true)
     expect(response.body.events.map((row: any) => row.type)).toEqual(['resent', 'resent'])
-    expect((await user.post(`/api/invitations/${fixture.invites.pending.id}/resend`).send({})).status).toBe(502)
+    // D22: a second tap inside the 1-minute guard is refused plainly, and nothing is sent.
+    const again = await user.post(`/api/invitations/${fixture.invites.pending.id}/resend`).send({})
+    expect(again.status).toBe(409)
+    expect(again.body).toEqual({ error: 'Invitation was just resent' })
     expect(sendSMS).toHaveBeenCalledTimes(2)
+  })
+  it('resends even when the invite was texted within the template limit (D22, owner 2026-11-02)', async () => {
+    const template = await prisma.smsTemplate.findUnique({ where: { slug: 'group-invite-v1' } })
+    expect(template!.minIntervalMinutes).toBeGreaterThan(60)
+    await prisma.smsLog.create({ data: { templateId: template!.id, recipientPhone: fixture.invites.pending.recipientPhone!,
+      messageBody: 'original invite', status: 'SENT', createdAt: new Date(Date.now() - 2 * 3600000) } })
+    const user = await legacyAgent(httpServer, { userId: fixture.leader.id })
+    const response = await user.post(`/api/invitations/${fixture.invites.pending.id}/resend`).send({})
+    expect(response.status, JSON.stringify(response.body)).toBe(200)
+    expect(sendSMS).toHaveBeenCalled()
   })
   it('returns502 on second-send failure with all invitation fields/events unchanged and factual logs', async () => {
     const other = await sibling()

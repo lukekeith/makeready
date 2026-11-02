@@ -530,6 +530,8 @@ export async function withdrawInvitations(userId: string, invitationId: string, 
   return getInvitationDetail(userId, invitationId)
 }
 
+const RESEND_GUARD_MINUTES = 1
+
 export async function resendInvitations(userId: string, invitationId: string, now = new Date(), baseUrl = process.env.CLIENT_URL): Promise<InvitationDetail> {
   const initial = await withInvitationTransaction(tx => actionSelection(tx, userId, invitationId, now, true))
   if (!initial.rows.length) throw new InvitationReadError(409, 'No eligible invitations')
@@ -539,10 +541,19 @@ export async function resendInvitations(userId: string, invitationId: string, no
     context: { 'inviter.name': row.inviter?.name ?? 'A leader', 'group.name': row.group?.name ?? 'MakeReady',
       joinUrl: row.group?.code ? `${baseUrl}/join/group/${row.group.code}?invite=${row.token}` : `${baseUrl}/join/group?invite=${row.token}` },
     metadata: { inviteId: row.id, groupId: row.groupId },
+    // D22 (owner 2026-11-02): a leader's Resend is deliberate, so the template's automatic-send
+    // limit (20h) does not apply; a 1-minute guard still stops a double tap.
+    minIntervalMinutes: RESEND_GUARD_MINUTES,
   }))
   // The whole batch is outside retries: an accepted provider delivery cannot roll back.
   let delivered = false
-  try { delivered = (await sendCampaignSmsBatch(messages)).success } catch { /* map campaign/storage failure without leaking provider details */ }
+  let rateLimited = false
+  try {
+    const batch = await sendCampaignSmsBatch(messages)
+    delivered = batch.success
+    rateLimited = batch.results.some(result => result.errorCode === 'RATE_LIMITED')
+  } catch { /* map campaign/storage failure without leaking provider details */ }
+  if (rateLimited) throw new InvitationReadError(409, 'Invitation was just resent')
   if (!delivered) throw new InvitationReadError(502, 'Unable to resend invitations')
   await withInvitationTransaction(async tx => {
     await lockActionRows(tx, [initial.selected, ...initial.rows])
