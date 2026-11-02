@@ -26,6 +26,7 @@ import groupsRoutes from './routes/groups.js'
 import rolesRoutes from './routes/roles.js'
 import mediaRoutes from './routes/media.js'
 import makeReadyMediaRoutes from './routes/makeready-media.js'
+import tagsRoutes from './routes/tags.js'
 import bibleRoutes from './routes/bible.js'
 import searchRoutes from './routes/search.js'
 import preferencesRoutes from './routes/preferences.js'
@@ -439,6 +440,9 @@ app.get('/api/admin/activity-logs', requireAuth, async (req, res) => {
     res.status(500).json({ success: false, error: 'Internal server error' })
   }
 })
+
+// tag-categories: MakeReady-defined tag categories — mounted ahead of the bare '/api' routers
+app.use('/api/tags', tagsRoutes)
 
 // Role management routes (RBAC - roles, permissions, assignments)
 app.use('/api', rolesRoutes)
