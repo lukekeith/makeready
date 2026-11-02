@@ -199,19 +199,21 @@ struct StudyProgramsScreen: View {
                 editable: true
             )
             .ui2Element("C-034 SearchField")
+            .padding(.horizontal, Token.Space.pageMargin)
             chipRow
         }
         // Owner 2026-11-01: no top padding — the shell's nav gap (16) is already the space under the
-        // TopNav, as on groups-home/members-home; the sides and bottom keep `space-page-margin`.
-        .padding(.horizontal, Token.Space.pageMargin)
+        // TopNav, as on groups-home/members-home; the bottom keeps `space-page-margin`. The field
+        // keeps the 16 side inset; the chip row is full bleed (FilterRail).
         .padding(.bottom, Token.Space.pageMargin)
     }
 
     /// §2: "Filter rail: 2 × C-035 FilterChip (`type=Menu`), gap `space-element-gap` (8), 24
-    /// tall". Both chips fit the width, so the rail is a plain row. A chip is active while it
-    /// has a pick; the org chip is drawn only when `orgFilterVisible` (§3 Filter API).
+    /// tall". Owner 2026-11-01: the shared full-bleed FilterRail, which always swipes
+    /// (docs/ui2/references/filter-rail.md). A chip is active while it has a pick; the org chip
+    /// is drawn only when `orgFilterVisible` (§3 Filter API).
     private var chipRow: some View {
-        HStack(spacing: Token.Space.elementGap) {
+        FilterRail {
             if state.orgFilterVisible {
                 Self.menuChip(label: state.orgFilterLabel, active: !state.selectedOrgs.isEmpty) {
                     presentedMenu = .orgs

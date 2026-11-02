@@ -207,8 +207,10 @@ struct EnrollmentSelectGroupScreen: View {
                 editable: true
             )
             .ui2Element("C-034 SearchField")
+            .padding(.horizontal, Token.Space.pageMargin)
             // §2: "Chip row, 24 pt tall, 8 pt gap" — C-035 `type: Menu`, width hugs the label.
-            HStack(spacing: Token.Space.elementGap) {
+            // Owner 2026-11-01: the shared full-bleed FilterRail (docs/ui2/references/filter-rail.md).
+            FilterRail {
                 if state.orgFilterVisible {
                     FilterChip(type: .menu,
                                active: state.orgFilterLabel != Self.restingOrgLabel,
@@ -223,7 +225,7 @@ struct EnrollmentSelectGroupScreen: View {
                     .ui2Element(state.orgFilterVisible ? "C-035 FilterChip 2" : "C-035 FilterChip")
             }
         }
-        .padding(Token.Space.pageMargin)
+        .padding(.vertical, Token.Space.pageMargin)
         // §2 L3 Rules: "one C-088 SectionDivider above the first row" — the frame draws it in the
         // block's last point (y218, the first row at y219), so it overlays the bottom padding.
         .overlay(alignment: .bottom) {

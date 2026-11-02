@@ -351,6 +351,7 @@ struct MediaHomeScreen: View {
                 editable: true
             )
             .ui2Element("C-034 SearchField")
+            .padding(.horizontal, Token.Space.pageMargin)
 
             // Owner 2026-11-01: the search → chips gap matches groups-home/members-home (16).
             chipRow
@@ -359,20 +360,22 @@ struct MediaHomeScreen: View {
             if showsNotice {
                 noticeRow
                     .padding(.top, Token.Space.elementGap)
+                    .padding(.horizontal, Token.Space.pageMargin)
             }
         }
         // Owner 2026-11-01: no top padding — the shell's nav gap (16) is already the space under the
-        // TopNav, as on groups-home/members-home; the sides and bottom keep `space-page-margin`.
-        .padding(.horizontal, Token.Space.pageMargin)
+        // TopNav, as on groups-home/members-home; the bottom keeps `space-page-margin`. The field
+        // and notice keep the 16 side inset; the chip row is full bleed (FilterRail).
         .padding(.bottom, Token.Space.pageMargin)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Token.layoutBackground)
     }
 
     /// §2.1 Chip row: four C-035 `type: Menu` — Source · Tags · Leaders · Time —
-    /// `space-element-gap` apart; no horizontal scroll.
+    /// `space-element-gap` apart. Owner 2026-11-01: the shared full-bleed FilterRail, which always
+    /// swipes (docs/ui2/references/filter-rail.md) — supersedes §2.1's "no horizontal scroll".
     private var chipRow: some View {
-        HStack(spacing: Token.Space.elementGap) {
+        FilterRail {
             FilterChip(
                 type: .menu,
                 active: state.sourceActive,
@@ -402,7 +405,6 @@ struct MediaHomeScreen: View {
             )
             .ui2Element("C-035 FilterChip 4")
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// §2.5: "Some photos didn't load · Retry", Retry in `type-link`, `color-accent`.

@@ -206,6 +206,7 @@
 		395A8E3E7779099847E47DF6 /* SearchField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B22B6D42CDBE9B39686B26F /* SearchField.swift */; };
 		39781E13D2CF3EF49F8BDACE /* LoginScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E2ABA006F9C95D8D874EBE /* LoginScreen.swift */; };
 		39DA6C2E06E4AA276181F198 /* Glyphs.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1C2E0CA42369F091D7F0AC1E /* Glyphs.xcassets */; };
+		39EC7EAE81ED5D675D3CF047 /* FilterRail.swift in Sources */ = {isa = PBXBuildFile; fileRef = C010172032C7D00245C2331C /* FilterRail.swift */; };
 		39F856807040865FF97E43CF /* SessionCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = SESSCRD0002000000000001 /* SessionCredentialStore.swift */; };
 		3A24CFC3363B914E9877C674 /* WeekdayHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 464C09F1DDDAEB03E329151F /* WeekdayHeader.swift */; };
 		3A4118210A31A6781B806B79 /* DateRangePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10FFC8629C46C7F51F5D33B /* DateRangePicker.swift */; };
@@ -371,6 +372,7 @@
 		69E3E2513C8A8D8F8D6C2E05 /* GroupFieldEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D13E32E27A2ABE5B1A0D3485 /* GroupFieldEditor.swift */; };
 		69F7B810E2AA28E0B4C8F652 /* DateRangePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10FFC8629C46C7F51F5D33B /* DateRangePicker.swift */; };
 		6A08BA9A8229E97A2B3D7ACD /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 280805AC8E1F4024BA7D665C /* Foundation.framework */; };
+		6A46A1DB4ACC58365BCB3844 /* FilterRail.swift in Sources */ = {isa = PBXBuildFile; fileRef = C010172032C7D00245C2331C /* FilterRail.swift */; };
 		6AB26B820CCBFCBC313836D9 /* CanvasTextObject.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0E2FBC04A6DD8E9B873FAA5 /* CanvasTextObject.swift */; };
 		6B17B4FE9085FE507355082D /* MediaHomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3774665A8F57462BDFEB7541 /* MediaHomeScreen.swift */; };
 		6B411A460D0C12CB2075F9AC /* LoginOutcome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0861A5A9123E5C6F3093FF0D /* LoginOutcome.swift */; };
@@ -1356,6 +1358,7 @@
 		BSRV0002000000000000001 /* BibleSearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleSearchService.swift; sourceTree = "<group>"; };
 		BVNT000200000000000001 /* BibleVerseContentNormalizerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleVerseContentNormalizerTests.swift; sourceTree = "<group>"; };
 		BVT0002000000000000001 /* BibleVerseTextLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleVerseTextLayout.swift; sourceTree = "<group>"; };
+		C010172032C7D00245C2331C /* FilterRail.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FilterRail.swift; sourceTree = "<group>"; };
 		C0406D3559DE79394B01FF97 /* EditCoverScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EditCoverScreen.swift; path = Screens/Groups/EditCoverScreen.swift; sourceTree = "<group>"; };
 		C0FE7A9B12D4E5F601A2B3C5 /* GroupDetailCoverTapTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupDetailCoverTapTests.swift; sourceTree = "<group>"; };
 		C0L0R5SW1FT00000001 /* Colors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Colors.swift; sourceTree = "<group>"; };
@@ -2538,6 +2541,7 @@
 				49EF62251C2C12244356B416 /* PullToRefresh.swift */,
 				EBB160A55BF61CDE175F32BA /* MediaBrowser.swift */,
 				3774665A8F57462BDFEB7541 /* MediaHomeScreen.swift */,
+				C010172032C7D00245C2331C /* FilterRail.swift */,
 			);
 			name = MakeReadyUI;
 			path = MakeReadyUI;
@@ -3665,6 +3669,7 @@
 				6B17B4FE9085FE507355082D /* MediaHomeScreen.swift in Sources */,
 				EA01CF81F53C43CB475669A1 /* MediaHomeContainer.swift in Sources */,
 				4D34F78C7EDFE8FE1FFD8062 /* MediaUploadQueue.swift in Sources */,
+				6A46A1DB4ACC58365BCB3844 /* FilterRail.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3821,6 +3826,7 @@
 				D7EC7BDE4EA5BCB67411F7B1 /* PullToRefresh.swift in Sources */,
 				7C2E79FA3AEAA08A5334FA73 /* MediaBrowser.swift in Sources */,
 				B63138576EA5EA580BAF410C /* MediaHomeScreen.swift in Sources */,
+				39EC7EAE81ED5D675D3CF047 /* FilterRail.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

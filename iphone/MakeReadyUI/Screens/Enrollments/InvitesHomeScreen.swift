@@ -164,20 +164,17 @@ struct InvitesHomeScreen: View {
     /// the screen and scrolls horizontally, with the leading inset 16." A horizontal carousel
     /// keeps its own ScrollView (D22).
     private var chipRow: some View {
-        HorizontalRail {
-            HStack(spacing: Token.Space.elementGap) {
-                ForEach(chipLabels.indices, id: \.self) { index in
-                    let label = chipLabels[index]
-                    // §3: "A chip whose filter is not \"All\" shows C-035's active state."
-                    FilterChip(type: .menu, active: !Self.isAll(label), label: label) {
-                        onOpenFilter(Self.filterDimensions[index])
-                    }
-                    .ui2Element(Self.partName("C-035 FilterChip", ordinal: index + 1))
+        // Owner 2026-11-01: the shared FilterRail (docs/ui2/references/filter-rail.md).
+        FilterRail {
+            ForEach(chipLabels.indices, id: \.self) { index in
+                let label = chipLabels[index]
+                // §3: "A chip whose filter is not \"All\" shows C-035's active state."
+                FilterChip(type: .menu, active: !Self.isAll(label), label: label) {
+                    onOpenFilter(Self.filterDimensions[index])
                 }
+                .ui2Element(Self.partName("C-035 FilterChip", ordinal: index + 1))
             }
-            .padding(.horizontal, Token.Space.pageMargin)
         }
-        .scrollIndicators(.hidden)
     }
 
     // MARK: §2.3 List

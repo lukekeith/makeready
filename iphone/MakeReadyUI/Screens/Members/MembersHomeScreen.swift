@@ -199,11 +199,11 @@ struct MembersHomeScreen: View {
                 editable: true
             )
             .ui2Element("C-034 SearchField")
+            .padding(.horizontal, Token.Space.pageMargin)            // §2: content inset 16
             Spacer().frame(height: Self.headerGap)
-            // OQ-members-home-3 (non-blocking) proposed default: single line; the chips scroll
-            // horizontally only when long selections overflow — the resting row fits, so it is a
-            // plain HStack here.
-            HStack(spacing: Token.Space.elementGap) {                // §2: "8pt gap"
+            // Owner 2026-11-01: the shared full-bleed FilterRail, which always swipes
+            // (docs/ui2/references/filter-rail.md) — supersedes OQ-members-home-3's plain row.
+            FilterRail {                                             // §2: "8pt gap"
                 Self.menuChip(label: state.groupFilterLabel, active: !state.selectedGroupIDs.isEmpty) { presentedMenu = .groups }
                 .ui2Element("C-035 FilterChip")
                 if state.showsLeaderFilter {                         // D7/D15
@@ -213,7 +213,6 @@ struct MembersHomeScreen: View {
             }
             Spacer().frame(height: Self.headerGap)
         }
-        .padding(.horizontal, Token.Space.pageMargin)                // §2: content inset 16
     }
 
     /// §3: "Tap a chip → FilterMenuOverlay (C-036) opens" — a `Menu` chip whose tap presents it;

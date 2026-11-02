@@ -237,20 +237,17 @@ struct EnrollmentsHomeScreen: View {
     /// the rail scrolls horizontally with the 16 leading inset; a horizontal carousel keeps its
     /// own ScrollView (D22).
     private var chipRow: some View {
-        HorizontalRail {
-            HStack(spacing: Token.Space.elementGap) {
-                ForEach(chipLabels.indices, id: \.self) { index in
-                    // Owner 2026-10-30: a chip with a setting (its label off its resting text) is active.
-                    Self.menuChip(label: chipLabels[index],
-                                  active: chipLabels[index] != Self.restingFilterLabels[index]) {
-                        onOpenFilter(Self.filterDimensions[index])
-                    }
-                    .ui2Element(Self.partName("C-035 FilterChip", ordinal: index + 1))
+        // Owner 2026-11-01: the shared FilterRail (docs/ui2/references/filter-rail.md).
+        FilterRail {
+            ForEach(chipLabels.indices, id: \.self) { index in
+                // Owner 2026-10-30: a chip with a setting (its label off its resting text) is active.
+                Self.menuChip(label: chipLabels[index],
+                              active: chipLabels[index] != Self.restingFilterLabels[index]) {
+                    onOpenFilter(Self.filterDimensions[index])
                 }
+                .ui2Element(Self.partName("C-035 FilterChip", ordinal: index + 1))
             }
-            .padding(.horizontal, Token.Space.pageMargin)
         }
-        .scrollIndicators(.hidden)
     }
 
     /// §3: a chip tap presents C-036. `onTap:` is passed by label: an unlabelled trailing closure on

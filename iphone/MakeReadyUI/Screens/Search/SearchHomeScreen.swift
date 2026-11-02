@@ -149,28 +149,29 @@ struct SearchHomeScreen: View {
                 onClear: { query = ""; onSearch("") }
             )
             .ui2Element("C-034 SearchField")
+            .padding(.horizontal, Token.Space.pageMargin)
 
             categoryRail
         }
-        .padding(Token.Space.pageMargin)
+        // Owner 2026-11-01: the field keeps the 16 side inset; the rail runs full bleed (FilterRail).
+        .padding(.vertical, Token.Space.pageMargin)
     }
 
     /// §2: "4 × C-035 `type=Button`, gap `space-element-gap` (8) … scrolls horizontally if it
-    /// overflows (C-035 §3c)".
+    /// overflows (C-035 §3c)". Owner 2026-11-01: the shared full-bleed FilterRail
+    /// (docs/ui2/references/filter-rail.md), button chips in its slot.
     private var categoryRail: some View {
-        HorizontalRail(showsIndicators: false) {
-            HStack(spacing: Token.Space.elementGap) {
-                ForEach(Array(Self.chips.enumerated()), id: \.offset) { index, chip in
-                    FilterChip(
-                        type: .button,
-                        active: chip == activeChip,
-                        label: chip,
-                        // §3: "it becomes the sole active chip; scopes recents and the query".
-                        // C-035 §4: a `type=Button` chip fires `onSelect` (OQ-C-035-5).
-                        onSelect: { activeChip = chip; onSelectChip(chip) }
-                    )
-                    .ui2Element(index == 0 ? "C-035 FilterChip" : "C-035 FilterChip \(index + 1)")
-                }
+        FilterRail {
+            ForEach(Array(Self.chips.enumerated()), id: \.offset) { index, chip in
+                FilterChip(
+                    type: .button,
+                    active: chip == activeChip,
+                    label: chip,
+                    // §3: "it becomes the sole active chip; scopes recents and the query".
+                    // C-035 §4: a `type=Button` chip fires `onSelect` (OQ-C-035-5).
+                    onSelect: { activeChip = chip; onSelectChip(chip) }
+                )
+                .ui2Element(index == 0 ? "C-035 FilterChip" : "C-035 FilterChip \(index + 1)")
             }
         }
     }

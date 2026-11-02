@@ -214,10 +214,11 @@ struct GroupsHomeScreen: View {
                 editable: true
             )
             .ui2Element("C-034 SearchField")
+            .padding(.horizontal, Token.Space.pageMargin)            // §2: "inset 16"
             Spacer().frame(height: Self.headerGap)
-            // §4: both chips `type=Menu`, active while it has a pick — filter-multiselect D4. The resting row fits, so it is a plain
-            // HStack (members-home's OQ-members-home-3 default, inherited by "identical skeleton").
-            HStack(spacing: Token.Space.elementGap) {                // §2: "8 gap"
+            // §4: both chips `type=Menu`, active while it has a pick — filter-multiselect D4.
+            // Owner 2026-11-01: the shared full-bleed FilterRail (docs/ui2/references/filter-rail.md).
+            FilterRail {                                             // §2: "8 gap"
                 if state.orgFilterVisible {
                     Self.menuChip(label: state.orgFilterLabel, active: !state.selectedOrgs.isEmpty) {
                         presentedMenu = .orgs
@@ -231,7 +232,6 @@ struct GroupsHomeScreen: View {
             }
             Spacer().frame(height: Self.headerGap)
         }
-        .padding(.horizontal, Token.Space.pageMargin)                // §2: "inset 16"
     }
 
     /// §4: a `Menu` chip whose tap presents C-036. `onTap:` is passed by label: an unlabelled
