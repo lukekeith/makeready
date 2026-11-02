@@ -55,9 +55,13 @@ export async function full(ctx: FixtureContext): Promise<void> {
   await prisma.group.update({ where: { id: RICH_GROUP_ID }, data: RICH_GROUP_FIELDS })
 
   // Requests section (D18) + their history rows.
-  await prisma.groupJoinRequest.createMany({
+  const requestMembers = await prisma.member.findMany({ where: { id: { in: REQUESTER_INDICES.map(member) } }, select: { id: true, phoneNumber: true } })
+  await prisma.invitation.createMany({
     data: REQUESTER_INDICES.map((i, n) => ({
       id: fixtureId('joinRequest', n + 1),
+      initiatedBy: 'member',
+      organizationId: FIXTURE_ORG_ID,
+      recipientPhone: requestMembers.find(row => row.id === member(i))!.phoneNumber,
       groupId: RICH_GROUP_ID,
       memberId: member(i),
       status: 'pending',

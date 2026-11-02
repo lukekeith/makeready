@@ -8,7 +8,7 @@
  */
 import { seedSmsCampaigns } from '../../src/services/sms-campaign-seed.js'
 import type { FixtureContext } from '../context.js'
-import { FIXTURE_GROUP_IDS, FIXTURE_USER_ID, fixtureId } from '../ids.js'
+import { FIXTURE_GROUP_IDS, FIXTURE_ORG_ID, FIXTURE_USER_ID, fixtureId } from '../ids.js'
 
 export const INVITE_FIXTURE_RECIPIENT_NAME = 'Tony Stark'
 /** 555-01xx is reserved for fiction; never a real handset. */
@@ -16,9 +16,11 @@ export const INVITE_FIXTURE_PHONE = '+15555550199'
 
 export async function full(ctx: FixtureContext): Promise<void> {
   await seedSmsCampaigns(ctx.prisma)
-  await ctx.prisma.invite.create({
+  await ctx.prisma.invitation.create({
     data: {
       id: fixtureId('invite', 1),
+      initiatedBy: 'leader',
+      organizationId: FIXTURE_ORG_ID,
       token: 'FIXTUREINV1',
       groupId: FIXTURE_GROUP_IDS[0],
       inviterId: FIXTURE_USER_ID,

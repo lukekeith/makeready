@@ -1,3 +1,4 @@
+import { createLeaderInvitation, leaderInvitationWhere, toLegacyInvite } from './invitation.js';
 import { randomBytes } from 'crypto';
 import { prisma } from '../lib/prisma.js';
 import { sendCampaignSms } from './sms-campaign.js';
@@ -51,8 +52,7 @@ export async function sendGroupInvite(
     expiresAt.setDate(expiresAt.getDate() + 7);
 
     // Create invite record in database
-    const invite = await prisma.invite.create({
-      data: {
+    const invite = await createLeaderInvitation({
         token,
         groupId,
         inviterId,
@@ -60,7 +60,6 @@ export async function sendGroupInvite(
         recipientName: recipientName ?? null,
         status: 'pending',
         expiresAt,
-      },
     });
 
     // Look up group code for the URL
@@ -89,7 +88,7 @@ export async function sendGroupInvite(
 
     if (!smsResult.success) {
       // Delete invite if SMS failed
-      await prisma.invite.delete({ where: { id: invite.id } });
+      await prisma.invitation.delete({ where: { id: invite.id, initiatedBy: 'leader' } });
 
       return {
         success: false,
@@ -120,8 +119,8 @@ export async function sendGroupInvite(
  */
 export async function getInviteByToken(token: string) {
   try {
-    const invite = await prisma.invite.findUnique({
-      where: { token },
+    const invite = await prisma.invitation.findFirst({
+      where: leaderInvitationWhere({ token }),
       include: {
         group: true,
         inviter: {
@@ -141,8 +140,8 @@ export async function getInviteByToken(token: string) {
     // Check if expired
     if (invite.expiresAt && new Date() > invite.expiresAt) {
       // Update status to expired
-      await prisma.invite.update({
-        where: { id: invite.id },
+      await prisma.invitation.update({
+        where: { id: invite.id, initiatedBy: 'leader' },
         data: { status: 'expired' },
       });
       return null;
@@ -153,7 +152,8 @@ export async function getInviteByToken(token: string) {
       return null;
     }
 
-    return invite;
+    if (!invite.inviter) return null;
+    return { ...toLegacyInvite(invite), group: invite.group, inviter: invite.inviter };
   } catch (error: any) {
     console.error('[Invite] Error getting invite:', error.message);
     return null;
@@ -175,8 +175,8 @@ export async function acceptInvite(
   _userId: string // Prefixed with _ to indicate intentionally unused
 ): Promise<{ success: boolean; error?: string; groupId?: string }> {
   try {
-    const invite = await prisma.invite.findUnique({
-      where: { id: inviteId },
+    const invite = await prisma.invitation.findUnique({
+      where: { id: inviteId, initiatedBy: 'leader' },
     });
 
     if (!invite) {
@@ -221,8 +221,8 @@ export async function acceptInvite(
 
     if (existingMembership) {
       // Mark invite as accepted even if already a member
-      await prisma.invite.update({
-        where: { id: inviteId },
+      await prisma.invitation.update({
+        where: { id: inviteId, initiatedBy: 'leader' },
         data: {
           status: 'accepted',
           acceptedAt: new Date(),
@@ -244,8 +244,8 @@ export async function acceptInvite(
           role: 'member',
         },
       }),
-      prisma.invite.update({
-        where: { id: inviteId },
+      prisma.invitation.update({
+        where: { id: inviteId, initiatedBy: 'leader' },
         data: {
           status: 'accepted',
           acceptedAt: new Date(),

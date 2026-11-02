@@ -1,3 +1,4 @@
+import { createMemberInvitation, findLatestLegacyJoinRequest, memberInvitationWhere, toLegacyJoinRequest } from '../services/invitation.js'
 import { Router, type Request, type RequestHandler } from 'express'
 import { z } from 'zod'
 import multer from 'multer'
@@ -876,21 +877,17 @@ router.post('/confirm-verification', async (req, res) => {
 
           if (!existingMembership) {
             // Check for existing pending request
-            const existingRequest = await prisma.groupJoinRequest.findUnique({
-              where: { groupId_memberId: { groupId, memberId: member.id } },
-            })
+            const existingRequest = await findLatestLegacyJoinRequest(groupId, member.id)
 
             if (!existingRequest || existingRequest.status === 'rejected') {
               if (existingRequest) {
                 // Re-submit after rejection
-                joinRequest = await prisma.groupJoinRequest.update({
-                  where: { id: existingRequest.id },
-                  data: { status: 'pending', reviewedAt: null, reviewedBy: { disconnect: true } },
-                })
+                joinRequest = toLegacyJoinRequest(await prisma.invitation.update({
+                  where: { id: existingRequest.id, initiatedBy: 'member' },
+                  data: { status: 'pending', respondedAt: null, respondedById: null },
+                }))
               } else {
-                joinRequest = await prisma.groupJoinRequest.create({
-                  data: { groupId, memberId: member.id, status: 'pending' },
-                })
+                joinRequest = toLegacyJoinRequest(await createMemberInvitation({ groupId, memberId: member.id, status: 'pending' }))
               }
               wasNewRequest = true
               console.log(`✅ Join request created for group ${group.name}`)
@@ -1057,12 +1054,8 @@ router.get('/:memberId/profile', requireAuth, async (req, res) => {
 
     if (!hasAccess) {
       // Check if member has a pending join request for a group the user manages.
-      const pendingRequest = await prisma.groupJoinRequest.findFirst({
-        where: {
-          memberId: memberId,
-          status: 'pending',
-          group: manageFilter,
-        },
+      const pendingRequest = await prisma.invitation.findFirst({
+        where: memberInvitationWhere({ memberId, status: 'pending', group: manageFilter }),
       })
       if (pendingRequest) {
         hasAccess = true

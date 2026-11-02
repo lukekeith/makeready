@@ -414,8 +414,8 @@ router.post('/verify', verifyCodeLimiter, async (req, res) => {
 
     // If invite token provided, get org from the group
     if (inviteToken && !effectiveOrgId) {
-      const invite = await prisma.invite.findUnique({
-        where: { token: inviteToken },
+      const invite = await prisma.invitation.findUnique({
+        where: { token: inviteToken, initiatedBy: 'leader' },
         include: {
           group: {
             select: { organizationId: true },
@@ -487,8 +487,8 @@ router.post('/verify', verifyCodeLimiter, async (req, res) => {
     // If invite token provided, handle invite acceptance
     if (inviteToken) {
       // Get invite details
-      const invite = await prisma.invite.findUnique({
-        where: { token: inviteToken },
+      const invite = await prisma.invitation.findUnique({
+        where: { token: inviteToken, initiatedBy: 'leader' },
       });
 
       if (!invite) {

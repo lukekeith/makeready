@@ -73,7 +73,7 @@ describe('Invite + Member Integration', () => {
       await prisma.groupMember.deleteMany({
         where: { groupId: testGroup?.id },
       })
-      await prisma.invite.deleteMany({
+      await prisma.invitation.deleteMany({
         where: { groupId: testGroup?.id },
       })
       await prisma.group.deleteMany({
@@ -110,7 +110,7 @@ describe('Invite + Member Integration', () => {
 
       // Note: This will fail in test without Twilio configured
       // Just verify the invite was created in database
-      const invite = await prisma.invite.findFirst({
+      const invite = await prisma.invitation.findFirst({
         where: {
           groupId: testGroup.id,
           recipientPhone,
@@ -131,8 +131,9 @@ describe('Invite + Member Integration', () => {
   describe('acceptInvite', () => {
     it('should find member by phone number and add to group', async () => {
       // Create invite
-      const invite = await prisma.invite.create({
+      const invite = await prisma.invitation.create({
         data: {
+          initiatedBy: 'leader',
           token: `test_token_${Date.now()}`,
           groupId: testGroup.id,
           inviterId: testUser.id,
@@ -161,7 +162,7 @@ describe('Invite + Member Integration', () => {
       expect(membership?.isActive).toBe(true)
 
       // Verify invite status updated
-      const updatedInvite = await prisma.invite.findUnique({
+      const updatedInvite = await prisma.invitation.findUnique({
         where: { id: invite.id },
       })
 
@@ -170,11 +171,13 @@ describe('Invite + Member Integration', () => {
     })
 
     it('should handle non-existent member gracefully', async () => {
-      const nonExistentPhone = `+1555${Date.now().toString().slice(-7)}`
+      // Use a different prefix from beforeEach: both clocks can land in the same millisecond.
+      const nonExistentPhone = `+1556${Date.now().toString().slice(-7)}`
 
       // Create invite for phone that doesn't have a member
-      const invite = await prisma.invite.create({
+      const invite = await prisma.invitation.create({
         data: {
+          initiatedBy: 'leader',
           token: `test_token_${Date.now()}`,
           groupId: testGroup.id,
           inviterId: testUser.id,
@@ -191,7 +194,7 @@ describe('Invite + Member Integration', () => {
       expect(result.error).toContain('Member not found')
 
       // Invite should remain pending (not accepted)
-      const updatedInvite = await prisma.invite.findUnique({
+      const updatedInvite = await prisma.invitation.findUnique({
         where: { id: invite.id },
       })
 
@@ -200,8 +203,9 @@ describe('Invite + Member Integration', () => {
 
     it('should not add member twice to same group', async () => {
       // Create invite
-      const invite = await prisma.invite.create({
+      const invite = await prisma.invitation.create({
         data: {
+          initiatedBy: 'leader',
           token: `test_token_${Date.now()}`,
           groupId: testGroup.id,
           inviterId: testUser.id,
@@ -216,8 +220,9 @@ describe('Invite + Member Integration', () => {
       expect(result1.success).toBe(true)
 
       // Create second invite for same member
-      const invite2 = await prisma.invite.create({
+      const invite2 = await prisma.invitation.create({
         data: {
+          initiatedBy: 'leader',
           token: `test_token_${Date.now()}_2`,
           groupId: testGroup.id,
           inviterId: testUser.id,
@@ -246,8 +251,9 @@ describe('Invite + Member Integration', () => {
 
     it('should reject expired invites', async () => {
       // Create expired invite
-      const invite = await prisma.invite.create({
+      const invite = await prisma.invitation.create({
         data: {
+          initiatedBy: 'leader',
           token: `test_token_${Date.now()}`,
           groupId: testGroup.id,
           inviterId: testUser.id,
@@ -265,8 +271,9 @@ describe('Invite + Member Integration', () => {
 
     it('should reject already-accepted invites', async () => {
       // Create and accept invite
-      const invite = await prisma.invite.create({
+      const invite = await prisma.invitation.create({
         data: {
+          initiatedBy: 'leader',
           token: `test_token_${Date.now()}`,
           groupId: testGroup.id,
           inviterId: testUser.id,
@@ -288,8 +295,9 @@ describe('Invite + Member Integration', () => {
 
   describe('getInviteByToken', () => {
     it('should return invite with group and inviter details', async () => {
-      const invite = await prisma.invite.create({
+      const invite = await prisma.invitation.create({
         data: {
+          initiatedBy: 'leader',
           token: `test_token_${Date.now()}_${Math.random()}`,
           groupId: testGroup.id,
           inviterId: testUser.id,
@@ -299,7 +307,7 @@ describe('Invite + Member Integration', () => {
         },
       })
 
-      const result = await getInviteByToken(invite.token)
+      const result = await getInviteByToken(invite.token!)
 
       expect(result).toBeTruthy()
       expect(result?.id).toBe(invite.id)
@@ -311,8 +319,9 @@ describe('Invite + Member Integration', () => {
     })
 
     it('should return null for expired invites', async () => {
-      const invite = await prisma.invite.create({
+      const invite = await prisma.invitation.create({
         data: {
+          initiatedBy: 'leader',
           token: `test_token_${Date.now()}_${Math.random()}`,
           groupId: testGroup.id,
           inviterId: testUser.id,
@@ -322,12 +331,12 @@ describe('Invite + Member Integration', () => {
         },
       })
 
-      const result = await getInviteByToken(invite.token)
+      const result = await getInviteByToken(invite.token!)
 
       expect(result).toBeNull()
 
       // Should update status to expired
-      const updatedInvite = await prisma.invite.findUnique({
+      const updatedInvite = await prisma.invitation.findUnique({
         where: { id: invite.id },
       })
       expect(updatedInvite?.status).toBe('expired')
@@ -341,8 +350,9 @@ describe('Invite + Member Integration', () => {
       const newPhone = `+1666${Date.now().toString().slice(-7)}`
 
       // Create invite first (before member exists)
-      const invite = await prisma.invite.create({
+      const invite = await prisma.invitation.create({
         data: {
+          initiatedBy: 'leader',
           token: `test_token_${Date.now()}`,
           groupId: testGroup.id,
           inviterId: testUser.id,

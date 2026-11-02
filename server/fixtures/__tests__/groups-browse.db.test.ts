@@ -53,17 +53,17 @@ describe.skipIf(!TEST_DB_URL)('groups-browse layers against the test database (D
     const { getGroupHistory } = await import('../../src/services/group-history.js')
     expect(await db.prisma.groupMember.count({ where: { groupId: FIXTURE_EMPTY_GROUP_ID } })).toBe(0)
     expect(await db.prisma.enrollment.count({ where: { groupId: FIXTURE_EMPTY_GROUP_ID } })).toBe(0)
-    expect(await db.prisma.groupJoinRequest.count({ where: { groupId: FIXTURE_EMPTY_GROUP_ID } })).toBe(0)
+    expect(await db.prisma.invitation.count({ where: { groupId: FIXTURE_EMPTY_GROUP_ID, initiatedBy: 'member' } })).toBe(0)
     expect(await getGroupHistory(FIXTURE_EMPTY_GROUP_ID, 50)).toEqual([])
   })
 
   it('gives the rich group two pending join requests', async () => {
-    const requests = await db.prisma.groupJoinRequest.findMany({
-      where: { groupId: RICH_GROUP_ID, status: 'pending' },
+    const requests = await db.prisma.invitation.findMany({
+      where: { groupId: RICH_GROUP_ID, status: 'pending', initiatedBy: 'member' },
       include: { member: { select: { firstName: true, lastName: true } } },
       orderBy: { createdAt: 'desc' },
     })
-    expect(requests.map((r) => `${r.member.firstName} ${r.member.lastName}`)).toEqual(['Esther Graham', 'Ruth Hamilton'])
+    expect(requests.map((r) => `${r.member!.firstName} ${r.member!.lastName}`)).toEqual(['Esther Graham', 'Ruth Hamilton'])
   })
 
   it('gives the next lessons three activities, each with a thumbnail', async () => {

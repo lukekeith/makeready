@@ -1,3 +1,4 @@
+import { createMemberInvitation, findLatestLegacyJoinRequest, leaderInvitationWhere, memberInvitationWhere, legacyRequestStatusWhere, legacyRequestStatus, toLegacyJoinRequest, requiredRelation } from '../services/invitation.js'
 import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
@@ -266,12 +267,8 @@ router.post('/', async (req, _res, next) => {
     })
 
     if (memberRecord?.phoneNumber) {
-      const invite = await prisma.invite.findFirst({
-        where: {
-          groupId,
-          recipientPhone: memberRecord.phoneNumber,
-          status: 'pending',
-        },
+      const invite = await prisma.invitation.findFirst({
+        where: leaderInvitationWhere({ groupId, recipientPhone: memberRecord.phoneNumber, status: 'pending' }),
       })
 
       if (invite) {
@@ -283,8 +280,8 @@ router.post('/', async (req, _res, next) => {
         })
 
         // Mark invite as accepted
-        await prisma.invite.update({
-          where: { id: invite.id },
+        await prisma.invitation.update({
+          where: { id: invite.id, initiatedBy: 'leader' },
           data: { status: 'accepted', acceptedAt: new Date() },
         })
 
@@ -319,11 +316,7 @@ router.post('/', async (req, _res, next) => {
     }
 
     // Check if there's already a pending request
-    const existingRequest = await prisma.groupJoinRequest.findUnique({
-      where: {
-        groupId_memberId: { groupId, memberId },
-      },
-    })
+    const existingRequest = await findLatestLegacyJoinRequest(groupId, memberId)
 
     if (existingRequest) {
       if (existingRequest.status === 'pending') {
@@ -344,34 +337,15 @@ router.post('/', async (req, _res, next) => {
     // unique (groupId, memberId) request is reset to pending so the member's
     // identity and prior decisions are preserved. The full history lives in the
     // immutable MembershipEvent trail recorded below.
-    const requestSelect = {
-      id: true,
-      groupId: true,
-      status: true,
-      message: true,
-      createdAt: true,
-    } as const
+    const row = existingRequest
+      ? await prisma.invitation.update({
+          where: { id: existingRequest.id, initiatedBy: 'member' },
+          data: { message, status: 'pending', respondedById: null, respondedAt: null },
+        })
+      : await createMemberInvitation({ groupId, memberId, message, status: 'pending' })
+    const legacy = toLegacyJoinRequest(row)
+    const request = { id: legacy.id, groupId: legacy.groupId, status: legacy.status, message: legacy.message, createdAt: legacy.createdAt }
 
-    const request = existingRequest
-      ? await prisma.groupJoinRequest.update({
-          where: { id: existingRequest.id },
-          data: {
-            message,
-            status: 'pending',
-            reviewedById: null,
-            reviewedAt: null,
-          },
-          select: requestSelect,
-        })
-      : await prisma.groupJoinRequest.create({
-          data: {
-            groupId,
-            memberId,
-            message,
-            status: 'pending',
-          },
-          select: requestSelect,
-        })
 
     // Log successful submission
     logSuccess(ActivityTypes.JOIN.GROUP_REQUEST_SUBMITTED, req, {
@@ -570,18 +544,11 @@ router.get('/me', requireMemberAuth, async (req, res) => {
     }
 
     // Check for join request
-    const request = await prisma.groupJoinRequest.findUnique({
-      where: {
-        groupId_memberId: { groupId, memberId },
-      },
-      select: {
-        id: true,
-        status: true,
-        message: true,
-        createdAt: true,
-        reviewedAt: true,
-      },
-    })
+    const latestRequest = await findLatestLegacyJoinRequest(groupId, memberId)
+    const request = latestRequest ? {
+      id: latestRequest.id, status: latestRequest.status, message: latestRequest.message,
+      createdAt: latestRequest.createdAt, reviewedAt: latestRequest.reviewedAt,
+    } : null
 
     if (request) {
       return res.json({
@@ -717,11 +684,8 @@ router.get('/', requireAuth, async (req, res) => {
     // Get status filter (default: pending)
     const status = (req.query.status as string) || 'pending'
 
-    const requests = await prisma.groupJoinRequest.findMany({
-      where: {
-        groupId,
-        status,
-      },
+    const requests = await prisma.invitation.findMany({
+      where: memberInvitationWhere({ groupId, ...legacyRequestStatusWhere(status), NOT: { status: 'withdrawn' } }),
       include: {
         member: {
           select: {
@@ -742,14 +706,14 @@ router.get('/', requireAuth, async (req, res) => {
       success: true,
       requests: requests.map((r) => ({
         id: r.id,
-        status: r.status,
+        status: legacyRequestStatus(r.status),
         message: r.message,
         createdAt: r.createdAt,
         member: {
-          id: r.member.id,
-          firstName: r.member.firstName,
-          lastName: r.member.lastName,
-          avatarUrl: r.member.profilePicture,
+          id: requiredRelation(r.member).id,
+          firstName: requiredRelation(r.member).firstName,
+          lastName: requiredRelation(r.member).lastName,
+          avatarUrl: requiredRelation(r.member).profilePicture,
         },
       })),
       count: requests.length,
@@ -884,12 +848,8 @@ router.post('/:requestId/approve', requireAuth, async (req, res) => {
     }
 
     // Find the request
-    const request = await prisma.groupJoinRequest.findFirst({
-      where: {
-        id: requestId,
-        groupId,
-        status: 'pending',
-      },
+    const requestRow = await prisma.invitation.findFirst({
+      where: memberInvitationWhere({ id: requestId, groupId, status: 'pending' }),
       include: {
         member: {
           select: {
@@ -901,29 +861,27 @@ router.post('/:requestId/approve', requireAuth, async (req, res) => {
       },
     })
 
-    if (!request) {
-      return res.status(404).json({
-        success: false,
-        error: 'Pending request not found',
-      })
+    if (!requestRow) {
+      return res.status(404).json({ success: false, error: 'Pending request not found' })
     }
+    const request = { ...toLegacyJoinRequest(requestRow), member: requiredRelation(requestRow.member) }
 
     // Transaction: update request status, add member to group, and ensure the
     // member is recorded in the group's organization (an approved member IS an
     // org member — without this they can't later be added to other groups in
     // the org, e.g. via transfer).
     const ops: Prisma.PrismaPromise<unknown>[] = [
-      prisma.groupJoinRequest.update({
-        where: { id: requestId },
+      prisma.invitation.update({
+        where: { id: requestId, initiatedBy: 'member' },
         data: {
-          status: 'approved',
-          reviewedById: userId,
-          reviewedAt: new Date(),
+          status: 'accepted',
+          respondedById: userId,
+          respondedAt: new Date(),
         },
         select: {
           id: true,
           status: true,
-          reviewedAt: true,
+          respondedAt: true,
         },
       }),
       // Add member to group (or reactivate if soft-deleted)
@@ -963,7 +921,9 @@ router.post('/:requestId/approve', requireAuth, async (req, res) => {
       )
     }
 
-    const [updatedRequest] = await prisma.$transaction(ops)
+    const [decision] = await prisma.$transaction(ops)
+    const updated = decision as { id: string; status: string; respondedAt: Date | null }
+    const updatedRequest = { id: updated.id, status: legacyRequestStatus(updated.status), reviewedAt: updated.respondedAt }
 
     // Append to the immutable membership audit trail. The upsert reactivates a
     // prior (soft-deleted) membership when present, so none of the member's
@@ -1112,36 +1072,32 @@ router.post('/:requestId/reject', requireAuth, async (req, res) => {
     }
 
     // Find the request
-    const request = await prisma.groupJoinRequest.findFirst({
-      where: {
-        id: requestId,
-        groupId,
-        status: 'pending',
-      },
+    const requestRow = await prisma.invitation.findFirst({
+      where: memberInvitationWhere({ id: requestId, groupId, status: 'pending' }),
     })
 
-    if (!request) {
-      return res.status(404).json({
-        success: false,
-        error: 'Pending request not found',
-      })
+    if (!requestRow) {
+      return res.status(404).json({ success: false, error: 'Pending request not found' })
     }
+    const request = toLegacyJoinRequest(requestRow)
 
     // Mark rejected. The request row is KEPT (not deleted) so the decision is
     // preserved; a later re-request resets this same row to pending.
-    const updatedRequest = await prisma.groupJoinRequest.update({
-      where: { id: requestId },
+    const updated = await prisma.invitation.update({
+      where: { id: requestId, initiatedBy: 'member' },
       data: {
         status: 'rejected',
-        reviewedById: userId,
-        reviewedAt: new Date(),
+        respondedById: userId,
+        respondedAt: new Date(),
       },
       select: {
         id: true,
         status: true,
-        reviewedAt: true,
+        respondedAt: true,
       },
     })
+
+    const updatedRequest = { id: updated.id, status: legacyRequestStatus(updated.status), reviewedAt: updated.respondedAt }
 
     // Append to the immutable membership audit trail so the leader can later
     // find this person (search by name/phone) and reverse the decision.

@@ -50,14 +50,15 @@ describe('Invite authorization (org-scoped management)', () => {
     groupId = group.id
 
     // An invite created by the OWNER for the group (for update/delete tests).
-    const invite = await prisma.invite.create({
-      data: { token: `tok-${stamp}`, inviterId: owner.userId, groupId },
+    const invite = await prisma.invitation.create({
+      data: {
+        initiatedBy: 'leader', token: `tok-${stamp}`, inviterId: owner.userId, groupId },
     })
     inviteId = invite.id
   })
 
   afterAll(async () => {
-    await prisma.invite.deleteMany({ where: { groupId } })
+    await prisma.invitation.deleteMany({ where: { groupId } })
     await prisma.group.deleteMany({ where: { organizationId: orgId } })
     await prisma.userRole.deleteMany({ where: { organizationId: orgId } })
     await prisma.role.deleteMany({ where: { organizationId: orgId } })

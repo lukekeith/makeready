@@ -307,8 +307,8 @@ router.get('/:token', async (req, res) => {
 
   try {
     // Fetch invite with group and inviter details
-    const invite = await prisma.invite.findUnique({
-      where: { token },
+    const invite = await prisma.invitation.findUnique({
+      where: { token, initiatedBy: 'leader' },
       include: {
         group: true,
         inviter: true,

@@ -21,7 +21,7 @@ describe.skipIf(!TEST_DB_URL)('invite-member full scenario against the test data
   it('has the group-invite template and one named invite', async () => {
     const template = await db.prisma.smsTemplate.findUnique({ where: { slug: 'group-invite-v1' } })
     expect(template?.minIntervalMinutes).toBe(1200)
-    const invites = await db.prisma.invite.findMany({ where: { recipientName: 'Tony Stark' } })
+    const invites = await db.prisma.invitation.findMany({ where: { recipientName: 'Tony Stark', initiatedBy: 'leader' } })
     expect(invites).toHaveLength(1)
     expect(invites[0].groupId).toBe(FIXTURE_GROUP_IDS[0])
   })

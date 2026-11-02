@@ -1,3 +1,4 @@
+import { toLegacyInvite, toLegacyJoinRequest } from '../../src/services/invitation.js'
 import type { PrismaClient } from '../../src/generated/prisma/index.js'
 import type { Express } from 'express'
 import request from 'supertest'
@@ -18,9 +19,10 @@ export async function seedLegacyInvitationCases(prisma: PrismaClient) {
   for (const member of members) await prisma.user.create({ data: { id: member.id, email: `${member.id}@example.invalid`, name: member.firstName!, createdAt: LEGACY_DATE, updatedAt: LEGACY_DATE } })
   // Existing phone-user keeps verification acceptance deterministic, without mocking its storage.
   await prisma.user.create({ data: { id: legacyId(5), email: 'legacy-phone@example.invalid', name: 'Phone User', phoneNumber: members[6].phoneNumber, phoneVerified: true, createdAt: LEGACY_DATE, updatedAt: LEGACY_DATE } })
-  const invites: Record<string, Awaited<ReturnType<typeof prisma.invite.create>>> = {}
+  const invites: Record<string, ReturnType<typeof toLegacyInvite>> = {}
   for (const [n, kind] of ['pending', 'accepted', 'storedExpired', 'timeExpired', 'nullGroup', 'nullPhone', 'unresolvedOrg', 'verification'].entries()) {
-    invites[kind] = await prisma.invite.create({ data: {
+    invites[kind] = toLegacyInvite(await prisma.invitation.create({ data: {
+      initiatedBy: 'leader', organizationId: kind === 'unresolvedOrg' ? null : org.id,
       id: legacyId(30 + n), token: `LEGACY000${n}`, inviterId: kind === 'unresolvedOrg' ? outsider.id : leader.id,
       groupId: ['nullGroup', 'unresolvedOrg'].includes(kind) ? null : group.id,
       recipientPhone: kind === 'nullPhone' ? null : kind === 'verification' ? members[6].phoneNumber : `+1202555020${n}`,
@@ -29,14 +31,15 @@ export async function seedLegacyInvitationCases(prisma: PrismaClient) {
       createdAt: new Date(LEGACY_DATE.getTime() + n * 1000),
       expiresAt: kind === 'timeExpired' ? new Date('2020-01-01T00:00:00Z') : ['nullGroup', 'nullPhone', 'unresolvedOrg', 'storedExpired'].includes(kind) ? null : new Date('2099-01-01T00:00:00Z'),
       acceptedAt: kind === 'accepted' ? new Date('2025-02-01T00:00:00Z') : null,
-    } })
+    } }))
   }
-  const requests: Record<string, Awaited<ReturnType<typeof prisma.groupJoinRequest.create>>> = {}
-  for (const [n, status] of ['pending', 'approved', 'rejected'].entries()) requests[status] = await prisma.groupJoinRequest.create({ data: {
-    id: legacyId(50 + n), groupId: group.id, memberId: members[n].id, status,
+  const requests: Record<string, ReturnType<typeof toLegacyJoinRequest>> = {}
+  for (const [n, status] of ['pending', 'approved', 'rejected'].entries()) requests[status] = toLegacyJoinRequest(await prisma.invitation.create({ data: {
+    initiatedBy: 'member', organizationId: org.id, recipientPhone: members[n].phoneNumber,
+    id: legacyId(50 + n), groupId: group.id, memberId: members[n].id, status: status === 'approved' ? 'accepted' : status,
     message: n === 0 ? null : `${status} message`, createdAt: new Date(LEGACY_DATE.getTime() + n * 1000),
-    updatedAt: new Date('2025-03-01T00:00:00Z'), reviewedById: n ? leader.id : null, reviewedAt: n ? new Date('2025-02-02T00:00:00Z') : null,
-  } })
+    updatedAt: new Date('2025-03-01T00:00:00Z'), respondedById: n ? leader.id : null, respondedAt: n ? new Date('2025-02-02T00:00:00Z') : null,
+  } }))
   return { leader, outsider, org, group, members, invites, requests }
 }
 
@@ -80,4 +83,11 @@ export function captureLegacyResponse(response: { status: number; body: unknown 
     return Array.isArray(value) ? value.map(walk) : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([key, v]) => [key, walk(v)])) : value
   }
   return { status: response.status, body: walk(response.body) }
+}
+
+export async function readLegacyInvite(prisma: PrismaClient, id: string) {
+  return toLegacyInvite(await prisma.invitation.findUniqueOrThrow({ where: { id, initiatedBy: 'leader' } }))
+}
+export async function readLegacyRequest(prisma: PrismaClient, id: string) {
+  return toLegacyJoinRequest(await prisma.invitation.findUniqueOrThrow({ where: { id, initiatedBy: 'member' } }))
 }
