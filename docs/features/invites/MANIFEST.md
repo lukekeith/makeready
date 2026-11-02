@@ -1,6 +1,6 @@
 size: lg
-state: building
-next: "Implement pushed details, confirmations, page-owned mutation effects and typed navigation, then integrated acceptance"
+state: built
+next: "Prepare held merge proof and run real isolated simulator/browser acceptance, then local delivery"
 head: 9da5d240
 ticket: none
 branch: builder/invites
@@ -16,8 +16,8 @@ ui2: invites-home, invite-home, request-detail (d2m; Figma section 4773:11377; a
 auto: on
 blocked: none
 agent-walk: risk
-phase: building
-current-task: "Task 8"
+phase: built
+current-task: "Integrated acceptance walk"
 origin-branch: feature/invites
 origin-head: 9bc0bf7d86156bb023e04c00a32d3fd62ffa8d11
 target-branch: feature/invites
