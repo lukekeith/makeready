@@ -74,10 +74,12 @@ struct FilterMenuOverlay: View {
     /// False while the filter is already at rest — the link draws at C-049's 50% and ignores taps.
     var clearEnabled: Bool
 
-    /// filter-multiselect D1/D10: set → draft mode. Option taps toggle a draft seeded from
-    /// `selectedIDs` when the menu opens; the top row's Clear empties the draft (the menu stays
-    /// open); Save hands the draft back here (the presenter applies it and closes); ✕ discards it.
-    /// `onSelect` still fires per toggle. `onClear` / `clearEnabled` are ignored in this mode (D10).
+    /// filter-multiselect D1/D10, §8 (owner 2026-11-01): set → draft mode. A draft is seeded from
+    /// `selectedIDs` when the menu opens; `.multiple` taps toggle it, `.single` taps replace it with
+    /// that option (radio-like); every tap keeps the menu open. The top row's Clear empties the
+    /// draft and the menu stays open; Save hands the draft back here (the presenter applies it and
+    /// closes); ✕ discards it. `onSelect` still fires per tap. `onClear` / `clearEnabled` are
+    /// ignored in this mode (D10).
     var onSave: ((Set<String>) -> Void)?
 
     /// D1: the picks being edited — seeded once per presentation (each opening builds a new view).
@@ -109,9 +111,9 @@ struct FilterMenuOverlay: View {
         _draft = SwiftUI.State(initialValue: selectedIDs)
     }
 
-    /// §7 the tag-flow form: `sections` in display order, `selectedIDs` seeding the draft. Draft
-    /// mode as C-036 draws it today — a chip tap toggles its id, Save hands the draft back, Clear
-    /// applies the empty selection, ✕ (`onClose`) discards.
+    /// §7 the tag-flow form: `sections` in display order, `selectedIDs` seeding the draft. Always
+    /// draft mode (§8) — a chip tap toggles its id, Save hands the draft back, Clear empties the
+    /// draft and the menu stays open, ✕ (`onClose`) discards.
     init(
         sections: [Section],
         selectedIDs: Set<String>,
@@ -136,6 +138,15 @@ struct FilterMenuOverlay: View {
         var next = draft
         if next.remove(id) == nil { next.insert(id) }
         return next
+    }
+
+    /// §8 mode table: the draft after a tap on `id` — `.single` replaces it with just that option
+    /// (tapping the selected one keeps it selected), `.multiple` toggles it.
+    static func drafted(_ draft: Set<String>, _ id: String, mode: SelectionMode) -> Set<String> {
+        switch mode {
+        case .single: return [id]
+        case .multiple: return toggled(draft, id)
+        }
     }
 
     /// D4: a chip's text for the picked labels — none → `resting`, one → that label,
@@ -168,12 +179,13 @@ struct FilterMenuOverlay: View {
                 VStack(alignment: .leading, spacing: 0) {
                     if let onSave {
                         // filter-multiselect D1/D8: Clear leading, Save trailing, one fixed row above
-                        // the list. Owner 2026-10-27: Clear applies the empty selection and closes
-                        // (the presenter closes on save); enabled while anything is checked or
-                        // applied. Save always is.
+                        // the list. §8 (owner 2026-11-01): Clear empties the draft and the menu
+                        // stays open; enabled while the draft is non-empty. Save always is.
                         HStack(spacing: Token.Space.cardPadding) {
-                            LinkButton(label: Self.clearLabel, style: .muted, onTap: { onSave([]) },
-                                       isEnabled: !draft.isEmpty || !selectedIDs.isEmpty, underlined: false)
+                            // §8 rule 3 / OQ-C-036-12: Clear draws `color-filter-clear` (C-049
+                            // `filterClear`); disabled is C-049's 50% of it.
+                            LinkButton(label: Self.clearLabel, style: .filterClear, onTap: { draft = [] },
+                                       isEnabled: !draft.isEmpty, underlined: false)
                                 .ui2Element("C-049 LinkButton")
                             Spacer(minLength: 0)
                             LinkButton(label: Self.saveLabel, onTap: { onSave(draft) }, underlined: false)
@@ -224,7 +236,9 @@ struct FilterMenuOverlay: View {
                         label: option.label,
                         selected: onSave != nil ? draft.contains(option.id) : selectedIDs.contains(option.id),
                         onTap: {
-                            if onSave != nil { draft = Self.toggled(draft, option.id) }
+                            if onSave != nil {
+                                draft = Self.drafted(draft, option.id, mode: selectionMode)
+                            }
                             onSelect(option)
                         }
                     )

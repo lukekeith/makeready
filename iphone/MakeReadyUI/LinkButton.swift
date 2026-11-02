@@ -25,6 +25,9 @@ struct LinkButton: View {
     enum Style: String {
         case `default`
         case muted
+        /// OQ-C-036-12 (owner 2026-11-01): C-036 §8's draft-mode Clear only — `color-filter-clear`.
+        /// No other consumer uses it.
+        case filterClear
     }
 
     /// C-049 §4 `label: String` — "the link text; single line (OQ-C-049-4). Consumers supply
@@ -99,6 +102,7 @@ struct LinkButton: View {
         switch style {
         case .default: return Token.accent      // §1: `Purple/100%` → `color-accent`
         case .muted: return Token.white20       // §1: `White/20%` → `color-white-20`
+        case .filterClear: return Token.filterClear  // OQ-C-036-12: `color-filter-clear`
         }
     }
 

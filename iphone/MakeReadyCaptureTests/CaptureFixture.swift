@@ -858,6 +858,7 @@ struct CaptureComponent: Codable {
     let selectionMode: String?                 // C-036 — "single" | "multiple"
     let selectedIDs: [String]?                 // C-036
     let isPresented: Bool?                     // C-036 — .filterMenuPresentation(isPresented:)
+    let onSave: Bool?                          // C-036 §8 — true = `onSave` set (draft mode: Clear · Save row)
     // ── screen members-home ──
     // Reused as-is: `searchText` (same name, same type).
     let groupFilterLabel: String?

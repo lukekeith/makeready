@@ -147,4 +147,14 @@ final class MediaHomeContainerTests: XCTestCase {
         XCTAssertEqual(menu.flatMap(\.options).map(\.id), ["cat:bible-books:1", "dogs"])
         XCTAssertEqual(menu.flatMap(\.options).map(\.label), ["Genesis", "Dogs"])
     }
+
+    /// filter-clear-keeps-open: Time is a draft-mode single choice — at rest (All time) nothing is picked, so
+    /// Clear is disabled; Save with nothing picked is All time, with a pick that window.
+    func testTimeMenuDraftSeedsAndSaves() {
+        XCTAssertEqual(MediaHomeContainer.timeMenuSelection(.all), [])
+        XCTAssertEqual(MediaHomeContainer.timeMenuSelection(.last30), [MediaHomeMapper.TimeWindow.last30.rawValue])
+        XCTAssertEqual(MediaHomeContainer.timeWindow(saved: []), .all)
+        XCTAssertEqual(MediaHomeContainer.timeWindow(saved: [MediaHomeMapper.TimeWindow.last7.rawValue]), .last7)
+        XCTAssertEqual(MediaHomeContainer.timeWindow(saved: ["nonsense"]), .all)
+    }
 }

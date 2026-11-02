@@ -331,17 +331,14 @@ struct MediaHomeContainer: View {
         case .time:
             FilterMenuOverlay(
                 options: MediaHomeMapper.TimeWindow.allCases.map { FilterMenuOverlay.Option(id: $0.rawValue, label: $0.label) },
-                selectionMode: .single, selectedIDs: [selection.time.rawValue],
-                onSelect: { option in
-                    update { $0.time = MediaHomeMapper.TimeWindow(rawValue: option.id) ?? .all }
-                    openMenu = nil
-                },
+                // filter-clear-keeps-open (owner 2026-11-01): a draft-mode single choice — a tap picks, Clear
+                // empties the draft, Save applies, ✕ discards — like every other filter.
+                selectionMode: .single, selectedIDs: Self.timeMenuSelection(selection.time),
                 onClose: { openMenu = nil },
-                onClear: {
-                    update { $0.time = .all }
+                onSave: { ids in
+                    update { $0.time = Self.timeWindow(saved: ids) }
                     openMenu = nil
-                },
-                clearEnabled: selection.time != .all)
+                })
         }
     }
 
@@ -469,6 +466,16 @@ struct MediaHomeContainer: View {
                                             friendlyMessage: "Couldn't open that photo")
             }
         }
+    }
+
+    /// filter-clear-keeps-open: the Time menu's draft seed — nothing picked at rest (All time), so Clear starts disabled.
+    static func timeMenuSelection(_ time: MediaHomeMapper.TimeWindow) -> Set<String> {
+        time == .all ? [] : [time.rawValue]
+    }
+
+    /// filter-clear-keeps-open: what Save hands back → the window; nothing picked (or unknown) is All time.
+    static func timeWindow(saved ids: Set<String>) -> MediaHomeMapper.TimeWindow {
+        ids.first.flatMap(MediaHomeMapper.TimeWindow.init(rawValue:)) ?? .all
     }
 
     /// tag-categories D6: the mapper's tag sections as C-036's tag-flow sections, unchanged.

@@ -2497,7 +2497,10 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
                 MakeReadyUI.FilterMenuOverlay.Option(id: $0.id, label: $0.label, glyph: $0.glyph)
             },
             selectionMode: ui2C036Mode,
-            selectedIDs: Set(ui2C036Selected)
+            selectedIDs: Set(ui2C036Selected),
+            // §8 draft mode: `onSave: true` draws the Clear · Save row; nil/false is the list form
+            // with no header row, as before.
+            onSave: c.onSave == true ? { _ in } : nil
         )
         // The Presented state (§3) is the same view through the §4 modifier; the other states
         // are the bare view, which paints no dim (OQ-C-036-4).

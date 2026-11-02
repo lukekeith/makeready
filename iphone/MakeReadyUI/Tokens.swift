@@ -50,6 +50,7 @@ extension View {
 
 enum Token {
     static let activitySlidePlaceholder = Color(red: 0.1804, green: 0.1804, blue: 0.1804, opacity: 1)
+    static let filterClear = Color(red: 0.5529, green: 0.6235, blue: 0.6549, opacity: 1)
     static let negative = Color(red: 0.9843, green: 0.1725, blue: 0.2118, opacity: 1)
     static let positive = Color(red: 0.4824, green: 0.9451, blue: 0.6588, opacity: 1)
     static let screenshotPlaceholder = Color(red: 0.1176, green: 0.1608, blue: 0.2235, opacity: 1)
