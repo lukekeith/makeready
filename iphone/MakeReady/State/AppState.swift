@@ -465,6 +465,9 @@ final class AppState {
     /// Every media tag in the org, ordered by usage count. Drives the Library
     /// Media tab tags filter.
     var allMediaTags: [String] = []
+    /// tag-categories D14: MakeReady-defined tag categories (global reference data), loaded by
+    /// `MediaActions.loadTagCategories()`; Media's Tags filter groups and orders its options by them.
+    var tagCategories: [TagCategory] = []
 
     /// Users with the Group Leader role in the org, with their program + media
     /// counts. Drives the Library "Group leaders" filter and Org Home's list.
@@ -1005,6 +1008,7 @@ final class AppState {
         // filter dropdowns after sign-out.
         allProgramTags = []
         allMediaTags = []
+        tagCategories = []
         groupLeaders = []
         groupPostsNextCursor = [:]
         // ui2-enrollment-create D13: drafts are memory-only and die with the session.

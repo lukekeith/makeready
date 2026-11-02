@@ -299,3 +299,27 @@ struct TagsResponse: Codable {
     let tags: [TagCount]?
     let error: String?
 }
+
+// MARK: - Tag Categories (tag-categories §Contract: GET /api/tags/categories)
+
+/// One spelling of a category member. `tag` is normalized (lowercase, no whitespace); the spellings of one
+/// member share its `label` and `position`.
+struct TagCategoryMember: Codable, Hashable {
+    let tag: String
+    let label: String
+    let position: Int
+}
+
+/// A MakeReady-defined tag category (tag-categories D3), e.g. Books of the Bible.
+struct TagCategory: Codable, Hashable {
+    let key: String
+    let name: String
+    let position: Int
+    let tags: [TagCategoryMember]
+}
+
+struct TagCategoriesResponse: Codable {
+    let success: Bool
+    let categories: [TagCategory]?
+    let error: String?
+}

@@ -146,6 +146,26 @@ final class MediaLoadAllPhotosTests: XCTestCase {
         XCTAssertEqual(state.mediaSources.last?.canUpload, true)
     }
 
+    /// tag-categories D14: the categories land in AppState in the contract's shape, and sign-out forgets them.
+    func testLoadTagCategoriesStoresTheContractShapeAndClearInMemoryForgetsIt() async {
+        api.stub("GET", "/api/tags/categories", json: #"{"success":true,"categories":[{"key":"bible-books","name":"Books of the Bible","position":1,"tags":[{"tag":"genesis","label":"Genesis","position":1},{"tag":"psalm","label":"Psalms","position":19}]}]}"#)
+        await MediaActions(api: api, state: state).loadTagCategories()
+        XCTAssertEqual(state.tagCategories, [TagCategory(key: "bible-books", name: "Books of the Bible", position: 1, tags: [
+            TagCategoryMember(tag: "genesis", label: "Genesis", position: 1),
+            TagCategoryMember(tag: "psalm", label: "Psalms", position: 19),
+        ])])
+        state.clearAllData()
+        XCTAssertTrue(state.tagCategories.isEmpty)
+    }
+
+    /// tag-categories D14: a failed load is console-only and leaves the categories as they were.
+    func testLoadTagCategoriesFailureKeepsWhatWasThere() async {
+        state.tagCategories = [TagCategory(key: "k", name: "K", position: 1, tags: [])]
+        api.errorToThrow = APIError.serverError("down")
+        await MediaActions(api: api, state: state).loadTagCategories()
+        XCTAssertEqual(state.tagCategories.map(\.key), ["k"])
+    }
+
     func testBrowseItemsDecodeTheirSourceAndOldItemsStillDecode() async {
         let mr = #"{"id":"m","title":"m","url":"https://img/m.jpeg","type":"photo","uploadStatus":"ready","tags":[],"usageCount":0,"createdAt":"2026-10-01T12:00:00.000Z","updatedAt":"2026-10-01T12:00:00.000Z","organizationId":"mr","isMakeReady":true}"#
         api.stub("GET", base, json: #"{"success":true,"data":[\#(mr),\#(item("a"))],"hasMore":false,"nextCursor":null}"#)

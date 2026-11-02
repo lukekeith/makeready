@@ -266,6 +266,26 @@ private let api: APIClientProtocol
         }
     }
 
+    /// tag-categories D14: the MakeReady-defined tag categories into `AppState.tagCategories`. Console-only on
+    /// failure — what was there stays, and with none the Tags filter falls back to one A→Z flow (D7).
+    @MainActor
+    func loadTagCategories() async {
+        do {
+            let response: TagCategoriesResponse = try await api.get("/api/tags/categories", responseType: TagCategoriesResponse.self)
+            guard response.success, let categories = response.categories else {
+                throw APIError.serverError(response.error ?? "Failed to load tag categories")
+            }
+            state.tagCategories = categories
+        } catch {
+            if Task.isCancelled || UI2ImageLoader.isCancellation(error) { return }
+            if AuthStatusPolicy.shouldSignOut(after: error) {
+                await onUnauthorized()
+                return
+            }
+            state.recordError(error, context: "MediaActions.loadTagCategories", surface: false)
+        }
+    }
+
     // MARK: - Delete Media
 
     /// Delete a media item
