@@ -482,6 +482,7 @@ Role: implementation
 - Create `iphone/MakeReady/UI2/Containers/Invites/InviteDetailContainer.swift`, `InviteDetailMapper.swift`, `RequestDetailContainer.swift`, `RequestDetailMapper.swift` — C2 rendering, actions, confirmations and links.
 - Modify `iphone/MakeReady/UI2/Shell/UI2Shell.swift` and `UI2ShellModel.swift` — register/render `.inviteDetail(id:)` and `.requestDetail(id:)`, and connect the tab row callback to navigator.push; modify `iphone/MakeReady/UI2/Containers/Groups/GroupDetailContainer.swift` only to route existing request rows to `.requestDetail(id:)` where needed.
 - Create `iphone/MakeReadyCaptureTests/InvitationDetailMapperTests.swift`, `InvitationDetailActionsTests.swift`; modify `UI2ShellModelTests.swift` and app/test project membership.
+- Modify `iphone/MakeReady/State/Actions/InvitationActions.swift` minimally with a defaulted presentation predicate for mutation banner surfacing only; preserve logging, current-session 401 handling and committed domain reconciliation. Container lifetime/operation and navigation-entry ownership suppress old-page UI effects after Back/reopen.
 - The coordinator owns the configured transient `iphone/MakeReadyCaptureUITests/AgentWalk.swift` harness and its cleanup; this app task adds no permanent UI-test file. Unit tests and exact walk assertions below are mandatory.
 
 **Interfaces:**
