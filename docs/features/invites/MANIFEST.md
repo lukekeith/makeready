@@ -1,21 +1,21 @@
 size: lg
 state: signed-off
-next: "🔒 human walk on device (Profile → Local), then /builder:signoff --path docs/features/invites"
-head: 63056c4f
+next: /builder:verify --path docs/features/invites
+head: 5aa6544f
 ticket: none
-branch: builder/invites
+branch: feature/invites
 pr: none
 apps: server+iphone
 contract: frozen (amended 2026-11-02 — additive C2 events.actorName, D21; producer + consumer changed together)
 hold: none
 go-ahead: owner 2026-11-02 agent --auto
-walk: agent-pass
-verify: phase-green fae9168f
+walk: Luke Keith 2026-11-02
+verify: none
 ready: yes 2026-11-02 63227932
 ui2: invites-home, invite-home, request-detail (d2m; Figma section 4773:11377; all built, updated 9da5d240)
 auto: on
 blocked: none
-agent-walk: risk
+agent-walk: off
 phase: signed-off
 current-task: "Final verification and local delivery"
 origin-branch: feature/invites

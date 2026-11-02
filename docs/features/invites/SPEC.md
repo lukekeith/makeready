@@ -1,4 +1,5 @@
 # invites — spec
+> ✅ SIGNED OFF 2026-11-02 — 5aa6544f · by Luke Keith: "PASS"
 > lg · ticket none · prototype mode (`ui2: invites-home, invite-home, request-detail`; Figma section 4773:11377)
 
 ## Completion and acceptance
