@@ -1,6 +1,6 @@
 size: lg
 state: building
-next: "Task2: lossless shared schema and every legacy reader/writer cutover; frozen snapshots unchanged"
+next: "Implement Task3 atomic lifecycle, cross-acceptance and event history; preserve frozen legacy payloads"
 head: 9da5d240
 ticket: none
 branch: builder/invites
@@ -17,7 +17,7 @@ auto: on
 blocked: none
 agent-walk: risk
 phase: building
-current-task: "Task 2"
+current-task: "Task 3"
 origin-branch: feature/invites
 origin-head: 9bc0bf7d86156bb023e04c00a32d3fd62ffa8d11
 target-branch: feature/invites
