@@ -1,6 +1,6 @@
 size: lg
 state: building
-next: "Integrate reviewed D2M inputs, then implement frozen iPhone models/state/session-safe actions"
+next: "Implement Invites list tab, 300ms local search and isolated draft filters"
 head: 9da5d240
 ticket: none
 branch: builder/invites
@@ -17,7 +17,7 @@ auto: on
 blocked: none
 agent-walk: risk
 phase: building
-current-task: "Task 6 integration boundary"
+current-task: "Task 7"
 origin-branch: feature/invites
 origin-head: 9bc0bf7d86156bb023e04c00a32d3fd62ffa8d11
 target-branch: feature/invites
