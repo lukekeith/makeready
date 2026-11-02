@@ -109,9 +109,9 @@ unchanged.
 
 | # | ADD/EDIT/RENAME/REMOVE | Model.field | Wire | Reason | Status |
 |---|---|---|---|---|---|
-| S1 | ADD | `TagCategory` (`tag_categories`): `id` uuid PK · `key` String UNIQUE · `name` String · `position` Int · `createdAt` | `categories[].key/name/position` | D1, D4 | planned |
-| S2 | ADD | `TagCategoryTag` (`tag_category_tags`): `id` uuid PK · `categoryId` → TagCategory (cascade) · `tag` String UNIQUE (normalized) · `label` String · `position` Int · `createdAt`; index `(categoryId, position)` | `categories[].tags[]` | D1, D10, D12 | planned |
-| S3 | ADD | `GET /api/tags/categories` | §Contract | D15 | planned |
+| S1 | ADD | `TagCategory` (`tag_categories`): `id` uuid PK · `key` String UNIQUE · `name` String · `position` Int · `createdAt` | `categories[].key/name/position` | D1, D4 · T1 | planned |
+| S2 | ADD | `TagCategoryTag` (`tag_category_tags`): `id` uuid PK · `categoryId` → TagCategory (cascade) · `tag` String UNIQUE (normalized) · `label` String · `position` Int · `createdAt`; index `(categoryId, position)` | `categories[].tags[]` | D1, D10, D12 · T1 | planned |
+| S3 | ADD | `GET /api/tags/categories` | §Contract | D15 · T2 | planned |
 
 **Data plan:** both tables are new and empty, so there's no backfill of existing rows. The migration
 INSERTs one `tag_categories` row and the `tag_category_tags` rows in §server (D11). UNIQUE `tag` means a
@@ -184,3 +184,9 @@ spellings; Title Case labels; categories empty (failed load) → untitled A→Z.
 |---|---|---|
 | F1 | "john", "mark", "job", "acts" will always read as the book, even when someone meant a person or a word | Accepted at brainstorm (D3); only full book names and the three variants are members. |
 | F2 | Spellings not in the closed list ("1kings" is in; "i kings", "psalmes" are not) stay under CONTENT | Accepted; adding a spelling is one INSERT in a later migration. |
+| A1 | Alignment (2026-11-01), the fields Figma 4770:11375 shows → where each lives: chip text ← `TagCategoryTag.label` (books, S2) or the Title-Cased `MediaTag.tag` (D13, no storage) · section header ← `TagCategory.name` (S1) or the literal CONTENT (D7) · section/chip order ← `TagCategory.position` / `TagCategoryTag.position` (S1/S2), A→Z for CONTENT · selected/unselected ← the overlay's draft, then `MediaHomeMapper.Selection.tags`, container `@State`, not persisted (as today) · Clear/Save/✕ ← C-036 draft mode, unchanged. Verdicts: 3 ALIGNED (tag text, selection, draft actions), 4 MISSING → S1/S2/S3 (category name, member label, positions, the endpoint), 0 RENAME/RESHAPE. Released iPhone builds cache none of it. | Owed below as T1–T5. |
+| T1 | server: `TagCategory` + `TagCategoryTag` in schema.yaml, generated migration + the seed INSERTs (S1, S2) | blocking |
+| T2 | server: `tag-categories` service + `GET /api/tags/categories` route + tests (S3) | blocking |
+| T3 | iphone: `TagCategory` models, `AppState.tagCategories` (+ `clearInMemory`), `MediaActions.loadTagCategories()`, the container's load call | trailing |
+| T4 | iphone: `MediaHomeMapper` tag sections, labels and `cat:` expansion (D7, D8, D10, D12, D13) + tests | trailing |
+| T5 | iphone: request the tag chip-flow form of C-036 + the tag chip from d2m (Figma 4770:11375), then wire Media's Tags menu to it | trailing |
