@@ -80,8 +80,69 @@ final class MediaHomeMapperTests: XCTestCase {
     func testTagsAnyOfAndOptionsFromTheLoadedListSorted() {
         let items = [item("1", tags: ["youth", "retreat"]), item("2", tags: ["family"]), item("3")]
         XCTAssertEqual(ids(items, .init(tags: ["Retreat", "family"])), ["1", "2"])
-        XCTAssertEqual(M.output(items: items, selection: .init(), today: today, timeZone: chicago).tagOptions,
-                       ["family", "retreat", "youth"])
+        XCTAssertEqual(M.output(items: items, selection: .init(), today: today, timeZone: chicago).tagSections,
+                       [M.TagSection(title: nil, options: [.init(id: "family", label: "Family"),
+                                                           .init(id: "retreat", label: "Retreat"),
+                                                           .init(id: "youth", label: "Youth")])])
+    }
+
+    // MARK: tag-categories (D7, D8, D10, D12, D13, D16)
+
+    private let bible = TagCategory(key: "bible-books", name: "Books of the Bible", position: 1, tags: [
+        TagCategoryMember(tag: "genesis", label: "Genesis", position: 1),
+        TagCategoryMember(tag: "exodus", label: "Exodus", position: 2),
+        TagCategoryMember(tag: "1samuel", label: "1 Samuel", position: 9),
+        TagCategoryMember(tag: "psalm", label: "Psalms", position: 19),
+        TagCategoryMember(tag: "psalms", label: "Psalms", position: 19),
+    ])
+
+    private func sections(_ items: [MediaLibraryItem], _ categories: [TagCategory]) -> [M.TagSection] {
+        M.output(items: items, selection: .init(), today: today, timeZone: chicago, categories: categories).tagSections
+    }
+
+    func testBooksFirstInBookOrderThenContentAToZ() {
+        let out = sections([item("1", tags: ["dogs", "exodus", "1 samuel"]), item("2", tags: ["animals", "genesis"])], [bible])
+        XCTAssertEqual(out.map(\.title), ["BOOKS OF THE BIBLE", "CONTENT"])
+        XCTAssertEqual(out[0].options, [.init(id: "cat:bible-books:1", label: "Genesis"),
+                                        .init(id: "cat:bible-books:2", label: "Exodus"),
+                                        .init(id: "cat:bible-books:9", label: "1 Samuel")])
+        XCTAssertEqual(out[1].options.map(\.label), ["Animals", "Dogs"])
+    }
+
+    func testOnlyBooksHasNoContentSection() {
+        XCTAssertEqual(sections([item("1", tags: ["genesis"])], [bible]).map(\.title), ["BOOKS OF THE BIBLE"])
+    }
+
+    func testNoTagsNoSections() {
+        XCTAssertEqual(sections([item("1")], [bible]), [])
+    }
+
+    func testPsalmAndPsalmsAreOneOptionThatMatchesBoth() {
+        let items = [item("1", tags: ["psalm"]), item("2", tags: ["Psalms"]), item("3", tags: ["genesis"])]
+        XCTAssertEqual(sections(items, [bible]).first?.options, [.init(id: "cat:bible-books:1", label: "Genesis"),
+                                                                 .init(id: "cat:bible-books:19", label: "Psalms")])
+        let shown = M.output(items: items, selection: .init(tags: ["cat:bible-books:19"]), today: today, timeZone: chicago,
+                             categories: [bible]).tiles.map(\.id)
+        XCTAssertEqual(shown, ["1", "2"])
+    }
+
+    func testTitleCaseLabelsAndNoCategoriesFallsBackToOneFlow() {
+        let out = sections([item("1", tags: ["new life", "genesis"])], [])
+        XCTAssertEqual(out, [M.TagSection(title: nil, options: [.init(id: "genesis", label: "Genesis"),
+                                                                .init(id: "new life", label: "New Life")])])
+    }
+
+    func testTagLabelsFollowOptionOrderAndSkipUnknownIds() {
+        let out = sections([item("1", tags: ["dogs", "genesis"])], [bible])
+        XCTAssertEqual(M.tagLabels(for: ["dogs", "cat:bible-books:1", "gone"], in: out), ["Genesis", "Dogs"])
+    }
+
+    func testALiteralCatColonTagIsTreatedAsText() {
+        let items = [item("1", tags: ["cat:nope"]), item("2", tags: ["genesis"])]
+        XCTAssertEqual(sections(items, [bible]).last?.options, [.init(id: "cat:nope", label: "Cat:nope")])
+        let shown = M.output(items: items, selection: .init(tags: ["cat:nope"]), today: today, timeZone: chicago,
+                             categories: [bible]).tiles.map(\.id)
+        XCTAssertEqual(shown, ["1"])
     }
 
     func testLeadersByIdSameNamesKeptApartAndNoUploaderOnlyWhenEmpty() {

@@ -10,7 +10,7 @@ final class MediaHomeContainerTests: XCTestCase {
                              date: Date(timeIntervalSince1970: 0), title: id)
     }
     private func output(_ tiles: [MediaHomeMapper.Tile], empty: Bool = false, noResults: Bool = false) -> MediaHomeMapper.Output {
-        .init(tiles: tiles, tagOptions: [], leaderOptions: [], dateRange: nil, isEmptyLibrary: empty, isNoResults: noResults)
+        .init(tiles: tiles, tagSections: [], leaderOptions: [], dateRange: nil, isEmptyLibrary: empty, isNoResults: noResults)
     }
 
     func testLoadsOncePerSessionPerOrg() {

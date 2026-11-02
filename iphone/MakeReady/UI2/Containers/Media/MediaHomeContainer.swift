@@ -73,7 +73,8 @@ struct MediaHomeContainer: View {
 
     var body: some View {
         let app = AppState.shared
-        let output = MediaHomeMapper.output(items: app.mediaLibrary.all, selection: selection, today: Date(), timeZone: .current)
+        let output = MediaHomeMapper.output(items: app.mediaLibrary.all, selection: selection, today: Date(), timeZone: .current,
+                                            categories: app.tagCategories)
         let tiles = frozenTiles ?? output.tiles
         let medium = Self.usesMedium(level)
         let urls = tiles.map { Self.tileURL($0, medium: medium, failed: tileImages.hasFailed) }
@@ -101,7 +102,8 @@ struct MediaHomeContainer: View {
                 state: .init(
                     phase: Self.phase(output: output, isLoading: isLoading, failed: failed),
                     searchText: selection.search,
-                    selectedTags: selection.tags.sorted(),
+                    // tag-categories D13: the picks' display labels, in option order (the chip's "first +n").
+                    selectedTags: MediaHomeMapper.tagLabels(for: selection.tags, in: output.tagSections),
                     selectedLeaders: output.leaderOptions.filter { selection.leaderIds.contains($0.id) }.map(\.label),
                     timeOption: selection.time.label,
                     photoURLs: photoURLs,
@@ -191,6 +193,7 @@ struct MediaHomeContainer: View {
         .task {
             await AppState.shared.loadInitialData()   // waits for the org (as MembersHomeContainer)
             await actions.loadSources()                // media-library D4: Source options + upload targets
+            await actions.loadTagCategories()          // tag-categories D14: Tags sections + book order
             if Self.shouldLoad(loadedOrgId: AppState.shared.mediaPhotosLoadedOrgId, orgId: AppState.shared.organizationId) {
                 startLoad(resume: nil, refresh: false)
             } else {
@@ -308,7 +311,7 @@ struct MediaHomeContainer: View {
                 onClose: { openMenu = nil })
         case .tags:
             FilterMenuOverlay(
-                options: output.tagOptions.map { FilterMenuOverlay.Option(id: $0, label: $0) },
+                options: output.tagSections.flatMap(\.options).map { FilterMenuOverlay.Option(id: $0.id, label: $0.label) },
                 selectionMode: .multiple, selectedIDs: selection.tags,
                 onClose: { openMenu = nil },
                 onSave: { ids in

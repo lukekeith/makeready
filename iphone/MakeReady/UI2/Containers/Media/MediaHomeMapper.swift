@@ -43,6 +43,12 @@ enum MediaHomeMapper {
         let label: String
     }
 
+    /// tag-categories D7: one group of the Tags filter's options; `title` nil draws no header.
+    struct TagSection: Equatable {
+        let title: String?
+        let options: [Option]
+    }
+
     /// One grid tile (D10): `mediumURL` at 5 columns, `thumbURL` denser and as every fallback.
     struct Tile: Equatable, Identifiable {
         let id: String
@@ -56,7 +62,8 @@ enum MediaHomeMapper {
     struct Output: Equatable {
         /// Oldest → newest (D5).
         let tiles: [Tile]
-        let tagOptions: [String]
+        /// tag-categories D7/D8: the photos' tags, grouped by category (book order), then CONTENT A→Z.
+        let tagSections: [TagSection]
         let leaderOptions: [Option]
         /// The shown tiles' first and last date; nil when none.
         let dateRange: ClosedRange<Date>?
@@ -64,9 +71,10 @@ enum MediaHomeMapper {
         let isNoResults: Bool
     }
 
-    static func output(items: [MediaLibraryItem], selection: Selection, today: Date, timeZone: TimeZone) -> Output {
+    static func output(items: [MediaLibraryItem], selection: Selection, today: Date, timeZone: TimeZone,
+                       categories: [TagCategory] = []) -> Output {
         let photos = items.filter { $0.type == "photo" }.sorted(by: gridOrder)
-        let tagOptions = Set(photos.flatMap { $0.tags.map { $0.lowercased() } }).sorted()
+        let tagSections = tagSections(tags: Set(photos.flatMap { $0.tags.map { $0.lowercased() } }), categories: categories)
         var leaders: [String: String] = [:]
         for item in photos { if let u = item.uploader { leaders[u.id] = u.name } }
         let leaderOptions = leaders.map { Option(id: $0.key, label: $0.value) }.sorted {
@@ -75,10 +83,10 @@ enum MediaHomeMapper {
         }
         let cutoff = cutoff(selection.time, today: today, timeZone: timeZone)
         let query = selection.search.trimmingCharacters(in: .whitespacesAndNewlines)
-        let wantedTags = Set(selection.tags.map { $0.lowercased() })
+        let wantedTags = wantedSpellings(selection.tags, categories: categories)
         let shown = photos.filter { item in
             if !query.isEmpty, !matches(item, query: query) { return false }
-            if !wantedTags.isEmpty, wantedTags.isDisjoint(with: item.tags.map { $0.lowercased() }) { return false }
+            if !wantedTags.isEmpty, wantedTags.isDisjoint(with: item.tags.map(normalizeTag)) { return false }
             if !selection.leaderIds.isEmpty {
                 guard let id = item.uploader?.id, selection.leaderIds.contains(id) else { return false }
             }
@@ -98,7 +106,7 @@ enum MediaHomeMapper {
                         date: date, title: item.displayTitle)
         }
         let range = tiles.first.flatMap { first in tiles.last.map { first.date...$0.date } }
-        return Output(tiles: tiles, tagOptions: tagOptions, leaderOptions: leaderOptions, dateRange: range,
+        return Output(tiles: tiles, tagSections: tagSections, leaderOptions: leaderOptions, dateRange: range,
                       isEmptyLibrary: photos.isEmpty, isNoResults: !photos.isEmpty && tiles.isEmpty)
     }
 
@@ -112,6 +120,75 @@ enum MediaHomeMapper {
             return order == .orderedSame ? a.id < b.id : order == .orderedAscending
         }
         return a.sortDate == b.sortDate ? a.id < b.id : a.sortDate < b.sortDate
+    }
+
+    // MARK: - Tag categories (tag-categories D7, D8, D10, D12, D13, D16)
+
+    /// D10: the server's rule — lowercase, all whitespace removed ("1 Samuel" → "1samuel").
+    static func normalizeTag(_ tag: String) -> String {
+        tag.lowercased().filter { !$0.isWhitespace }
+    }
+
+    /// D13: an uncategorized tag reads as its lowercased text with each space-separated word capitalised.
+    static func titleCase(_ tag: String) -> String {
+        tag.lowercased().split(separator: " ", omittingEmptySubsequences: false)
+            .map { $0.prefix(1).uppercased() + $0.dropFirst() }
+            .joined(separator: " ")
+    }
+
+    /// D7/D8/D12: each category with a member among `tags` (category order, one option per member at its
+    /// position, labelled by the member), then CONTENT A→Z. Nothing categorized → one untitled section.
+    static func tagSections(tags: Set<String>, categories: [TagCategory]) -> [TagSection] {
+        var memberBySpelling: [String: (category: TagCategory, member: TagCategoryMember)] = [:]
+        for category in categories {
+            for member in category.tags { memberBySpelling[member.tag] = (category, member) }
+        }
+        var present: [String: [Int: TagCategoryMember]] = [:]   // category key → position → member
+        var plain: [Option] = []
+        for tag in tags {
+            if let hit = memberBySpelling[normalizeTag(tag)] {
+                present[hit.category.key, default: [:]][hit.member.position] = hit.member
+            } else {
+                plain.append(Option(id: tag, label: titleCase(tag)))
+            }
+        }
+        let content = plain.sorted {
+            let order = $0.label.localizedCaseInsensitiveCompare($1.label)
+            return order == .orderedSame ? $0.id < $1.id : order == .orderedAscending
+        }
+        let titled = categories.sorted { $0.position < $1.position }.compactMap { category -> TagSection? in
+            guard let members = present[category.key], !members.isEmpty else { return nil }
+            let options = members.keys.sorted().compactMap { position in
+                members[position].map { Option(id: "cat:\(category.key):\(position)", label: $0.label) }
+            }
+            return TagSection(title: category.name.uppercased(), options: options)
+        }
+        if titled.isEmpty { return content.isEmpty ? [] : [TagSection(title: nil, options: content)] }
+        return titled + (content.isEmpty ? [] : [TagSection(title: "CONTENT", options: content)])
+    }
+
+    /// D12/D16: the normalized spellings the selected ids stand for. A `cat:<key>:<position>` id that resolves
+    /// to a loaded member stands for all of that member's spellings; any other id is its own tag text.
+    static func wantedSpellings(_ ids: Set<String>, categories: [TagCategory]) -> Set<String> {
+        var spellings = Set<String>()
+        for id in ids {
+            let parts = id.split(separator: ":", maxSplits: 2).map(String.init)
+            if parts.count == 3, parts[0] == "cat", let position = Int(parts[2]),
+               let category = categories.first(where: { $0.key == parts[1] }) {
+                let members = category.tags.filter { $0.position == position }.map(\.tag)
+                if !members.isEmpty {
+                    spellings.formUnion(members)
+                    continue
+                }
+            }
+            spellings.insert(normalizeTag(id))
+        }
+        return spellings
+    }
+
+    /// D13/D16: the picked options' labels in option order (the Tags chip's "first +n"); ids with no option skipped.
+    static func tagLabels(for ids: Set<String>, in sections: [TagSection]) -> [String] {
+        sections.flatMap(\.options).filter { ids.contains($0.id) }.map(\.label)
     }
 
     /// media-library D7: the Source chip's options, in `/api/media/sources` order (MakeReady, then orgs).
