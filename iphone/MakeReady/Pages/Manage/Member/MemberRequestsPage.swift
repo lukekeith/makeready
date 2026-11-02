@@ -150,6 +150,8 @@ struct MemberRequestsPage: View {
     }
 
     private func approveRequest(_ groupRequest: GroupJoinRequest) async {
+        let generation = state.initialLoad.generation
+        guard !Task.isCancelled else { return }
         do {
             // Synchronous AppState removal inside the action so the red-dot
             // indicators on group cards / group-home update instantly.
@@ -157,36 +159,54 @@ struct MemberRequestsPage: View {
                 groupId: groupRequest.groupId,
                 requestId: groupRequest.request.id
             )
+            guard state.initialLoad.isCurrent(generation), !Task.isCancelled else { return }
             onRequestApproved()
         } catch {
+            // Silent: retired/cancelled decisions cannot leave a banner or retry in another session.
+            guard state.initialLoad.isCurrent(generation), !Task.isCancelled, !GroupActions.isCancellation(error) else { return }
             // User tapped Approve — surface; approval by id is safe to re-run.
             state.recordError(
                 error,
                 context: "MemberRequestsPage.approveRequest",
                 surface: true,
                 friendlyMessage: "Couldn't approve the request",
-                retry: { Task { await approveRequest(groupRequest) } }
+                retry: {
+                    Task {
+                        guard state.initialLoad.isCurrent(generation), !Task.isCancelled else { return }
+                        await approveRequest(groupRequest)
+                    }
+                }
             )
         }
     }
 
     private func rejectRequest(_ groupRequest: GroupJoinRequest) async {
+        let generation = state.initialLoad.generation
+        guard !Task.isCancelled else { return }
         do {
             try await GroupActions().rejectJoinRequest(
                 groupId: groupRequest.groupId,
                 requestId: groupRequest.request.id
             )
+            guard state.initialLoad.isCurrent(generation), !Task.isCancelled else { return }
             // Reuse the same refresh callback as approval — the request is
             // resolved and removed from the pending list either way.
             onRequestApproved()
         } catch {
+            // Silent: retired/cancelled decisions cannot leave a banner or retry in another session.
+            guard state.initialLoad.isCurrent(generation), !Task.isCancelled, !GroupActions.isCancellation(error) else { return }
             // User tapped Reject — surface; rejection by id is safe to re-run.
             state.recordError(
                 error,
                 context: "MemberRequestsPage.rejectRequest",
                 surface: true,
                 friendlyMessage: "Couldn't reject the request",
-                retry: { Task { await rejectRequest(groupRequest) } }
+                retry: {
+                    Task {
+                        guard state.initialLoad.isCurrent(generation), !Task.isCancelled else { return }
+                        await rejectRequest(groupRequest)
+                    }
+                }
             )
         }
     }

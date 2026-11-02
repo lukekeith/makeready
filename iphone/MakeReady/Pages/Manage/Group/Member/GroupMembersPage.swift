@@ -16,6 +16,7 @@ struct GroupMembersPage: View {
 
     // Use centralized state for fine-grained reactivity
     private var state: AppState { AppState.shared }
+    @State private var loadOperation: UUID?
 
     // Data state
     /// Read through to the store — never a private copy. `loadMembers` already
@@ -390,6 +391,10 @@ struct GroupMembersPage: View {
     // MARK: - Data Loading
 
     private func loadData() async {
+        let generation = state.initialLoad.generation
+        guard !Task.isCancelled else { return }
+        let operation = UUID()
+        loadOperation = operation
         // Only show the spinner when there's nothing cached to display —
         // flipping to the loading branch mid-slide swaps the content
         // subtree outside the animation transaction.
@@ -409,16 +414,22 @@ struct GroupMembersPage: View {
             _ = try await (membersTask, requestsTask)
 
             await MainActor.run {
+                guard state.initialLoad.isCurrent(generation), loadOperation == operation else { return }
+                loadOperation = nil
                 isLoading = false
             }
         } catch {
             await MainActor.run {
+                guard state.initialLoad.isCurrent(generation), loadOperation == operation else { return }
+                loadOperation = nil
+                isLoading = false
+                // Silent: cancellation is not a cold-load error screen.
+                guard !Task.isCancelled, !GroupActions.isCancellation(error) else { return }
                 // Keep showing cached content on a background refresh
                 // failure; only surface the error screen when empty.
                 if members.isEmpty && joinRequests.isEmpty {
                     self.error = error.localizedDescription
                 }
-                isLoading = false
             }
         }
     }
@@ -460,38 +471,58 @@ struct GroupMembersPage: View {
     }
 
     private func approveRequest(_ request: JoinRequest) async {
+        let generation = state.initialLoad.generation
+        guard !Task.isCancelled else { return }
         do {
             // Removes the request from AppState synchronously on success so
             // the red-dot indicators update instantly; loadData() then
             // reconciles the local list with the server.
             try await GroupActions().approveJoinRequest(groupId: groupId, requestId: request.id)
+            guard state.initialLoad.isCurrent(generation), !Task.isCancelled else { return }
             await loadData()
         } catch {
+            // Silent: retired/cancelled decisions cannot leave a banner or retry in another session.
+            guard state.initialLoad.isCurrent(generation), !Task.isCancelled, !GroupActions.isCancellation(error) else { return }
             // User tapped Approve — surface; approval by id is safe to re-run.
             state.recordError(
                 error,
                 context: "GroupMembersPage.approveRequest",
                 surface: true,
                 friendlyMessage: "Couldn't approve the request",
-                retry: { Task { await approveRequest(request) } }
+                retry: {
+                    Task {
+                        guard state.initialLoad.isCurrent(generation), !Task.isCancelled else { return }
+                        await approveRequest(request)
+                    }
+                }
             )
         }
     }
 
     private func rejectRequest(_ request: JoinRequest) async {
+        let generation = state.initialLoad.generation
+        guard !Task.isCancelled else { return }
         do {
             // Removes the request from AppState synchronously on success so the
             // red-dot indicators update instantly; loadData() then reconciles.
             try await GroupActions().rejectJoinRequest(groupId: groupId, requestId: request.id)
+            guard state.initialLoad.isCurrent(generation), !Task.isCancelled else { return }
             await loadData()
         } catch {
+            // Silent: retired/cancelled decisions cannot leave a banner or retry in another session.
+            guard state.initialLoad.isCurrent(generation), !Task.isCancelled, !GroupActions.isCancellation(error) else { return }
             // User tapped Reject — surface; rejection by id is safe to re-run.
             state.recordError(
                 error,
                 context: "GroupMembersPage.rejectRequest",
                 surface: true,
                 friendlyMessage: "Couldn't reject the request",
-                retry: { Task { await rejectRequest(request) } }
+                retry: {
+                    Task {
+                        guard state.initialLoad.isCurrent(generation), !Task.isCancelled else { return }
+                        await rejectRequest(request)
+                    }
+                }
             )
         }
     }

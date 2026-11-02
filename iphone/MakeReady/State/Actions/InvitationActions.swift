@@ -62,6 +62,7 @@ struct InvitationActions {
                 return .failure(.cancelled)
             }
             guard detail.id == id, detail.selectedInvitation != nil else { throw APIError.invalidResponse }
+            state.retainInvitationMutationIdentity(detail)
             state.invitationDetails[id] = detail
             state.invitationDetailsStale.remove(id)
             return .success(())
@@ -100,13 +101,14 @@ struct InvitationActions {
         let keys = state.invitationMutationKeys(id)
         guard keys.allSatisfy({ state.invitationMutationOperations[$0] == nil }) else { return .failure(.busy) }
         for key in keys { state.invitationMutationOperations[key] = token }
-        defer { finishMutation(keys, token: token, generation: generation) }
+        defer { finishMutation(token: token, generation: generation) }
         let operation = withdrawing ? "withdraw" : "resend"
         let detail: InvitationDetail
         do {
             detail = try await read("/api/invitations/\(id)/\(operation)", method: "POST")
             guard current(generation), !Task.isCancelled else { return .failure(.cancelled) }
             guard detail.id == id, detail.selectedInvitation != nil else { throw APIError.invalidResponse }
+            state.retainInvitationMutationIdentity(detail)
             let affected = state.relatedInvitationIDs(id).union(detail.invitations.map(\.id))
             state.invalidateInvitationCaches(ids: affected)
             state.invitationDetails[id] = detail
@@ -114,7 +116,7 @@ struct InvitationActions {
             let withdrawn = Set(detail.invitations.filter { $0.status == .withdrawn }.map(\.id))
             state.invitationFeedWindow?.orderedIDs.removeAll { withdrawn.contains($0) }
         } catch {
-            finishMutation(keys, token: token, generation: generation)
+            finishMutation(token: token, generation: generation)
             return .failure(await failure(error, generation: generation, context: operation + "Invitation",
                                           friendlyMessage: withdrawing ? "Couldn't withdraw the invitation" : "Couldn't resend the invitation"))
         }
@@ -131,7 +133,7 @@ struct InvitationActions {
         let keys = state.invitationMutationKeys(id)
         guard keys.allSatisfy({ state.invitationMutationOperations[$0] == nil }) else { return .failure(.busy) }
         for key in keys { state.invitationMutationOperations[key] = token }
-        defer { finishMutation(keys, token: token, generation: generation) }
+        defer { finishMutation(token: token, generation: generation) }
         do {
             let groups = GroupActions(api: api, state: state)
             if approving {
@@ -141,7 +143,7 @@ struct InvitationActions {
             }
             guard current(generation), !Task.isCancelled else { return .failure(.cancelled) }
         } catch {
-            finishMutation(keys, token: token, generation: generation)
+            finishMutation(token: token, generation: generation)
             return .failure(await failure(error, generation: generation, context: approving ? "approveRequest" : "rejectRequest",
                                           friendlyMessage: approving ? "Couldn't accept the request" : "Couldn't reject the request"))
         }
@@ -169,9 +171,11 @@ struct InvitationActions {
     }
 
     @MainActor
-    private func finishMutation(_ keys: Set<String>, token: UUID, generation: Int) {
+    private func finishMutation(token: UUID, generation: Int) {
         guard current(generation) else { return }
-        for key in keys where state.invitationMutationOperations[key] == token { state.invitationMutationOperations[key] = nil }
+        for key in state.invitationMutationOperations.keys.filter({ state.invitationMutationOperations[$0] == token }) {
+            state.invitationMutationOperations[key] = nil
+        }
     }
 
     /// Opt into uncoalesced reads: APIClient's ordinary GET key has no session identity.
@@ -218,7 +222,10 @@ extension AppState {
     /// Keep the selected-ID key even after invalidation removes its cached phone.
     func invitationMutationKeys(_ id: String) -> Set<String> {
         var keys: Set<String> = ["id:" + id]
-        if let phone = invitationDetails[id]?.recipientPhone ?? invitations[id]?.recipientPhone { keys.insert("phone:" + phone) }
+        if let phone = invitationDetails[id]?.recipientPhone ?? invitations[id]?.recipientPhone {
+            keys.insert("phone:" + phone)
+            keys.formUnion(relatedInvitationIDs(id).map { "id:" + $0 })
+        }
         return keys
     }
 
@@ -226,8 +233,17 @@ extension AppState {
         invitationMutationKeys(id).contains { invitationMutationOperations[$0] != nil }
     }
 
+    /// Operation-owned ID reservations survive eviction, including details loaded mid-operation.
+    func retainInvitationMutationIdentity(_ detail: InvitationDetail) {
+        guard let phone = detail.recipientPhone,
+              let token = invitationMutationOperations["phone:" + phone] ?? invitationMutationOperations["id:" + detail.id] else { return }
+        let keys = Set(detail.invitations.map { "id:" + $0.id }).union(["id:" + detail.id, "phone:" + phone])
+        for key in keys where invitationMutationOperations[key] == nil { invitationMutationOperations[key] = token }
+    }
+
     /// Retire pre-write reads as well as cached details. Never touch a mutation's ownership token.
     func invalidateInvitationCaches(ids: Set<String>? = nil) {
+        for detail in invitationDetails.values { retainInvitationMutationIdentity(detail) }
         invitationRevision = UUID()
         invitationFeedOperation = nil
         invitationDetailOperations = [:]

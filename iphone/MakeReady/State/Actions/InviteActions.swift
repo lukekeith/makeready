@@ -61,19 +61,27 @@ struct InviteActions {
             body["expiresAt"] = expiresAt
         }
 
-        let response: CreateInviteResponse = try await api.post(
-            "/api/invites",
-            body: body.isEmpty ? nil : body,
-            responseType: CreateInviteResponse.self
-        )
+        do {
+            let response: CreateInviteResponse = try await api.post(
+                "/api/invites",
+                body: body.isEmpty ? nil : body,
+                responseType: CreateInviteResponse.self
+            )
 
-        guard response.success, let invite = response.invite else {
-            throw APIError.serverError(response.error ?? "Failed to create invite")
+            guard response.success, let invite = response.invite else {
+                throw APIError.serverError(response.error ?? "Failed to create invite")
+            }
+
+            guard state.initialLoad.isCurrent(generation), !Task.isCancelled else { throw CancellationError() }
+            state.invalidateInvitationSend(groupId: groupId)
+            return invite
+        } catch {
+            // Caller owns current errors; retirement/cancellation must never surface in a new session.
+            guard state.initialLoad.isCurrent(generation), !Task.isCancelled, !GroupActions.isCancellation(error) else {
+                throw CancellationError()
+            }
+            throw error
         }
-
-        guard state.initialLoad.isCurrent(generation), !Task.isCancelled else { throw CancellationError() }
-        state.invalidateInvitationSend(groupId: groupId)
-        return invite
     }
 
     // MARK: - SMS invite (invite-member)
@@ -91,18 +99,26 @@ struct InviteActions {
             let error: String?
         }
 
-        let response: SendInviteResponse = try await api.post(
-            "/api/invites/send",
-            body: ["groupId": groupId, "recipientPhone": recipientPhone, "recipientName": recipientName],
-            responseType: SendInviteResponse.self
-        )
+        do {
+            let response: SendInviteResponse = try await api.post(
+                "/api/invites/send",
+                body: ["groupId": groupId, "recipientPhone": recipientPhone, "recipientName": recipientName],
+                responseType: SendInviteResponse.self
+            )
 
-        guard response.success, let inviteId = response.inviteId else {
-            throw APIError.serverError(response.error ?? "Couldn't send the invite")
+            guard response.success, let inviteId = response.inviteId else {
+                throw APIError.serverError(response.error ?? "Couldn't send the invite")
+            }
+            guard state.initialLoad.isCurrent(generation), !Task.isCancelled else { throw CancellationError() }
+            state.invalidateInvitationSend(groupId: groupId)
+            return inviteId
+        } catch {
+            // Caller owns current errors; retirement/cancellation must never surface in a new session.
+            guard state.initialLoad.isCurrent(generation), !Task.isCancelled, !GroupActions.isCancellation(error) else {
+                throw CancellationError()
+            }
+            throw error
         }
-        guard state.initialLoad.isCurrent(generation), !Task.isCancelled else { throw CancellationError() }
-        state.invalidateInvitationSend(groupId: groupId)
-        return inviteId
     }
 
     // MARK: - QR Code Generation

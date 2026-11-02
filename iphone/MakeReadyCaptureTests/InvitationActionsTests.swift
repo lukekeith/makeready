@@ -335,6 +335,125 @@ final class InvitationActionsTests: XCTestCase {
         if case .failure(let error) = result { XCTFail("Expected success, got \(error)", file: file, line: line) }
     }
 
+    func testDetailOnlySiblingStaysBusyAfterExternalCacheInvalidation() async throws {
+        try seedDetail("a", status: "sent")
+        try seedDetail("b", status: "sent")
+        let gate = InvitationResponseGate()
+        api.responseFor = { method, path in
+            if path == "/api/invitations/a/resend" { return try await gate.response() }
+            if method == "POST" { throw APIHTTPError(status: 409, message: "Unexpected second mutation") }
+            return Data(#"{"success":true,"requests":[]}"#.utf8)
+        }
+        let first = Task { await actions().resendInvitation("a") }
+        await gate.waitUntilStarted()
+        state.invalidateInvitationSend(groupId: "g1")
+        XCTAssertTrue(state.invitationMutationPending("b"))
+        assertFailure(await actions().withdrawInvitation("b"), .busy)
+        XCTAssertEqual(api.calls.filter { $0.method == "POST" }.count, 1)
+        gate.resolve(.success(Data(detail("a", status: "sent").utf8)))
+        assertSuccess(await first.value)
+        XCTAssertFalse(state.invitationMutationPending("a"))
+        XCTAssertFalse(state.invitationMutationPending("b"))
+    }
+
+    func testDetailOnlySiblingStaysBusyDuringPostCommitReconciliation() async throws {
+        try seedDetail("a", status: "sent")
+        try seedDetail("b", status: "sent")
+        let gate = InvitationResponseGate()
+        api.responseFor = { method, path in
+            if path == "/api/invitations/a/resend" { return Data(self.detail("a", status: "sent").utf8) }
+            if method == "POST" { throw APIHTTPError(status: 409, message: "Unexpected second mutation") }
+            return try await gate.response()
+        }
+        let first = Task { await actions().resendInvitation("a") }
+        await gate.waitUntilStarted()
+        XCTAssertNil(state.invitationDetails["b"])
+        XCTAssertTrue(state.invitationMutationPending("b"))
+        assertFailure(await actions().withdrawInvitation("b"), .busy)
+        XCTAssertEqual(api.calls.filter { $0.method == "POST" }.count, 1)
+        gate.resolve(.success(Data(#"{"success":true,"requests":[]}"#.utf8)))
+        assertSuccess(await first.value)
+        XCTAssertFalse(state.invitationMutationPending("b"))
+    }
+
+    func testActualSendCallerDiscardsRetiredSuccessWithoutBanner() async {
+        let gate = InvitationResponseGate()
+        api.responseFor = { _, _ in try await gate.response() }
+        let send = Task {
+            await InviteMemberSend.run(groupId: "g1", name: "Ada", phone: "+12025550100",
+                                       actions: InviteActions(api: api, state: state), state: state)
+        }
+        await gate.waitUntilStarted()
+        state.clearAllData()
+        gate.resolve(.success(Data(#"{"success":true,"inviteId":"i1"}"#.utf8)))
+        let result = await send.value
+        XCTAssertFalse(result)
+        XCTAssertTrue(state.errors.isEmpty)
+        XCTAssertNil(state.activeSurfacedError)
+    }
+
+    func testDirectPendingReadAttemptCannotSignOutReplacementOnLate401() async {
+        let gate = InvitationResponseGate()
+        var signOuts = 0
+        api.responseFor = { _, _ in try await gate.response() }
+        let read = Task {
+            await GroupDetailContainer.attempt("loadJoinRequests", state: state, onUnauthorized: { signOuts += 1 }) {
+                _ = try await GroupActions(api: api, state: state).loadJoinRequests(groupId: "g1")
+            }
+        }
+        await gate.waitUntilStarted()
+        state.clearAllData()
+        gate.resolve(.failure(APIError.unauthorized))
+        await read.value
+        XCTAssertEqual(signOuts, 0)
+        XCTAssertTrue(state.errors.isEmpty)
+        api.responseFor = nil
+        api.errorToThrow = APIError.unauthorized
+        await GroupDetailContainer.attempt("loadJoinRequests", state: state, onUnauthorized: { signOuts += 1 }) {
+            _ = try await GroupActions(api: api, state: state).loadJoinRequests(groupId: "g1")
+        }
+        XCTAssertEqual(signOuts, 1)
+    }
+
+    func testSupersededPendingReadNormalizesLate401BeforeCallerRouting() async {
+        let gate = InvitationResponseGate()
+        var reads = 0
+        var signOuts = 0
+        api.responseFor = { _, _ in
+            reads += 1
+            if reads == 1 { return try await gate.response() }
+            return Data(#"{"success":true,"requests":[]}"#.utf8)
+        }
+        let old = Task {
+            await GroupDetailContainer.attempt("loadJoinRequests", state: state, onUnauthorized: { signOuts += 1 }) {
+                _ = try await GroupActions(api: api, state: state).loadJoinRequests(groupId: "g1")
+            }
+        }
+        await gate.waitUntilStarted()
+        do { _ = try await GroupActions(api: api, state: state).loadJoinRequests(groupId: "g1") }
+        catch { XCTFail("Unexpected \(error)") }
+        gate.resolve(.failure(APIError.unauthorized))
+        await old.value
+        XCTAssertEqual(signOuts, 0)
+        XCTAssertTrue(state.errors.isEmpty)
+    }
+
+    func testRetiredTransportFailuresNormalizeAtAllTouchedLegacyBoundaries() async {
+        api.errorToThrow = APIError.unauthorized
+        api.beforeReturn = { _, _ in self.state.clearAllData() }
+        let operations: [() async throws -> Void] = [
+            { _ = try await InviteActions(api: self.api, state: self.state).createInvite() },
+            { _ = try await InviteActions(api: self.api, state: self.state).sendInvite(groupId: "g1", recipientPhone: "+12025550100", recipientName: "Ada") },
+            { try await GroupActions(api: self.api, state: self.state).approveJoinRequest(groupId: "g1", requestId: "r1") },
+            { try await GroupActions(api: self.api, state: self.state).rejectJoinRequest(groupId: "g1", requestId: "r1") },
+            { _ = try await GroupActions(api: self.api, state: self.state).loadJoinRequests(groupId: "g1") }
+        ]
+        for operation in operations {
+            do { try await operation(); XCTFail("Expected retired operation") }
+            catch { XCTAssertTrue(GroupActions.isCancellation(error), "Unexpected \(error)") }
+        }
+    }
+
     private func assertFailure(_ result: Result<Void, InvitationActionError>, _ expected: InvitationActionError,
                                file: StaticString = #filePath, line: UInt = #line) {
         if case .failure(let error) = result { XCTAssertEqual(error, expected, file: file, line: line) }

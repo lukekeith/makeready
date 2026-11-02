@@ -300,15 +300,19 @@ struct GroupDetailContainer: View {
     @MainActor
     static func attempt(_ context: String, state: AppState? = nil, onUnauthorized: @MainActor () async -> Void,
                         _ work: @MainActor () async throws -> Void) async {
+        let state = state ?? .shared
+        let generation = state.initialLoad.generation
+        guard !Task.isCancelled else { return }
         do {
             try await work()
         } catch {
-            if GroupActions.isCancellation(error) { return }
+            // Silent: a retired load must not record or sign out the replacement identity.
+            guard state.initialLoad.isCurrent(generation), !Task.isCancelled, !GroupActions.isCancellation(error) else { return }
             if AuthStatusPolicy.shouldSignOut(after: error) {
                 await onUnauthorized()
                 return
             }
-            (state ?? .shared).recordError(error, context: "GroupDetailContainer.\(context)", surface: false)
+            state.recordError(error, context: "GroupDetailContainer.\(context)", surface: false)
         }
     }
 }

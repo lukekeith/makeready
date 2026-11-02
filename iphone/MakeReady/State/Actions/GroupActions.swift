@@ -70,6 +70,7 @@ struct GroupActions {
     /// Fetch groups from API and update state
     @MainActor
     private func fetchGroups() async throws {
+        let generation = state.initialLoad.generation
         defer {
             state.loadingStates.finishLoading(.groups)
         }
@@ -91,20 +92,24 @@ struct GroupActions {
         // open each group's Members tab. Fire-and-forget so groups appear
         // instantly; @Observable AppState updates the UI as each lands.
         let groupIds = groups.map { $0.id }
-        Task { await self.refreshAllJoinRequests(groupIds: groupIds) }
+        Task { await self.refreshAllJoinRequests(groupIds: groupIds, generation: generation) }
     }
 
     /// Refresh pending join requests for every supplied group ID in parallel.
     /// Failures are swallowed per-group so one bad call doesn't kill the rest.
     @MainActor
-    private func refreshAllJoinRequests(groupIds: [String]) async {
+    private func refreshAllJoinRequests(groupIds: [String], generation: Int) async {
+        guard state.initialLoad.isCurrent(generation), !Task.isCancelled else { return }
         await withTaskGroup(of: Void.self) { group in
             for id in groupIds {
                 group.addTask { @MainActor in
+                    guard self.state.initialLoad.isCurrent(generation), !Task.isCancelled else { return }
                     do {
                         try await self.loadJoinRequests(groupId: id)
                     } catch {
-                        AppState.shared.recordError(error, context: "GroupActions.loadJoinRequests prefetch (\(id))")
+                        // Silent: stale or cancelled prefetch belongs to no current screen.
+                        guard self.state.initialLoad.isCurrent(generation), !Task.isCancelled, !Self.isCancellation(error) else { return }
+                        self.state.recordError(error, context: "GroupActions.loadJoinRequests prefetch (\(id))")
                     }
                 }
             }
@@ -708,19 +713,26 @@ struct GroupActions {
                 state.invitationPendingRequestOperations[groupId] = nil
             }
         }
-        // Uncoalesced so a new session cannot join a retired session's GET.
-        let data = try await api.requestWithStatus(endpoint: "/api/groups/\(groupId)/join-requests", method: "GET", body: nil)
-        guard state.initialLoad.isCurrent(generation), !Task.isCancelled,
-              state.invitationPendingRequestOperations[groupId] == token else { throw CancellationError() }
-        let response = try JSONDecoder.apiDecoder.decode(JoinRequestsResponse.self, from: data)
+        do {
+            // Uncoalesced so a new session cannot join a retired session's GET.
+            let data = try await api.requestWithStatus(endpoint: "/api/groups/\(groupId)/join-requests", method: "GET", body: nil)
+            guard state.initialLoad.isCurrent(generation), !Task.isCancelled,
+                  state.invitationPendingRequestOperations[groupId] == token else { throw CancellationError() }
+            let response = try JSONDecoder.apiDecoder.decode(JoinRequestsResponse.self, from: data)
 
-        guard response.success else {
-            throw APIError.serverError(response.error ?? "Failed to load join requests")
+            guard response.success else {
+                throw APIError.serverError(response.error ?? "Failed to load join requests")
+            }
+
+            let requests = response.requests ?? []
+            state.pendingJoinRequestsByGroupId[groupId] = requests
+            return requests
+        } catch {
+            // Caller owns current errors; retired/superseded work must be quiet there.
+            guard state.initialLoad.isCurrent(generation), !Task.isCancelled, !Self.isCancellation(error),
+                  state.invitationPendingRequestOperations[groupId] == token else { throw CancellationError() }
+            throw error
         }
-
-        let requests = response.requests ?? []
-        state.pendingJoinRequestsByGroupId[groupId] = requests
-        return requests
     }
 
     /// Approve a pending join request and synchronously remove it from
@@ -733,18 +745,24 @@ struct GroupActions {
     func approveJoinRequest(groupId: String, requestId: String) async throws {
         try Task.checkCancellation()
         let generation = state.initialLoad.generation
-        let data = try await api.requestWithStatus(
-            endpoint: "/api/groups/\(groupId)/join-requests/\(requestId)/approve", method: "POST", body: [:]
-        )
-        guard state.initialLoad.isCurrent(generation), !Task.isCancelled else { throw CancellationError() }
-        let response = try JSONDecoder.apiDecoder.decode(ApproveRequestResponse.self, from: data)
-        guard response.success else {
-            throw APIError.serverError(response.error ?? "Failed to approve request")
-        }
-        state.invalidateInvitationDecision(id: requestId, groupId: groupId)
-        if var requests = state.pendingJoinRequestsByGroupId[groupId] {
-            requests.removeAll { $0.id == requestId }
-            state.pendingJoinRequestsByGroupId[groupId] = requests
+        do {
+            let data = try await api.requestWithStatus(
+                endpoint: "/api/groups/\(groupId)/join-requests/\(requestId)/approve", method: "POST", body: [:]
+            )
+            guard state.initialLoad.isCurrent(generation), !Task.isCancelled else { throw CancellationError() }
+            let response = try JSONDecoder.apiDecoder.decode(ApproveRequestResponse.self, from: data)
+            guard response.success else {
+                throw APIError.serverError(response.error ?? "Failed to approve request")
+            }
+            state.invalidateInvitationDecision(id: requestId, groupId: groupId)
+            if var requests = state.pendingJoinRequestsByGroupId[groupId] {
+                requests.removeAll { $0.id == requestId }
+                state.pendingJoinRequestsByGroupId[groupId] = requests
+            }
+        } catch {
+            // Caller owns current errors; retired/superseded work must be quiet there.
+            guard state.initialLoad.isCurrent(generation), !Task.isCancelled, !Self.isCancellation(error) else { throw CancellationError() }
+            throw error
         }
     }
 
@@ -756,18 +774,24 @@ struct GroupActions {
     func rejectJoinRequest(groupId: String, requestId: String) async throws {
         try Task.checkCancellation()
         let generation = state.initialLoad.generation
-        let data = try await api.requestWithStatus(
-            endpoint: "/api/groups/\(groupId)/join-requests/\(requestId)/reject", method: "POST", body: [:]
-        )
-        guard state.initialLoad.isCurrent(generation), !Task.isCancelled else { throw CancellationError() }
-        let response = try JSONDecoder.apiDecoder.decode(ApproveRequestResponse.self, from: data)
-        guard response.success else {
-            throw APIError.serverError(response.error ?? "Failed to reject request")
-        }
-        state.invalidateInvitationDecision(id: requestId, groupId: groupId)
-        if var requests = state.pendingJoinRequestsByGroupId[groupId] {
-            requests.removeAll { $0.id == requestId }
-            state.pendingJoinRequestsByGroupId[groupId] = requests
+        do {
+            let data = try await api.requestWithStatus(
+                endpoint: "/api/groups/\(groupId)/join-requests/\(requestId)/reject", method: "POST", body: [:]
+            )
+            guard state.initialLoad.isCurrent(generation), !Task.isCancelled else { throw CancellationError() }
+            let response = try JSONDecoder.apiDecoder.decode(ApproveRequestResponse.self, from: data)
+            guard response.success else {
+                throw APIError.serverError(response.error ?? "Failed to reject request")
+            }
+            state.invalidateInvitationDecision(id: requestId, groupId: groupId)
+            if var requests = state.pendingJoinRequestsByGroupId[groupId] {
+                requests.removeAll { $0.id == requestId }
+                state.pendingJoinRequestsByGroupId[groupId] = requests
+            }
+        } catch {
+            // Caller owns current errors; retired/superseded work must be quiet there.
+            guard state.initialLoad.isCurrent(generation), !Task.isCancelled, !Self.isCancellation(error) else { throw CancellationError() }
+            throw error
         }
     }
 
