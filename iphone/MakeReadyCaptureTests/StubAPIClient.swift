@@ -34,6 +34,11 @@ final class StubAPIClient: APIClientProtocol {
     /// Seconds each call waits before returning (to prove calls overlap or that a slow one is not waited on).
     var delayFor: ((_ endpoint: String) -> TimeInterval)?
 
+    /// Optional deterministic response barrier; unlike delayFor it can release after cancellation.
+    var responseFor: (@MainActor (_ method: String, _ endpoint: String) async throws -> Data)?
+    private var recordedStatusEndpoints: [String] = []
+    var statusEndpoints: [String] { callsLock.withLock { recordedStatusEndpoints } }
+
     /// Every call made through the stub, in order.
     /// Recorded under a lock: `DashboardActions.refresh()` calls the stub from several tasks at
     /// once, and an unguarded append raced and crashed the test host.
@@ -57,6 +62,7 @@ final class StubAPIClient: APIClientProtocol {
 
     func request(endpoint: String, method: String, body: [String: Any]?, timeout: TimeInterval) async throws -> Data {
         callsLock.withLock { recordedCalls.append(RecordedCall(method: method, endpoint: endpoint, body: body)) }
+        if let responseFor { return try await responseFor(method, endpoint) }
         if let beforeReturn {
             await beforeReturn(endpoint, body)
         }
@@ -78,7 +84,8 @@ final class StubAPIClient: APIClientProtocol {
     /// Recorded and answered like any call; a test returns an `APIHTTPError` from `errorFor`
     /// to play a status.
     func requestWithStatus(endpoint: String, method: String, body: [String: Any]?, timeout: TimeInterval) async throws -> Data {
-        try await request(endpoint: endpoint, method: method, body: body, timeout: timeout)
+        callsLock.withLock { recordedStatusEndpoints.append(endpoint) }
+        return try await request(endpoint: endpoint, method: method, body: body, timeout: timeout)
     }
 
     func request<T: Decodable>(endpoint: String, method: String, body: [String: Any]?, timeout: TimeInterval, responseType: T.Type) async throws -> T {

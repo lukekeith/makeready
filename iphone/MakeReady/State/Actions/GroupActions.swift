@@ -699,10 +699,20 @@ struct GroupActions {
     @MainActor
     @discardableResult
     func loadJoinRequests(groupId: String) async throws -> [JoinRequest] {
-        let response: JoinRequestsResponse = try await api.get(
-            "/api/groups/\(groupId)/join-requests",
-            responseType: JoinRequestsResponse.self
-        )
+        try Task.checkCancellation()
+        let generation = state.initialLoad.generation
+        let token = UUID()
+        state.invitationPendingRequestOperations[groupId] = token
+        defer {
+            if state.initialLoad.isCurrent(generation), state.invitationPendingRequestOperations[groupId] == token {
+                state.invitationPendingRequestOperations[groupId] = nil
+            }
+        }
+        // Uncoalesced so a new session cannot join a retired session's GET.
+        let data = try await api.requestWithStatus(endpoint: "/api/groups/\(groupId)/join-requests", method: "GET", body: nil)
+        guard state.initialLoad.isCurrent(generation), !Task.isCancelled,
+              state.invitationPendingRequestOperations[groupId] == token else { throw CancellationError() }
+        let response = try JSONDecoder.apiDecoder.decode(JoinRequestsResponse.self, from: data)
 
         guard response.success else {
             throw APIError.serverError(response.error ?? "Failed to load join requests")
@@ -721,14 +731,17 @@ struct GroupActions {
     /// gated on that network call.
     @MainActor
     func approveJoinRequest(groupId: String, requestId: String) async throws {
-        let response: ApproveRequestResponse = try await api.post(
-            "/api/groups/\(groupId)/join-requests/\(requestId)/approve",
-            body: [:],
-            responseType: ApproveRequestResponse.self
+        try Task.checkCancellation()
+        let generation = state.initialLoad.generation
+        let data = try await api.requestWithStatus(
+            endpoint: "/api/groups/\(groupId)/join-requests/\(requestId)/approve", method: "POST", body: [:]
         )
+        guard state.initialLoad.isCurrent(generation), !Task.isCancelled else { throw CancellationError() }
+        let response = try JSONDecoder.apiDecoder.decode(ApproveRequestResponse.self, from: data)
         guard response.success else {
             throw APIError.serverError(response.error ?? "Failed to approve request")
         }
+        state.invalidateInvitationDecision(id: requestId, groupId: groupId)
         if var requests = state.pendingJoinRequestsByGroupId[groupId] {
             requests.removeAll { $0.id == requestId }
             state.pendingJoinRequestsByGroupId[groupId] = requests
@@ -741,14 +754,17 @@ struct GroupActions {
     /// so the leader can later reverse it from the membership history.
     @MainActor
     func rejectJoinRequest(groupId: String, requestId: String) async throws {
-        let response: ApproveRequestResponse = try await api.post(
-            "/api/groups/\(groupId)/join-requests/\(requestId)/reject",
-            body: [:],
-            responseType: ApproveRequestResponse.self
+        try Task.checkCancellation()
+        let generation = state.initialLoad.generation
+        let data = try await api.requestWithStatus(
+            endpoint: "/api/groups/\(groupId)/join-requests/\(requestId)/reject", method: "POST", body: [:]
         )
+        guard state.initialLoad.isCurrent(generation), !Task.isCancelled else { throw CancellationError() }
+        let response = try JSONDecoder.apiDecoder.decode(ApproveRequestResponse.self, from: data)
         guard response.success else {
             throw APIError.serverError(response.error ?? "Failed to reject request")
         }
+        state.invalidateInvitationDecision(id: requestId, groupId: groupId)
         if var requests = state.pendingJoinRequestsByGroupId[groupId] {
             requests.removeAll { $0.id == requestId }
             state.pendingJoinRequestsByGroupId[groupId] = requests

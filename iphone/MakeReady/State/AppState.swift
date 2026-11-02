@@ -162,6 +162,22 @@ final class AppState {
     /// `GET /api/home/days?memberId=` — the member page's D12 rail, by member id.
     var memberDaysById: [String: [HomeDay]] = [:]
 
+    // MARK: invites D22 — personal data, memory only (the UI2 D21/T14 exception)
+    let invitations = EntityStore<InvitationFeedItem>()
+    var invitationDetails: [String: InvitationDetail] = [:]
+    var invitationFeedWindow: InvitationFeedWindow?
+    var invitationFilters: InvitationFilters?
+    var invitationFeedIsStale = true
+    var invitationDetailsStale: Set<String> = []
+    /// The latest requested query can differ from the last successfully loaded window.
+    var invitationFeedQuery: InvitationQuery?
+    var invitationFeedOperation: UUID?
+    var invitationDetailOperations: [String: UUID] = [:]
+    var invitationMutationOperations: [String: UUID] = [:]
+    var invitationPendingRequestOperations: [String: UUID] = [:]
+    var invitationRevision = UUID()
+    var invitationUnauthorizedGeneration: Int?
+
     // MARK: ui2-groups-browse — group page stores (T14: in memory only)
     // `PersistedState` never encodes these; `clearInMemory()` empties them on sign-out and
     // environment switch.
@@ -971,6 +987,19 @@ final class AppState {
         memberGroupsById = [:]
         memberEngagementById = [:]
         memberDaysById = [:]
+        invitations.clear()
+        invitationDetails = [:]
+        invitationFeedWindow = nil
+        invitationFilters = nil
+        invitationFeedIsStale = true
+        invitationDetailsStale = []
+        invitationFeedQuery = nil
+        invitationFeedOperation = nil
+        invitationDetailOperations = [:]
+        invitationMutationOperations = [:]
+        invitationPendingRequestOperations = [:]
+        invitationRevision = UUID()
+        invitationUnauthorizedGeneration = nil
         nextStudyByGroupId = [:]
         historyByGroupId = [:]
         groupDaysByGroupId = [:]
