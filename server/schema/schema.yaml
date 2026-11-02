@@ -1105,6 +1105,65 @@ models:
     unique:
       - fields: [mediaId, tag]
 
+  TagCategory:
+    table_name: tag_categories
+    description: "tag-categories D1/D3: a MakeReady-defined tag category — seeded by its migration, no editor"
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      key:
+        type: string
+        unique: true
+        description: "Stable key, e.g. bible-books"
+      name:
+        type: string
+        description: "Section header, e.g. Books of the Bible"
+      position:
+        type: int
+        description: "Section order, ascending"
+      createdAt:
+        type: datetime
+        default: now()
+    relations:
+      tags:
+        type: one_to_many
+        target: TagCategoryTag
+
+  TagCategoryTag:
+    table_name: tag_category_tags
+    description: "tag-categories D10/D12: one spelling of a category member — a tag is a member when its normalized text equals `tag`"
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      categoryId:
+        type: uuid
+      tag:
+        type: string
+        unique: true
+        description: "Normalized spelling: lowercase, all whitespace removed"
+      label:
+        type: string
+        description: "Display label, e.g. 1 Samuel"
+      position:
+        type: int
+        description: "Order inside the category; the spellings of one member share it"
+      createdAt:
+        type: datetime
+        default: now()
+    relations:
+      category:
+        type: many_to_one
+        target: TagCategory
+        fields: [categoryId]
+        references: [id]
+        onDelete: Cascade
+    indexes:
+      - fields: [categoryId, position]
+
   # ---------------------------------------------------------------------------
   # Media Usage Tracking (where media is used)
   # ---------------------------------------------------------------------------

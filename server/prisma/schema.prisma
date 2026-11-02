@@ -538,6 +538,30 @@ model MediaTag {
   @@map("media_tags")
 }
 
+model TagCategory {
+  id                   String @id @default(uuid())
+  key                  String @unique // Stable key, e.g. bible-books
+  name                 String // Section header, e.g. Books of the Bible
+  position             Int // Section order, ascending
+  createdAt            DateTime @default(now())
+
+  tags                 TagCategoryTag[]
+  @@map("tag_categories")
+}
+
+model TagCategoryTag {
+  id                   String @id @default(uuid())
+  categoryId           String
+  tag                  String @unique // Normalized spelling: lowercase, all whitespace removed
+  label                String // Display label, e.g. 1 Samuel
+  position             Int // Order inside the category; the spellings of one member share it
+  createdAt            DateTime @default(now())
+
+  category             TagCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  @@index([categoryId, position])
+  @@map("tag_category_tags")
+}
+
 model MediaUsage {
   id                   String @id @default(uuid())
   mediaId              String
