@@ -148,21 +148,21 @@ export async function submitInvitationRequest(memberId: string, groupId: string,
     const group = await tx.group.findFirst({ where: { id: groupId, isActive: true } })
     if (!group) return { kind: 'group-not-found' as const }
     const context = { group, member }
-    if (await tx.groupMember.findFirst({ where: { groupId, memberId, isActive: true } })) return { ...context, kind: 'already-member' as const }
-    const invite = await tx.invitation.findFirst({ where: leaderInvitationWhere({ groupId, recipientPhone: member.phoneNumber, status: 'pending' }), orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] })
+    if (await tx.groupMember.findFirst({ where: { groupId: group.id, memberId, isActive: true } })) return { ...context, kind: 'already-member' as const }
+    const invite = await tx.invitation.findFirst({ where: leaderInvitationWhere({ groupId: group.id, recipientPhone: member.phoneNumber, status: 'pending' }), orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] })
     if (invite) {
       await lockInvitationRow(tx, invite.id)
-      await ensureMembership(tx, groupId, memberId, group.organizationId, false)
+      await ensureMembership(tx, group.id, memberId, group.organizationId, false)
       const row = await tx.invitation.update({ where: { id: invite.id, initiatedBy: 'leader', status: 'pending' }, data: { status: 'accepted', acceptedAt: new Date() } })
-      await recordEvent(tx, { invitationId: row.id, type: 'accepted', at: row.acceptedAt!, actorId: memberId, groupId })
+      await recordEvent(tx, { invitationId: row.id, type: 'accepted', at: row.acceptedAt!, actorId: memberId, groupId: group.id })
       return { ...context, kind: 'joined' as const, row }
     }
-    const latest = await findLatestLegacyJoinRequest(groupId, memberId, tx)
+    const latest = await findLatestLegacyJoinRequest(group.id, memberId, tx)
     if (latest?.status === 'pending') return { ...context, kind: 'duplicate-pending' as const, request: latest }
     const now = new Date()
     const createdAt = latest && latest.createdAt >= now ? new Date(latest.createdAt.getTime() + 1) : now
-    const row = await createMemberInvitation({ groupId, memberId, message, createdAt }, tx)
-    if (origin === 'direct') await recordMembershipEvent({ memberId, action: 'REQUESTED', groupId, organizationId: group.organizationId, actorId: memberId, actorType: 'member', note: message || null, metadata: { requestId: row.id } }, tx)
+    const row = await createMemberInvitation({ groupId: group.id, memberId, message, createdAt }, tx)
+    if (origin === 'direct') await recordMembershipEvent({ memberId, action: 'REQUESTED', groupId: group.id, organizationId: group.organizationId, actorId: memberId, actorType: 'member', note: message || null, metadata: { requestId: row.id } }, tx)
     return { ...context, kind: 'pending-created' as const, request: toLegacyJoinRequest(row) }
   })
 }
@@ -181,9 +181,10 @@ async function applyRequestDecision(tx: Db, row: Invitation, actorId: string, de
 export async function decideInvitationRequest(requestId: string, groupId: string, actorId: string, decision: 'approve' | 'reject', reason?: string) {
   const permission = await groupManageFilter(actorId)
   return withInvitationTransaction(async tx => {
-    if (!await tx.group.findFirst({ where: { id: groupId, ...permission, isActive: true } })) return { kind: 'group-not-found' as const }
+    const group = await tx.group.findFirst({ where: { id: groupId, ...permission, isActive: true } })
+    if (!group) return { kind: 'group-not-found' as const }
     const row = await lockExistingInvitation(tx, requestId, 'member')
-    if (!row || row.groupId !== groupId || row.status !== 'pending') return { kind: 'not-pending' as const }
+    if (!row || row.groupId !== group.id || row.status !== 'pending') return { kind: 'not-pending' as const }
     return applyRequestDecision(tx, row, actorId, decision, reason)
   })
 }

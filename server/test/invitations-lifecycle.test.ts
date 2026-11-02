@@ -220,4 +220,37 @@ describe('atomic invitation lifecycle', () => {
     expect(latest?.createdAt.getTime()).toBe(future.getTime()+1)
   })
 
+  it.each(['approve','reject'])('accepts uppercase group UUIDs for %s without weakening wrong-group isolation', async action => {
+    const { group, leader, requests, org } = fixture
+    const user = await legacyAgent(app,{userId:leader.id})
+    const otherGroup = await prisma.group.create({data:{name:'Other managed group',creatorId:leader.id,organizationId:org.id}})
+    try {
+      const mismatch = await user.post(`/api/groups/${otherGroup.id.toUpperCase()}/join-requests/${requests.pending.id}/${action}`).send({})
+      expect(mismatch.status).toBe(404)
+      expect(mismatch.body).toEqual({success:false,error:'Pending request not found'})
+      const response = await user.post(`/api/groups/${group.id.toUpperCase()}/join-requests/${requests.pending.id}/${action}`).send({})
+      expect(response.status).toBe(200)
+      expect(response.body.request.status).toBe(action === 'approve' ? 'approved' : 'rejected')
+      const events = await prisma.inviteEvent.findMany({where:{invitationId:requests.pending.id}})
+      expect(events).toHaveLength(1)
+      expect(events[0].groupId).toBe(group.id)
+    } finally { await prisma.group.delete({where:{id:otherGroup.id}}) }
+  })
+
+  it.each(['requested','accepted'])('records canonical group IDs for %s through an uppercase request path', async type => {
+    const { group, members } = fixture
+    const member = type === 'requested' ? members[3] : members[6]
+    const agent = await legacyAgent(app,{memberId:member.id})
+    const response = await agent.post(`/api/groups/${group.id.toUpperCase()}/join-requests`).send({})
+    expect(response.status).toBe(201)
+    const invitationId = type === 'requested' ? response.body.request.id : fixture.invites.verification.id
+    const events = await prisma.inviteEvent.findMany({where:{invitationId,type}})
+    expect(events).toHaveLength(1)
+    expect(events[0].groupId).toBe(group.id)
+    if (type === 'requested') {
+      expect(response.body.request.groupId).toBe(group.id)
+      expect((await prisma.membershipEvent.findFirstOrThrow({where:{memberId:member.id,action:'REQUESTED'}})).groupId).toBe(group.id)
+    }
+  })
+
 })
