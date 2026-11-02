@@ -1,6 +1,6 @@
 size: lg
-state: built
-next: "Prepare held merge proof and run real isolated simulator/browser acceptance, then local delivery"
+state: signed-off
+next: "Wait final phase and held merge, verify exact HEAD, then local delivery and owned walk cleanup"
 head: 9da5d240
 ticket: none
 branch: builder/invites
@@ -16,8 +16,8 @@ ui2: invites-home, invite-home, request-detail (d2m; Figma section 4773:11377; a
 auto: on
 blocked: none
 agent-walk: risk
-phase: built
-current-task: "Integrated acceptance walk"
+phase: signed-off
+current-task: "Final verification and local delivery"
 origin-branch: feature/invites
 origin-head: 9bc0bf7d86156bb023e04c00a32d3fd62ffa8d11
 target-branch: feature/invites

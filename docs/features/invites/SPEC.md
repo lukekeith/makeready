@@ -185,6 +185,8 @@ flowchart LR
 - **D23 — d2m integration:** request/check additive inputs for single TopNav, search-focus reporting, disabling duplicate local filtering, pinned external headers, explicit capabilities/busy flags and missing-age display. Do not directly edit MakeReadyUI design-owned files. Record returned handover outcome and consume only actual delivered props. Container cold detail load shows the existing PageHeader/back with no invented skeleton; existing cached data remains during refresh. Failures use the specified top error surface and retain cached content. **Auto assumption for undefined cold-load geometry; d2m owns any required view change.**
 
 
+- **D5/C6 — readable withdrawn landing (auto, final runtime walk):** a normal browser immediately leaves the legacy invalid/expired HTML because its meta refresh and inline script redirect to the client; the null-code fixture then shows generic code entry rather than a readable invalid result. For the new `withdrawn` status only, keep the same invalid/expired content and public API 404 envelope but omit automatic navigation so “Invite Not Found” stays visible. This is a narrow browser behavior exception to literal expired-HTML equivalence, required by A5/A9; every pre-existing status keeps its byte-identical HTML, JSON, auth and redirect behavior. No frozen legacy snapshot may be updated. The producer’s JSON contracts remain frozen; this public-HTML exception receives scoped tests/review, real browser re-walk and fresh phase/merge verification.
+
 ## Contract
 
 | Contract | Producer | Consumers | Auth | Request | Response | Errors |
@@ -194,7 +196,7 @@ flowchart LR
 | C3 `POST /api/invitations/:id/resend` | server | iphone | requireAuth; D17 | — | the C2 payload, refreshed | 401 · 403 · 404 · 409 nothing pending · 502 campaign/SMS failed (no invitation/event change; factual delivery logs remain) |
 | C4 `POST /api/invitations/:id/withdraw` | server | iphone | requireAuth; D17 | — | the C2 payload, refreshed | 401 · 403 · 404 · 409 nothing pending |
 | C5 `POST /api/groups/:groupId/join-requests/:id/approve` · `…/reject` | server | iphone, client | unchanged (`groupManageFilter`) | unchanged | unchanged (D2) | unchanged |
-| C6 `GET /join/:token` · `GET /api/invites/:token` | server | client (the recipient's browser, server-rendered landing) | public | unchanged | unchanged; withdrawn renders the expired response (D5); writes `link_clicked` (D6) | unchanged |
+| C6 `GET /join/:token` · `GET /api/invites/:token` | server | client (the recipient's browser, server-rendered landing) | public | unchanged | legacy responses unchanged; withdrawn keeps expired invalid content/API response and stays on the invalid HTML page without auto-navigation (D5/C6 final-walk clarification); writes `link_clicked` (D6) | unchanged |
 | C7 Legacy, byte-identical (D2): `GET/POST /api/invites`, `POST /api/invites/send`, `PATCH/DELETE /api/invites/:id`, `POST /api/groups/:groupId/join-requests`, `GET …/join-requests/me`, `GET …/join-requests`, `GET /api/admin/join-requests` | server | iphone, client | unchanged | unchanged | unchanged; lists exclude withdrawn; D12/D13 side effects | unchanged |
 
 ### Wire nullability and exact new payloads
@@ -275,7 +277,7 @@ migration is ever edited.
 - **Legacy routes on the new service** (D2), each response kept identical:
   - `routes/invites.ts`;
   - `routes/group-join-requests.ts`;
-  - `routes/join.ts` (withdrawn → the expired response, plus `link_clicked`);
+  - `routes/join.ts` (withdrawn → expired invalid content with the D5/C6 browser exception, plus `link_clicked`);
   - the `index.ts:373` admin route;
   - the request reads in `routes/groups.ts`, reads/writes in `routes/members.ts`, and token reads/acceptance in `routes/verification.ts`;
   - explicit serializers preserve embedded raw-request-equivalent responses and all old fields.
