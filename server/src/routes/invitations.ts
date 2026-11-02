@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { requireAuth } from '../middleware/auth.js'
-import { getInvitationFeed, getInvitationDetail, InvitationReadError } from '../services/invitation.js'
+import { getInvitationFeed, getInvitationDetail, resendInvitations, withdrawInvitations, InvitationReadError } from '../services/invitation.js'
 
 const router = Router()
 const uuid = z.string().uuid().transform(value => value.toLowerCase())
@@ -166,4 +166,51 @@ router.get('/:id', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' })
   }
 })
+/**
+ * @openapi
+ * /api/invitations/{id}/resend:
+ *   post:
+ *     tags: [Invitations]
+ *     summary: Resend permitted pending nonexpired leader invitations to the selected phone
+ *     security: [{ userSession: [] }]
+ *     parameters: [{ in: path, name: id, required: true, schema: { type: string, format: uuid } }]
+ *     responses:
+ *       200:
+ *         description: Refreshed invitation detail
+ *         content: { application/json: { schema: { $ref: '#/components/schemas/InvitationDetail' } } }
+ *       401: { description: Not authenticated }
+ *       403: { description: Forbidden }
+ *       404: { description: Invitation not found }
+ *       409: { description: No eligible invitations }
+ *       502: { description: Campaign or SMS failure; invitation state unchanged }
+ * /api/invitations/{id}/withdraw:
+ *   post:
+ *     tags: [Invitations]
+ *     summary: Withdraw permitted pending leader invitations to the selected phone
+ *     security: [{ userSession: [] }]
+ *     parameters: [{ in: path, name: id, required: true, schema: { type: string, format: uuid } }]
+ *     responses:
+ *       200:
+ *         description: Refreshed invitation detail
+ *         content: { application/json: { schema: { $ref: '#/components/schemas/InvitationDetail' } } }
+ *       401: { description: Not authenticated }
+ *       403: { description: Forbidden }
+ *       404: { description: Invitation not found }
+ *       409: { description: No eligible invitations }
+ */
+for (const action of ['resend', 'withdraw'] as const) router.post(`/:id/${action}`, requireAuth, async (req, res) => {
+  const parsed = uuid.safeParse(req.params.id)
+  if (!parsed.success) return res.status(404).json({ error: 'Invitation not found' })
+  try {
+    const userId = (req.user as { id: string }).id
+    const detail = action === 'withdraw' ? await withdrawInvitations(userId, parsed.data)
+      : await resendInvitations(userId, parsed.data, new Date(), process.env.CLIENT_URL || `${req.protocol}://${req.get('host')}`)
+    res.json(detail)
+  } catch (error) {
+    if (error instanceof InvitationReadError) return res.status(error.status).json({ error: error.message })
+    console.error('Error updating invitation:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 export default router

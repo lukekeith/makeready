@@ -2,7 +2,8 @@ import { prisma, Prisma } from '../lib/prisma.js'
 import type { Invitation } from '../generated/prisma/index.js'
 import { normalizePhone } from './member-fields.js'
 import { recordMembershipEvent } from './membership-event.js'
-import { groupManageFilter, getManageableOrgIds, isSuperAdmin } from './permission.js'
+import { groupManageFilter } from './permission.js'
+import { sendCampaignSmsBatch } from './sms-campaign.js'
 import { generateUniqueGroupCode } from '../lib/group-code.js'
 
 type Db = Prisma.TransactionClient
@@ -295,7 +296,7 @@ export interface InvitationDetail {
 }
 export interface InvitationFeedFilters { orgId?: string; groupId?: string; leaderId?: string; status?: InvitationDisplayStatus; limit?: number }
 export class InvitationReadError extends Error {
-  constructor(public readonly status: 403 | 404, message: string) { super(message) }
+  constructor(public readonly status: 403 | 404 | 409 | 502, message: string) { super(message) }
 }
 
 const invitationKind = (row: Pick<Invitation, 'initiatedBy'>): InvitationKind => row.initiatedBy === 'member' ? 'request' : 'invite'
@@ -315,13 +316,14 @@ export function invitationDisplayDate(row: DisplayRow, now: Date): Date {
 }
 
 /** Never pass a creator ID: a resource creator alone cannot expand organization access. */
-export async function getInvitationOrganizations(userId: string) {
-  const superAdmin = await isSuperAdmin(userId)
-  return prisma.organization.findMany({
-    where: superAdmin ? {} : { id: { in: await getManageableOrgIds(userId) } },
+export async function getInvitationOrganizations(userId: string, db: Db = prisma) {
+  const user = await db.user.findUnique({ where: { id: userId }, select: { isSuperAdmin: true } })
+  return db.organization.findMany({
+    where: user?.isSuperAdmin ? {} : { OR: [{ ownerId: userId }, { userRoles: { some: { userId } } }] },
     select: { id: true, name: true }, orderBy: [{ name: 'asc' }, { id: 'asc' }],
   })
 }
+
 const projectedRelations = {
   group: { select: { id: true, name: true, coverImageUrl: true, organizationId: true } },
   inviter: { select: { name: true } },
@@ -453,4 +455,84 @@ export async function getInvitationDetail(userId: string, invitationId: string, 
       canWithdraw:selected.recipientPhone !== null && eligible.length > 0,
     }
   }, { isolationLevel: 'RepeatableRead' })
+}
+
+const actionRelations = {
+  group: { select: { id: true, organizationId: true, name: true, code: true } },
+  inviter: { select: { name: true } },
+  member: { select: { phoneNumber: true } },
+} satisfies Prisma.InvitationInclude
+type ActionRow = Prisma.InvitationGetPayload<{ include: typeof actionRelations }>
+
+async function actionSelection(tx: Db, userId: string, id: string, now: Date, resend: boolean) {
+  if (!UUID.test(id)) throw new InvitationReadError(404, 'Invitation not found')
+  const selected = await tx.invitation.findUnique({ where: { id: id.toLowerCase() }, include: actionRelations })
+  if (!selected) throw new InvitationReadError(404, 'Invitation not found')
+  const orgIds = (await getInvitationOrganizations(userId, tx)).map(org => org.id)
+  const orgId = effectiveInvitationOrganization(selected)
+  if (!orgId || !orgIds.includes(orgId)) throw new InvitationReadError(403, 'Forbidden')
+  if (selected.recipientPhone === null) throw new InvitationReadError(409, 'No eligible invitations')
+  const rows = await tx.invitation.findMany({ where: { AND: [invitationOrganizationScope(orgIds), {
+    recipientPhone: selected.recipientPhone, initiatedBy: 'leader', status: 'pending',
+    ...(resend ? { OR: [{ expiresAt: null }, { expiresAt: { gte: now } }] } : {}),
+  }] }, include: actionRelations, orderBy: { id: 'asc' } })
+  return { selected, rows }
+}
+
+/** Match lifecycle order, then freeze group organization against the existing group PATCH. */
+async function lockActionRows(tx: Db, rows: ActionRow[]) {
+  const people = new Map<string, { groupId: string; phone: string }>()
+  for (const row of rows) {
+    const phone = row.initiatedBy === 'member' ? row.member?.phoneNumber ?? row.recipientPhone : row.recipientPhone
+    if (row.groupId && phone) people.set(JSON.stringify([row.groupId, normalizePhone(phone) ?? phone]), { groupId: row.groupId, phone })
+  }
+  for (const [, person] of [...people].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) await lockInvitationPerson(tx, person.groupId, person.phone)
+  for (const id of [...new Set(rows.map(row => row.id))].sort()) await lockInvitationRow(tx, id)
+  const groupIds = [...new Set(rows.flatMap(row => row.groupId ? [row.groupId] : []))].sort()
+  if (groupIds.length) await tx.$queryRaw(Prisma.sql`SELECT id FROM groups WHERE id IN (${Prisma.join(groupIds.map(id => Prisma.sql`${id}::uuid`))}) ORDER BY id FOR SHARE`)
+}
+
+export async function withdrawInvitations(userId: string, invitationId: string, now = new Date()): Promise<InvitationDetail> {
+  await withInvitationTransaction(async tx => {
+    const initial = await actionSelection(tx, userId, invitationId, now, false)
+    await lockActionRows(tx, [initial.selected, ...initial.rows])
+    const current = await actionSelection(tx, userId, invitationId, now, false)
+    if (!current.rows.length) throw new InvitationReadError(409, 'No eligible invitations')
+    for (const row of current.rows) {
+      await tx.invitation.update({ where: { id: row.id, initiatedBy: 'leader', status: 'pending' }, data: { status: 'withdrawn' } })
+      await recordEvent(tx, { invitationId: row.id, type: 'withdrawn', at: now, actorId: userId, groupId: row.groupId })
+    }
+  })
+  return getInvitationDetail(userId, invitationId)
+}
+
+export async function resendInvitations(userId: string, invitationId: string, now = new Date(), baseUrl = process.env.CLIENT_URL): Promise<InvitationDetail> {
+  const initial = await withInvitationTransaction(tx => actionSelection(tx, userId, invitationId, now, true))
+  if (!initial.rows.length) throw new InvitationReadError(409, 'No eligible invitations')
+  if (!baseUrl || initial.rows.some(row => !row.token || !row.recipientPhone || !normalizePhone(row.recipientPhone))) throw new InvitationReadError(502, 'Invitation cannot be resent')
+  const messages = initial.rows.map(row => ({
+    templateSlug: 'group-invite-v1', recipientPhone: normalizePhone(row.recipientPhone!)!, sentById: userId,
+    context: { 'inviter.name': row.inviter?.name ?? 'A leader', 'group.name': row.group?.name ?? 'MakeReady',
+      joinUrl: row.group?.code ? `${baseUrl}/join/group/${row.group.code}?invite=${row.token}` : `${baseUrl}/join/group?invite=${row.token}` },
+    metadata: { inviteId: row.id, groupId: row.groupId },
+  }))
+  // The whole batch is outside retries: an accepted provider delivery cannot roll back.
+  let delivered = false
+  try { delivered = (await sendCampaignSmsBatch(messages)).success } catch { /* map campaign/storage failure without leaking provider details */ }
+  if (!delivered) throw new InvitationReadError(502, 'Unable to resend invitations')
+  await withInvitationTransaction(async tx => {
+    await lockActionRows(tx, [initial.selected, ...initial.rows])
+    const current = await actionSelection(tx, userId, invitationId, new Date(Math.max(now.getTime(), Date.now())), true)
+    const sent = new Map(initial.rows.map(row => [row.id, row]))
+    const eligible = current.rows.filter(row => {
+      const original = sent.get(row.id)
+      return original && original.token === row.token && original.recipientPhone === row.recipientPhone
+    })
+    if (!eligible.length) throw new InvitationReadError(409, 'No eligible invitations')
+    for (const row of eligible) {
+      await tx.invitation.update({ where: { id: row.id, initiatedBy: 'leader', status: 'pending' }, data: { expiresAt: new Date(now.getTime() + 7 * 86400000) } })
+      await recordEvent(tx, { invitationId: row.id, type: 'resent', at: now, actorId: userId, groupId: row.groupId })
+    }
+  })
+  return getInvitationDetail(userId, invitationId)
 }

@@ -1,4 +1,4 @@
-import { prisma } from '../lib/prisma.js';
+import { prisma, Prisma } from '../lib/prisma.js';
 import { sendSMS } from './twilio.js';
 
 /**
@@ -74,38 +74,6 @@ async function checkSmsConsent(phone: string): Promise<boolean> {
   return true;
 }
 
-// ---------------------------------------------------------------------------
-// Rate limiting
-// ---------------------------------------------------------------------------
-
-/**
- * Check if this template has been sent to this phone within the rate limit window.
- * Returns true if rate-limited (should NOT send), false if clear to send.
- */
-async function checkRateLimit(
-  templateId: string,
-  recipientPhone: string,
-  minIntervalMinutes: number
-): Promise<boolean> {
-  const cutoff = new Date(Date.now() - minIntervalMinutes * 60 * 1000);
-
-  const recent = await prisma.smsLog.findFirst({
-    where: {
-      templateId,
-      recipientPhone,
-      createdAt: { gte: cutoff },
-      status: { not: 'FAILED' },
-    },
-    select: { id: true },
-  });
-
-  return recent !== null;
-}
-
-// ---------------------------------------------------------------------------
-// Main send function
-// ---------------------------------------------------------------------------
-
 export interface SendCampaignSmsParams {
   templateSlug: string;
   recipientPhone: string;
@@ -122,136 +90,107 @@ export interface SendCampaignSmsResult {
   errorCode?: 'TEMPLATE_NOT_FOUND' | 'CAMPAIGN_INACTIVE' | 'TEMPLATE_INACTIVE' | 'MISSING_PROPS' | 'OPTED_OUT' | 'RATE_LIMITED' | 'MESSAGE_TOO_LONG' | 'SEND_FAILED';
 }
 
-/**
- * Send an SMS through the campaign system.
- *
- * 1. Looks up template by slug
- * 2. Validates context against requiredProps
- * 3. Checks SMS consent
- * 4. Checks rate limit (relaxed for dev phones)
- * 5. Renders template
- * 6. Creates SmsLog record
- * 7. Sends via Twilio
- * 8. Updates SmsLog with result
- */
-export async function sendCampaignSms(params: SendCampaignSmsParams): Promise<SendCampaignSmsResult> {
-  const { templateSlug, recipientPhone, context, sentById, metadata } = params;
+export interface SendCampaignSmsBatchResult {
+  success: boolean;
+  results: SendCampaignSmsResult[];
+}
 
-  // 1. Look up template
-  const template = await prisma.smsTemplate.findUnique({
-    where: { slug: templateSlug },
-    include: { campaign: true },
-  });
+type PreparedMessage = {
+  params: SendCampaignSmsParams;
+  template: Prisma.SmsTemplateGetPayload<{ include: { campaign: true } }>;
+  messageBody: string;
+  isDev: boolean;
+  interval: number;
+};
+const abortedResult = (): SendCampaignSmsResult => ({ success: false, error: 'Batch aborted before delivery', errorCode: 'SEND_FAILED' });
 
-  if (!template) {
-    return { success: false, error: `Template not found: ${templateSlug}`, errorCode: 'TEMPLATE_NOT_FOUND' };
-  }
-
-  if (!template.campaign.isActive) {
-    return { success: false, error: `Campaign "${template.campaign.slug}" is inactive`, errorCode: 'CAMPAIGN_INACTIVE' };
-  }
-
-  if (!template.isActive) {
-    return { success: false, error: `Template "${templateSlug}" is inactive`, errorCode: 'TEMPLATE_INACTIVE' };
-  }
-
-  // 2. Validate context
-  const requiredProps = template.requiredProps as string[];
-  try {
-    validateContext(requiredProps, context);
-  } catch (err: any) {
-    return { success: false, error: err.message, errorCode: 'MISSING_PROPS' };
-  }
-
-  // 3. Check SMS consent
-  const hasConsent = await checkSmsConsent(recipientPhone);
-  if (!hasConsent) {
-    return { success: false, error: 'Recipient has opted out of SMS messages', errorCode: 'OPTED_OUT' };
-  }
-
-  // 4. Check rate limit (dev phones get relaxed interval)
-  const isDev = isDevPhone(recipientPhone);
-  const effectiveInterval = isDev ? DEV_RATE_LIMIT_MINUTES : template.minIntervalMinutes;
-
-  const isRateLimited = await checkRateLimit(template.id, recipientPhone, effectiveInterval);
-  if (isRateLimited) {
-    return {
-      success: false,
-      error: `Rate limited: template "${templateSlug}" was already sent to this phone within ${effectiveInterval} minutes`,
-      errorCode: 'RATE_LIMITED',
-    };
-  }
-
-  // 5. Render template
+async function prepareMessage(params: SendCampaignSmsParams): Promise<PreparedMessage | SendCampaignSmsResult> {
+  const { templateSlug, recipientPhone, context } = params;
+  const template = await prisma.smsTemplate.findUnique({ where: { slug: templateSlug }, include: { campaign: true } });
+  if (!template) return { success: false, error: `Template not found: ${templateSlug}`, errorCode: 'TEMPLATE_NOT_FOUND' };
+  if (!template.campaign.isActive) return { success: false, error: `Campaign "${template.campaign.slug}" is inactive`, errorCode: 'CAMPAIGN_INACTIVE' };
+  if (!template.isActive) return { success: false, error: `Template "${templateSlug}" is inactive`, errorCode: 'TEMPLATE_INACTIVE' };
+  try { validateContext(template.requiredProps as string[], context); }
+  catch (error) { return { success: false, error: (error as Error).message, errorCode: 'MISSING_PROPS' }; }
+  if (!await checkSmsConsent(recipientPhone)) return { success: false, error: 'Recipient has opted out of SMS messages', errorCode: 'OPTED_OUT' };
   let messageBody: string;
-  try {
-    messageBody = renderTemplate(template.body, context);
-  } catch (err: any) {
-    return { success: false, error: err.message, errorCode: 'MISSING_PROPS' };
+  try { messageBody = renderTemplate(template.body, context); }
+  catch (error) { return { success: false, error: (error as Error).message, errorCode: 'MISSING_PROPS' }; }
+  if (messageBody.length > 1600) return { success: false, error: `Rendered message exceeds 1600 chars (${messageBody.length})`, errorCode: 'MESSAGE_TOO_LONG' };
+  // Match transport validation before reserving any sibling. Invalid identities are not normalized into another recipient.
+  if (!/^\+[1-9]\d{1,14}$/.test(recipientPhone) || !messageBody.length) return { success: false, error: 'Invalid recipient phone or empty message body', errorCode: 'SEND_FAILED' };
+  const isDev = isDevPhone(recipientPhone);
+  return { params, template, messageBody, isDev, interval: isDev ? DEV_RATE_LIMIT_MINUTES : template.minIntervalMinutes };
+}
+
+/**
+ * All callers reserve the same template/phone window before external delivery.
+ * ReadCommitted plus the advisory lock ensures a waiter sees the preceding committed reservation.
+ * No transport call runs in this transaction; sibling reservations are created only after all keys pass.
+ */
+export async function sendCampaignSmsBatch(messages: SendCampaignSmsParams[]): Promise<SendCampaignSmsBatchResult> {
+  if (!messages.length) return { success: true, results: [] };
+  const prepared: PreparedMessage[] = [];
+  for (const [index, params] of messages.entries()) {
+    const value = await prepareMessage(params);
+    if ('success' in value) return { success: false, results: messages.map((_, i) => i === index ? value : abortedResult()) };
+    prepared.push(value);
   }
-
-  if (messageBody.length > 1600) {
-    return { success: false, error: `Rendered message exceeds 1600 chars (${messageBody.length})`, errorCode: 'MESSAGE_TOO_LONG' };
+  const admission = await prisma.$transaction(async tx => {
+    const keys = new Map(prepared.map(message => [JSON.stringify(['sms-campaign', message.template.id, message.params.recipientPhone]), message]));
+    for (const key of [...keys.keys()].sort()) await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
+    for (const message of keys.values()) {
+      const recent = await tx.smsLog.findFirst({ where: { templateId: message.template.id, recipientPhone: message.params.recipientPhone,
+        createdAt: { gte: new Date(Date.now() - message.interval * 60_000) }, status: { not: 'FAILED' } }, select: { id: true } });
+      if (recent) return { blocked: message, logs: [] };
+    }
+    const logs = [];
+    for (const message of prepared) logs.push(await tx.smsLog.create({ data: {
+      templateId: message.template.id, recipientPhone: message.params.recipientPhone, messageBody: message.messageBody,
+      status: 'QUEUED', sentById: message.params.sentById || null, metadata: message.params.metadata ?? undefined, isDevSend: message.isDev,
+    } }));
+    return { blocked: null, logs };
+  }, { isolationLevel: 'ReadCommitted', timeout: 15000 });
+  if (admission.blocked) {
+    const { params, interval } = admission.blocked;
+    return { success: false, results: messages.map(() => ({ success: false, error: `Rate limited: template "${params.templateSlug}" was already sent to this phone within ${interval} minutes`, errorCode: 'RATE_LIMITED' })) };
   }
-
-  // 6. Create SmsLog record (QUEUED)
-  const smsLog = await prisma.smsLog.create({
-    data: {
-      templateId: template.id,
-      recipientPhone,
-      messageBody,
-      status: 'QUEUED',
-      sentById: sentById || null,
-      metadata: metadata ?? undefined,
-      isDevSend: isDev,
-    },
-  });
-
-  // 7. Send via Twilio (use campaign's messaging service SID if set)
-  const statusCallbackUrl = process.env.API_BASE_URL
-    ? `${process.env.API_BASE_URL}/api/sms/status-callback`
-    : undefined;
-
-  const smsResult = await sendSMS(recipientPhone, messageBody, {
-    statusCallback: statusCallbackUrl,
-    messagingServiceSid: template.campaign.messagingServiceSid || undefined,
-  });
-
-  // 8. Update SmsLog with result
-  if (smsResult.success) {
-    await prisma.smsLog.update({
-      where: { id: smsLog.id },
-      data: {
-        twilioMessageSid: smsResult.messageSid,
-        status: 'SENT',
-        statusUpdatedAt: new Date(),
-      },
-    });
-
-    console.log(`[SmsCampaign] Sent "${templateSlug}" to ${recipientPhone} (SID: ${smsResult.messageSid}, dev: ${isDev})`);
-
-    return {
-      success: true,
-      smsLogId: smsLog.id,
-      messageSid: smsResult.messageSid,
-    };
-  } else {
-    await prisma.smsLog.update({
-      where: { id: smsLog.id },
-      data: {
-        status: 'FAILED',
-        statusUpdatedAt: new Date(),
-        errorMessage: smsResult.error,
-      },
-    });
-
-    console.error(`[SmsCampaign] Failed to send "${templateSlug}" to ${recipientPhone}: ${smsResult.error}`);
-
-    return {
-      success: false,
-      smsLogId: smsLog.id,
-      error: smsResult.error || 'Failed to send SMS',
-      errorCode: 'SEND_FAILED',
-    };
+  const results: SendCampaignSmsResult[] = [];
+  for (const [index, message] of prepared.entries()) {
+    const log = admission.logs[index];
+    let delivery: Awaited<ReturnType<typeof sendSMS>>;
+    try {
+      delivery = await sendSMS(message.params.recipientPhone, message.messageBody, {
+        statusCallback: process.env.API_BASE_URL ? `${process.env.API_BASE_URL}/api/sms/status-callback` : undefined,
+        messagingServiceSid: message.template.campaign.messagingServiceSid || undefined,
+      });
+    } catch { delivery = { success: false, error: 'SMS transport failed' }; }
+    let persisted = true;
+    try {
+      await prisma.smsLog.update({ where: { id: log.id }, data: delivery.success
+        ? { status: 'SENT', twilioMessageSid: delivery.messageSid, statusUpdatedAt: new Date() }
+        : { status: 'FAILED', errorMessage: delivery.error, statusUpdatedAt: new Date() } });
+    } catch {
+      // Delivery may already have happened. Keep its reservation (unknown QUEUED) rather than falsely
+      // marking it FAILED or sending again; its rate window still blocks a duplicate attempt.
+      persisted = false;
+      console.error('[SmsCampaign] Could not persist delivery outcome', { smsLogId: log.id, delivered: delivery.success });
+    }
+    const success = delivery.success && persisted;
+    results.push(success ? { success: true, smsLogId: log.id, messageSid: delivery.messageSid }
+      : { success: false, smsLogId: log.id, messageSid: delivery.messageSid, error: persisted ? delivery.error || 'Failed to send SMS' : 'Could not persist SMS delivery outcome', errorCode: 'SEND_FAILED' });
+    if (!success) {
+      const unattempted = admission.logs.slice(index + 1);
+      if (unattempted.length) await prisma.smsLog.updateMany({ where: { id: { in: unattempted.map(row => row.id) }, status: 'QUEUED' },
+        data: { status: 'FAILED', errorMessage: 'Batch aborted before delivery', statusUpdatedAt: new Date() } });
+      results.push(...unattempted.map(row => ({ ...abortedResult(), smsLogId: row.id })));
+      return { success: false, results };
+    }
   }
+  return { success: true, results };
+}
+
+/** Existing callers participate in exactly the same admission as phone-wide batches. */
+export async function sendCampaignSms(params: SendCampaignSmsParams): Promise<SendCampaignSmsResult> {
+  return (await sendCampaignSmsBatch([params])).results[0];
 }
