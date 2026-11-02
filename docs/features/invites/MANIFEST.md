@@ -6,7 +6,7 @@ ticket: none
 branch: builder/invites
 pr: none
 apps: server+iphone
-contract: frozen
+contract: frozen (amended 2026-11-02 — additive C2 events.actorName, D21; producer + consumer changed together)
 hold: none
 go-ahead: owner 2026-11-02 agent --auto
 walk: agent-pass

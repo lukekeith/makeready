@@ -309,7 +309,8 @@ export interface InvitationDetail {
   recipientPhone: string | null; recipientName: string | null; inviterName: string | null; message: string | null; createdAt: string;
   member: { id: string; name: string; picture: string | null; age: number | null; role: string | null; birthday: string | null; joinedAt: string | null } | null;
   invitations: { id: string; kind: InvitationKind; groupId: string | null; groupName: string | null; groupPicture: string | null; status: InvitationDisplayStatus | 'withdrawn'; date: string }[];
-  events: { id: string; type: InvitationEventType; at: string; groupId: string | null; groupName: string | null; invitationId: string }[];
+  /** actorName: the leader (a User) who performed the event; null when a member or nobody did (owner 2026-11-02). */
+  events: { id: string; type: InvitationEventType; at: string; groupId: string | null; groupName: string | null; actorName: string | null; invitationId: string }[];
   canResend: boolean; canWithdraw: boolean;
 }
 export interface InvitationFeedFilters { orgId?: string; groupId?: string; leaderId?: string; status?: InvitationDisplayStatus; limit?: number }
@@ -446,6 +447,10 @@ export async function getInvitationDetail(userId: string, invitationId: string, 
     const historicalGroupIds = [...new Set(events.flatMap(event => event.groupId && UUID.test(event.groupId) ? [event.groupId.toLowerCase()] : []))]
     const historicalGroups = await tx.group.findMany({ where: { id: { in: historicalGroupIds }, organizationId: { in: orgIds, mode: 'insensitive' } }, select: { id:true, name:true } })
     const groupNames = new Map(historicalGroups.map(group => [group.id, group.name]))
+    // Leader actions record the leader's User id as actorId; member actions record a Member id, which no User row matches.
+    const actorIds = [...new Set(events.flatMap(event => event.actorId ? [event.actorId] : []))]
+    const actors = actorIds.length ? await tx.user.findMany({ where: { id: { in: actorIds } }, select: { id:true, name:true } }) : []
+    const actorNames = new Map(actors.map(actor => [actor.id, actor.name]))
     const normalizedPhone = selected.recipientPhone ? normalizePhone(selected.recipientPhone) : null
     const linked = selected.memberId
       ? await tx.member.findUnique({ where: { id: selected.memberId } })
@@ -468,7 +473,7 @@ export async function getInvitationDetail(userId: string, invitationId: string, 
         const group = row.group
         return { id:row.id, kind:invitationKind(row), groupId:row.groupId, groupName:group?.name ?? null, groupPicture:group?.coverImageUrl ?? null, status:invitationDisplayStatus(row,now), date:invitationDisplayDate(row,now).toISOString() }
       }),
-      events:events.map(event => ({ id:event.id, type:event.type as InvitationEventType, at:event.at.toISOString(), groupId:event.groupId, groupName:event.groupId ? groupNames.get(event.groupId.toLowerCase()) ?? null : null, invitationId:event.invitationId })),
+      events:events.map(event => ({ id:event.id, type:event.type as InvitationEventType, at:event.at.toISOString(), groupId:event.groupId, groupName:event.groupId ? groupNames.get(event.groupId.toLowerCase()) ?? null : null, actorName:event.actorId ? actorNames.get(event.actorId)?.trim() || null : null, invitationId:event.invitationId })),
       canResend:selected.recipientPhone !== null && eligible.some(row => row.expiresAt === null || row.expiresAt >= now),
       canWithdraw:selected.recipientPhone !== null && eligible.length > 0,
     }

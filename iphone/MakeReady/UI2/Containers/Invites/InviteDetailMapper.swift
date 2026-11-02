@@ -63,7 +63,10 @@ enum InviteDetailMapper {
         case .approved: description = "Request approved for \(group)"
         case .rejected: description = "Request rejected for \(group)"
         }
-        return Event(date: date(event.at, timeZone: timeZone), text: description,
+        // Owner 2026-11-02: an event a leader performed names that leader.
+        let actor = MembersHomeMapper.nonEmpty(event.actorName?.trimmingCharacters(in: .whitespacesAndNewlines))
+            .map { " by \($0)" } ?? ""
+        return Event(date: date(event.at, timeZone: timeZone), text: description + actor,
                      highlight: event.type == .accepted ? "Accepted" : "",
                      tone: event.type == .accepted ? "positive" : "neutral")
     }

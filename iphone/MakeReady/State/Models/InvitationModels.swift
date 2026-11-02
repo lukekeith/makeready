@@ -75,6 +75,8 @@ struct InvitationDetail: Codable, Identifiable, Equatable {
         let groupId: String?
         let groupName: String?
         let invitationId: String
+        /// The leader who performed the event; nil for member or system events (owner 2026-11-02).
+        var actorName: String? = nil
     }
     let id: String
     let kind: InvitationKind

@@ -95,13 +95,14 @@ const feedQuery = z.object({
  *           type: array
  *           items:
  *             type: object
- *             required: [id, type, at, groupId, groupName, invitationId]
+ *             required: [id, type, at, groupId, groupName, actorName, invitationId]
  *             properties:
  *               id: { type: string }
  *               type: { type: string, enum: [sent, resent, link_clicked, accepted, withdrawn, expired, requested, approved, rejected] }
  *               at: { type: string, format: date-time }
  *               groupId: { type: string, nullable: true }
  *               groupName: { type: string, nullable: true }
+ *               actorName: { type: string, nullable: true, description: The leader who performed the event; null for member or system events }
  *               invitationId: { type: string }
  *         canResend: { type: boolean }
  *         canWithdraw: { type: boolean }

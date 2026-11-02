@@ -23,6 +23,22 @@ final class InvitationDetailMapperTests: XCTestCase {
         XCTAssertEqual(output.state.invitedBy, "Fixture Leader")
         XCTAssertEqual(output.memberDestination, .memberDetail(id: "m1", name: "Ada Lovelace"))
     }
+    /// Owner 2026-11-02: an event a leader performed names that leader; others read as before.
+    func testLeaderPerformedEventsNameTheLeader() {
+        let rejected = InvitationDetail.Event(id: "e1", type: .rejected, at: InvitationDetailFixtures.date,
+                                              groupId: "g1", groupName: "Young Adults", invitationId: "i1",
+                                              actorName: "John Smith")
+        XCTAssertEqual(InviteDetailMapper.event(rejected, phone: "(555) 000-1111", timeZone: zone).text,
+                       "Request rejected for Young Adults by John Smith")
+        let requested = InvitationDetail.Event(id: "e2", type: .requested, at: InvitationDetailFixtures.date,
+                                               groupId: "g1", groupName: "Young Adults", invitationId: "i1")
+        XCTAssertEqual(InviteDetailMapper.event(requested, phone: "(555) 000-1111", timeZone: zone).text,
+                       "Requested to join Young Adults")
+        let blank = InvitationDetail.Event(id: "e3", type: .approved, at: InvitationDetailFixtures.date,
+                                           groupId: "g1", groupName: "Young Adults", invitationId: "i1", actorName: "  ")
+        XCTAssertEqual(InviteDetailMapper.event(blank, phone: "(555) 000-1111", timeZone: zone).text,
+                       "Request approved for Young Adults")
+    }
     func testIndependentCapabilitiesBusyAndParallelHistoryArrays() throws {
         let events = InvitationEventType.allForDetailTests.enumerated().map { index, type in
             InvitationDetail.Event(id: "e\(index)", type: type, at: InvitationDetailFixtures.date,
