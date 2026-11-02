@@ -1,12 +1,12 @@
 size: lg
 state: planned
 next: /builder:resume --path docs/features/tag-categories
-head: 7fea6b66
+head: 7d82c21a
 ticket: none
 branch: main
 pr: none
 apps: server+iphone
-contract: open
+contract: frozen 2026-11-01
 hold: none
 go-ahead: Luke 2026-11-01 (here)
 tests: slice=own+app end=risk review=slice
