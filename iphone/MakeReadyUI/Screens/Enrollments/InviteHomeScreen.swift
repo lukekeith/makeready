@@ -403,7 +403,7 @@ struct InviteHomeScreen: View {
     private var actionsEnabled: Bool { !resending && !withdrawing }
 
     /// §2.7: "full content width (408), vertical stack … C-048 PageActionButton "Resend
-    /// invitation" (accent, send glyph trailing, spread) above C-048 PageActionButton "Withdraw
+    /// invitation" (accent; owner 2026-11-02: no glyph, centred label) above C-048 PageActionButton "Withdraw
     /// invitation" (secondary)". Gap: Figma `4773:11378` places the 38pt buttons at y 0 and 54 —
     /// 16, `space-stack-gap` (§2.7's proposed 12 is confirmed from the frame as 16).
     private var buttonsStack: some View {
@@ -411,11 +411,10 @@ struct InviteHomeScreen: View {
             if showsResend {
                 PageActionButton(
                     label: Self.resendLabel,
+                    // Owner 2026-11-02: styled like the page's other buttons — centred label, no
+                    // glyph (supersedes the Figma send glyph); the accent purple stays.
                     role: .accent,
                     size: .md,
-                    glyph: .sendFilled,
-                    glyphPosition: .trailing,
-                    layout: .spread,
                     enabled: actionsEnabled,
                     onTap: onResendInvitation
                 )
