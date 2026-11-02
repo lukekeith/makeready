@@ -42,9 +42,11 @@ if (mode === 'setup') {
   noServerEnv()
   const url = new URL(process.env.DATABASE_URL)
   if (!['localhost', '127.0.0.1'].includes(url.hostname) || url.port !== '5434' || !/^\/postgres_vt_tpl_[a-f0-9]+_b_\d+$/.test(url.pathname)) throw new Error('Refusing Atlas apply outside a verifier template build database')
-  // Explicit URL and migration directory: no dotenv wrapper, local Atlas dev DB, diff or seeds.
+  // Explicit URL and migration directory: no dotenv wrapper, shared Atlas dev DB or migration generation.
   run(join(root, 'server/scripts/atlas.sh'), ['migrate', 'apply', '--url', url.href, '--dir', `file://${join(root, 'server/atlas/migrations')}`], join(root, 'server/atlas'))
   run('npx', ['--no-install', 'tsx', 'scripts/ensure-session-table.ts'], join(root, 'server'))
+  // Fixtures require system roles; this seed creates no user/organization fixture data in an empty template.
+  run('npx', ['--no-install', 'tsx', 'prisma/seed.ts'], join(root, 'server'))
 } else if (mode === 'lease') {
   noServerEnv()
   for (const [key, value] of Object.entries(safeEnv)) console.log(`${key}=${value}`)

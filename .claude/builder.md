@@ -53,8 +53,8 @@ verify:
   db:
     kind: postgres
     url: postgresql://postgres:postgres@localhost:5434/postgres
-    env: [DATABASE_URL, DIRECT_URL, TEST_DATABASE_URL]
-    inputs: [server/atlas/migrations/**, server/scripts/atlas.sh, server/scripts/ensure-session-table.ts, scripts/builder-verify.mjs]
+    env: [DATABASE_URL, DIRECT_URL, TEST_DATABASE_URL, FIXTURES_TEST_DATABASE_URL]
+    inputs: [server/atlas/migrations/**, server/scripts/atlas.sh, server/scripts/ensure-session-table.ts, server/prisma/seed.ts, scripts/builder-verify.mjs]
     prepare: node scripts/builder-verify.mjs db-prepare
     max: 2
   env:
@@ -104,11 +104,13 @@ against the target. Server ESLint has no configuration, so it is not a runnable 
 
 The verifier uses the existing local Postgres service only as an administration endpoint through
 `postgres`; it creates and drops only `postgres_vt_*` template/lease databases. Fresh templates
-apply the committed Atlas migrations and ensure the session table, without migration generation,
-seeding, dev-container restarts, or reading `server/.env` (including its 1Password pipe). Setup and
+apply the committed Atlas migrations, ensure the session table and seed the standard RBAC roles
+and permissions (`prisma/seed.ts`), without dev/test user data, migration generation, dev-container
+restarts, or reading `server/.env` (including its 1Password pipe). Setup and
 leases reject a checkout containing `server/.env` or `.env.test` without opening either file.
 Server production HTTP smoke tests are excluded, as in `test:ci`, because they hit the live site;
-all local Vitest tests remain included. PHPUnit uses its existing in-memory SQLite test config.
+all local Vitest tests remain included. `FIXTURES_TEST_DATABASE_URL` points at the same owned lease
+so the fixture DB suites execute rather than skip. PHPUnit uses its existing in-memory SQLite test config.
 External integration credentials are cleared or replaced with dummy/local values by lease hooks.
 
 The MakeReady scheme’s actual native unit-test target is `MakeReadyCaptureTests` (its scheme XML
