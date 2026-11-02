@@ -374,4 +374,29 @@ final class UI2ShellModelTests: XCTestCase {
         model.pop(on: .home); model.pop(on: .home)
         XCTAssertEqual(model.enrollmentFlowIds, [b])
     }
+    func testNavigationOwnershipChangesAcrossCoalescedSameDestinationReplacement() {
+        var model = UI2ShellModel()
+        let page = UI2Destination.memberDetail(id: "same", name: "Same")
+        model.push(page, on: .home)
+        let original = model.navigationOwnership(for: .home)
+        XCTAssertNotNil(original)
+        model.pop(on: .home)
+        model.push(page, on: .home)
+        XCTAssertEqual(model.path(for: .home).last, page)
+        XCTAssertNotEqual(model.navigationOwnership(for: .home), original)
+        let replacement = model.navigationOwnership(for: .home)
+        model.setPath(model.path(for: .home), for: .home)
+        XCTAssertEqual(model.navigationOwnership(for: .home), replacement)
+    }
+
+    func testInvitationSelectionsKeepKindAndUseCompletePushedRoutes() {
+        XCTAssertEqual(UI2Destination.invitation(.invite(id: "i1")), .inviteDetail(id: "i1"))
+        XCTAssertEqual(UI2Destination.invitation(.request(id: "reviewed")), .requestDetail(id: "reviewed"))
+        var model = UI2ShellModel()
+        model.push(.requestDetail(id: "reviewed"), on: .home)
+        XCTAssertTrue(model.showsTabBar)
+        model.popIfTop(.inviteDetail(id: "reviewed"), on: .home)
+        XCTAssertEqual(model.path(for: .home), [.requestDetail(id: "reviewed")])
+    }
+
 }

@@ -164,7 +164,8 @@ struct UI2Shell: View {
             popIfTop: { model.popIfTop($0, on: tab) },
             popTo: { model.popTo(depth: $0, on: tab) },
             depth: { model.path(for: tab).count },
-            replaceTop: { model.replaceTop($0, with: $1, on: tab) }
+            replaceTop: { model.replaceTop($0, with: $1, on: tab) },
+            ownership: { model.tab == tab ? model.navigationOwnership(for: tab) : nil }
         ))
         // dashboard-chart-intros D15: the dashboard resets its intros while hidden, replays on return.
         .environment(\.chartIntroActive, model.homeActive)
@@ -186,6 +187,8 @@ struct UI2Shell: View {
 
     @ViewBuilder private func page(for destination: UI2Destination) -> some View {
         switch destination {
+        case let .inviteDetail(id): InviteDetailContainer(id: id)
+        case let .requestDetail(id): RequestDetailContainer(id: id)
         case let .memberDetail(id, name): MemberDetailHost(id: id, name: name)
         case let .editMemberField(memberId, field): MemberFieldEditContainer(memberId: memberId, field: field)  // ui2-members-edit D2
         case let .inviteSelectGroup(returnDepth): InviteSelectGroupContainer(returnDepth: returnDepth)  // invite-member D3
@@ -220,7 +223,7 @@ struct UI2Shell: View {
         case .groups: GroupsHomeContainer(destination: { .groupDetail(id: $0, name: $1) })  // ui2-groups-browse D1/D3
         case .programs: StudyProgramsContainer(destination: { .studyProgramHome(id: $0, name: $1) })  // ui2-programs D1/D3
         case .enrollments: EnrollmentsHomeContainer()  // ui2-enrollments-browse R1
-        case .invites: InvitesHomeContainer()
+        case .invites: InvitesHomeContainer(onOpen: { model.push(.invitation($0), on: .home) })
         case .media: MediaHomeContainer(addRequest: model.mediaAddRequest)  // media-page D1, media-library D13
         default: EmptyPage()                  // SPEC D10: Library…Invites are unwired
         }

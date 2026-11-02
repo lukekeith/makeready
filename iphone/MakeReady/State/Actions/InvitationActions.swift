@@ -5,14 +5,18 @@ struct InvitationActions {
     private let api: APIClientProtocol
     private let stateOverride: AppState?
     private let onUnauthorized: @MainActor () async -> Void
+    /// A dismissed page may suppress its banner while the current-session write still reconciles.
+    private let shouldSurfaceMutationError: @MainActor () -> Bool
     @MainActor private var state: AppState { stateOverride ?? AppState.shared }
 
     init(api: APIClientProtocol = APIClient.shared, state: AppState? = nil,
          now: @escaping () -> Date = Date.init,
-         onUnauthorized: @escaping @MainActor () async -> Void = {}) {
+         onUnauthorized: @escaping @MainActor () async -> Void = {},
+         shouldSurfaceMutationError: @escaping @MainActor () -> Bool = { true }) {
         self.api = api
         self.stateOverride = state
         self.onUnauthorized = onUnauthorized
+        self.shouldSurfaceMutationError = shouldSurfaceMutationError
     }
 
     @MainActor
@@ -199,7 +203,7 @@ struct InvitationActions {
             }
             return .unauthorized
         }
-        state.recordError(error, context: "InvitationActions.\(context)", surface: friendlyMessage != nil,
+        state.recordError(error, context: "InvitationActions.\(context)", surface: friendlyMessage != nil && shouldSurfaceMutationError(),
                           friendlyMessage: friendlyMessage)
         guard let http = error as? APIHTTPError else { return .generic }
         switch http.status {

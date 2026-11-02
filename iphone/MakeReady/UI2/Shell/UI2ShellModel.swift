@@ -17,6 +17,8 @@ enum UI2Route: Equatable {
 /// title the pushed page's C-040 header shows while it loads (members-profile §3 `loading`).
 /// ui2-members-edit D2: `editMemberField` — one member field's edit page, above the member page.
 enum UI2Destination: Hashable {
+    case inviteDetail(id: String)
+    case requestDetail(id: String)
     case memberDetail(id: String, name: String)
     case editMemberField(memberId: String, field: MemberField)
     /// invite-member D2/D3: the group pick before the invite (2+ groups). `returnDepth` = the
@@ -66,6 +68,13 @@ enum UI2Destination: Hashable {
 }
 
 extension UI2Destination {
+    static func invitation(_ selection: InvitesHomeMapper.InvitationRowSelection) -> Self {
+        switch selection {
+        case .invite(let id): return .inviteDetail(id: id)
+        case .request(let id): return .requestDetail(id: id)
+        }
+    }
+
     /// A page that takes the whole screen, with no TabBar under it.
     var isFullScreen: Bool {
         switch self {
@@ -99,6 +108,10 @@ struct UI2ShellModel {
     var mediaAddRequest = 0
     /// D1/D2: each tab's push path; a tab missing from the map is at its root.
     var paths: [TabBar.Tab: [UI2Destination]] = [:]
+    /// Changes synchronously with each path mutation, even coalesced pop/push of equal routes.
+    private var pathRevisions: [TabBar.Tab: UUID] = [:]
+
+    func navigationOwnership(for tab: TabBar.Tab) -> UUID? { pathRevisions[tab] }
 
     /// D1: TopNav is part of the Home stack's ROOT page, so a pushed page covers it — no hide logic.
     var showsTopNav: Bool { tab == .home }
@@ -118,16 +131,20 @@ struct UI2ShellModel {
     }
 
     /// The stack's `path:` binding writes here — including the system back and edge-swipe pops.
-    mutating func setPath(_ path: [UI2Destination], for tab: TabBar.Tab) { paths[tab] = path }
+    mutating func setPath(_ path: [UI2Destination], for tab: TabBar.Tab) {
+        guard path != self.path(for: tab) else { return }
+        paths[tab] = path
+        pathRevisions[tab] = UUID()
+    }
 
     mutating func push(_ destination: UI2Destination, on tab: TabBar.Tab) {
-        paths[tab, default: []].append(destination)
+        setPath(path(for: tab) + [destination], for: tab)
     }
 
     mutating func pop(on tab: TabBar.Tab) {
         guard var path = paths[tab], !path.isEmpty else { return }
         path.removeLast()
-        paths[tab] = path
+        setPath(path, for: tab)
     }
 
     /// ui2-members-edit D13: the success pop — only while `destination` is still the tab's last
@@ -143,14 +160,14 @@ struct UI2ShellModel {
     mutating func replaceTop(_ expected: UI2Destination, with next: UI2Destination, on tab: TabBar.Tab) {
         guard var path = paths[tab], path.last == expected else { return }
         path[path.count - 1] = next
-        paths[tab] = path
+        setPath(path, for: tab)
     }
 
     /// invite-member D11: Cancel / Done pop the whole flow back to the page "+" was tapped on.
     mutating func popTo(depth: Int, on tab: TabBar.Tab) {
         let path = path(for: tab)
         guard depth < path.count else { return }
-        paths[tab] = Array(path.prefix(max(0, depth)))
+        setPath(Array(path.prefix(max(0, depth))), for: tab)
     }
 
     mutating func apply(_ route: UI2Route) {
@@ -159,7 +176,7 @@ struct UI2ShellModel {
             // ui2-members-browse D20: re-tapping the selected tab with a page pushed pops that
             // tab to its root (the system pop animates it) and changes nothing else.
             if next == tab, !path(for: next).isEmpty {
-                paths[next] = []
+                setPath([], for: next)
                 return
             }
             if next == .home && tab == .home { section = .home }

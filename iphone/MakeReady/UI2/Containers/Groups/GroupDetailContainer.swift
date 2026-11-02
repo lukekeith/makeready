@@ -31,8 +31,8 @@ struct GroupDetailContainer: View {
     @State private var coverFrame: CGRect?
 
     var body: some View {
-        let output = GroupDetailMapper.output(Self.input(groupId: groupId, name: name, state: AppState.shared),
-                                              now: Date(), timeZone: .current)
+        let input = Self.input(groupId: groupId, name: name, state: AppState.shared)
+        let output = GroupDetailMapper.output(input, now: Date(), timeZone: .current)
         let _ = imagesSeeded
         // D17: the screen reads images only from Ui2ImageCache, so an image reaches it once cached
         // and its arrival changes the screen's input.
@@ -63,6 +63,10 @@ struct GroupDetailContainer: View {
                     onOpenMember: { row in
                         guard let member = output.member(atRow: row) else { return }
                         navigator.push(.memberDetail(id: member.id, name: member.name))
+                    },
+                    onOpenRequest: { row in
+                        guard input.requests.indices.contains(row) else { return }
+                        navigator.push(.requestDetail(id: input.requests[row].id))
                     },
                     // ui2-enrollment-create D2: Enrollments `add` → the checklist with this group preloaded.
                     onEnrollProgram: { EnrollEntry.open(groupId: groupId, studyProgramId: nil, push: navigator.push) },
