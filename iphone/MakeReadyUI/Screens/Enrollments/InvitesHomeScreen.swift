@@ -225,9 +225,9 @@ struct InvitesHomeScreen: View {
             ForEach(chipLabels.indices, id: \.self) { index in
                 let label = chipLabels[index]
                 // §3: "A chip whose filter is not \"All\" shows C-035's active state."
-                FilterChip(type: .menu, active: !Self.isAll(label), label: label) {
-                    onOpenFilter(Self.filterDimensions[index])
-                }
+                // A trailing closure binds to `onSelect`; `.menu` fires `onTap`, so pass it by name.
+                FilterChip(type: .menu, active: !Self.isAll(label), label: label,
+                           onTap: { onOpenFilter(Self.filterDimensions[index]) })
                 .ui2Element(Self.partName("C-035 FilterChip", ordinal: index + 1))
             }
         }
