@@ -1,6 +1,9 @@
 import { randomBytes } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 /** Only a live Builder lease, never its template, administration DB or human DB. */
 export function assertInvitationTestDatabase(value: string | undefined): string {
@@ -30,17 +33,29 @@ export async function withInvitationMigrationDb<T>(run: (url: string) => Promise
   const admin = new Client({ connectionString: adminUrl.href })
   await admin.connect()
   let created = false
+  let migrationDir: string | undefined
   try {
     await admin.query(`CREATE DATABASE "${name}"`)
     created = true
     const server = fileURLToPath(new URL('../../', import.meta.url))
-    execFileSync(`${server}scripts/atlas.sh`, ['migrate', 'apply', '--url', scratchUrl.href,
-      '--dir', `file://${server}atlas/migrations`, '--to-version', LEGACY_INVITATION_REVISION],
-    { cwd: `${server}atlas`, stdio: 'pipe', timeout: 120_000 })
+    // Materialize the committed prefix: community Atlas has no --to-version flag.
+    migrationDir = mkdtempSync(join(tmpdir(), 'invitation-migrations-'))
+    const repoPath = 'server/atlas/migrations'
+    const entries = execFileSync('git', ['ls-tree', '--name-only', 'HEAD', repoPath + '/'], { cwd: `${server}..`, encoding: 'utf8' }).trim().split('\n')
+    const files = entries.filter(path => /\/\d{14}(?:_.+)?\.sql$/.test(path) && path.split('/').pop()!.slice(0, 14) <= LEGACY_INVITATION_REVISION)
+    if (!files.some(path => path.split('/').pop()!.startsWith(`${LEGACY_INVITATION_REVISION}_`))) throw new Error('Legacy migration revision missing')
+    for (const path of files) writeFileSync(join(migrationDir, path.split('/').pop()!), execFileSync('git', ['show', `HEAD:${path}`], { cwd: `${server}..` }))
+    const dir = pathToFileURL(migrationDir).href
+    const options = { cwd: `${server}atlas`, stdio: 'pipe' as const, timeout: 120_000 }
+    execFileSync(`${server}scripts/atlas.sh`, ['migrate', 'hash', '--dir', dir], options)
+    execFileSync(`${server}scripts/atlas.sh`, ['migrate', 'apply', '--url', scratchUrl.href, '--dir', dir], options)
     return await run(scratchUrl.href)
   } finally {
     try {
       if (created) await admin.query(`DROP DATABASE "${name}" WITH (FORCE)`)
-    } finally { await admin.end() }
+    } finally {
+      if (migrationDir) rmSync(migrationDir, { recursive: true, force: true })
+      await admin.end()
+    }
   }
 }

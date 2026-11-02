@@ -3,6 +3,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { assertInvitationTestDatabase, captureLegacyResponse, installLegacyAuthHelpers, legacyAgent, legacyId, seedLegacyInvitationCases, type GeneratedScalar } from './helpers/invitations-legacy-fixtures.js'
 import { withInvitationMigrationDb } from './helpers/invitations-migration-db.js'
 
+// The actual app calls dotenv.config() at import; the lease supplies its environment.
+vi.mock('dotenv', () => ({ default: { config: vi.fn(() => ({})) } }))
+
 // No invitation repository/service is mocked. Only outbound transports are replaced.
 vi.mock('../src/services/sms-campaign.js', () => ({ sendCampaignSms: vi.fn(async () => ({ success: true, messageSid: 'legacy-test-sms' })) }))
 vi.mock('../src/services/push-notification.js', () => ({ sendToUser: vi.fn(async () => ({})), sendToDevice: vi.fn(async () => ({})), isPushConfigured: () => false, shutdown: vi.fn() }))
