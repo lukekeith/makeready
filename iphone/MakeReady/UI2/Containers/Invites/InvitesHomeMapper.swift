@@ -53,9 +53,15 @@ enum InvitesHomeMapper {
     static func output(window: InvitationFeedWindow?, entities: [String: InvitationFeedItem], filters: InvitationFilters?,
                        selection: Selection, now: Date, timeZone: TimeZone, loading: Bool = false) -> Output {
         let needle = selection.search.trimmingCharacters(in: .whitespacesAndNewlines)
-        let items = (window?.orderedIDs ?? []).compactMap { entities[$0] }.filter {
-            needle.isEmpty || ($0.recipientPhone?.localizedCaseInsensitiveContains(needle) ?? false)
-                || ($0.groupName?.localizedCaseInsensitiveContains(needle) ?? false)
+        let matchingWindow = window.flatMap { $0.query == selection.query ? $0 : nil }
+        let digits = needle.filter(\.isNumber)
+        let phoneQuery = !digits.isEmpty && needle.allSatisfy { $0.isNumber || "+()-. ".contains($0) }
+        let items = (matchingWindow?.orderedIDs ?? []).compactMap { entities[$0] }.filter { item in
+            let phone = item.recipientPhone ?? ""
+            return needle.isEmpty || phone.localizedCaseInsensitiveContains(needle)
+                || InputMask.phone.format(phone).localizedCaseInsensitiveContains(needle)
+                || (phoneQuery && phone.filter(\.isNumber).contains(digits))
+                || (item.groupName?.localizedCaseInsensitiveContains(needle) ?? false)
         }
         func label(_ dimension: Dimension) -> String {
             let menu = options(dimension, filters: filters)
@@ -63,7 +69,7 @@ enum InvitesHomeMapper {
         }
         let state = InvitesHomeScreen.State(
             searchText: selection.search, orgFilterLabel: label(.org), groupFilterLabel: label(.group),
-            leaderFilterLabel: label(.leader), statusFilterLabel: label(.status), loading: loading,
+            leaderFilterLabel: label(.leader), statusFilterLabel: label(.status), loading: loading && matchingWindow == nil,
             inviteRecipients: items.map { $0.recipientPhone.map { InputMask.phone.format($0) } ?? "No phone number" },
             inviteStatuses: items.map { $0.status.rawValue }, inviteGroupNames: items.map { $0.groupName ?? "No group" },
             inviteDates: items.map { dateLabel($0.date, now: now, timeZone: timeZone) })

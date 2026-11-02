@@ -19,7 +19,7 @@ struct InvitesHomeContainer: View {
             window: app.invitationFeedWindow,
             entities: Dictionary(uniqueKeysWithValues: app.invitations.all.map { ($0.id, $0) }),
             filters: app.invitationFilters, selection: selection, now: Date(), timeZone: .current,
-            loading: loading && app.invitationFeedWindow == nil)
+            loading: loading)
         InvitesHomeScreen(
             state: output.state,
             onSearch: { text in

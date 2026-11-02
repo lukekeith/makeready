@@ -51,4 +51,70 @@ final class InvitesHomeMapperTests: XCTestCase {
         XCTAssertEqual(InvitesHomeMapper.options(.org, filters: nil).first?.id, InvitesHomeMapper.allID)
     }
 
+    func testMismatchedWindowIsNeverDisplayedDuringLoadFailureOrReentry() {
+        let item = InvitationFeedItem(id: "old", kind: .invite, status: .sent, recipientPhone: "5551234567",
+            recipientName: nil, memberId: nil, groupId: nil, groupName: "Alpha", organizationId: "o",
+            inviterId: nil, inviterName: nil, date: "2026-11-02T12:00:00Z", createdAt: "2026-11-02T12:00:00Z")
+        let old = InvitationFeedWindow(query: InvitationQuery(), orderedIDs: [item.id], total: 1)
+        var selection = InvitesHomeMapper.Selection()
+        selection.orgID = "new"
+        func output(_ window: InvitationFeedWindow, _ loading: Bool) -> InvitesHomeMapper.Output {
+            InvitesHomeMapper.output(window: window, entities: [item.id: item], filters: nil,
+                                    selection: selection, now: Date(), timeZone: .gmt, loading: loading)
+        }
+        XCTAssertTrue(output(old, true).rows.isEmpty)
+        XCTAssertTrue(output(old, true).state.loading)
+        XCTAssertTrue(output(old, false).rows.isEmpty)
+        XCTAssertFalse(output(old, false).state.loading)
+        let matching = InvitationFeedWindow(query: selection.query, orderedIDs: [item.id], total: 1)
+        XCTAssertEqual(output(matching, true).selection(atRow: 0), .invite(id: "old"))
+        XCTAssertFalse(output(matching, true).state.loading)
+        selection = .init()
+        XCTAssertTrue(output(matching, true).rows.isEmpty)
+    }
+    func testPhoneSearchFormatsAndRejectedRequestIdentity() {
+        let item = InvitationFeedItem(id: "rejected-request", kind: .request, status: .rejected,
+            recipientPhone: "+15551234567", recipientName: nil, memberId: nil, groupId: nil,
+            groupName: "Alpha", organizationId: "o", inviterId: nil, inviterName: nil,
+            date: "2026-11-02T12:00:00Z", createdAt: "2026-11-02T12:00:00Z")
+        let window = InvitationFeedWindow(query: InvitationQuery(), orderedIDs: [item.id], total: 1)
+        var selection = InvitesHomeMapper.Selection()
+        for query in ["(555)", "555-123", "555123", "alpha"] {
+            selection.search = query
+            let output = InvitesHomeMapper.output(window: window, entities: [item.id: item], filters: nil,
+                                                  selection: selection, now: Date(), timeZone: .gmt)
+            XCTAssertEqual(output.selection(atRow: 0), .request(id: item.id), query)
+        }
+        for query in ["Alpha 555", "abc", "---"] {
+            selection.search = query
+            let output = InvitesHomeMapper.output(window: window, entities: [item.id: item], filters: nil,
+                                                  selection: selection, now: Date(), timeZone: .gmt)
+            XCTAssertTrue(output.rows.isEmpty, query)
+        }
+    }
+
+    @MainActor func testFailedFilterReloadKeepsOldWindowInvisibleAndDoesNotSendSearch() async {
+        let state = AppState()
+        let api = StubAPIClient()
+        var paths: [String] = []
+        api.responseFor = { _, path in
+            paths.append(path)
+            if paths.count > 1 { throw URLError(.notConnectedToInternet) }
+            return Data(#"{"items":[{"id":"old","kind":"invite","status":"sent","recipientPhone":"5551234567","recipientName":null,"memberId":null,"groupId":null,"groupName":"Alpha","organizationId":"org","inviterId":null,"inviterName":null,"date":"2026-11-02T12:00:00Z","createdAt":"2026-11-02T12:00:00Z"}],"total":1,"filters":{"orgs":[],"groups":[],"leaders":[]}}"#.utf8)
+        }
+        let actions = InvitationActions(api: api, state: state)
+        _ = await actions.loadInvitationFeed(InvitationQuery())
+        var selection = InvitesHomeMapper.Selection()
+        selection.orgID = "new"
+        selection.search = "Alpha"
+        _ = await actions.loadInvitationFeed(selection.query)
+        XCTAssertEqual(state.invitationFeedWindow?.orderedIDs, ["old"])
+        let output = InvitesHomeMapper.output(window: state.invitationFeedWindow,
+            entities: Dictionary(uniqueKeysWithValues: state.invitations.all.map { ($0.id, $0) }),
+            filters: state.invitationFilters, selection: selection, now: Date(), timeZone: .gmt)
+        XCTAssertTrue(output.rows.isEmpty)
+        XCTAssertEqual(paths.count, 2)
+        XCTAssertFalse(paths.contains { $0.contains("q=") })
+    }
+
 }
