@@ -1,18 +1,27 @@
 size: lg
-state: spec
-next: /builder:resume --path docs/features/invites
+state: planned
+next: "Implement Task 1: capture legacy compatibility on old schema; coordinate D2M inputs before consumer tasks"
 head: 9da5d240
 ticket: none
-branch: main
+branch: builder/invites
 pr: none
 apps: server+iphone
 contract: open
 hold: none
-go-ahead: none
+go-ahead: owner 2026-11-02 agent --auto
 walk: none
 verify: none
 ready: none
 ui2: invites-home, invite-home, request-detail (d2m; Figma section 4773:11377; all built, updated 9da5d240)
-auto: off
+auto: on
 blocked: none
-agent-walk: off
+agent-walk: risk
+phase: planned
+current-task: "Task 1"
+origin-branch: feature/invites
+origin-head: 9bc0bf7d86156bb023e04c00a32d3fd62ffa8d11
+target-branch: feature/invites
+target-start-head: 9bc0bf7d86156bb023e04c00a32d3fd62ffa8d11
+feature-name: invites
+registry: docs/features
+tests: walk=risk review=slice
