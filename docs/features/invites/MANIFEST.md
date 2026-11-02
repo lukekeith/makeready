@@ -1,6 +1,6 @@
 size: lg
 state: signed-off
-next: /builder:verify --path docs/features/invites
+next: merged to main locally — push when ready
 head: 5aa6544f
 ticket: none
 branch: feature/invites
@@ -10,7 +10,7 @@ contract: frozen (amended 2026-11-02 — additive C2 events.actorName, D21; prod
 hold: none
 go-ahead: owner 2026-11-02 agent --auto
 walk: Luke Keith 2026-11-02
-verify: none
+verify: skipped (owner 2026-11-02 — "we can skip verify and merge")
 ready: yes 2026-11-02 63227932
 ui2: invites-home, invite-home, request-detail (d2m; Figma section 4773:11377; all built, updated 9da5d240)
 auto: on
