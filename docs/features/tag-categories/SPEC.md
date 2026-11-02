@@ -110,9 +110,9 @@ unchanged.
 
 | # | ADD/EDIT/RENAME/REMOVE | Model.field | Wire | Reason | Status |
 |---|---|---|---|---|---|
-| S1 | ADD | `TagCategory` (`tag_categories`): `id` uuid PK · `key` String UNIQUE · `name` String · `position` Int · `createdAt` | `categories[].key/name/position` | D1, D4 · T1 | planned |
-| S2 | ADD | `TagCategoryTag` (`tag_category_tags`): `id` uuid PK · `categoryId` → TagCategory (cascade) · `tag` String UNIQUE (normalized) · `label` String · `position` Int · `createdAt`; index `(categoryId, position)` | `categories[].tags[]` | D1, D10, D12 · T1 | planned |
-| S3 | ADD | `GET /api/tags/categories` | §Contract | D15 · T2 | planned |
+| S1 | ADD | `TagCategory` (`tag_categories`): `id` uuid PK · `key` String UNIQUE · `name` String · `position` Int · `createdAt` | `categories[].key/name/position` | D1, D4 · T1 | landed 20261102040206 |
+| S2 | ADD | `TagCategoryTag` (`tag_category_tags`): `id` uuid PK · `categoryId` → TagCategory (cascade) · `tag` String UNIQUE (normalized) · `label` String · `position` Int · `createdAt`; index `(categoryId, position)` | `categories[].tags[]` | D1, D10, D12 · T1 | landed 20261102040206 |
+| S3 | ADD | `GET /api/tags/categories` | §Contract | D15 · T2 | landed 7d82c21a |
 
 **Data plan:** both tables are new and empty, so there's no backfill of existing rows. The migration
 INSERTs one `tag_categories` row and the `tag_category_tags` rows in §server (D11). UNIQUE `tag` means a
