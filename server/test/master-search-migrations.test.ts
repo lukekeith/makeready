@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { assertSearchLease, withEmptySearchDb } from './helpers/master-search-db.js'
+import { assertSearchLease, withEmptySearchDb, withTextIdSearchDb } from './helpers/master-search-db.js'
 
 const migrations = fileURLToPath(new URL('../atlas/migrations/', import.meta.url))
 function readMigration(suffix: string) {
@@ -56,6 +56,18 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('master-search recents table', (
       expect(r.rows[0].t).toBe('text')
     })
   }, 60000)
+
+  it('the text-id scratch database has a text users.id', async () => {
+    await withTextIdSearchDb(async url => {
+      const { Client } = await import('pg')
+      const client = new Client({ connectionString: url })
+      await client.connect()
+      try {
+        const r = await client.query(`SELECT format_type(atttypid, atttypmod) t FROM pg_attribute WHERE attrelid = '"users"'::regclass AND attname = 'id'`)
+        expect(r.rows[0].t).toBe('text')
+      } finally { await client.end() }
+    })
+  }, 180000)
 
   it('deleting a user cascades to their recents', async () => {
     const user = await prisma.user.create({ data: { id: searchId(901), name: 'Gone', email: 'gone@example.invalid' } })

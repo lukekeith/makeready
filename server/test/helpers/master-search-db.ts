@@ -8,7 +8,7 @@ export function assertSearchLease(): string {
   return assertInvitationTestDatabase(process.env.TEST_DATABASE_URL)
 }
 
-async function withScratchDatabase<T>(label: string, setup: (url: string) => void, run: (url: string) => Promise<T>): Promise<T> {
+async function withScratchDatabase<T>(label: string, setup: (url: string) => void | Promise<void>, run: (url: string) => Promise<T>): Promise<T> {
   const parent = assertSearchLease()
   const name = `postgres_vt_${label}_${process.pid}_${randomBytes(6).toString('hex')}`
   const adminUrl = new URL(parent)
@@ -22,7 +22,7 @@ async function withScratchDatabase<T>(label: string, setup: (url: string) => voi
   try {
     await admin.query(`CREATE DATABASE "${name}"`)
     created = true
-    setup(scratchUrl.href)
+    await setup(scratchUrl.href)
     return await run(scratchUrl.href)
   } finally {
     try {
@@ -35,10 +35,13 @@ async function withScratchDatabase<T>(label: string, setup: (url: string) => voi
 
 /** A scratch database whose ids are text, built by `prisma db push` (User.id is a plain String). */
 export function withTextIdSearchDb<T>(run: (url: string) => Promise<T>): Promise<T> {
-  return withScratchDatabase('search', url => {
+  return withScratchDatabase('search', async url => {
+    const { Client } = await import('pg')
+    const client = new Client({ connectionString: url })
+    await client.connect()
+    try { await client.query('CREATE EXTENSION IF NOT EXISTS vector') } finally { await client.end() }
     const server = fileURLToPath(new URL('../../', import.meta.url))
     const env = { ...process.env, DATABASE_URL: url, DIRECT_URL: url }
-    execFileSync('psql', [url, '-c', 'CREATE EXTENSION IF NOT EXISTS vector'], { cwd: server, env, stdio: 'pipe', timeout: 60_000 })
     execFileSync('npx', ['--no-install', 'prisma', 'db', 'push', '--skip-generate'], { cwd: server, env, stdio: 'pipe', timeout: 120_000 })
   }, run)
 }
