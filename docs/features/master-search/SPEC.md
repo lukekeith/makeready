@@ -71,16 +71,16 @@ flowchart LR
 | D4 | Visibility | A caller sees all content of every org from `getUserOrganizations`, whatever their role (Owner, Admin, Group Leader). Members match on name, email or phone. Rejected: Group Leaders limited to their groups (stricter than other screens, new scope rule); contact matching limited to Owners and Admins (extra rule, small gain). | owner 2026-11-03 |
 | D5 | Searchable types | Closed list: PROGRAM, TEMPLATE, MEMBER, GROUP, LESSON, EVENT, POST, VIDEO, PHOTO. The Type chip's Programs sends PROGRAM and TEMPLATE. Rejected: the Video table for VIDEO (no org or tags; D15 uses Media). | design ref search-home 2026-11-03 |
 | D6 | Filters | Picks OR within a filter, filters AND together, and an object with no value for a set filter drops out. Filters apply identically to C1 and C2. Rejected: filters ignoring types without that dimension (the list would not really narrow). | design ref search-home 2026-11-03 |
-| D7 | Inherited values | Org: PROGRAM, TEMPLATE, GROUP, PHOTO, VIDEO own column; EVENT, POST via group; LESSON via program; MEMBER via membership. Group: GROUP itself; EVENT, POST, PHOTO, VIDEO own column; MEMBER active memberships; PROGRAM via Enrollment; LESSON via its program's Enrollments. Leader: GROUP `creatorId`; PROGRAM `leaderId`; TEMPLATE `creatorId`; EVENT `createdBy`; POST `authorId`; PHOTO, VIDEO `uploadedBy`; LESSON its program's leader; MEMBER none. Tags: PROGRAM, PHOTO, VIDEO own; LESSON its program's; others none. Rejected: own values only (a Group filter removes all programs and lessons, a Tag filter removes all lessons). | owner 2026-11-03 |
+| D7 | Inherited values | Org: PROGRAM, TEMPLATE, GROUP, PHOTO, VIDEO own column; EVENT, POST via group; LESSON via program; MEMBER via membership. Group: GROUP itself; EVENT, POST, PHOTO, VIDEO own column; MEMBER active memberships; PROGRAM via Enrollment; LESSON via its program's Enrollments. Leader (every column is a `User.id`): GROUP `creatorId`; PROGRAM `leaderId`; TEMPLATE `creatorId`; EVENT `createdById` (name corrected at align; the app wins); POST `authorId`; PHOTO, VIDEO `uploadedBy`; LESSON its program's leader; MEMBER none. Tags: PROGRAM, PHOTO, VIDEO own; LESSON its program's; others none. Rejected: own values only (a Group filter removes all programs and lessons, a Tag filter removes all lessons). | owner 2026-11-03 |
 | D8 | MakeReady content | Results include the caller's orgs plus system templates (`isSystem`). MakeReady library Media is excluded. A set Orgs filter drops system templates. Rejected: orgs only (loses what search finds today); library included (stock images compete in the ranking). | owner 2026-11-03 |
-| D9 | Tapping a type with no screen | LESSON opens its program, EVENT and POST open their group, VIDEO pushes the Media page. Every C1 and C2 item carries `parent` for this. PROGRAM and TEMPLATE open study-program-home, MEMBER members-profile, GROUP groups-detail, PHOTO the ImageViewer. Rejected: no tap action (looks broken, can't become a recent); leaving the types out (drops lesson content). | owner 2026-11-03 |
+| D9 | Tapping a type with no screen | LESSON opens its program, EVENT and POST open their group, VIDEO pushes the Media page. Every C1 and C2 item carries `parent` for this. PROGRAM opens study-program-home (TEMPLATE: D27 settles it, because that page cannot load a template id), MEMBER members-profile, GROUP groups-detail, PHOTO the ImageViewer. Rejected: no tap action (looks broken, can't become a recent); leaving the types out (drops lesson content). | owner 2026-11-03 |
 | D10 | Recents | Recents are recently opened results, per user, one entry per resource, in a new table; re-opening moves an entry to the top. Rejected: extending `SearchHistory` (holds query strings). | design ref search-home 2026-11-03 |
 | D11 | Recents read rules | C2 returns newest first and drops rows the caller can no longer see or whose resource is deleted or inactive. | design ref search-home 2026-11-03 |
 | D12 | Recents retention | Keep a user's newest 100 entries: C3 deletes older ones in the same transaction. C2 returns at most 50. Rejected: unbounded (a table that only grows). | (assumed at spec) 2026-11-03 |
 | D13 | Filter options | C5 is the one source for all five chips' options except Type, which is the closed list in D5. Rejected: changing `/api/group-leaders` and `/api/media/tags` (other screens read their one-org answer). | (assumed at brainstorm) 2026-11-03 |
 | D14 | Tags | A tag is a lowercase string matched against `MediaTag.tag` and `StudyProgramTag.tag`. C5 merges both into one list, with `category` from `TagCategoryTag` where one exists. The Tags chip opens C-036's tag flow with one section per category and an untitled section for the rest. | design ref search-home 2026-11-03 |
-| D15 | Video and photo source | VIDEO is `Media` with `type = video`, PHOTO is `Media` with `type = photo`, both `isActive` and following the same visibility rule as `GET /api/media`. Rejected: the `Video` table (no org, group or tags). | (assumed at brainstorm) 2026-11-03 |
-| D16 | Searched fields | Title: GROUP, PROGRAM, TEMPLATE `name`; LESSON, EVENT, POST, PHOTO, VIDEO `title`; MEMBER first + last name. Other: GROUP description, code; PROGRAM, TEMPLATE description; LESSON activity title, read content, help title and description, read block title and content; EVENT description, location name; POST content; PHOTO, VIDEO none beyond tags; MEMBER email, phone. An exact email or phone match scores tier 4. Names use the `simple` text config, the rest `english`. | (assumed at spec) 2026-11-03 |
+| D15 | Video and photo source | VIDEO is `Media` with `type = 'video'`, PHOTO is `Media` with `type = 'photo'`, both `isActive` and `uploadStatus = 'ready'`, because a pending row has no usable image. No `GET /api/media` exists; the list route is `GET /api/organizations/:organizationId/media`, which applies `Media.visibility` only when asked, so D4's whole-org rule applies and `visibility` is not filtered. Rejected: the `Video` table (no org, group or tags). | (assumed at brainstorm) 2026-11-03; route, `uploadStatus` corrected at align |
+| D16 | Searched fields | Title: GROUP, PROGRAM, TEMPLATE `name`; LESSON, EVENT, POST, PHOTO, VIDEO `title`; MEMBER first + last name. Other: GROUP description, code; PROGRAM, TEMPLATE description; LESSON `LessonActivity` title, `readContent`, `helpTitle`, `helpDescription`, and `ActivityReadBlock` title and content where `lessonActivityId` is set (scheduled copies are out); EVENT description, `locationName`; POST content; PHOTO, VIDEO none beyond `MediaTag.tag`; MEMBER email, `phoneNumber`. An exact email or phone match scores tier 4. Names use the `simple` text config, the rest `english`. | (assumed at spec) 2026-11-03; names corrected at align |
 | D17 | Paging | C1 pages by an opaque cursor over (score, createdAt, id). `limit` 1–50, default 20. | (assumed at spec) 2026-11-03 |
 | D18 | Query length | C1 answers 400 below 2 characters; the screen never sends one. Above 200 characters is also a 400. | (assumed at spec) 2026-11-03 |
 | D19 | Caller with no orgs | C1, C2 and C5 answer 200 with their normal shape. C1 can still return system templates. Rejected: today's 400 (the screen has no error UI). | (assumed at spec) 2026-11-03 |
@@ -91,16 +91,22 @@ flowchart LR
 | D24 | Recording failure | A failed C3 never blocks opening the item; it logs and moves on, and the next open records it. | (assumed at spec) 2026-11-03 |
 | D25 | Screen fixture | `server/fixtures/screens/search-home.ts` `full` seeds every D5 type sharing a word, tags on both stores, and recents for the Fixtures identity. Rejected: no fixture (house rule, and the walk needs mixed types). | (assumed at spec) 2026-11-03 |
 | D26 | iPhone wiring | `SearchHomeContainer` + `SearchHomeMapper` under `UI2/Containers/Search/`, `SearchActions` + an `AppState` search domain; recents and results survive leaving the tab in memory and refresh from C2 on open, with no disk cache of their own. Rejected: wiring inside the d2m screen (overwritten on rebuild, ui2-shell D2). | (assumed at spec) 2026-11-03 |
+| D27 | Tapping a template | OPEN. The design's edge sends a template to study-program-home, but that page loads `GET /api/programs/:id`, which answers 404 for a `LessonTemplate` id, and no UI 2.0 surface shows templates. **Recommended:** a TEMPLATE row records its recent and pushes the Programs list, the same exit-to-the-nearest-page D9 gives VIDEO. Rejected: study-program-home (a failed page on every tap); leaving templates out (reverses D8); a new template page (no design for it; `/d2m:screen:update search-home` owns that edge if the owner wants it). | |
+| D28 | Results with no stored title | OPEN. C-085 requires a title, while `Post.title`, `Lesson.title` and `Member.firstName`/`lastName` are nullable. **Recommended:** `title` is never null on C1 or C2: POST uses title, else the first line of content cut to 80 characters; LESSON uses title, else `Day <dayNumber>`; MEMBER uses first + last name trimmed, else email, else `phoneNumber`. Tiers 2–4 score stored title text only, so a fallback title scores tier 1 at most. Rejected: a nullable wire `title` (each consumer invents its own fallback). | |
+| D29 | Repeated and generated events | OPEN. A recurring event stores one row per occurrence with the same title (`services/recurrence.ts`), and an enrollment writes one `Day <n>: <program>` event per lesson (`services/enrollment-edit.ts`). **Recommended:** the EVENT arm returns only rows with `lessonScheduleId IS NULL` and (`recurrenceGroupId IS NULL` or `isRecurrenceParent`), one row per series. Rejected: every row (a 30-day enrollment puts 30 near-identical rows above the program). | |
+| D30 | Members in no group | OPEN. D7 scopes MEMBER through `MemberOrganization`, but `GET /api/members/:memberId/profile` answers 403 unless the caller can manage one of the member's active groups. **Recommended:** the MEMBER arm also requires an active `GroupMember` in a group of the caller's orgs, so every result opens. Rejected: widening that endpoint's authorization (a permission change for every consumer, outside this feature); listing them anyway (a tap that fails with no error UI, per D20). | |
+| D31 | Tag identity | A tag is compared by its `normalizeTag` form (lowercase, all whitespace removed; `services/tag-categories.ts`), because stored tags keep their spaces (`1 samuel`), `TagCategoryTag.tag` is normalized (`1samuel`), and one category member can have several spellings sharing a `position`. C5 returns one option per category member (its first spelling, its `label`, `category` = `TagCategory.name`) and one per remaining normalized tag (`label` title-cased, `category` null), in display order: categories by `position`, members by `position`, then the uncategorized by label. C1 and C2 expand a picked category member to all its spellings and match the normalized stored tag. Rejected: D14's plain string match (a pick misses every other spelling, unlike the Media page's `wantedSpellings`). | align, the app wins, 2026-11-03 |
+| D32 | Response form | C1–C5 answer `{ success: true, … }` and errors `{ success: false, error }`, and C3 and C4 answer 200 `{ success: true }`, the form `/api/search` and the iPhone `APISuccessResponse` decoding already use. Rejected: bare objects and 204s (a new form for one feature; `api.delete` decodes a body). | align, the app wins, 2026-11-03 |
 
 ## Contract
 
 | Contract | Producer | Consumers | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|---|
-| C1 `GET /api/search/ranked` | server | iphone | `requireAuth` | `q`, optional comma lists `types`, `orgIds`, `groupIds`, `leaderIds`, `tags`, `limit`, `cursor` | `{ items: [SearchItem], nextCursor: string \| null }` | 400 bad `q`, `types`, `limit` or `cursor`; 401 |
-| C2 `GET /api/search/recent-results` | server | iphone | `requireAuth` | optional `types`, `orgIds`, `groupIds`, `leaderIds`, `tags`, `limit` (max 50) | `{ items: [SearchItem & { openedAt: ISO8601 }] }`; `score` is `null` | 400 bad filter; 401 |
-| C3 `PUT /api/search/recent-results` | server | iphone | `requireAuth` | `{ type: SearchType, id: string }` | 204 | 400 bad body; 401; 404 not found or not visible to the caller |
-| C4 `DELETE /api/search/recent-results/:type/:id` | server | iphone | `requireAuth` | path only | 204, including when no entry exists | 400 bad type; 401 |
-| C5 `GET /api/search/filter-options` | server | iphone | `requireAuth` | none | `{ organizations: [{ id, name }], groups: [{ id, name, organizationId }], leaders: [{ id, name }], tags: [{ tag, label, category: string \| null }] }` | 401 |
+| C1 `GET /api/search/ranked` | server | iphone | `requireAuth` | `q`, optional comma lists `types`, `orgIds`, `groupIds`, `leaderIds`, `tags`, `limit`, `cursor` | `{ success: true, items: [SearchItem], nextCursor: string \| null }` | 400 bad `q`, `types`, `limit` or `cursor`; 401 |
+| C2 `GET /api/search/recent-results` | server | iphone | `requireAuth` | optional `types`, `orgIds`, `groupIds`, `leaderIds`, `tags`, `limit` (max 50) | `{ success: true, items: [SearchItem & { openedAt: ISO8601 }] }`; `score` is `null` | 400 bad filter; 401 |
+| C3 `PUT /api/search/recent-results` | server | iphone | `requireAuth` | `{ type: SearchType, id: string }` | 200 `{ success: true }` | 400 bad body; 401; 404 not found or not visible to the caller |
+| C4 `DELETE /api/search/recent-results/:type/:id` | server | iphone | `requireAuth` | path only | 200 `{ success: true }`, including when no entry exists | 400 bad type; 401 |
+| C5 `GET /api/search/filter-options` | server | iphone | `requireAuth` | none | `{ success: true, organizations: [{ id, name }], groups: [{ id, name, organizationId }], leaders: [{ id, name }], tags: [{ tag, label, category: string \| null }] }`; `tags` in D31's display order | 401 |
 
 `SearchType` is D5's closed list. `SearchItem` is:
 
@@ -110,23 +116,24 @@ flowchart LR
   "parent": { "type": "PROGRAM", "id": "…", "name": "Romans in 30 days" } }
 ```
 
-`imageUrl` is the full image for PHOTO and `null` for every other type. `parent` is set for LESSON (PROGRAM), EVENT and POST (GROUP), and `null` otherwise. `score` is a number on C1 and is comparable only within one response's query.
+`imageUrl` is `Media.url` for PHOTO and `null` for every other type. `parent` is set for LESSON (PROGRAM), EVENT and POST (GROUP), and `null` otherwise. `score` is a number on C1 and is comparable only within one response's query. `title` is never null (D28, once ruled). `id` is always the row's own table id: MEMBER is `Member.id`, which `.memberDetail` loads. Ids are serialized as text whatever the column's type.
 
 ## Schema & API changes
 
 | # | ADD/EDIT/RENAME/REMOVE | Model.field | Wire | Reason | Status |
 |---|---|---|---|---|---|
-| 1 | ADD | `SearchRecentResult` (`id`, `userId` FK cascade, `resourceType`, `resourceId`, `openedAt`; unique `userId, resourceType, resourceId`; index `userId, openedAt desc`) | C2, C3, C4 | D10 | planned |
-| 2 | ADD | GIN and title indexes on the tables behind D16: Group, StudyProgram, the TEMPLATE searcher's model, Lesson, LessonActivity, ReadBlock, Event, Post, Member, Media | C1 | D23 | planned |
-| 3 | ADD | Routes C1–C5 | C1–C5 | §Contract | planned |
+| SC1 | ADD | `SearchRecentResult` (`id`, `userId` FK cascade + `User` relation, `resourceType` string validated as `SearchType` like `SearchHistory.searchType`, `resourceId` text, `openedAt`; unique `userId, resourceType, resourceId`; index `userId, openedAt`) | C2, C3, C4 | D10: the design's record of an opened result (T1) | planned |
+| SC2 | ADD | GIN and lower-case title indexes behind D16: `Group`, `StudyProgram`, `LessonTemplate`, `Lesson`, `LessonActivity`, `ActivityReadBlock`, `Event`, `Post`, `Member`, `Media`, plus a GIN on `MediaTag.tag` | C1 | D23: the design's one ranked list (T2) | planned |
+| SC3 | ADD | Routes C1–C5 | C1–C5 | §Contract: the design's §5 API gaps (T3, T4, T5) | planned |
 
-**Data plan:** both migrations are additive, with no backfill: recents start empty for everyone, and indexes build over existing rows. Undone by dropping the table and the indexes. Generated by `npm run schema:diff` from `server/schema/`; never hand-edited. `resourceId` has no FK because it spans tables, which is why D11 filters at read time.
+**Data plan:** both migrations are additive, with no backfill: recents start empty for everyone, and indexes build over existing rows. Undone by dropping the table and the indexes. `resourceId` has no FK because it spans tables, which is why D11 filters at read time. **Generate** with `npm run schema:generate`, then `cd atlas && ../scripts/atlas.sh migrate diff --env local --var database_url=…`: `npm run schema:diff` goes through `dotenv`, which reads the 1Password pipe, and a fleet worktree has no `server/.env`. **SC1's `userId` takes the type `users.id` actually has**: dev and prod ids are text and a migrations-only database has uuid, so the migration uses the `DO $$ … format_type` block of `20261102071026_invitations.sql`, and it is tested on a migrations-only database and on a restore of a dev dump. **Ordering:** T2 before SC2's migration; SC1 and SC2 are otherwise independent.
 
 ## server
 
 - **`src/services/master-search.ts` (new)** owns scope, filters, scoring and hydration. `src/routes/search.ts` stays thin and adds C1–C5, with zod on the C3 body and all query parameters. The existing handlers are not edited.
 - **Scope:** `getUserOrganizations` (`src/services/organization.ts:144`) gives the org list; requested `orgIds` intersect it, so an org outside it is ignored rather than refused. Org scoping lives in the service.
-- **Query:** one raw SQL `UNION ALL` over the requested types, each arm applying D7's filters and computing D1's score, ordered and limited once. Member rows are one per member across orgs.
+- **Query:** one raw SQL `UNION ALL` over the requested types, each arm applying D7's filters and computing D1's score, ordered and limited once. Member rows are one per member across orgs. Every arm casts ids to text (`"id"::text`) and compares them as text, because the column is text on dev and prod and uuid on a migrations-only database. Rows carry `isActive` except `Lesson`, which takes its program's.
+- **Index tooling:** `scripts/schema/yaml-to-hcl.ts` only writes plain column indexes, and its `Index` type has `fields` and `unique`. It gains a GIN type and an expression form so SC2 lives in `schema.yaml`. The verses GIN in `20260614223043.sql` was written by hand, outside the desired state, because a plain tsvector stays tracked there: copying that would let the next `migrate diff` propose dropping SC2's indexes.
 - **C5 leaders:** the `/api/group-leaders` definition (group creators and role holders) across the caller's orgs, one row per user.
 - **Fixture:** `server/fixtures/screens/search-home.ts`, whose `full` scenario adds rows of every D5 type sharing a word so one query returns mixed types, tags on both stores, and recents for the Fixtures identity; a test beside the others in `fixtures/__tests__/`.
 
@@ -135,15 +142,16 @@ flowchart LR
 - **`UI2/Containers/Search/SearchHomeContainer.swift` (new)** renders the d2m `SearchHomeScreen`, debounces 300 ms (the screen doesn't), holds query and picks in `@State`, keeps the index-to-item array the screen's parallel `State` arrays need, and presents `.filterMenuPresentation` and `.imageViewerPresentation` as `MediaHomeContainer.swift:167,179` do.
 - **`SearchHomeMapper.swift` (new)** is pure: items to `State`, `chipLabel` via `FilterMenuOverlay.chipLabel`, D14's tag sections, D9's routing target per item. Unit-tested.
 - **`State/Actions/SearchActions.swift` (new) + `AppState` search domain:** recents and results keyed by type + id, filter options; no `APIClient` from the container.
-- **`UI2Shell.swift`:** `.search` renders `SearchHomeContainer()`; `page(for:)` and `UI2Destination` gain `.mediaHome` for D9's video exit.
+- **`UI2Shell.swift`:** `.search` renders `SearchHomeContainer()`; `page(for:)` and `UI2Destination` gain `.mediaHome` for D9's video exit and `.programsHome` for D27's recommended exit. Both reuse their section containers, which draw no back button when pushed (`MediaHomeContainer` draws `PageHeader` only in `.pick`), so each gains the pushed `PageHeader`.
+- **Photo row:** `ImageViewer(url: imageUrl, sourceFrame: nil, …)`, the one-image init; it grows in place because a row has no tile frame.
 - **Errors:** D20 and D24 are deliberate, per `/ios-error-surface`: logged, no banner, because none is designed.
 - **d2m views are not edited.** `iphone/MakeReadyUI/` belongs to d2m; a change there goes through `check_project_change`.
 
 ## Testing
 
-**server (vitest, never `makeready_dev`):** every tier ordering in D1, across types; D6 and each D7 row, including drop-outs; D4 for an Owner, an Admin, a Group Leader and a caller outside the org; D8; cursor paging with no repeats or gaps; D11's three drop-outs; C3 upsert, D12's cap and its 404; C4 idempotence; D19; a test proving `GET /api/search`'s response is unchanged.
+**server (vitest, never `makeready_dev`):** every tier ordering in D1, across types; D6 and each D7 row, including drop-outs; D4 for an Owner, an Admin, a Group Leader and a caller outside the org; D8; cursor paging with no repeats or gaps; D11's three drop-outs; C3 upsert, D12's cap and its 404; C4 idempotence; D19; D28's fallbacks; D29's one row per series; D30's group-less member; D31 with two spellings of one category member; `uploadStatus` drop-out; every query on both id types (migrations-only and a text-id restore); a test proving `GET /api/search`'s response is unchanged.
 
-**iphone (XCTest):** mapper kind map, labels, routing targets and tag sections; decode C1–C5 with nulls; actions merge pages, drop stale responses, restore a failed removal.
+**iphone (XCTest):** mapper kind map, labels, routing targets (TEMPLATE included) and tag sections in C5's order; decode C1–C5 with nulls; actions merge pages, drop stale responses, restore a failed removal.
 
 **Cross-app walk (Fixtures identity, after `fixtures:`):**
 1. Search tab with no filters: "Recent searches" lists the seeded items, newest first.
@@ -169,17 +177,52 @@ flowchart LR
 
 | # | Finding | Resolution |
 |---|---|---|
-| F1 | d2m's `SearchHomeScreen.swift`, `SearchResultRow.swift` and their capture changes are uncommitted in the working tree, and the view still reads "PREVIEW ONLY". | Commit them before the iPhone phase; `EnrollmentSelectProgramScreen` and other unrelated edits stay out. |
+| F1 | d2m's `SearchHomeScreen.swift` and `SearchResultRow.swift` are committed (a1237eba) and in the app target; their "PREVIEW ONLY" header comments are now stale. | Closed at align. The comments are d2m's to change, and nothing depends on them. |
 | F2 | `docs/ui2/references/filter-rail.md` still says Search's chips are buttons (OQ-search-home-010). | Routed to d2m; builder doesn't write the design. |
-| F3 | Whether the schema YAML and Atlas can express D23's expression indexes is unchecked. | build-time risk — audit, then the migration task. |
+| F3 | The schema YAML cannot express D23's indexes: `yaml-to-hcl.ts` writes plain column indexes only, and no model uses GIN. | Settled at align: T2. Whether Atlas's diff is stable on the generated expression indexes is a build-time risk — T2, which must show a second `migrate diff` is empty. |
 | F4 | Lesson text spans several tables, so a `UNION ALL` arm could be slow. | build-time risk — measure in the server phase against fixture data; store a search column on `lessons` if slow. |
 | F5 | This branch is stacked on `feature/library-home`, which is not merged yet. | Merge Library first, or carry it with this branch. |
+| F6 | The Media grid shows photos only (`MediaHomeMapper.output` filters `type == "photo"`), so D9's video exit opens a page that does not show the tapped video. | Owner's D9 stands, and the design calls the edge interim ("media detail when specced"). Named in the hand-off; a video page is out of scope. |
+| F7 | `tags` is a comma list, as on `GET /api/programs`, and tags are free-form, so a tag containing a comma cannot be picked. | Accepted: same limit as the Programs filter. |
+| T1 | server: `SearchRecentResult` model, `User` relation and migration with the id-type block (SC1) | blocking |
+| T2 | server: `yaml-to-hcl.ts` GIN + expression indexes, then the index migration (SC2) | blocking |
+| T3 | server: `master-search.ts` and C1 — scope, D7 filters, D1 score, D16 fields, D28–D31, text-cast ids, cursor (SC3) | blocking |
+| T4 | server: C2, C3, C4 — hydration through the same arms, D11 drop-outs, D12 cap (SC3) | blocking |
+| T5 | server: C5 — orgs, groups, leaders across orgs, D31 tag options (SC3) | blocking |
+| T6 | server: `fixtures/screens/search-home.ts` and its test — every D5 type sharing a word, including a system template (the seed's don't share it), an untitled post, a recurring series, a generated lesson event, a group-less member | trailing |
+| T7 | iphone: `AppState` search domain, `SearchActions`, C1–C5 models | trailing |
+| T8 | iphone: `SearchHomeContainer` and `SearchHomeMapper` | trailing |
+| T9 | iphone: `.search` root, `.mediaHome` and `.programsHome` destinations with a pushed `PageHeader` | trailing |
 
 ## Prototype
 
 Ref: `search-home` (d2m, era 2.0, namespace search, iphone). Six states: recents populated, recents empty, querying results, querying no results, loading, error. Ten screen questions closed. Built: C-131, C-034, C-130, C-035, C-020, C-085 (with `photo`), C-084, C-083, C-036. Frozen frame: `search-home`, sha `5746ec91…`. The d2m status line saying the build waits on OQ-C-085-005 is stale: C-085 has no open question.
 
 **Seams:** the design persists one thing, per-user recents (D10). Query and picks don't survive leaving the screen.
+
+**Alignment (2026-11-03).** Each row is traced from model through wire to the iPhone property. Consumer properties are all new except where named.
+
+| Design field | Verdict | Producer → iPhone |
+|---|---|---|
+| `type` | ALIGNED | arm constant; `Media.type` → PHOTO, VIDEO → `kind` by D21 |
+| `id` | ALIGNED | row id as text → `UI2Destination` ids |
+| `title` | RESHAPE | nullable on Post, Lesson, Member → required C-085 `title` (D28) |
+| `createdAt` → "Created <date>" | ALIGNED | present on all nine sources → `description` |
+| `score` | MISSING | derived, D1 → list order only |
+| `imageUrl` | ALIGNED | `Media.url` → `ImageViewer(url:)`, the field Media's `fullURL` reads |
+| `parent` | ALIGNED | `StudyProgram.name`, `Group.name` → `.studyProgramHome`, `.groupDetail` |
+| recent entry + `openedAt` | MISSING | SC1 → `AppState` search domain |
+| Orgs filter | ALIGNED | D7 columns; nullable `StudyProgram.organizationId` falls out of scope |
+| Groups filter | ALIGNED | D7 columns; `Enrollment` for PROGRAM and LESSON |
+| Leaders filter | RENAME | `Event.createdById`, not `createdBy`; all targets are `User` |
+| Tags filter | RESHAPE | normalized spellings (D31) |
+| C5 organizations | ALIGNED | `getUserOrganizations` `id`, `name` |
+| C5 groups | ALIGNED | `Group` `id`, `name`, `organizationId` |
+| C5 leaders | ALIGNED | `User.id`, `User.name` (required), by the `/group-leaders` rule at `routes/programs.ts:638`, across orgs |
+| C5 tags | RESHAPE | D31 order and category → `FilterMenuOverlay.Section` |
+| Row exits | ALIGNED except TEMPLATE, MEMBER | program and group detail use `getManageableOrgIds`, a superset of D4's orgs; TEMPLATE MISSING (D27); group-less MEMBER 403s (D30) |
+
+Searched-field names corrected to the app: `phoneNumber`, `ActivityReadBlock`, `LessonTemplate`, `locationName` (D16, SC2). DESIGN-ONLY: none. Released builds cache nothing here, since every field is new and unread by them, so §Apps *Backward compatibility* stands.
 
 ## Replaced surfaces
 

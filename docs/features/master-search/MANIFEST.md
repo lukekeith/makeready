@@ -1,9 +1,9 @@
 size: lg
-state: spec
+state: aligned
 next: /builder:resume --path docs/features/master-search
-head: 007dd419
+head: b3d84562
 ticket: none
-branch: feature/master-search
+branch: builder/master-search
 pr: none
 apps: server+iphone
 contract: open
