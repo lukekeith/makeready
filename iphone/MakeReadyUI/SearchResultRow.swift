@@ -29,6 +29,7 @@ struct SearchResultRow: View {
         case lesson
         case event
         case post
+        case photo
     }
 
     /// §4 `trailing` — "`remove` draws `close-large-carbon` with its 44pt target (recents);
@@ -55,11 +56,12 @@ struct SearchResultRow: View {
 
     var body: some View {
         // §2 / OQ-C-085-003: "the system highlight over the whole row, no geometry change; the
-        // ✕ target has no separate pressed look" — the plain button style's ephemeral press.
+        // ✕ target has no separate pressed look". OQ-C-085-005: a highlight fill, not the plain
+        // style's content effect.
         SwiftUI.Button(action: onTap) {
             band
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SystemHighlightStyle())
         // R-17: "The row is one button, label = title + description (when present) + the kind's
         // name". `.contain` keeps the ✕ its own element, so VoiceOver reaches both actions.
         .accessibilityElement(children: .contain)
@@ -150,7 +152,7 @@ struct SearchResultRow: View {
                     .frame(width: Self.hitTarget, height: Self.hitTarget)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(NoPressedLookStyle())
             .padding((Self.glyphSize - Self.hitTarget) / 2)
             // R-17: "the ✕ target is a second button labelled 'Remove'".
             .accessibilityLabel("Remove")
@@ -176,7 +178,7 @@ struct SearchResultRow: View {
 
     /// §2 badge glyph per `kind`: member / media / program from the designed badge set;
     /// group / lesson / event / post per OQ-C-085-002 ("group → users, lesson → file-text,
-    /// event → calendar-days, post → message-circle").
+    /// event → calendar-days, post → message-circle"); photo → `image` per D67.
     private static func glyphName(_ kind: Kind) -> GlyphName {
         switch kind {
         case .member: return .userFilledCarbon
@@ -186,6 +188,7 @@ struct SearchResultRow: View {
         case .lesson: return .fileText
         case .event: return .calendarDays
         case .post: return .messageCircle
+        case .photo: return .image
         }
     }
 
@@ -198,7 +201,7 @@ struct SearchResultRow: View {
     }
 
     /// §4 Accessibility: "the kind's name (\"Program\", \"Member\", \"Media\", \"Group\",
-    /// \"Lesson\", \"Event\", \"Post\")".
+    /// \"Lesson\", \"Event\", \"Post\", \"Photo\")".
     private static func kindName(_ kind: Kind) -> String {
         switch kind {
         case .member: return "Member"
@@ -208,6 +211,7 @@ struct SearchResultRow: View {
         case .lesson: return "Lesson"
         case .event: return "Event"
         case .post: return "Post"
+        case .photo: return "Photo"
         }
     }
 
@@ -219,4 +223,20 @@ struct SearchResultRow: View {
     private static let hitTarget: CGFloat = 44
 
     private static func lineBox(_ style: DesignTextStyle) -> CGFloat { style.lineHeight ?? style.size }
+}
+
+/// §2 Pressed / OQ-C-085-003 — "system highlight over the whole row, no geometry change"
+/// (ephemeral, R-02).
+private struct SystemHighlightStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(configuration.isPressed ? Color(uiColor: .systemFill) : Color.clear)
+    }
+}
+
+/// §2 Pressed / OQ-C-085-005 — "the ✕ target has no separate pressed look".
+private struct NoPressedLookStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+    }
 }

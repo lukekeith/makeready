@@ -3635,7 +3635,12 @@ private func buildScreenSearchHome(_ fixture: CaptureFixture) throws -> AnyView 
     return AnyView(MakeReadyUI.SearchHomeScreen(
         state: .init(
             searchText: c.searchText ?? sample.searchText,
-            activeChip: c.activeChip ?? sample.activeChip,
+            typeFilterLabel: c.typeFilterLabel ?? sample.typeFilterLabel,
+            orgFilterLabel: c.orgFilterLabel ?? sample.orgFilterLabel,
+            groupFilterLabel: c.groupFilterLabel ?? sample.groupFilterLabel,
+            leaderFilterLabel: c.leaderFilterLabel ?? sample.leaderFilterLabel,
+            tagFilterLabel: c.tagFilterLabel ?? sample.tagFilterLabel,
+            activeFilters: c.activeFilters ?? sample.activeFilters,
             recentKinds: c.recentKinds ?? sample.recentKinds,
             recentTitles: c.recentTitles ?? sample.recentTitles,
             recentDescriptions: c.recentDescriptions ?? sample.recentDescriptions,
@@ -4133,7 +4138,7 @@ private func buildUI2C085(_ fixture: CaptureFixture) throws -> AnyView {
     // `description` defaults to nil. `onTap` / `onRemove` are no-ops in a still capture.
     guard let ui2C085Kind = c.kind.flatMap(MakeReadyUI.SearchResultRow.Kind.init(rawValue:)) else {
         throw ViewRegistryError.unknownView(
-            "component.ui2.C-085: props.kind must be member|media|program|group|lesson|event|post")
+            "component.ui2.C-085: props.kind must be member|media|program|group|lesson|event|post|photo")
     }
     guard let ui2C085Title = c.title else {
         throw ViewRegistryError.unknownView("component.ui2.C-085: props.title is required")

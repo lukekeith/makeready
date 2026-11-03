@@ -1296,6 +1296,11 @@ struct CaptureComponent: Codable {
     let dateLabelVisible: Bool?                // §3 date label capture input (nil = automatic)
     // ── preview props ──
     let placement: String?                     // C-131 SearchFilterHeader (underShellTopNav|underScreenHeader)
+    // ── screen search-home (D67 re-build) ──
+    // Reused as-is: `orgFilterLabel`, `groupFilterLabel`, `leaderFilterLabel` (same names, same types).
+    let typeFilterLabel: String?
+    let tagFilterLabel: String?
+    let activeFilters: [String]?
 }
 
 /// C-123 §4 `look` — "Fixtures encode `look` as an object: `{\"kind\": \"<case>\", …associated
