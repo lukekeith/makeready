@@ -225,7 +225,7 @@ struct UI2Shell: View {
         case .enrollments: EnrollmentsHomeContainer()  // ui2-enrollments-browse R1
         case .invites: InvitesHomeContainer(onOpen: { model.push(.invitation($0), on: .home) })
         case .media: MediaHomeContainer(addRequest: model.mediaAddRequest)  // media-page D1, media-library D13
-        default: EmptyPage()                  // SPEC D10: Library…Invites are unwired
+        case .library: LibraryHomeContainer()  // library-home §7
         }
     }
 }
