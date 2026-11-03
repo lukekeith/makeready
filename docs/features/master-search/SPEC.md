@@ -223,6 +223,23 @@ flowchart LR
 | F17 | Render: `recents-populated` matches its frozen frame, by eye on d2m's latest render (the shell draws the TabBar, deviation 2). The other five states have no design snapshot. No pixel diff was run in this audit. | d2m's build recorded them; the walk sees them. |
 | R1 | repoint (iphone): `case .calendar, .search: EmptyPage()` ← `iphone/MakeReady/UI2/Shell/UI2Shell.swift:183`, the only hit; no deep link or notification targets Search | builder:plan's repoint + retire phase |
 
+## Plan
+
+The plan, task by task: `docs/features/master-search/PLAN.md` (§PLAN.md).
+
+- Phase 1 · Task 1 · Recents table on both id types
+- Phase 1 · Task 2 · Hand-managed search indexes
+- Phase 2 · Task 3 · Query parsing, tokens, cursor and tag spellings
+- Phase 2 · Task 4 · C1 ranked search
+- Phase 2 · Task 5 · C2, C3, C4 recents
+- Phase 2 · Task 6 · C5 filter options
+- Phase 2 · Task 7 · search-home screen fixture and the contract freeze
+- Phase 3 · Task 8 · Search domain, models and Actions
+- Phase 3 · Task 9 · queryAnswered input and member days from another org
+- Phase 4 · Task 10 · SearchHomeMapper and SearchHomeContainer
+- Phase 4 · Task 11 · Pushed Media and Programs pages
+- Phase 4 · Task 12 · Repoint the Search tab root
+
 ## Prototype
 
 Ref: `search-home` (d2m, era 2.0, namespace search, iphone). Six states: recents populated, recents empty, querying results, querying no results, loading, error. Ten screen questions closed. Built: C-131, C-034, C-130, C-035, C-020, C-085 (with `photo`), C-084, C-083, C-036. Frozen frame: `search-home`, sha `5746ec91…`. The d2m status line saying the build waits on OQ-C-085-005 is stale: C-085 has no open question.
