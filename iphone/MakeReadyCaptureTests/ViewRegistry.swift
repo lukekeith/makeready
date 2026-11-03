@@ -3234,6 +3234,34 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
     case "component.ui2.C-131":
         // Out of line for the same stack-frame reason as C-083.
         return try buildUI2C131(fixture)
+    case "component.ui2.C-132":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-132: missing state.component")
+        }
+        // C-132 §4 (R-07): `glyph`, `title` and `message` are required — a nil is a fixture bug,
+        // not a value to guess.
+        guard let ui2C132GlyphRaw = c.glyph else {
+            throw ViewRegistryError.unknownView("component.ui2.C-132: props.glyph is required")
+        }
+        guard let ui2C132Glyph = MakeReadyUI.GlyphName(rawValue: ui2C132GlyphRaw) else {
+            throw ViewRegistryError.unknownView("component.ui2.C-132: props.glyph '\(ui2C132GlyphRaw)' is not a library glyph")
+        }
+        guard let ui2C132Title = c.title else {
+            throw ViewRegistryError.unknownView("component.ui2.C-132: props.title is required")
+        }
+        guard let ui2C132Message = c.message else {
+            throw ViewRegistryError.unknownView("component.ui2.C-132: props.message is required")
+        }
+        return declareCase(
+            MakeReadyUI.EmptyState(glyph: ui2C132Glyph, title: ui2C132Title, message: ui2C132Message),
+            // C-132 §2: "At the designed 408pt width" — the frozen snapshot's width.
+            PreviewFrame(width: 408)
+        )
+    case "screen.2.0.library-home":
+        // §3 names one state with static copy, so the screen's State has no field and the
+        // fixture's props are `{}` — nothing to decode. The canvas is the harness's
+        // (CaptureRunner's `screen.*` branch) — the bare screen here.
+        return AnyView(MakeReadyUI.LibraryHomeScreen(state: MakeReadyUI.LibraryHomeScreen.State.comingSoon))
     default:
         return nil
     }
