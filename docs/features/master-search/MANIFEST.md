@@ -1,7 +1,7 @@
 size: lg
 state: audited
 next: /builder:resume --path docs/features/master-search
-head: f986deb2
+head: 79bb2718
 ticket: none
 branch: builder/master-search
 pr: none
