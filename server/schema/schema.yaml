@@ -216,6 +216,9 @@ models:
       searchHistory:
         type: one_to_many
         target: SearchHistory
+      searchRecentResults:
+        type: one_to_many
+        target: SearchRecentResult
       createdThemes:
         type: one_to_many
         target: TextTheme
@@ -1968,6 +1971,36 @@ models:
   # ===========================================================================
   # Lesson Template Models
   # ===========================================================================
+  SearchRecentResult:
+    table_name: search_recent_results
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      userId:
+        type: string
+      resourceType:
+        type: string
+        description: "A SearchType (PROGRAM, TEMPLATE, MEMBER, GROUP, LESSON, EVENT, POST, VIDEO, PHOTO)"
+      resourceId:
+        type: string
+        description: "Id of the opened resource; spans tables, so no FK"
+      openedAt:
+        type: datetime
+        default: now()
+    relations:
+      user:
+        type: many_to_one
+        target: User
+        fields: [userId]
+        references: [id]
+        onDelete: Cascade
+    indexes:
+      - fields: [userId, resourceType, resourceId]
+        unique: true
+      - fields: [userId, openedAt]
+
   LessonTemplate:
     table_name: lesson_templates
     fields:

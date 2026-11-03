@@ -218,6 +218,7 @@ model User {
   updatedTemplates     LessonTemplate[] @relation("TemplateUpdater")
   preferences          UserPreference[]
   searchHistory        SearchHistory[]
+  searchRecentResults  SearchRecentResult[]
   createdThemes        TextTheme[] @relation("ThemeCreator")
   betaApplications     BetaApplication[]
   sentSmsLogs          SmsLog[] @relation("SmsSender")
@@ -874,6 +875,19 @@ model SearchHistory {
   @@index([memberId, createdAt])
   @@index([searchType])
   @@map("search_history")
+}
+
+model SearchRecentResult {
+  id                   String @id @default(uuid())
+  userId               String
+  resourceType         String // A SearchType (PROGRAM, TEMPLATE, MEMBER, GROUP, LESSON, EVENT, POST, VIDEO, PHOTO)
+  resourceId           String // Id of the opened resource; spans tables, so no FK
+  openedAt             DateTime @default(now())
+
+  user                 User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, resourceType, resourceId])
+  @@index([userId, openedAt])
+  @@map("search_recent_results")
 }
 
 model LessonTemplate {
