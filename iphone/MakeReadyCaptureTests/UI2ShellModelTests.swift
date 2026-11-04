@@ -56,6 +56,19 @@ final class UI2ShellModelTests: XCTestCase {
         XCTAssertTrue(UI2Destination.editGroupCover(groupId: "g", source: .stored).isFullScreen)
         XCTAssertFalse(UI2Destination.createGroup.isFullScreen)
     }
+    /// Agent walk round 3 (X1): over a keyboard the stack insets by the keyboard's height (measured:
+    /// a 344 keyboard ended the page 395 above the screen's bottom), and the bar is covered, so a page
+    /// reserves nothing and ends at the keyboard. Below the bar's height the bar's top still decides.
+    func testPageBottomPaddingReservesNothingOverAKeyboardThatCoversTheBar() {
+        func padding(_ keyboard: CGFloat, fullScreen: Bool = false) -> CGFloat {
+            UI2Shell.pageBottomPadding(fullScreen: fullScreen, tabBarHeight: 84, safeBottom: 34, keyboardHeight: keyboard)
+        }
+        XCTAssertEqual(padding(344), 0)
+        XCTAssertEqual(padding(84), 0)
+        XCTAssertEqual(padding(50) + 50, 84)
+        XCTAssertEqual(padding(0) + 34, 84)
+        XCTAssertEqual(padding(344, fullScreen: true), 0)
+    }
     /// master-search §iphone Pushed pages: the exits to Media and Programs keep the TabBar.
     func testExitDestinationsKeepTheTabBar() {
         XCTAssertFalse(UI2Destination.mediaHome.isFullScreen)

@@ -41,9 +41,12 @@ struct UI2Shell: View {
     /// itself, so the bar sliding away moves nothing. Each tab's NavigationStack already insets its
     /// pages by the home-indicator safe area (`safeBottom`, measured on device: 34pt, whatever its
     /// SwiftUI parents ignore), so a page adds only the rest of the bar's 84 — and a full-screen page
-    /// nothing: the stack's inset is its home-indicator clearance.
-    static func pageBottomPadding(fullScreen: Bool, tabBarHeight: CGFloat, safeBottom: CGFloat) -> CGFloat {
-        fullScreen ? 0 : max(0, tabBarHeight - safeBottom)
+    /// nothing: the stack's inset is its home-indicator clearance. A keyboard takes over that inset
+    /// (measured, agent walk round 3: a 344 keyboard ends the page 344 + this padding above the bottom)
+    /// and covers the bar it would reserve for, so a page ends at the higher of the bar and the keyboard.
+    static func pageBottomPadding(fullScreen: Bool, tabBarHeight: CGFloat, safeBottom: CGFloat,
+                                  keyboardHeight: CGFloat = 0) -> CGFloat {
+        fullScreen ? 0 : max(0, max(tabBarHeight, keyboardHeight) - max(safeBottom, keyboardHeight))
     }
 
     /// master-search R1: the page each tab's root renders, named so a test can read it.
@@ -158,15 +161,17 @@ struct UI2Shell: View {
     private func stack(for tab: TabBar.Tab) -> some View {
         NavigationStack(path: pathBinding(for: tab)) {
             root(for: tab)
-                .padding(.bottom, Self.pageBottomPadding(fullScreen: false, tabBarHeight: tabBarHeight, safeBottom: safeBottom))
+                .ui2PageBottom(Self.pageBottomPadding(fullScreen: false, tabBarHeight: tabBarHeight, safeBottom: safeBottom,
+                                                keyboardHeight: keyboardHeight))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .toolbar(.hidden, for: .navigationBar)
                 .background(UI2InteractivePop())
                 .navigationDestination(for: UI2Destination.self) { destination in
                     UI2PushedPage {                            // group-cover-image D26: + its back-swipe guard
                         page(for: destination)
-                            .padding(.bottom, Self.pageBottomPadding(fullScreen: destination.isFullScreen,
-                                                                     tabBarHeight: tabBarHeight, safeBottom: safeBottom))
+                            .ui2PageBottom(Self.pageBottomPadding(fullScreen: destination.isFullScreen,
+                                                                     tabBarHeight: tabBarHeight, safeBottom: safeBottom,
+                                                                     keyboardHeight: keyboardHeight))
                     }
                 }
         }
@@ -242,5 +247,14 @@ struct UI2Shell: View {
         case .media: MediaHomeContainer(addRequest: model.mediaAddRequest)  // media-page D1, media-library D13
         case .library: LibraryHomeContainer()  // library-home §7
         }
+    }
+}
+
+extension View {
+    /// The space a page leaves below itself in its tab's NavigationStack: page background, since the
+    /// stack's own is the window's white wherever the TabBar does not cover it (agent walk round 3).
+    func ui2PageBottom(_ padding: CGFloat) -> some View {
+        self.padding(.bottom, padding)
+            .background(Token.layoutBackground.ignoresSafeArea())
     }
 }
