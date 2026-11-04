@@ -49,3 +49,4 @@ run agent_walk.start in /Users/lukekeith/www/makeready.fleet/master-search and f
 
 ## History
 - 2026-11-04 parked — the walk env would not start (walk env didn't come up — see /Users/lukekeith/www/makeready/.builder/fleet/logs/master-search-start.log) and an agent run could not fix it
+- 2026-11-04 unparked by the fleet — automatic retry 1 of 2
