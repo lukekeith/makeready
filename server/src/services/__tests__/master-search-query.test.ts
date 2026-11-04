@@ -46,6 +46,17 @@ describe('master-search-query', () => {
     for (const bad of ['nope', Buffer.from('{"s":"NaN","c":"x","i":"y"}').toString('base64url')]) expect(() => decodeCursor(bad)).toThrow(SearchParamError)
   })
 
+  it('refuses cursor values Postgres would reject, and NUL bytes in ids', () => {
+    const enc = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url')
+    const ok = { s: '1.5', c: '2026-10-03 12:00:00', i: 'abc' }
+    expect(() => decodeCursor(enc(ok))).not.toThrow()
+    for (const s of ['0x10', '0b1', '1_0']) expect(() => decodeCursor(enc({ ...ok, s }))).toThrow(SearchParamError)
+    expect(() => decodeCursor(enc({ ...ok, c: '2026-13-45 99:99:99' }))).toThrow(SearchParamError)
+    expect(() => decodeCursor(enc({ ...ok, c: '2026-02-30 10:00:00' }))).toThrow(SearchParamError)
+    expect(() => decodeCursor(enc({ ...ok, i: 'a\u0000b' }))).toThrow(SearchParamError)
+    expect(() => parseRankedParams({ q: 'ab', orgIds: 'a\u0000b' })).toThrow(SearchParamError)
+  })
+
   it('recognizes formatted and partial phones only', () => {
     expect(phoneDigits('(555) 010-0')).toBe('5550100')
     expect(phoneDigits('555')).toBeNull()

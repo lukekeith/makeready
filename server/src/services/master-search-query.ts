@@ -46,6 +46,7 @@ function parseList(raw: unknown, name: string): string[] | undefined {
     if (typeof part !== 'string') throw new SearchParamError(`Invalid ${name}`)
     for (const item of part.split(',')) {
       const trimmed = item.trim()
+      if (trimmed.includes('\u0000')) throw new SearchParamError(`${name} contains an invalid character`)
       if (trimmed) out.push(trimmed)
     }
   }
@@ -127,7 +128,17 @@ export function encodeCursor(c: SearchCursor): string {
   return Buffer.from(JSON.stringify({ s: c.score, c: c.createdAt, i: c.id })).toString('base64url')
 }
 
-const TIMESTAMP = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}(:?\d{2})?)?$/
+const TIMESTAMP = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})(\.\d{1,6})?(Z|[+-]\d{2}(:?\d{2})?)?$/
+const FLOAT = /^-?\d+(\.\d+)?([eE][+-]?\d+)?$/
+
+/** True when the text is a timestamp Postgres will cast: a real calendar date and a valid time of day. */
+function isValidTimestamp(text: string): boolean {
+  const m = TIMESTAMP.exec(text)
+  if (!m) return false
+  const [year, month, day, hour, minute, second] = m.slice(1, 7).map(Number)
+  if (month < 1 || month > 12 || hour > 23 || minute > 59 || second > 59) return false
+  return day >= 1 && day <= new Date(Date.UTC(year, month, 0)).getUTCDate()
+}
 
 export function decodeCursor(raw: string): SearchCursor {
   const bad = () => new SearchParamError('Invalid cursor')
@@ -139,9 +150,9 @@ export function decodeCursor(raw: string): SearchCursor {
   }
   if (!parsed || typeof parsed !== 'object') throw bad()
   const { s, c, i } = parsed as Record<string, unknown>
-  if (typeof s !== 'string' || s.trim() === '' || !Number.isFinite(Number(s))) throw bad()
-  if (typeof c !== 'string' || !TIMESTAMP.test(c)) throw bad()
-  if (typeof i !== 'string' || i === '') throw bad()
+  if (typeof s !== 'string' || !FLOAT.test(s) || !Number.isFinite(Number(s))) throw bad()
+  if (typeof c !== 'string' || !isValidTimestamp(c)) throw bad()
+  if (typeof i !== 'string' || i === '' || i.includes('\u0000')) throw bad()
   return { score: s, createdAt: c, id: i }
 }
 
