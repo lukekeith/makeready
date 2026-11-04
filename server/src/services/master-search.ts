@@ -4,6 +4,7 @@
  * ordered once. Every id is compared as text, because the columns are text on dev and prod and uuid on
  * a migrations-only database. Strings passed to `Prisma.raw` here are constants, never request input.
  */
+import { randomUUID } from 'node:crypto'
 import { Prisma, prisma } from '../lib/prisma.js'
 import {
   SEARCH_TYPES,
@@ -541,4 +542,66 @@ export async function searchRanked(userId: string, params: RankedParams): Promis
     ? encodeCursor({ score: last.scoreText as string, createdAt: last.createdAtText, id: last.id })
     : null
   return { items: page.map(serializeSearchItem), nextCursor }
+}
+
+/** D12: a user keeps their newest 100 recents. */
+const RECENT_KEEP = 100
+const RECENT_LIST_MAX = 50
+
+/** D11, D6, D12: the caller's recents that are still visible and pass the filters, newest first, with a null score. */
+export async function listRecentResults(
+  userId: string,
+  filters: ListFilters,
+  limit: number = RECENT_LIST_MAX,
+): Promise<(SearchItem & { openedAt: string })[]> {
+  // All of the user's rows (bounded by D12's cap), so a filter or a drop-out cannot starve the page.
+  const recents = await prisma.$queryRaw<{ id: string; resourceType: string; resourceId: string; openedAt: Date }[]>`
+    SELECT "id"::text AS "id", "resourceType", "resourceId", "openedAt" FROM "search_recent_results"
+    WHERE "userId"::text = ${userId} ORDER BY "openedAt" DESC, "id" DESC`
+  const wanted = present(filters.types) ? new Set<string>(filters.types) : null
+  const idsByType = new Map<SearchType, string[]>()
+  for (const r of recents) {
+    if (!(SEARCH_TYPES as readonly string[]).includes(r.resourceType) || (wanted && !wanted.has(r.resourceType))) continue
+    const type = r.resourceType as SearchType
+    idsByType.set(type, [...(idsByType.get(type) ?? []), r.resourceId])
+  }
+  if (idsByType.size === 0) return []
+
+  const [scope, armFilters] = await Promise.all([buildSearchScope(userId, filters.orgIds), resolveArmFilters(filters)])
+  const visible = await Promise.all(
+    [...idsByType].map(([type, ids]) => prisma.$queryRaw<SearchRow[]>(buildArm(type, scope, armFilters, { ids }))),
+  )
+  const byKey = new Map(visible.flat().map((row) => [`${row.type}:${row.id}`, row]))
+  const items: (SearchItem & { openedAt: string })[] = []
+  for (const r of recents) {
+    const row = byKey.get(`${r.resourceType}:${r.resourceId}`)
+    if (row) items.push({ ...serializeSearchItem(row), score: null, openedAt: r.openedAt.toISOString() })
+    if (items.length === limit) break
+  }
+  return items
+}
+
+/** C3 (D10, D12): false when the caller can't see the item as `type`; else the entry moves to the top. */
+export async function recordRecentResult(userId: string, type: SearchType, id: string): Promise<boolean> {
+  const scope = await buildSearchScope(userId)
+  const found = await prisma.$queryRaw<SearchRow[]>(Prisma.sql`${buildArm(type, scope, {}, { ids: [id] })} LIMIT 1`)
+  if (found.length === 0) return false
+  // The user id is bound as text and resolved through the column, so it fits both id types (D38). A database
+  // built by `prisma db push` gives `id` no default (Prisma's uuid() runs in the client), so the insert supplies one,
+  // converted to the column's type by json_populate_record (a text parameter is refused by a uuid column).
+  await prisma.$transaction([
+    prisma.$executeRaw`INSERT INTO "search_recent_results" ("id", "userId", "resourceType", "resourceId")
+      VALUES ((json_populate_record(NULL::"search_recent_results", json_build_object('id', ${randomUUID()}::text)))."id", (SELECT "id" FROM "users" WHERE "id"::text = ${userId}), ${type}, ${id})
+      ON CONFLICT ("userId", "resourceType", "resourceId") DO UPDATE SET "openedAt" = now()`,
+    prisma.$executeRaw`DELETE FROM "search_recent_results" WHERE "id" IN (
+      SELECT "id" FROM "search_recent_results" WHERE "userId"::text = ${userId}
+      ORDER BY "openedAt" DESC, "id" DESC OFFSET ${RECENT_KEEP})`,
+  ])
+  return true
+}
+
+/** C4: removes only the caller's entry; none existing is not an error. */
+export async function deleteRecentResult(userId: string, type: SearchType, id: string): Promise<void> {
+  await prisma.$executeRaw`DELETE FROM "search_recent_results"
+    WHERE "userId"::text = ${userId} AND "resourceType" = ${type} AND "resourceId" = ${id}`
 }

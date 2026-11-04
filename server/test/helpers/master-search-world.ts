@@ -181,6 +181,10 @@ export async function seedMasterSearchWorld(prisma: PrismaClient) {
   }
 
   // `vesperword`: one live row per type beside the rows each security rule must keep out. `live` is the whole answer.
+  // Rows a recents test retires (deactivates or deletes) without disturbing the rest of the world.
+  const tempGroup = await group('Recentword Group', owner.id)
+  const tempPost = await post('Recentword Post', 'Body', { groupId: tempGroup.id })
+
   const vesperGroup = await group('Vesperword Group', owner.id)
   const vesperClosedGroup = await group('Vesperword Group Closed', leader.id, orgA.id, false)
   const vesperProgram = await program('Vesperword Program', owner.id)
@@ -289,6 +293,9 @@ export async function seedMasterSearchWorld(prisma: PrismaClient) {
     groupTitledThe: groupTitledThe.id,
     programId: mainProgram.id,
     programName,
+    privateProgramId: privateProgram.id,
+    tempGroupId: tempGroup.id,
+    tempPostId: tempPost.id,
     orglessProgramId: orglessProgram.id,
     nullLeaderProgramCreator: nullLeaderCreator.id,
     systemTemplateId: systemTemplate.id,

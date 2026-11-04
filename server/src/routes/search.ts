@@ -3,8 +3,8 @@ import { z } from 'zod'
 import { prisma, Prisma } from '../lib/prisma.js'
 import { parseReference, getSearchType, matchBookNames } from '../utils/bible-reference-parser.js'
 import { requireAuth } from '../middleware/auth.js'
-import { SearchParamError, parseRankedParams } from '../services/master-search-query.js'
-import { searchRanked } from '../services/master-search.js'
+import { SEARCH_TYPES, SearchParamError, parseListFilters, parseRankedParams, parseRecentLimit } from '../services/master-search-query.js'
+import { deleteRecentResult, listRecentResults, recordRecentResult, searchRanked } from '../services/master-search.js'
 
 const router = Router()
 
@@ -1533,6 +1533,223 @@ router.get('/ranked', requireAuth, async (req, res) => {
     }
     console.error('Ranked search error:', error)
     res.status(500).json({ success: false, error: 'Search failed' })
+  }
+})
+
+const recentBodySchema = z.object({ type: z.enum(SEARCH_TYPES), id: z.string().min(1) }).strict()
+
+/**
+ * @openapi
+ * /api/search/recent-results:
+ *   get:
+ *     tags: [Search]
+ *     summary: Recently opened search results
+ *     description: |
+ *       The caller's recently opened results, newest first, with the same filters as ranked search.
+ *       Entries that were deleted, deactivated or are no longer visible to the caller are left out.
+ *       `score` is always null.
+ *     security:
+ *       - session: []
+ *       - apiKey: []
+ *     parameters:
+ *       - in: query
+ *         name: types
+ *         schema:
+ *           type: string
+ *         description: "Comma list of PROGRAM,TEMPLATE,MEMBER,GROUP,LESSON,EVENT,POST,VIDEO,PHOTO"
+ *       - in: query
+ *         name: orgIds
+ *         schema:
+ *           type: string
+ *         description: Comma list, at most 50
+ *       - in: query
+ *         name: groupIds
+ *         schema:
+ *           type: string
+ *         description: Comma list, at most 50
+ *       - in: query
+ *         name: leaderIds
+ *         schema:
+ *           type: string
+ *         description: Comma list of user ids, at most 50
+ *       - in: query
+ *         name: tags
+ *         schema:
+ *           type: string
+ *         description: Comma list, at most 50
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *           minimum: 1
+ *           maximum: 50
+ *     responses:
+ *       200:
+ *         description: Recent results
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 items:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       type:
+ *                         type: string
+ *                       id:
+ *                         type: string
+ *                       title:
+ *                         type: string
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                       score:
+ *                         type: number
+ *                         nullable: true
+ *                       imageUrl:
+ *                         type: string
+ *                         nullable: true
+ *                       parent:
+ *                         type: object
+ *                         nullable: true
+ *                         properties:
+ *                           type:
+ *                             type: string
+ *                           id:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                       openedAt:
+ *                         type: string
+ *                         format: date-time
+ *       400:
+ *         description: Bad types or limit, or a filter list above 50
+ *       401:
+ *         description: Not authenticated
+ */
+router.get('/recent-results', requireAuth, async (req, res) => {
+  try {
+    const filters = parseListFilters(req.query)
+    const limit = parseRecentLimit(req.query)
+    res.json({ success: true, items: await listRecentResults((req.user as any).id, filters, limit) })
+  } catch (error) {
+    if (error instanceof SearchParamError) {
+      return res.status(400).json({ success: false, error: error.message })
+    }
+    console.error('Recent results error:', error)
+    res.status(500).json({ success: false, error: 'Failed to load recent results' })
+  }
+})
+
+/**
+ * @openapi
+ * /api/search/recent-results:
+ *   put:
+ *     tags: [Search]
+ *     summary: Record an opened search result
+ *     description: |
+ *       Adds the item to the caller's recents or moves it to the top. The caller keeps their newest
+ *       100 entries. The item must be visible to the caller as the given type.
+ *     security:
+ *       - session: []
+ *       - apiKey: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [type, id]
+ *             additionalProperties: false
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 enum: [PROGRAM, TEMPLATE, MEMBER, GROUP, LESSON, EVENT, POST, VIDEO, PHOTO]
+ *               id:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Recorded
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *       400:
+ *         description: Bad body
+ *       401:
+ *         description: Not authenticated
+ *       404:
+ *         description: Not found, or not visible to the caller as that type
+ */
+router.put('/recent-results', requireAuth, async (req, res) => {
+  const body = recentBodySchema.safeParse(req.body)
+  if (!body.success) {
+    return res.status(400).json({ success: false, error: 'Invalid body', details: body.error.flatten() })
+  }
+  try {
+    const recorded = await recordRecentResult((req.user as any).id, body.data.type, body.data.id)
+    if (!recorded) return res.status(404).json({ success: false, error: 'Not found' })
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Record recent result error:', error)
+    res.status(500).json({ success: false, error: 'Failed to record recent result' })
+  }
+})
+
+/**
+ * @openapi
+ * /api/search/recent-results/{type}/{id}:
+ *   delete:
+ *     tags: [Search]
+ *     summary: Remove a recent result
+ *     description: Removes the caller's own entry. Answers 200 whether or not one existed.
+ *     security:
+ *       - session: []
+ *       - apiKey: []
+ *     parameters:
+ *       - in: path
+ *         name: type
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [PROGRAM, TEMPLATE, MEMBER, GROUP, LESSON, EVENT, POST, VIDEO, PHOTO]
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Removed, or nothing to remove
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *       400:
+ *         description: Bad type
+ *       401:
+ *         description: Not authenticated
+ */
+router.delete('/recent-results/:type/:id', requireAuth, async (req, res) => {
+  const type = (SEARCH_TYPES as readonly string[]).includes(req.params.type) ? (req.params.type as (typeof SEARCH_TYPES)[number]) : null
+  if (!type) return res.status(400).json({ success: false, error: `Invalid type: ${req.params.type}` })
+  try {
+    await deleteRecentResult((req.user as any).id, type, req.params.id)
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Delete recent result error:', error)
+    res.status(500).json({ success: false, error: 'Failed to remove recent result' })
   }
 })
 

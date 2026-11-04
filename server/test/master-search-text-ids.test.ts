@@ -12,10 +12,10 @@ async function loadSearchAgainst(url: string) {
   delete (globalThis as { prisma?: unknown }).prisma
   vi.resetModules()
   const { prisma } = await import('../src/lib/prisma.js')
-  const { searchRanked } = await import('../src/services/master-search.js')
+  const { searchRanked, recordRecentResult, listRecentResults } = await import('../src/services/master-search.js')
   const { seedMasterSearchWorld } = await import('./helpers/master-search-world.js')
   close = () => prisma.$disconnect()
-  return { searchRanked, world: await seedMasterSearchWorld(prisma) }
+  return { searchRanked, recordRecentResult, listRecentResults, world: await seedMasterSearchWorld(prisma) }
 }
 
 afterEach(() => {
@@ -47,6 +47,18 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('C1 on a text-id database', () =
         expect(pages).toBeGreaterThan(1)
         expect(new Set(seen).size).toBe(seen.length)
         expect(new Set(seen.map((key) => key.split(':')[0]))).toEqual(new Set(SEARCH_TYPES))
+      } finally {
+        await close?.()
+      }
+    })
+  }, 180_000)
+
+  it('recents work on a text-id database', async () => {
+    await withTextIdSearchDb(async (url) => {
+      try {
+        const { recordRecentResult, listRecentResults, world } = await loadSearchAgainst(url)
+        expect(await recordRecentResult(world.owner.id, 'GROUP', world.groupA)).toBe(true)
+        expect((await listRecentResults(world.owner.id, {})).map((i: any) => i.id)).toEqual([world.groupA])
       } finally {
         await close?.()
       }
