@@ -33,6 +33,20 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('C1 on a text-id database', () =
           const { items } = await searchRanked(world.owner.id, parseRankedParams({ q: 'grace', types: type, ...(type === 'TEMPLATE' ? { q: 'video study' } : {}) }))
           expect(items.length, type).toBeGreaterThan(0)
         }
+
+        // Every arm in one UNION ALL, and the cursor predicate, by following nextCursor to the end.
+        const seen: string[] = []
+        let cursor: string | undefined
+        let pages = 0
+        do {
+          const page = await searchRanked(world.owner.id, parseRankedParams({ q: 'grace', limit: '5', ...(cursor ? { cursor } : {}) }))
+          seen.push(...page.items.map((i) => `${i.type}:${i.id}`))
+          cursor = page.nextCursor ?? undefined
+          pages += 1
+        } while (cursor)
+        expect(pages).toBeGreaterThan(1)
+        expect(new Set(seen).size).toBe(seen.length)
+        expect(new Set(seen.map((key) => key.split(':')[0]))).toEqual(new Set(SEARCH_TYPES))
       } finally {
         await close?.()
       }

@@ -8,8 +8,24 @@ import { seedMasterSearchWorld, type MasterSearchWorld } from './helpers/master-
 import { prisma } from '../src/lib/prisma.js'
 import searchRoutes from '../src/routes/search.js'
 import { buildArm, buildSearchScope, serializeSearchItem } from '../src/services/master-search.js'
+import { SEARCH_TYPES, encodeCursor, type SearchType } from '../src/services/master-search-query.js'
 
 const LEGACY_SEARCH_KEYS = ['counts', 'pagination', 'query', 'results', 'success']
+
+const idsOf = (items: any[]) => new Set(items.map((i) => i.id))
+
+/**
+ * D6, D7, D37, closed: which of an org's `lampword` rows each filter reaches. `first` is the enrolled, tagged
+ * program or lesson alone; a type missing from a row drops out.
+ */
+type MappedFilter = 'orgIds' | 'groupIds' | 'leaderIds' | 'tags'
+const D7_ROWS: Record<MappedFilter, Partial<Record<SearchType, 'all' | 'first'>>> = {
+  orgIds: { PROGRAM: 'all', TEMPLATE: 'all', GROUP: 'all', PHOTO: 'all', VIDEO: 'all', EVENT: 'all', POST: 'all', LESSON: 'all', MEMBER: 'all' },
+  groupIds: { GROUP: 'all', EVENT: 'all', POST: 'all', PHOTO: 'all', VIDEO: 'all', MEMBER: 'all', PROGRAM: 'first', LESSON: 'first' },
+  leaderIds: { GROUP: 'all', PROGRAM: 'all', LESSON: 'all', TEMPLATE: 'all', EVENT: 'all', POST: 'all', PHOTO: 'all', VIDEO: 'all' },
+  tags: { PROGRAM: 'first', LESSON: 'first', PHOTO: 'all', VIDEO: 'all' },
+}
+const D7_CASES = (Object.keys(D7_ROWS) as MappedFilter[]).flatMap((filter) => SEARCH_TYPES.map((type) => [filter, type] as const))
 
 /**
  * Each identity's own server, bound to 127.0.0.1. Supertest handed a bare app listens on the wildcard
@@ -54,7 +70,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('GET /api/search/ranked', () => 
   beforeAll(async () => {
     assertSearchLease()
     world = await seedMasterSearchWorld(prisma)
-    await Promise.all([world.owner, world.admin, world.leader, world.outsider, world.privateCreator, null].map(listenAs))
+    await Promise.all([world.owner, world.admin, world.leader, world.outsider, world.privateCreator, world.superAdmin, world.bridge, null].map(listenAs))
   }, 60_000)
   afterAll(async () => {
     for (const server of servers.values()) {
@@ -91,6 +107,93 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('GET /api/search/ranked', () => 
   ] as const)('each filter maps as D7 rules, with drop-outs: %s', async (key, value, types) => {
     const { items } = await search(world.owner, { q: 'grace', limit: '50', [key]: value() })
     expect(new Set(items.map((i: any) => i.type))).toEqual(new Set(types))
+  })
+
+  it.each(D7_CASES)('D7: %s on %s reaches only its mapped rows', async (filter, type) => {
+    const { items } = await search(world.bridge, { q: 'lampword', types: type, limit: '50', [filter]: world.mappedPicks[filter] })
+    const rows = world.mappedA[type]
+    const reach = D7_ROWS[filter][type]
+    expect(idsOf(items)).toEqual(new Set(reach === 'all' ? rows : reach === 'first' ? rows.slice(0, 1) : []))
+  })
+
+  it('a two-org caller sees both orgs, and Orgs narrows to one, a member staying one row', async () => {
+    const flat = (rows: Record<string, string[]>) => Object.values(rows).flat()
+    const seen = async (orgIds?: string) => idsOf((await search(world.bridge, { q: 'lampword', limit: '50', ...(orgIds ? { orgIds } : {}) })).items)
+    expect(await seen()).toEqual(new Set([...flat(world.mappedA), ...flat(world.mappedB)]))
+    expect(await seen(`${world.orgA},${world.orgB}`)).toEqual(new Set([...flat(world.mappedA), ...flat(world.mappedB)]))
+    expect(await seen(world.orgA)).toEqual(new Set(flat(world.mappedA)))
+    expect(await seen(`${world.orgB},foreign`)).toEqual(new Set(flat(world.mappedB)))
+    const members = (await search(world.bridge, { q: 'bothorgsword', types: 'MEMBER' })).items
+    expect(members.map((i: any) => i.id)).toEqual([world.bothOrgsMemberId])
+  })
+
+  it.each(SEARCH_TYPES)('a retired %s, or one in a closed group, is out', async (type) => {
+    const { items } = await search(world.owner, { q: 'vesperword', types: type, limit: '50' })
+    expect(idsOf(items)).toEqual(new Set(world.vesperLive[type]))
+  })
+
+  it('D38: a closed group filters nothing in, and a lapsed membership does not count', async () => {
+    expect((await search(world.owner, { q: 'vesperword', limit: '50', groupIds: world.vesperClosedGroupId })).items).toHaveLength(0)
+    const members = (await search(world.owner, { q: 'vesperword', types: 'MEMBER', groupIds: world.groupA })).items
+    expect(members.map((i: any) => i.id)).toEqual([world.vesperMemberId])
+  })
+
+  it('D30: a Group Leader misses retired members, lapsed memberships and closed groups', async () => {
+    const { items } = await search(world.leader, { q: 'vesperword', types: 'MEMBER', limit: '50' })
+    expect(items.map((i: any) => i.id)).toEqual([world.vesperMemberId])
+  })
+
+  it('D33, D38: a super admin sees private programs in their orgs and gets no wider scope', async () => {
+    expect((await search(world.superAdmin, { q: 'secret', types: 'PROGRAM,LESSON' })).items).toHaveLength(2)
+    const ids = idsOf((await search(world.superAdmin, { q: 'grace', types: 'GROUP,MEMBER,PROGRAM', limit: '50' })).items)
+    expect(ids).toContain(world.groupA)
+    expect(ids).toContain(world.leadersMemberId)
+    expect(ids).not.toContain(world.foreignGroup)
+    expect(ids).not.toContain(world.foreignMemberId)
+    expect(ids).not.toContain(world.orglessProgramId)
+  })
+
+  it('D16: a media tag matches at tier 1', async () => {
+    for (const [type, id] of [['PHOTO', world.tagOnlyPhotoId], ['VIDEO', world.tagOnlyVideoId]] as const) {
+      const { items } = await search(world.owner, { q: 'tagonlyword', types: type })
+      expect(items.map((i: any) => i.id)).toEqual([id])
+      expect(items[0].score).toBeLessThan(2)
+    }
+  })
+
+  it('D16, D39: a read block alone matches a lesson and sets its rank; an activity text sets it too', async () => {
+    for (const [q, id] of [['blockonlyword', world.blockOnlyLessonId], ['lessontext', world.untitledLessonId]]) {
+      const { items } = await search(world.owner, { q, types: 'LESSON' })
+      expect(items.map((i: any) => i.id)).toEqual([id])
+      expect(items[0].score).toBeGreaterThan(1)
+      expect(items[0].score).toBeLessThan(2)
+    }
+  })
+
+  it('D16: a scheduled copy of a read block does not match', async () => {
+    expect((await search(world.owner, { q: 'scheduledonlyword' })).items).toHaveLength(0)
+  })
+
+  it('D35: an email matches its stored form at tier 4 whatever the case', async () => {
+    const asTyped = (await search(world.owner, { q: world.memberEmail.toUpperCase(), types: 'MEMBER' })).items
+    expect(asTyped.map((i: any) => i.id)).toEqual([world.leadersMemberId])
+    expect(asTyped[0].score).toBeGreaterThanOrEqual(4)
+    const asStored = (await search(world.owner, { q: world.mixedCaseEmail.toLowerCase(), types: 'MEMBER' })).items
+    expect(asStored.map((i: any) => i.id)).toEqual([world.mixedCaseEmailMemberId])
+    expect(asStored[0].score).toBeGreaterThanOrEqual(4)
+  })
+
+  it.each([
+    ['score', '1e-999'],
+    ['score', '1e999'],
+    ['createdAt', '0000-01-01 00:00:00'],
+    ['createdAt', '2026-01-01 00:00:00+99'],
+  ])('a forged cursor Postgres cannot cast answers 400: %s %s', async (field, value) => {
+    const cursor = encodeCursor({ score: '1', createdAt: '2026-01-01 00:00:00', id: 'x', [field]: value })
+    const res = await rawSearch(world.owner, { q: 'ab', cursor })
+    expect(res.status).toBe(400)
+    expect(res.body.success).toBe(false)
+    expect(res.body.error).toBe('Invalid cursor')
   })
 
   it('D30: a Group Leader finds only members of their active groups; Owner finds a group-less member', async () => {

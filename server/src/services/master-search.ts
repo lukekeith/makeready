@@ -7,6 +7,7 @@
 import { Prisma, prisma } from '../lib/prisma.js'
 import {
   SEARCH_TYPES,
+  SearchParamError,
   buildTsQuery,
   encodeCursor,
   escapeLike,
@@ -503,8 +504,25 @@ export function serializeSearchItem(row: SearchRow): SearchItem {
   }
 }
 
+/**
+ * §Contract: a cursor the main query's casts would refuse is a 400. Postgres decides, because a shape check
+ * has no way to know its range rules (`1e-999`, year 0000, an offset of +99). This query holds only those
+ * casts, so a data exception (SQLSTATE class 22) can only mean the cursor; any other failure stays a failure.
+ */
+async function assertCursorCasts(cursor: NonNullable<RankedParams['cursor']>): Promise<void> {
+  try {
+    await prisma.$queryRaw`SELECT (${cursor.score}::text)::float8, (${cursor.createdAt}::text)::timestamp`
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && String(error.meta?.code).startsWith('22')) {
+      throw new SearchParamError('Invalid cursor')
+    }
+    throw error
+  }
+}
+
 /** C1: one ranked page across the requested types (D1, D2, D17, D39). */
 export async function searchRanked(userId: string, params: RankedParams): Promise<{ items: SearchItem[]; nextCursor: string | null }> {
+  if (params.cursor) await assertCursorCasts(params.cursor)
   const [scope, filters] = await Promise.all([buildSearchScope(userId, params.orgIds), resolveArmFilters(params)])
   const textMatch = buildTextMatch(params.q)
   const types = present(params.types) ? [...new Set(params.types)] : SEARCH_TYPES
