@@ -118,6 +118,22 @@ export function escapeLike(text: string): string {
   return text.replace(/[\\%_]/g, (c) => `\\${c}`)
 }
 
+/**
+ * F14: the exclusive upper bound of a prefix range over `~>=~` and `~<~`, which compare bytes, so code
+ * point order holds. The last code point below U+10FFFF is incremented, and anything after it dropped.
+ * Null when no bound exists: an empty prefix, or one that is all U+10FFFF.
+ */
+export function prefixUpperBound(prefix: string): string | null {
+  const codePoints = Array.from(prefix, (c) => c.codePointAt(0) as number)
+  while (codePoints.length > 0) {
+    const last = codePoints.pop() as number
+    if (last === 0x10ffff) continue
+    const next = last === 0xd7ff ? 0xe000 : last + 1 // skips the surrogates, which are not characters
+    return String.fromCodePoint(...codePoints, next)
+  }
+  return null
+}
+
 export interface SearchCursor {
   score: string
   createdAt: string

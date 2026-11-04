@@ -20,6 +20,7 @@ vi.mock('../permission.js', () => permission)
 import {
   buildProgramListWhere,
   createBlankProgram,
+  privateProgramAdminOrgIds,
   privateProgramVisibility,
   programListScope,
   toProgramPayload,
@@ -164,5 +165,24 @@ describe('buildProgramListWhere (D13/D14)', () => {
   it('scopes to own programs only when the user has no org', () => {
     const where = buildProgramListWhere({ userId: 'u1', orgIds: [], privacy: {} })
     expect(where.AND).toContainEqual({ creatorId: 'u1' })
+  })
+})
+
+describe('privateProgramAdminOrgIds', () => {
+  const isSuperAdminMock = permission.isSuperAdmin
+
+  it('privateProgramVisibility answers as before', async () => {
+    isSuperAdminMock.mockResolvedValue(true)
+    await expect(privateProgramVisibility('u1')).resolves.toEqual({})
+    expect(await privateProgramAdminOrgIds('u1')).toBeNull()
+  })
+
+  it('gathers owned orgs and Owner or Admin role orgs without repeats', async () => {
+    prismaMock.organization.findMany.mockResolvedValue([{ id: 'o1' }])
+    prismaMock.userRole.findMany.mockResolvedValue([{ organizationId: 'o1' }, { organizationId: 'o2' }])
+    expect(await privateProgramAdminOrgIds('u1')).toEqual(['o1', 'o2'])
+    await expect(privateProgramVisibility('u1')).resolves.toEqual({
+      OR: [{ isPrivate: false }, { creatorId: 'u1' }, { leaderId: 'u1' }, { organizationId: { in: ['o1', 'o2'] } }],
+    })
   })
 })

@@ -3,6 +3,8 @@ import { z } from 'zod'
 import { prisma, Prisma } from '../lib/prisma.js'
 import { parseReference, getSearchType, matchBookNames } from '../utils/bible-reference-parser.js'
 import { requireAuth } from '../middleware/auth.js'
+import { SearchParamError, parseRankedParams } from '../services/master-search-query.js'
+import { searchRanked } from '../services/master-search.js'
 
 const router = Router()
 
@@ -1408,6 +1410,129 @@ router.delete('/recent', async (req, res) => {
   } catch (error) {
     console.error('Error clearing search history:', error)
     res.status(500).json({ error: 'Failed to clear search history' })
+  }
+})
+
+// ============================================
+// MASTER SEARCH - One ranked list across types
+// ============================================
+
+/**
+ * @openapi
+ * /api/search/ranked:
+ *   get:
+ *     tags: [Search]
+ *     summary: Ranked search across nine resource types
+ *     description: |
+ *       One list across programs, templates, members, groups, lessons, events, posts, videos and
+ *       photos, scoped to the caller's organizations plus system templates. `score` is comparable
+ *       only within one response's query. Foreign or malformed ids in a filter only narrow.
+ *     security:
+ *       - session: []
+ *       - apiKey: []
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         required: true
+ *         schema:
+ *           type: string
+ *           minLength: 2
+ *           maxLength: 200
+ *         description: Search query, trimmed
+ *       - in: query
+ *         name: types
+ *         schema:
+ *           type: string
+ *         description: "Comma list of PROGRAM,TEMPLATE,MEMBER,GROUP,LESSON,EVENT,POST,VIDEO,PHOTO"
+ *       - in: query
+ *         name: orgIds
+ *         schema:
+ *           type: string
+ *         description: Comma list, at most 50; a set list also drops system templates
+ *       - in: query
+ *         name: groupIds
+ *         schema:
+ *           type: string
+ *         description: Comma list, at most 50
+ *       - in: query
+ *         name: leaderIds
+ *         schema:
+ *           type: string
+ *         description: Comma list of user ids, at most 50
+ *       - in: query
+ *         name: tags
+ *         schema:
+ *           type: string
+ *         description: Comma list, at most 50
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           minimum: 1
+ *           maximum: 50
+ *       - in: query
+ *         name: cursor
+ *         schema:
+ *           type: string
+ *         description: The previous response's nextCursor
+ *     responses:
+ *       200:
+ *         description: One ranked page
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 items:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       type:
+ *                         type: string
+ *                       id:
+ *                         type: string
+ *                       title:
+ *                         type: string
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                       score:
+ *                         type: number
+ *                       imageUrl:
+ *                         type: string
+ *                         nullable: true
+ *                       parent:
+ *                         type: object
+ *                         nullable: true
+ *                         properties:
+ *                           type:
+ *                             type: string
+ *                           id:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                 nextCursor:
+ *                   type: string
+ *                   nullable: true
+ *       400:
+ *         description: Bad q, types, limit or cursor, or a filter list above 50
+ *       401:
+ *         description: Not authenticated
+ */
+router.get('/ranked', requireAuth, async (req, res) => {
+  try {
+    const { items, nextCursor } = await searchRanked((req.user as any).id, parseRankedParams(req.query))
+    res.json({ success: true, items, nextCursor })
+  } catch (error) {
+    if (error instanceof SearchParamError) {
+      return res.status(400).json({ success: false, error: error.message })
+    }
+    console.error('Ranked search error:', error)
+    res.status(500).json({ success: false, error: 'Search failed' })
   }
 })
 

@@ -12,6 +12,7 @@ import {
   parseListFilters,
   parseRankedParams,
   phoneDigits,
+  prefixUpperBound,
   tokenizeQuery,
 } from '../master-search-query.js'
 
@@ -67,5 +68,18 @@ describe('master-search-query', () => {
     const cats = [{ key: 'b', name: 'Books', position: 0, tags: [{ tag: '1 samuel', label: '1 Samuel', position: 0 }, { tag: '1samuel', label: '1 Samuel', position: 0 }, { tag: 'mark', label: 'Mark', position: 1 }] }]
     expect(new Set(expandTagPicks(['1 Samuel'], cats))).toEqual(new Set(['1samuel']))
     expect(new Set(expandTagPicks(['Mark', 'Lent Plan'], cats))).toEqual(new Set(['mark', 'lentplan']))
+  })
+
+  it('bounds a prefix range by incrementing the last code point (F14)', () => {
+    expect(prefixUpperBound('grace')).toBe('gracf')
+    expect(prefixUpperBound('𝒜')).toBe('𝒝')
+    expect(prefixUpperBound('\uD7FF')).toBe('\uE000')
+  })
+
+  it('carries past U+10FFFF, and an empty or all-U+10FFFF prefix has no upper bound (F14)', () => {
+    expect(prefixUpperBound('a\u{10FFFF}')).toBe('b')
+    expect(prefixUpperBound('a\u{10FFFF}\u{10FFFF}')).toBe('b')
+    expect(prefixUpperBound('\u{10FFFF}')).toBeNull()
+    expect(prefixUpperBound('')).toBeNull()
   })
 })
