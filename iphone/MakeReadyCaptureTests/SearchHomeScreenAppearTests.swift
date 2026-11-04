@@ -5,6 +5,7 @@ import XCTest
 
 /// master-search F11: laying out the results list must not fire `onResultAppear` for every row,
 /// or the last-five-rows rule would page through every page of a search on its own.
+
 @MainActor
 final class SearchHomeScreenAppearTests: XCTestCase {
     func testOnlyTheRowsInAndNearTheViewportAppearAtLayout() {
@@ -15,20 +16,11 @@ final class SearchHomeScreenAppearTests: XCTestCase {
         state.resultDescriptions = Array(repeating: "Created Feb 1, 2021", count: count)
 
         var appeared = Set<Int>()
-        let screen = ScrollView {
+        // Through the real page scroll, in a real scene: its anchor must not lay out every row.
+        let host = makeHost(SearchPageScroll {
             SearchHomeScreen(state: state, onResultAppear: { appeared.insert($0) })
-        }
-        .frame(width: 440, height: 956)
-
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 440, height: 956))
-        let host = UIHostingController(rootView: screen)
-        window.rootViewController = host
-        window.makeKeyAndVisible()
-        host.view.layoutIfNeeded()
-        for _ in 0..<20 {
-            RunLoop.main.run(until: Date().addingTimeInterval(0.1))
-            host.view.layoutIfNeeded()
-        }
+        })
+        settle(host)
 
         let highest = appeared.max() ?? -1
         XCTAssertGreaterThanOrEqual(highest, 0, "no row appeared: the host did not lay out")
@@ -116,7 +108,11 @@ final class SearchHomeScreenAppearTests: XCTestCase {
     private func makeHost<V: View>(_ view: V) -> UIHostingController<AnyView> {
         let host = UIHostingController(rootView: AnyView(view))
         host.safeAreaRegions = []
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 440, height: 956))
+        // In the test host's scene: outside one, a scroll view's contentSize and scrollTo never land
+        // (measured: a direct proxy call moved nothing, and 5 rows kept the 60-row contentSize).
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        let window = scene.map(UIWindow.init(windowScene:)) ?? UIWindow()
+        window.frame = CGRect(x: 0, y: 0, width: 440, height: 956)
         window.rootViewController = host
         window.makeKeyAndVisible()
         addTeardownBlock { window.isHidden = true }
@@ -126,7 +122,7 @@ final class SearchHomeScreenAppearTests: XCTestCase {
 
     private func settle(_ host: UIViewController) {
         for _ in 0..<10 {
-            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+            RunLoop.main.run(until: Date().addingTimeInterval(0.1))
             host.view.layoutIfNeeded()
         }
     }

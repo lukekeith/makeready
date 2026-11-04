@@ -236,7 +236,10 @@ struct SearchPageScroll<Content: View>: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                content.id(Anchor.top)
+                VStack(spacing: 0) {
+                    Color.clear.frame(height: 0).id(Anchor.top)
+                    content
+                }
             }
             .scrollDismissesKeyboard(.interactively)
             .scrollBounceBehavior(.always, axes: .vertical)
