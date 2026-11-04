@@ -175,6 +175,9 @@ final class AppState {
     var searchAnsweredQuery: String?
     /// C5: the chips' options.
     var searchFilterOptions: SearchFilterOptions?
+    /// The picks `searchRecents` was loaded with: a visit that filtered them must not leave a filtered
+    /// list under at-rest chips on the next visit (D26).
+    var searchRecentsFilters = SearchFilters()
     /// `SearchItem.key`s whose C4 has not settled; C2 merges skip them (D42).
     var searchPendingRemovals: Set<String> = []
 
@@ -1084,6 +1087,7 @@ final class AppState {
         lessonScheduleMap = [:]
 
         searchRecents = []
+        searchRecentsFilters = SearchFilters()
         searchResults = []
         searchNextCursor = nil
         searchAnsweredQuery = nil

@@ -3,6 +3,7 @@ import XCTest
 
 /// master-search D5, D9, D14, D21, D27, D31, D41: the Search tab's mapper (items to State, labels,
 /// tag sections, routing) and the container's paging decision.
+@MainActor
 final class SearchHomeMapperTests: XCTestCase {
     private let utc = TimeZone(identifier: "UTC")!
 
@@ -96,6 +97,19 @@ final class SearchHomeMapperTests: XCTestCase {
         XCTAssertTrue(output(results: [], query: " gra ", answered: "gra").state.queryAnswered)
     }
 
+    /// D41 (refined): an answer with no rows is held for the screen until the current query is answered.
+    func testEmptyAnswerIsHeldWhileTheNextQueryIsUnanswered() {
+        XCTAssertEqual(output(results: [], query: "xyz", answered: "xy").state.heldNoResultsQuery, "xy")
+        XCTAssertEqual(output(results: [], query: "xyz", answered: " xy ").state.heldNoResultsQuery, "xy")
+    }
+
+    func testNothingIsHeldWithoutAnEmptyAnswerForAnotherQuery() {
+        XCTAssertNil(output(results: [], query: "xyz", answered: "xyz").state.heldNoResultsQuery)
+        XCTAssertNil(output(results: [], query: "xyz", answered: nil).state.heldNoResultsQuery)
+        XCTAssertNil(output(results: [item("a")], query: "xyz", answered: "xy").state.heldNoResultsQuery)
+        XCTAssertNil(output(results: [], query: "xyz", answered: " x ").state.heldNoResultsQuery)
+    }
+
     func testDescriptionIsCreatedDate() {
         let out = output(results: [item("a", createdAt: "2026-10-03T12:00:00.000Z")], query: "gr", answered: "gr")
         XCTAssertEqual(out.state.resultDescriptions, ["Created Oct 3, 2026"])
@@ -117,5 +131,43 @@ final class SearchHomeMapperTests: XCTestCase {
         XCTAssertTrue(SearchHomeContainer.shouldLoadNextPage(afterRow: 15, of: 20))
         XCTAssertTrue(SearchHomeContainer.shouldLoadNextPage(afterRow: 19, of: 20))
         XCTAssertTrue(SearchHomeContainer.shouldLoadNextPage(afterRow: 0, of: 3))
+    }
+
+    // MARK: - D41 (refined): what the screen draws below the header
+
+    private func recentsState() -> SearchHomeScreen.State { .recentsPopulated }
+
+    func testAnsweredEmptyKeepsItsLineWhileTheNextQueryIsUnanswered() {
+        var state = recentsState()
+        state.queryAnswered = false
+        state.heldNoResultsQuery = "xy"
+        XCTAssertEqual(SearchHomeScreen.content(for: state, query: "xyz"), .noResults(query: "xy"))
+    }
+
+    func testAnAnsweredEmptyQueryPrintsItsOwnLine() {
+        var state = recentsState()
+        state.queryAnswered = true
+        XCTAssertEqual(SearchHomeScreen.content(for: state, query: "xyz"), .noResults(query: "xyz"))
+    }
+
+    func testUnansweredWithNothingHeldFallsThroughToRecents() {
+        var state = recentsState()
+        state.queryAnswered = false
+        XCTAssertEqual(SearchHomeScreen.content(for: state, query: "xyz"), .recents)
+        state.recentTitles = []
+        XCTAssertEqual(SearchHomeScreen.content(for: state, query: "xyz"), .empty)
+    }
+
+    func testRowsWinOverAHeldLine() {
+        var state = SearchHomeScreen.State.queryingResults
+        state.queryAnswered = false
+        state.heldNoResultsQuery = "xy"
+        XCTAssertEqual(SearchHomeScreen.content(for: state, query: "Romans"), .results)
+    }
+
+    func testBelowTwoCharactersShowsRecents() {
+        var state = recentsState()
+        state.heldNoResultsQuery = "xy"
+        XCTAssertEqual(SearchHomeScreen.content(for: state, query: "x"), .recents)
     }
 }

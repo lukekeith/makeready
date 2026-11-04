@@ -89,6 +89,16 @@ struct SearchActions {
         state.searchAnsweredQuery = nil
     }
 
+    /// A new visit to the tab (D26): recents loaded under picks the fresh chips no longer show would
+    /// render under at-rest chips, so they go until C2 lands.
+    @MainActor
+    func clearRecentsLoadedWithPicks() {
+        guard state.searchRecentsFilters != SearchFilters() else { return }
+        state.searchRecentsToken = UUID()
+        state.searchRecents = []
+        state.searchRecentsFilters = SearchFilters()
+    }
+
     // MARK: - C2 recents
 
     /// Replaces the recents with the server's, minus rows whose removal has not settled (D42).
@@ -103,6 +113,7 @@ struct SearchActions {
             guard state.searchRecentsToken == token, state.initialLoad.isCurrent(generation), !Task.isCancelled else { return }
             let pending = state.searchPendingRemovals
             state.searchRecents = Self.deduplicated(response.items.filter { !pending.contains($0.key) })
+            state.searchRecentsFilters = filters
         } catch {
             guard state.searchRecentsToken == token, state.initialLoad.isCurrent(generation) else { return }
             await handleLoadFailure(error, context: "SearchActions.loadRecents")
@@ -163,6 +174,8 @@ struct SearchActions {
             guard response.success else { throw APIError.serverError(response.error ?? "Failed to remove recent") }
             guard state.initialLoad.isCurrent(generation) else { return }
             state.searchPendingRemovals.remove(item.key)
+            // A C2 the server answered before this delete would bring the row back: drop it.
+            state.searchRecentsToken = UUID()
         } catch {
             guard state.initialLoad.isCurrent(generation) else { return }
             state.searchPendingRemovals.remove(item.key)

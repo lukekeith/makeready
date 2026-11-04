@@ -23,8 +23,6 @@ struct SearchHomeContainer: View {
     @State private var viewer: Viewer?
     /// The pending debounce, or the immediate rerun after a pick; a newer one cancels it.
     @State private var searchTask: Task<Void, Never>?
-    /// The picks C2 was last asked with, so a return below 2 characters refetches only if they changed (D41).
-    @State private var recentsFilters: SearchFilters?
     /// The tab mounts once per visit: results of an earlier visit are cleared then, never on a push and pop (D26).
     @State private var mounted = false
     @State private var hasAppeared = false
@@ -63,9 +61,9 @@ struct SearchHomeContainer: View {
             if !mounted {
                 mounted = true
                 actions.cancelQuery()
+                actions.clearRecentsLoadedWithPicks()
             }
             let filters = self.filters
-            recentsFilters = filters
             async let options: () = actions.loadFilterOptions()
             await actions.loadRecents(filters: filters)
             await options
@@ -124,7 +122,8 @@ struct SearchHomeContainer: View {
         query.trimmingCharacters(in: .whitespacesAndNewlines).count >= Self.minimumQueryLength
     }
 
-    /// D20/D41: 2+ trimmed characters run after the debounce; fewer cancel it and clear the answer.
+    /// D20/D41: 2+ trimmed characters run after the debounce; fewer cancel it and clear the answer
+    /// (C2 is current already: a pick refetches it in `applyPicks`).
     private func queryChanged(_ text: String) {
         query = text
         searchTask?.cancel()
@@ -137,8 +136,8 @@ struct SearchHomeContainer: View {
                 await actions.search(query: text, filters: filters)
             }
         } else {
+            // applyPicks already refetched C2 for any pick, so recents are current here.
             actions.cancelQuery()
-            if recentsFilters != filters { reloadRecents() }
         }
     }
 
@@ -158,7 +157,6 @@ struct SearchHomeContainer: View {
 
     private func reloadRecents() {
         let filters = self.filters
-        recentsFilters = filters
         let actions = self.actions
         Task { await actions.loadRecents(filters: filters) }
     }

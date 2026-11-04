@@ -40,9 +40,9 @@ final class SearchActionsTests: XCTestCase {
         super.tearDown()
     }
 
-    private func item(_ id: String, type: String = "GROUP", parent: String? = nil) -> SearchItem {
+    private func item(_ id: String, type: String = "GROUP", parent: String? = nil, parentType: String = "PROGRAM") -> SearchItem {
         SearchItem(type: type, id: id, title: id, createdAt: "2026-10-03T12:00:00.000Z", imageUrl: nil,
-                   parent: parent.map { SearchItemParent(type: "PROGRAM", id: $0, name: "P") }, openedAt: nil)
+                   parent: parent.map { SearchItemParent(type: parentType, id: $0, name: "P") }, openedAt: nil)
     }
 
     private func page(_ ids: [String], next: String?) -> String {
@@ -211,6 +211,50 @@ final class SearchActionsTests: XCTestCase {
         state.searchResults = [item("l1", type: "LESSON", parent: "p1"), item("p1", type: "PROGRAM")]
         ProgramActions(state: state).forgetProgram(id: "p1")
         XCTAssertTrue(state.searchResults.isEmpty)
+    }
+
+    func testForgetGroupDropsItsEventsAndPosts() {
+        state.searchRecents = [
+            item("e1", type: "EVENT", parent: "g1", parentType: "GROUP"),
+            item("po1", type: "POST", parent: "g1", parentType: "GROUP"),
+            item("e2", type: "EVENT", parent: "g2", parentType: "GROUP"),
+            item("g2", type: "GROUP")
+        ]
+        state.searchResults = [item("po1", type: "POST", parent: "g1", parentType: "GROUP"), item("g1", type: "GROUP")]
+        GroupActions(state: state).forgetGroup(id: "g1")
+        XCTAssertEqual(state.searchRecents.map(\.id), ["e2", "g2"])
+        XCTAssertTrue(state.searchResults.isEmpty)
+    }
+
+    /// A C2 answered before the delete but landing after C4 succeeded must not restore the row.
+    func testRecentsAnsweredBeforeARemovalCannotRestoreItAfterwards() async {
+        let gate = AsyncGate()
+        state.searchRecents = [item("a"), item("b")]
+        api.responseFor = { method, _ in
+            if method == "GET" { await gate.wait(); return Data(self.page(["a", "b"], next: nil).utf8) }
+            return Data(#"{"success":true}"#.utf8)
+        }
+        let load = Task { await actions.loadRecents(filters: SearchFilters()) }
+        await Task.yield()
+        await actions.removeRecent(item("b"))
+        await gate.open(); await load.value
+        XCTAssertEqual(state.searchRecents.map(\.id), ["a"])
+    }
+
+    /// D26: recents loaded under picks must not render under the next visit's at-rest chips.
+    func testRecentsLoadedWithPicksAreClearedOnANewVisit() async {
+        api.stub("GET", "/api/search/recent-results", json: page(["a"], next: nil))
+        await actions.loadRecents(filters: SearchFilters(types: ["GROUP"]))
+        XCTAssertEqual(state.searchRecents.map(\.id), ["a"])
+        actions.clearRecentsLoadedWithPicks()
+        XCTAssertTrue(state.searchRecents.isEmpty)
+    }
+
+    func testRecentsLoadedWithNoPicksSurviveANewVisit() async {
+        api.stub("GET", "/api/search/recent-results", json: page(["a"], next: nil))
+        await actions.loadRecents(filters: SearchFilters())
+        actions.clearRecentsLoadedWithPicks()
+        XCTAssertEqual(state.searchRecents.map(\.id), ["a"])
     }
 
     func testDeleteMediaDropsTheItsRows() async throws {

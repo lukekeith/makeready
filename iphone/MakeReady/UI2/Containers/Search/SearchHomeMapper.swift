@@ -88,6 +88,13 @@ enum SearchHomeMapper {
             (.type, typeLabels), (.orgs, orgLabels), (.groups, groupLabels), (.leaders, leaderLabels), (.tags, tagLabels)
         ]
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let answered = answeredQuery?.trimmingCharacters(in: .whitespacesAndNewlines)
+        // D41 (refined): an answer with no rows stays on screen as its no-results line until the
+        // current query is answered; a query that is itself answered needs no held line.
+        let heldNoResultsQuery: String? = {
+            guard let answered, resultItems.isEmpty, answered != trimmed, answered.count >= 2 else { return nil }
+            return answered
+        }()
         let state = SearchHomeScreen.State(
             searchText: query,
             typeFilterLabel: FilterMenuOverlay.chipLabel(picked: typeLabels, resting: "Type", noun: "types"),
@@ -103,7 +110,8 @@ enum SearchHomeMapper {
             resultTitles: resultItems.map(\.title),
             resultDescriptions: resultItems.map { HomeDashboardMapper.createdLabel($0.createdAt, tz: tz) },
             // D41: an answer belongs to one query; another query's answer is not this one's.
-            queryAnswered: answeredQuery.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) == trimmed } ?? false)
+            queryAnswered: answered.map { $0 == trimmed } ?? false,
+            heldNoResultsQuery: heldNoResultsQuery)
         return Output(state: state, recentItems: recentItems, resultItems: resultItems)
     }
 
