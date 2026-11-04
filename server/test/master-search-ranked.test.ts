@@ -271,7 +271,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('GET /api/search/ranked', () => 
     const has = async (q: string) => (await search(world.owner, { q, types: 'MEMBER' })).items.some((i: any) => i.id === world.mixedCaseEmailMemberId)
     expect(await has('mixed_case')).toBe(false)
     expect(await has('mixed.c%e')).toBe(false)
-    expect((await search(world.owner, { q: '%', types: 'MEMBER' })).items).toHaveLength(0)
+    expect((await search(world.owner, { q: '%%', types: 'MEMBER' })).items).toHaveLength(0)
   })
 
   it('D29: one row per series, no generated lesson events', async () => {
