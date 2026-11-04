@@ -1,43 +1,42 @@
 # master-search — parked
-parked: 2026-11-04 68f1458b · by the fleet (the run that parked it wrote no record)
+parked: 2026-11-04 373b0b64 · by the fleet (the run that parked it wrote no record)
 kind: stuck
-blocked: "the walk env would not start (walk env didn't come up — see /Users/lukekeith/www/makeready/.builder/fleet/logs/master-search-start.log) and an agent run could not fix it — next: run agent_walk.start in /Users/lukekeith/www/makeready.fleet/master-search and fix what it prints, then /builder:agent"
+blocked: "the walk env would not start (agent_walk.reset failed: docker compose -p makeready up -d --force-recreate s3mock && for i in $(seq 1 60); do curl -sf -o /dev/null localhost:9010 && break; sleep 1; done && curl -sf -o /dev/null localhost:9010 && docker exec makeready-postgres dropdb -U postgres --if-exists --force makeready_walk && docker exec makeready-postgres createdb -U postgres makeready_walk && (cd server && npm run migrate:apply && npm run db:seed) && if [ -f server/fixtures/index.ts ]; then (cd server && env NODE_ENV=development DATABASE_URL="postgresql://postgres:postgres@localhost:5434/makeready_walk" DIRECT_URL="postgresql://postgres:postgres@localhost:5434/makeready_walk" npm run fixtures:reset); fi) and an agent run could not fix it — next: run agent_walk.start in /Users/lukekeith/www/makeready.fleet/master-search and fix what it prints, then /builder:agent"
 
 ## What is stuck
-the walk env would not start (walk env didn't come up — see /Users/lukekeith/www/makeready/.builder/fleet/logs/master-search-start.log) and an agent run could not fix it
+the walk env would not start (agent_walk.reset failed: docker compose -p makeready up -d --force-recreate s3mock && for i in $(seq 1 60); do curl -sf -o /dev/null localhost:9010 && break; sleep 1; done && curl -sf -o /dev/null localhost:9010 && docker exec makeready-postgres dropdb -U postgres --if-exists --force makeready_walk && docker exec makeready-postgres createdb -U postgres makeready_walk && (cd server && npm run migrate:apply && npm run db:seed) && if [ -f server/fixtures/index.ts ]; then (cd server && env NODE_ENV=development DATABASE_URL="postgresql://postgres:postgres@localhost:5434/makeready_walk" DIRECT_URL="postgresql://postgres:postgres@localhost:5434/makeready_walk" npm run fixtures:reset); fi) and an agent run could not fix it
 
 ## What was tried
-- 8 fleet run(s) in all — `git log --oneline -- docs/features/master-search` lists what each changed
+- 9 fleet run(s) in all — `git log --oneline -- docs/features/master-search` lists what each changed
 
 ## Evidence
-- the run that parked it: /Users/lukekeith/www/makeready/.builder/fleet/logs/master-search-08.log — its last lines:
+- the run that parked it: /Users/lukekeith/www/makeready/.builder/fleet/logs/master-search-09.log — its last lines:
 
 ```
-· **The walk env failed because of Docker Desktop, not this repo, so I changed nothing and made no commit.** Docker Desktop's Linux VM is down, which takes Postgres (`:5434`) and s3mock (`:9010`) with it, and the walk env can't start until it's back.
+· I'll read the fleet's start log and the walk config, then re-run the failing reset step to find where it breaks.
+· `docker ps` itself returned a 500 from the Docker socket, which would fail the reset's first command. I'll check whether the daemon is actually unhealthy before looking at any repo code.
+· `docker version` gets a 500 from the engine and `docker info` hangs. I'll stop that stuck command and finish checking without talking to the daemon.
+· **The walk env can't start because Docker Desktop's engine is down, and that's outside this repo, so I changed nothing and made no commit.** The working tree is clean, and I started no processes and left none running. I stopped my two stuck diagnostic commands.
 
-**What happened**
-1. At 02:11:49 local time (08:11:49 UTC), the VM stopped 0.17 seconds after starting. `com.docker.virtualization.log` says: `VM has stopped: Invalid virtual machine configuration. The storage device attachment is invalid.`
-2. `com.docker.virtualization` still isn't running, and the log shows no VM start since then. Docker Desktop's other processes are up, so the socket answers, but `docker version` returns a 500 and `docker ps -a` hung until it timed out.
-3. Ports `5434` and `9010` both refuse connections.
-4. The client build finished and `php artisan serve` came up on `8102`. The server then started on `3110` and crashed in `ensureSessionTable` (`server/src/index.ts:90`) with `ECONNREFUSED` on `5434`.
+**Evidence:**
+- **Docker commands:** `docker version` and `docker ps` return `500 Internal Server Error`, and `docker info` hangs. `_ping` on the Docker socket got no response within 10s.
+- **Docker's log:** `monitor.log` shows the API proxy failing to reach the engine inside the VM: `HEAD /_ping Internal Server Error: dialing 192.168.65.7:2376: context canceled`. `com.docker.backend.log` also logs a failed `/ping` every 10s (`context deadline exceeded`).
+- **VM process:** the Docker Desktop app and backend are running, but I found no VM process (searched for `virtualization`, `krun` and `vpnkit`), so the VM looks stopped or crashed.
+- **Services the walk needs:** nothing is listening on `:5434` (Postgres) or `:9010` (s3mock), so the reset's first step, `docker compose … up s3mock`, can't succeed.
 
-The server crash is only a symptom, so there's nothing to fix in the code, migrations, dependencies or install. I also didn't run the reset or start commands, because their first steps need Docker. The branch also has no changes from `main` in `docker-compose.yml` or either `package.json`.
+**Not caused by a port conflict:** `:3110` and `:8102` are also free, so no other program is holding the walk ports.
 
-**Why the VM won't start is still unknown.** The log doesn't say why the storage attachment is invalid. Both disk images exist and are non-empty:
-- **`Docker.raw`:** last modified at 02:11, the moment of the failure.
-- **`desktop.img`:** unchanged since Aug 6.
+**Other worktrees:** this is machine-wide. The `quartermaster-foundation` run is also working on this machine, and its park note mentions Docker Desktop too, though I only saw the start of that note.
 
-The data volume is 98% full with 23 GiB free, which may be a factor, but nothing ties it to this error.
+**What I didn't verify:**
+- **Rest of the reset and start:** I didn't run them, because every step after Docker depends on it. That leaves `migrate:apply`, `db:seed`, `fixtures:reset`, the server boot and the smoke check untested, including this branch's two new migrations (`f84794f2`, `3dba1da6`). They could still have their own problems once Docker is back.
+- **Why the VM died:** the logs I read don't show the cause. The data volume is 98% full with 24 GiB free, which may be related, but I have no evidence that it is.
+- **The earlier park at 02:35:** `master-search-start.log` shows only a successful client build and no error, so it doesn't explain that failure. If the smoke check still fails after Docker is back, check `.builder/walk-server.log` and `.builder/walk-client.log`.
 
-**What you need to do**
-1. Quit and reopen Docker Desktop, then check that `docker ps` works and `makeready-postgres` is running.
-2. If the VM fails with the same error, free some disk space and try again.
-3. If it still fails, look at Docker Desktop's repair options, but check what they do first. Some of them wipe `Docker.raw`, which holds all containers and volumes, including local dev databases.
-4. Re-run the fleet for `master-search`; this branch needs no changes.
-
-I didn't restart Docker myself because every worktree shares it, and a `quartermaster-foundation` build is running on this machine right now. That build and any others that need Docker will probably hit the same failure.
-
-**Cleanup:** I stopped my one hung `docker ps` and started nothing else. The worktree is clean, and nothing is listening on `3110`, `8102`, `9010` or `5434`.
+**Next steps for you:**
+1. Restart Docker Desktop, using Troubleshoot → Restart or quit and reopen. I didn't do this because it would interrupt the other worktrees sharing the engine.
+2. Check that `docker ps` responds and `makeready-postgres` is up. The reset needs that container, but it only starts s3mock itself.
+3. Retry the fleet on `master-search` by re-running `/builder:agent`.
 ```
 - the walk env's start log: /Users/lukekeith/www/makeready/.builder/fleet/logs/master-search-start.log
 
@@ -50,3 +49,4 @@ run agent_walk.start in /Users/lukekeith/www/makeready.fleet/master-search and f
 ## History
 - 2026-11-04 parked — the walk env would not start (walk env didn't come up — see /Users/lukekeith/www/makeready/.builder/fleet/logs/master-search-start.log) and an agent run could not fix it
 - 2026-11-04 unparked by the fleet — automatic retry 1 of 2
+- 2026-11-04 parked — the walk env would not start (agent_walk.reset failed: docker compose -p makeready up -d --force-recreate s3mock && for i in $(seq 1 60); do curl -sf -o /dev/null localhost:9010 && break; sleep 1; done && curl -sf -o /dev/null localhost:9010 && docker exec makeready-postgres dropdb -U postgres --if-exists --force makeready_walk && docker exec makeready-postgres createdb -U postgres makeready_walk && (cd server && npm run migrate:apply && npm run db:seed) && if [ -f server/fixtures/index.ts ]; then (cd server && env NODE_ENV=development DATABASE_URL="postgresql://postgres:postgres@localhost:5434/makeready_walk" DIRECT_URL="postgresql://postgres:postgres@localhost:5434/makeready_walk" npm run fixtures:reset); fi) and an agent run could not fix it
