@@ -10,6 +10,7 @@ the walk env would not start (agent_walk.reset failed: docker compose -p makerea
 - 9 fleet run(s) in all — `git log --oneline -- docs/features/master-search` lists what each changed
 - 2026-11-04 unpark run — Docker is back: `docker ps` answers, makeready-postgres healthy, the fleet's reset and start succeeded, agent_walk.smoke passes, atlas status on makeready_walk reads `Already at latest version` (78 files, 0 pending). The cause (Docker Desktop VM stopped 02:11:49, `The storage device attachment is invalid.`) no longer holds; why the VM stopped is still unknown. No repo change was needed.
 - 2026-11-04 unpark run — found why round 2's `## Fixes` are missing: commit 454f0085 wrote them, then fleet.mjs envDied (line 1421) reset the branch to 68f1458b because the env died under that walk. That is by design, so the commit was not restored; the walk runs again as round 3.
+- 2026-11-04 agent walk round 3 on a healthy env at 599e3de1 — the outage did not cause round 2's failures: F18b, X4, X4b, X5 and X1 reproduce, and F18c, unverifiable in round 2, fails at top row 13. Six `## Fixes` rows written. The park's cause is gone; what remains is fix work.
 
 ## Evidence
 - the run that parked it: /Users/lukekeith/www/makeready/.builder/fleet/logs/master-search-09.log — its last lines:
@@ -55,3 +56,4 @@ run agent_walk.start in /Users/lukekeith/www/makeready.fleet/master-search and f
 - 2026-11-04 unparked by the fleet — automatic retry 2 of 2
 - 2026-11-04 unparked by a person — named to /builder:agent or /builder:fleet
 - 2026-11-04 walk env up again after Docker recovered — readiness passed, agent walk round 3 dispatched
+- 2026-11-04 agent walk round 3 — 6 fixes owed, not parked
