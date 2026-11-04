@@ -1,12 +1,12 @@
 size: lg
 state: planned
 next: /builder:resume --path docs/features/master-search
-head: b97def70
+head: e11c6103
 ticket: none
 branch: builder/master-search
 pr: none
 apps: server+iphone
-contract: open
+contract: frozen 2026-11-03
 hold: none
 go-ahead: auto (recommended) 2026-11-03
 tests: slice=own+app end=risk review=slice
