@@ -60,12 +60,22 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('master-search indexes', () => {
   afterAll(async () => { await pg?.end() })
 
   // PREPARE under force_generic_plan: the plan the arm gets after its sixth execution, whatever the value.
-  async function explain(sql: string, ...params: string[]) {
-    await pg.query('DEALLOCATE ALL')
-    await pg.query(`PREPARE q(${params.map(() => 'text').join(',')}) AS ${sql}`)
-    const args = params.map(p => `'${p}'`).join(',')
-    const r = await pg.query(`EXPLAIN EXECUTE q(${args})`)
-    return r.rows.map((row: any) => row['QUERY PLAN']).join('\n')
+  // `without` drops competing indexes inside a transaction that is always rolled back, so the plan shows
+  // whether the index under test is usable for the predicate, not whether it wins on whatever stats
+  // other test files left on the shared lease.
+  async function explain(sql: string, params: string[] = [], without: string[] = []) {
+    await pg.query('BEGIN')
+    try {
+      await pg.query("SET LOCAL lock_timeout = '10s'")
+      for (const index of without) await pg.query(`DROP INDEX "${index}"`)
+      await pg.query('DEALLOCATE ALL')
+      await pg.query(`PREPARE q(${params.map(() => 'text').join(',')}) AS ${sql}`)
+      const args = params.map(p => `'${p}'`).join(',')
+      const r = await pg.query(`EXPLAIN EXECUTE q(${args})`)
+      return r.rows.map((row: any) => row['QUERY PLAN']).join('\n')
+    } finally {
+      await pg.query('ROLLBACK')
+    }
   }
 
   it('each search and title index exists on the lease', async () => {
@@ -96,7 +106,11 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('master-search indexes', () => {
     const k = key as Key
     const config = k === 'member' ? 'simple' : 'english'
     const partial = k === 'readBlock' ? ' AND "lessonActivityId" IS NOT NULL' : ''
-    const plan = await explain(`SELECT 1 FROM "${TABLE[k]}" WHERE ${SEARCH_TEXT[k]} @@ to_tsquery('${config}', $1)${partial}`, 'grace:*')
+    // The arm's `"lessonActivityId" IS NOT NULL` is also what idx_activity_read_blocks_lessonActivityId serves, and
+    // on an empty analyzed table that btree is cheaper than the GIN index (the planner may pick either), so it is
+    // set aside for this one case. On a table with rows the GIN index wins by selectivity.
+    const without = k === 'readBlock' ? ['idx_activity_read_blocks_lessonActivityId'] : []
+    const plan = await explain(`SELECT 1 FROM "${TABLE[k]}" WHERE ${SEARCH_TEXT[k]} @@ to_tsquery('${config}', $1)${partial}`, ['grace:*'], without)
     expect(plan).toContain(index)
   })
 
@@ -104,13 +118,13 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('master-search indexes', () => {
   // over the text_pattern_ops operators (`~>=~`, `~<~`) with the upper bound computed by the caller.
   it.each(Object.entries(TITLE_INDEX))('EXPLAIN uses the title index for %s on a parameterized prefix range', async (key, index) => {
     const k = key as keyof typeof SEARCH_TITLE
-    const plan = await explain(`SELECT 1 FROM "${TABLE[k]}" WHERE ${SEARCH_TITLE[k]} ~>=~ $1 AND ${SEARCH_TITLE[k]} ~<~ $2`, 'grace', 'gracf')
+    const plan = await explain(`SELECT 1 FROM "${TABLE[k]}" WHERE ${SEARCH_TITLE[k]} ~>=~ $1 AND ${SEARCH_TITLE[k]} ~<~ $2`, ['grace', 'gracf'])
     expect(plan).toContain(index)
   })
 
   it.each(Object.entries(TITLE_INDEX))('EXPLAIN uses the title index for %s on an exact title', async (key, index) => {
     const k = key as keyof typeof SEARCH_TITLE
-    const plan = await explain(`SELECT 1 FROM "${TABLE[k]}" WHERE ${SEARCH_TITLE[k]} = $1`, 'grace')
+    const plan = await explain(`SELECT 1 FROM "${TABLE[k]}" WHERE ${SEARCH_TITLE[k]} = $1`, ['grace'])
     expect(plan).toContain(index)
   })
 })
