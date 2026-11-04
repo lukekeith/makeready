@@ -46,6 +46,18 @@ struct UI2Shell: View {
         fullScreen ? 0 : max(0, tabBarHeight - safeBottom)
     }
 
+    /// master-search R1: the page each tab's root renders, named so a test can read it.
+    enum RootPage: Equatable { case home, empty, search, profile }
+
+    static func rootPage(for tab: TabBar.Tab) -> RootPage {
+        switch tab {
+        case .home: .home
+        case .calendar: .empty
+        case .search: .search
+        case .profile: .profile
+        }
+    }
+
     /// The window's bottom safe area — the inset each NavigationStack applies to its pages.
     private var safeBottom: CGFloat {
         (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.keyWindow?.safeAreaInsets.bottom ?? 0
@@ -55,7 +67,7 @@ struct UI2Shell: View {
         ZStack(alignment: .bottom) {
             // ui2-members-browse D1/D2: one NavigationStack per tab, above the TabBar. Home stays
             // mounted — its TopNav keeps its own scroll position (SPEC D12) and its pushed page
-            // survives a tab switch (D2); any other tab mounts while selected (none pushes yet).
+            // survives a tab switch (D2); any other tab mounts while selected (Search pushes, T9).
             ZStack {
                 ForEach(UI2ShellModel.tabs, id: \.self) { tab in
                     if tab == .home || tab == model.tab {
@@ -180,7 +192,8 @@ struct UI2Shell: View {
     @ViewBuilder private func root(for tab: TabBar.Tab) -> some View {
         switch tab {
         case .home: HomeSectionLayout(model: $model) { sectionContent }
-        case .calendar, .search: EmptyPage()
+        case .calendar: EmptyPage()
+        case .search: SearchHomeContainer()  // master-search R1
         case .profile: ProfileStopgapContainer()
         }
     }

@@ -3,6 +3,11 @@ import UIKit
 @testable import MakeReady
 
 final class UI2ShellModelTests: XCTestCase {
+    /// master-search R1: the Search tab renders the ranked search screen; Calendar stays empty.
+    func testSearchTabRendersSearchAndCalendarStaysEmpty() {
+        XCTAssertEqual(UI2Shell.rootPage(for: .search), .search)
+        XCTAssertEqual(UI2Shell.rootPage(for: .calendar), .empty)
+    }
     func testEntryPoint() {
         let m = UI2ShellModel()
         XCTAssertEqual(m.tab, .home); XCTAssertEqual(m.section, .home); XCTAssertTrue(m.showsTopNav)

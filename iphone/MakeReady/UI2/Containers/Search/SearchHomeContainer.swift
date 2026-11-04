@@ -4,8 +4,8 @@ import SwiftUI
 /// so this container does (300 ms, `Task.sleep`, as GroupsHomeContainer does); the query and the picks
 /// are `@State` (D20) and the recents, results and filter options live in `AppState` (D26), written only
 /// by `SearchActions`. A row tap records the open without waiting for it and then exits (D24); a photo
-/// opens `ImageViewer`, every other type pushes a page (SearchHomeMapper.exit). The root scroll is
-/// added where the shell mounts this container (Task 12).
+/// opens `ImageViewer`, every other type pushes a page (SearchHomeMapper.exit). The container owns the root
+/// scroll the screen lacks (§iphone Root scroll).
 struct SearchHomeContainer: View {
     /// D20: the query runs this long after the last keystroke.
     static let searchDebounce: Duration = .milliseconds(300)
@@ -39,27 +39,18 @@ struct SearchHomeContainer: View {
         let output = SearchHomeMapper.output(
             recents: app.searchRecents, results: app.searchResults, query: query,
             answeredQuery: app.searchAnsweredQuery, selection: selection, options: app.searchFilterOptions, tz: .current)
-        SearchHomeScreen(
-            state: output.state,
-            onSearch: { queryChanged($0) },
-            onTapFilter: { openMenu = $0 },
-            onOpenRecent: { row in
-                guard output.recentItems.indices.contains(row) else { return }
-                open(output.recentItems[row])
-            },
-            onRemoveRecent: { row in
-                guard output.recentItems.indices.contains(row) else { return }
-                let item = output.recentItems[row]
-                Task { await actions.removeRecent(item) }
-            },
-            onOpenResult: { row in
-                guard output.resultItems.indices.contains(row) else { return }
-                open(output.resultItems[row])
-            },
-            onResultAppear: { row in
-                if Self.shouldLoadNextPage(afterRow: row, of: output.resultItems.count) { loadNextPage() }
-            }
-        )
+        ScrollView {
+            screen(output: output)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .scrollBounceBehavior(.always, axes: .vertical)
+        // `.underScreenHeader` already gives safe area + 16, so no top padding here. The status-bar strip
+        // stays page background (HomeSectionLayout), so rows scrolling up never show through it.
+        .overlay(alignment: .top) {
+            Color.clear.frame(height: 0)
+                .background(alignment: .bottom) { Token.layoutBackground.ignoresSafeArea(edges: .top) }
+                .allowsHitTesting(false)
+        }
         .filterMenuPresentation(isPresented: openMenu != nil, onDismiss: { openMenu = nil }) {
             if let filter = openMenu { menu(for: filter, options: app.searchFilterOptions) }
         }
@@ -83,6 +74,30 @@ struct SearchHomeContainer: View {
             // Returning from a pushed page: the opened item is at the top of C2 (the first appear is `.task`'s).
             if hasAppeared { reloadRecents() } else { hasAppeared = true }
         }
+    }
+
+    private func screen(output: SearchHomeMapper.Output) -> some View {
+        SearchHomeScreen(
+            state: output.state,
+            onSearch: { queryChanged($0) },
+            onTapFilter: { openMenu = $0 },
+            onOpenRecent: { row in
+                guard output.recentItems.indices.contains(row) else { return }
+                open(output.recentItems[row])
+            },
+            onRemoveRecent: { row in
+                guard output.recentItems.indices.contains(row) else { return }
+                let item = output.recentItems[row]
+                Task { await actions.removeRecent(item) }
+            },
+            onOpenResult: { row in
+                guard output.resultItems.indices.contains(row) else { return }
+                open(output.resultItems[row])
+            },
+            onResultAppear: { row in
+                if Self.shouldLoadNextPage(afterRow: row, of: output.resultItems.count) { loadNextPage() }
+            }
+        )
     }
 
     // MARK: - Decisions (pure, tested)
