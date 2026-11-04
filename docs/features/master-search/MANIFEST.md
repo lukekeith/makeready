@@ -1,7 +1,7 @@
 size: lg
 state: built
-next: /builder:agent-walk --path docs/features/master-search
-head: f0f9cce7
+next: /builder:resume --path docs/features/master-search
+head: 5abd85d5
 ticket: none
 branch: builder/master-search
 pr: none
