@@ -8,6 +8,8 @@ the walk env would not start (agent_walk.reset failed: docker compose -p makerea
 
 ## What was tried
 - 9 fleet run(s) in all — `git log --oneline -- docs/features/master-search` lists what each changed
+- 2026-11-04 unpark run — Docker is back: `docker ps` answers, makeready-postgres healthy, the fleet's reset and start succeeded, agent_walk.smoke passes, atlas status on makeready_walk reads `Already at latest version` (78 files, 0 pending). The cause (Docker Desktop VM stopped 02:11:49, `The storage device attachment is invalid.`) no longer holds; why the VM stopped is still unknown. No repo change was needed.
+- 2026-11-04 unpark run — found why round 2's `## Fixes` are missing: commit 454f0085 wrote them, then fleet.mjs envDied (line 1421) reset the branch to 68f1458b because the env died under that walk. That is by design, so the commit was not restored; the walk runs again as round 3.
 
 ## Evidence
 - the run that parked it: /Users/lukekeith/www/makeready/.builder/fleet/logs/master-search-09.log — its last lines:
@@ -52,3 +54,4 @@ run agent_walk.start in /Users/lukekeith/www/makeready.fleet/master-search and f
 - 2026-11-04 parked — the walk env would not start (agent_walk.reset failed: docker compose -p makeready up -d --force-recreate s3mock && for i in $(seq 1 60); do curl -sf -o /dev/null localhost:9010 && break; sleep 1; done && curl -sf -o /dev/null localhost:9010 && docker exec makeready-postgres dropdb -U postgres --if-exists --force makeready_walk && docker exec makeready-postgres createdb -U postgres makeready_walk && (cd server && npm run migrate:apply && npm run db:seed) && if [ -f server/fixtures/index.ts ]; then (cd server && env NODE_ENV=development DATABASE_URL="postgresql://postgres:postgres@localhost:5434/makeready_walk" DIRECT_URL="postgresql://postgres:postgres@localhost:5434/makeready_walk" npm run fixtures:reset); fi) and an agent run could not fix it
 - 2026-11-04 unparked by the fleet — automatic retry 2 of 2
 - 2026-11-04 unparked by a person — named to /builder:agent or /builder:fleet
+- 2026-11-04 walk env up again after Docker recovered — readiness passed, agent walk round 3 dispatched
