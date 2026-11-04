@@ -162,6 +162,34 @@ final class AppState {
     /// `GET /api/home/days?memberId=` — the member page's D12 rail, by member id.
     var memberDaysById: [String: [HomeDay]] = [:]
 
+    // MARK: master-search — the search domain (D26: in memory only)
+    // `PersistedState` never encodes these and `clearInMemory()` empties them. Recents and results
+    // are ordered arrays de-duplicated by `SearchItem.key`: a ranked list has no key to re-sort by.
+
+    /// C2: recently opened results, newest first. Survives leaving the tab; refreshed on open.
+    var searchRecents: [SearchItem] = []
+    /// C1: the ranked rows for the query being typed. Cleared when the query goes.
+    var searchResults: [SearchItem] = []
+    var searchNextCursor: String?
+    /// The trimmed query `searchResults` answers; nil until a response for the current query lands (D41).
+    var searchAnsweredQuery: String?
+    /// C5: the chips' options.
+    var searchFilterOptions: SearchFilterOptions?
+    /// `SearchItem.key`s whose C4 has not settled; C2 merges skip them (D42).
+    var searchPendingRemovals: Set<String> = []
+
+    /// Request tokens (D42): a load applies its response only while its token is still current.
+    @ObservationIgnored var searchRequestToken = UUID()
+    @ObservationIgnored var searchRecentsToken = UUID()
+    /// The token whose next page is in flight; a page is in flight while this equals `searchRequestToken`.
+    @ObservationIgnored var searchNextPageToken: UUID?
+
+    /// D42: drop every recent and result `isStale` matches (a deleted group, program or media item).
+    func dropSearchItems(where isStale: (SearchItem) -> Bool) {
+        searchRecents.removeAll(where: isStale)
+        searchResults.removeAll(where: isStale)
+    }
+
     // MARK: invites D22 — personal data, memory only (the UI2 D21/T14 exception)
     let invitations = EntityStore<InvitationFeedItem>()
     var invitationDetails: [String: InvitationDetail] = [:]
@@ -1054,6 +1082,16 @@ final class AppState {
         calendarEvents = [:]
         calendarEventsLoaded = false
         lessonScheduleMap = [:]
+
+        searchRecents = []
+        searchResults = []
+        searchNextCursor = nil
+        searchAnsweredQuery = nil
+        searchFilterOptions = nil
+        searchPendingRemovals = []
+        searchRequestToken = UUID()
+        searchRecentsToken = UUID()
+        searchNextPageToken = nil
 
         loadingStates.clearAll()
         errors = []

@@ -298,6 +298,7 @@ struct GroupActions {
         let enrollmentIds = Set(state.groupEnrollmentIndex.get(id))
 
         state.groups.remove(id)
+        state.dropSearchItems { $0.type == "GROUP" && $0.id == id }
 
         let postIds = state.groupPostIndex.get(id)
         state.posts.removeMany(postIds)
