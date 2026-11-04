@@ -213,6 +213,7 @@ struct UI2Shell: View {
         case let .enrollSelectSync(flowId): EnrollSelectSyncContainer(flowId: flowId)
         case let .enrollSelectAccess(flowId): EnrollSelectAccessContainer(flowId: flowId)
         case let .chooseCoverFromLibrary(owner): MediaHomeContainer(mode: .pick(owner))  // media-library D9
+        case .mediaHome, .programsHome: EmptyPage()  // master-search D9/D27: the real pages land in Task 11
         }
     }
 

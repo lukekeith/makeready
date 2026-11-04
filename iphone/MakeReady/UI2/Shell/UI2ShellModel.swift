@@ -65,6 +65,10 @@ enum UI2Destination: Hashable {
     /// media-library D9: the Media grid in pick mode, above a group's or program's page; a pick
     /// replaces it with that owner's Edit cover page.
     case chooseCoverFromLibrary(owner: CoverOwner)
+    /// master-search D9: the Media page, pushed by a tapped video; the TabBar stays.
+    case mediaHome
+    /// master-search D27: the Programs list, pushed by a tapped template; the TabBar stays.
+    case programsHome
 }
 
 extension UI2Destination {
