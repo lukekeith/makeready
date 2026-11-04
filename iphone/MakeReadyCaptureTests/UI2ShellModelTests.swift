@@ -50,6 +50,11 @@ final class UI2ShellModelTests: XCTestCase {
         XCTAssertTrue(UI2Destination.editGroupCover(groupId: "g", source: .stored).isFullScreen)
         XCTAssertFalse(UI2Destination.createGroup.isFullScreen)
     }
+    /// master-search §iphone Pushed pages: the exits to Media and Programs keep the TabBar.
+    func testExitDestinationsKeepTheTabBar() {
+        XCTAssertFalse(UI2Destination.mediaHome.isFullScreen)
+        XCTAssertFalse(UI2Destination.programsHome.isFullScreen)
+    }
     func testTopNavOnlyOnHome() {
         var m = UI2ShellModel()
         for tab in [TabBar.Tab.calendar, .search, .profile] { m.apply(.tab(tab)); XCTAssertFalse(m.showsTopNav) }
