@@ -234,6 +234,20 @@ export async function seedMasterSearchWorld(prisma: PrismaClient) {
   const schedule = await prisma.lessonSchedule.create({ data: { enrollmentId: mainEnrollment.id, lessonId: scheduledLesson.id, scheduledDate: new Date('2026-01-05') } })
   const scheduledActivity = await prisma.scheduledLessonActivity.create({ data: { lessonScheduleId: schedule.id, type: 'READ', orderNumber: 1, title: 'Reading' } })
   await prisma.activityReadBlock.create({ data: { scheduledActivityId: scheduledActivity.id, title: 'Block', content: 'scheduledonlyword' } })
+  // `orchardword`: a lesson with the word in its title and three reached only through other text, whose ranks
+  // follow how often the word occurs. The strongest also has a weaker activity, so its rank must be the greatest.
+  const orchardActivity = (lessonId: string, orderNumber: number, readContent: string) =>
+    prisma.lessonActivity.create({ data: { lessonId, orderNumber, activityType: 'READ', title: 'Reading', readContent } })
+  const orchardTitleLesson = await lesson(mainProgram.id, 30, 'Harbor Orchardword')
+  const orchardStrongActivityLesson = await lesson(mainProgram.id, 31, 'Harbor Morning')
+  await orchardActivity(orchardStrongActivityLesson.id, 1, 'orchardword')
+  await orchardActivity(orchardStrongActivityLesson.id, 2, 'orchardword orchardword orchardword')
+  const orchardBlockLesson = await lesson(mainProgram.id, 32, 'Harbor Noon')
+  const orchardBlockActivity = await orchardActivity(orchardBlockLesson.id, 1, 'Nothing here')
+  await prisma.activityReadBlock.create({ data: { lessonActivityId: orchardBlockActivity.id, title: 'Block', content: 'orchardword orchardword' } })
+  const orchardWeakActivityLesson = await lesson(mainProgram.id, 33, 'Harbor Dusk')
+  await orchardActivity(orchardWeakActivityLesson.id, 1, 'orchardword')
+
   const mixedCaseEmail = `Mixed.Case-${stamp}@MS.Test`
   const mixedCaseEmailMember = await memberOf('Harbor', [orgA.id], [], true, mixedCaseEmail)
 
@@ -323,6 +337,7 @@ export async function seedMasterSearchWorld(prisma: PrismaClient) {
     tagOnlyPhotoId: tagOnlyPhoto.id,
     tagOnlyVideoId: tagOnlyVideo.id,
     blockOnlyLessonId: blockOnlyLesson.id,
+    orchardLessonIdsByRank: [orchardTitleLesson.id, orchardStrongActivityLesson.id, orchardBlockLesson.id, orchardWeakActivityLesson.id],
     untitledLessonId: untitledLesson.id,
     mixedCaseEmail,
     mixedCaseEmailMemberId: mixedCaseEmailMember.id,

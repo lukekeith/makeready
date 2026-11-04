@@ -5,9 +5,9 @@ import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { assertSearchLease } from './helpers/master-search-db.js'
 import { seedMasterSearchWorld, type MasterSearchWorld } from './helpers/master-search-world.js'
-import { prisma } from '../src/lib/prisma.js'
+import { Prisma, prisma } from '../src/lib/prisma.js'
 import searchRoutes from '../src/routes/search.js'
-import { buildArm, buildSearchScope, serializeSearchItem } from '../src/services/master-search.js'
+import { buildArm, buildSearchScope, buildTextMatch, serializeSearchItem } from '../src/services/master-search.js'
 import { SEARCH_TYPES, encodeCursor, type SearchType } from '../src/services/master-search-query.js'
 
 const LEGACY_SEARCH_KEYS = ['counts', 'pagination', 'query', 'results', 'success']
@@ -168,6 +168,33 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('GET /api/search/ranked', () => 
       expect(items[0].score).toBeGreaterThan(1)
       expect(items[0].score).toBeLessThan(2)
     }
+  })
+
+  it('D39: a title, an activity and a read block rank together, one row per lesson at its greatest rank', async () => {
+    const { items } = await search(world.owner, { q: 'orchardword', types: 'LESSON' })
+    expect(items.map((i: any) => i.id)).toEqual(world.orchardLessonIdsByRank)
+    const [title, strong, block, weak] = items.map((i: any) => i.score)
+    expect(title).toBeGreaterThan(2)
+    expect(title).toBeLessThan(3)
+    expect(strong).toBeGreaterThan(block)
+    expect(block).toBeGreaterThan(weak)
+    expect(weak).toBeGreaterThan(1)
+    expect(strong).toBeLessThan(2)
+  })
+
+  it('F4: LESSON reads activities and read blocks once per query, never once per lesson', async () => {
+    const scope = await buildSearchScope(world.owner.id)
+    const [row] = await prisma.$queryRaw<any[]>(Prisma.sql`EXPLAIN (FORMAT JSON) ${buildArm('LESSON', scope, {}, buildTextMatch('orchardword'))}`)
+    const read: { relation: string; perLesson: boolean }[] = []
+    const walk = (node: any, inSubPlan: boolean) => {
+      const perLesson = inSubPlan || node['Parent Relationship'] === 'SubPlan'
+      if (node['Relation Name']) read.push({ relation: node['Relation Name'], perLesson })
+      for (const child of node.Plans ?? []) walk(child, perLesson)
+    }
+    walk(row['QUERY PLAN'][0].Plan, false)
+    const texts = read.filter((r) => r.relation === 'lesson_activities' || r.relation === 'activity_read_blocks')
+    expect(new Set(texts.map((r) => r.relation))).toEqual(new Set(['lesson_activities', 'activity_read_blocks']))
+    expect(texts.filter((r) => r.perLesson)).toEqual([])
   })
 
   it('D16: a scheduled copy of a read block does not match', async () => {

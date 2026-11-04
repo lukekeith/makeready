@@ -191,8 +191,11 @@ interface ArmShape {
   filters: FilterColumns
   /** Text other than the arm's own vector that also matches, at tier 1 (D16). */
   otherMatch?: (tsq: Prisma.Sql) => Prisma.Sql
-  /** A LATERAL giving `lr."rank"`, used in place of the vector's own rank (D39). */
-  rankLateral?: (tsq: Prisma.Sql) => Prisma.Sql
+  /**
+   * A LEFT JOIN giving `ot."rank"`, the greatest rank of the row's other text and null when none of it matches.
+   * Both the match and the rank read it (D39), so that text is evaluated once per query, not once per row (F4).
+   */
+  otherTextJoin?: (tsq: Prisma.Sql) => Prisma.Sql
   /** D35: `exact` predicates score tier 4; `loose` ones only match, at tier 1. */
   contact?: { exact: (m: TextMatch) => Prisma.Sql[]; loose: (m: TextMatch) => Prisma.Sql[] }
 }
@@ -242,10 +245,6 @@ function lessonShape(scope: SearchScope): ArmShape {
   const activity = qualifySearchExpr(SEARCH_TEXT.activity, 'la')
   const block = qualifySearchExpr(SEARCH_TEXT.readBlock, 'rb')
   const lesson = qualifySearchExpr(SEARCH_TEXT.lesson, 'l')
-  // `"lessonActivityId" IS NOT NULL` keeps scheduled copies out (D16) and is the partial index's predicate.
-  const blockFrom = raw(`"activity_read_blocks" rb JOIN "lesson_activities" la ON la."id"::text = rb."lessonActivityId"::text
-    WHERE rb."lessonActivityId" IS NOT NULL AND la."lessonId"::text = l."id"::text`)
-  const activityFrom = raw(`"lesson_activities" la WHERE la."lessonId"::text = l."id"::text`)
   return {
     from: `"lessons" l JOIN "study_programs" p ON p."id"::text = l."studyProgramId"::text`,
     id: 'l."id"',
@@ -262,13 +261,18 @@ function lessonShape(scope: SearchScope): ArmShape {
       leader: (ids) => leaderIn(['p."leaderId"', 'p."creatorId"'], ids),
       tag: (tags) => tagIn('study_program_tags', 'studyProgramId', 'l."studyProgramId"', tags),
     },
-    otherMatch: (tsq) => Prisma.sql`EXISTS (SELECT 1 FROM ${activityFrom} AND ${raw(activity)} @@ ${tsq})
-      OR EXISTS (SELECT 1 FROM ${blockFrom} AND ${raw(block)} @@ ${tsq})`,
-    rankLateral: (tsq) => Prisma.sql`CROSS JOIN LATERAL (SELECT GREATEST(
-      ts_rank(${raw(lesson)}, ${tsq}, 32),
-      (SELECT max(ts_rank(${raw(activity)}, ${tsq}, 32)) FROM ${activityFrom} AND ${raw(activity)} @@ ${tsq}),
-      (SELECT max(ts_rank(${raw(block)}, ${tsq}, 32)) FROM ${blockFrom} AND ${raw(block)} @@ ${tsq})
-    ) AS "rank") lr`,
+    // `"lessonActivityId" IS NOT NULL` keeps scheduled copies out (D16) and is the partial index's predicate.
+    otherTextJoin: (tsq) => Prisma.sql`LEFT JOIN (
+      SELECT t."lessonId", max(t."rank") AS "rank" FROM (
+        SELECT la."lessonId"::text AS "lessonId", ts_rank(${raw(activity)}, ${tsq}, 32) AS "rank"
+          FROM "lesson_activities" la
+          WHERE ${raw(activity)} @@ ${tsq}
+        UNION ALL
+        SELECT la."lessonId"::text, ts_rank(${raw(block)}, ${tsq}, 32)
+          FROM "activity_read_blocks" rb JOIN "lesson_activities" la ON la."id"::text = rb."lessonActivityId"::text
+          WHERE rb."lessonActivityId" IS NOT NULL AND ${raw(block)} @@ ${tsq}
+      ) t GROUP BY t."lessonId"
+    ) ot ON ot."lessonId" = l."id"::text`,
   }
 }
 
@@ -441,19 +445,21 @@ function textPredicates(shape: ArmShape, t: TextMatch) {
       prefix,
       ...(tsq ? [Prisma.sql`${raw(shape.vector)} @@ ${tsq}`] : []),
       ...(tsq && shape.otherMatch ? [shape.otherMatch(tsq)] : []),
+      ...(tsq && shape.otherTextJoin ? [Prisma.sql`ot."rank" IS NOT NULL`] : []),
       ...contactExact,
       ...contactLoose,
     ],
     ' OR ',
   )
 
-  const lateral = tsq && shape.rankLateral ? shape.rankLateral(tsq) : Prisma.empty
-  const rank = !tsq
+  const join = tsq && shape.otherTextJoin ? shape.otherTextJoin(tsq) : Prisma.empty
+  const ownRank = tsq && Prisma.sql`ts_rank(${raw(shape.vector)}, ${tsq}, 32)`
+  const rank = !ownRank
     ? Prisma.sql`0`
-    : shape.rankLateral
-      ? Prisma.sql`coalesce(lr."rank"::float8, 0)`
-      : Prisma.sql`coalesce(ts_rank(${raw(shape.vector)}, ${tsq}, 32)::float8, 0)`
-  return { match, lateral, score: Prisma.sql`(${tier})::float8 + ${rank}` }
+    : shape.otherTextJoin
+      ? Prisma.sql`coalesce(GREATEST(${ownRank}, ot."rank")::float8, 0)`
+      : Prisma.sql`coalesce(${ownRank}::float8, 0)`
+  return { match, join, score: Prisma.sql`(${tier})::float8 + ${rank}` }
 }
 
 /**
@@ -462,9 +468,9 @@ function textPredicates(shape: ArmShape, t: TextMatch) {
  */
 export function buildArm(type: SearchType, scope: SearchScope, filters: ArmFilters, source: ArmSource): Prisma.Sql {
   const shape = shapeFor(type, scope)
-  const { match, lateral, score } =
+  const { match, join, score } =
     'ids' in source
-      ? { match: Prisma.sql`${raw(shape.id)}::text = ${anyText(source.ids)}`, lateral: Prisma.empty, score: Prisma.sql`NULL::float8` }
+      ? { match: Prisma.sql`${raw(shape.id)}::text = ${anyText(source.ids)}`, join: Prisma.empty, score: Prisma.sql`NULL::float8` }
       : textPredicates(shape, source)
   const column = (expr: string | undefined) => raw(expr ? `(${expr})::text` : 'NULL::text')
   return Prisma.sql`SELECT s.*, s."score"::text AS "scoreText", s."createdAt"::text AS "createdAtText" FROM (
@@ -478,7 +484,7 @@ export function buildArm(type: SearchType, scope: SearchScope, filters: ArmFilte
       ${column(shape.parent?.name)} AS "parentName",
       ${raw(shape.createdAt)} AS "createdAt",
       ${score} AS "score"
-    FROM ${raw(shape.from)} ${lateral}
+    FROM ${raw(shape.from)} ${join}
     WHERE ${shape.visible}
       AND ${filterSql(shape.filters, scope, filters)}
       AND (${match})
