@@ -37,17 +37,8 @@ struct SearchHomeContainer: View {
         let output = SearchHomeMapper.output(
             recents: app.searchRecents, results: app.searchResults, query: query,
             answeredQuery: app.searchAnsweredQuery, selection: selection, options: app.searchFilterOptions, tz: .current)
-        ScrollView {
+        SearchPageScroll {
             screen(output: output)
-        }
-        .scrollDismissesKeyboard(.interactively)
-        .scrollBounceBehavior(.always, axes: .vertical)
-        // `.underScreenHeader` already gives safe area + 16, so no top padding here. The status-bar strip
-        // stays page background (HomeSectionLayout), so rows scrolling up never show through it.
-        .overlay(alignment: .top) {
-            Color.clear.frame(height: 0)
-                .background(alignment: .bottom) { Token.layoutBackground.ignoresSafeArea(edges: .top) }
-                .allowsHitTesting(false)
         }
         .filterMenuPresentation(isPresented: openMenu != nil, onDismiss: { openMenu = nil }) {
             if let filter = openMenu { menu(for: filter, options: app.searchFilterOptions) }
@@ -105,6 +96,15 @@ struct SearchHomeContainer: View {
         index >= count - pagingLookahead
     }
 
+    /// The field also reports its text when it loses focus (the keyboard's Search key, a keyboard
+    /// dismissed), with nothing typed. A query already answered does not run again: its first page
+    /// would replace the pages loaded since (agent walk round 1). An unanswered one does, so the
+    /// Search key still retries a failed query.
+    static func shouldRunQuery(text: String, previous: String, answered: String?) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed != previous.trimmingCharacters(in: .whitespacesAndNewlines) || trimmed != answered
+    }
+
     // MARK: - Effects
 
     private var filters: SearchFilters { SearchHomeMapper.filters(selection) }
@@ -125,7 +125,9 @@ struct SearchHomeContainer: View {
     /// D20/D41: 2+ trimmed characters run after the debounce; fewer cancel it and clear the answer
     /// (C2 is current already: a pick refetches it in `applyPicks`).
     private func queryChanged(_ text: String) {
+        let runs = Self.shouldRunQuery(text: text, previous: query, answered: AppState.shared.searchAnsweredQuery)
         query = text
+        guard runs else { return }
         searchTask?.cancel()
         if isQueryLive {
             let actions = self.actions
@@ -217,5 +219,29 @@ struct SearchHomeContainer: View {
                 save(ids)
                 openMenu = nil
             })
+    }
+}
+
+/// master-search §iphone Root scroll: off Home nothing supplies the page's scroll, so this does.
+/// `.underScreenHeader` already gives safe area + 16, so no top padding here.
+struct SearchPageScroll<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        ScrollView {
+            content
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .scrollBounceBehavior(.always, axes: .vertical)
+        // A page shorter than the screen must not show the window's white below its content; the
+        // same background SectionPageScroll and EmptyPage draw (agent walk round 1).
+        .background(Token.layoutBackground.ignoresSafeArea())
+        // The status-bar strip stays page background (HomeSectionLayout), so rows scrolling up
+        // never show through it.
+        .overlay(alignment: .top) {
+            Color.clear.frame(height: 0)
+                .background(alignment: .bottom) { Token.layoutBackground.ignoresSafeArea(edges: .top) }
+                .allowsHitTesting(false)
+        }
     }
 }

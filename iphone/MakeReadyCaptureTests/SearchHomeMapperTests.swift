@@ -133,6 +133,20 @@ final class SearchHomeMapperTests: XCTestCase {
         XCTAssertTrue(SearchHomeContainer.shouldLoadNextPage(afterRow: 0, of: 3))
     }
 
+    /// Agent walk round 1: the field reports its text again on losing focus; an answered query must
+    /// not run again, or its first page replaces every page loaded since.
+    func testAnAnsweredQueryDoesNotRunAgainWhenTheFieldReportsItUnchanged() {
+        XCTAssertFalse(SearchHomeContainer.shouldRunQuery(text: "grace", previous: "grace", answered: "grace"))
+        XCTAssertFalse(SearchHomeContainer.shouldRunQuery(text: "grace ", previous: "grace", answered: "grace"))
+    }
+
+    func testAChangedOrUnansweredQueryRuns() {
+        XCTAssertTrue(SearchHomeContainer.shouldRunQuery(text: "grace", previous: "grac", answered: "grac"))
+        XCTAssertTrue(SearchHomeContainer.shouldRunQuery(text: "gr", previous: "grace", answered: "grace"))
+        XCTAssertTrue(SearchHomeContainer.shouldRunQuery(text: "", previous: "grace", answered: "grace"))
+        XCTAssertTrue(SearchHomeContainer.shouldRunQuery(text: "grace", previous: "grace", answered: nil), "the Search key retries a failed query")
+    }
+
     // MARK: - D41 (refined): what the screen draws below the header
 
     private func recentsState() -> SearchHomeScreen.State { .recentsPopulated }
