@@ -207,7 +207,7 @@ struct SearchHomeScreen: View {
         } else {
             // §2 Results list (state 3): padding `space-page-margin`, then C-085 rows + hairlines.
             // One ranked list: no C-020 title and no per-type sections (D67).
-            VStack(spacing: 0) {
+            LazyVStack(spacing: 0) {
                 ForEach(state.resultTitles.indices, id: \.self) { index in
                     SearchResultRow(
                         kind: kind(state.resultKinds, index),
