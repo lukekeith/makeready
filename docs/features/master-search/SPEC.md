@@ -298,3 +298,10 @@ Searched-field names corrected to the app: `phoneNumber`, `ActivityReadBlock`, `
 | N5 | `search-home` fixture | SPEC: D25 | server |
 | N6 | Container, mapper, actions, `AppState` domain | SPEC: D26 | iphone |
 | N7 | `.mediaHome` destination | SPEC: D9 | iphone |
+
+## Fixes
+
+- [ ] iphone: E3, a photo whose image cannot load — expected the viewer opens (blank image allowed) and can be left, saw a spinner over the still-visible page with no backdrop, Close never hittable and the page blocked until the app was killed; applies to any photo that fails to load (agent walk round 1)
+- [ ] iphone: Search tab background below short content (E1, E2, E3, E9) — expected the page background fills down to the tab bar or keyboard, saw solid white from the end of the content, across the entire body in E9, while the Calendar tab fills dark in the same run (agent walk round 1)
+- [ ] iphone: photo viewer opened from results with the keyboard up — expected Close can be used after a tap, saw the keyboard stay up over the viewer and cover the Close disc and the lower edge of the image; a drag down closes it, and from recents with no keyboard Close works (agent walk round 1)
+- [ ] iphone: keyboard Search key after scrolling past page 1 — expected loaded rows and paging continue, saw the list drop from 34 titles to page 1's 20 and further drags load nothing until scrolling up and back down; reproduced twice, cause not established (agent walk round 1)
