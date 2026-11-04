@@ -39,6 +39,9 @@ struct SearchActions {
         let token = UUID()
         state.searchRequestToken = token
         state.searchNextPageToken = nil
+        // The old query's cursor is meaningless for this one: clearing it makes a next-page load
+        // inert until the first page lands, while the prior rows stay displayed (D20).
+        state.searchNextCursor = nil
         let generation = state.initialLoad.generation
         do {
             let response: SearchItemsResponse = try await api.get(
@@ -67,7 +70,7 @@ struct SearchActions {
         do {
             let response: SearchItemsResponse = try await api.get(
                 rankedPath(query: trimmed, filters: filters, cursor: cursor), responseType: SearchItemsResponse.self)
-            guard isCurrent(token: token, generation: generation) else { return }
+            guard isCurrent(token: token, generation: generation), state.searchNextCursor == cursor else { return }
             state.searchResults = Self.deduplicated(state.searchResults + response.items)
             state.searchNextCursor = response.nextCursor
         } catch {

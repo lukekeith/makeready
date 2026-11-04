@@ -90,6 +90,23 @@ final class SearchActionsTests: XCTestCase {
         XCTAssertEqual(state.searchAnsweredQuery, "new")
     }
 
+    func testNextPageDuringANewQueryNeverUsesTheOldCursor() async {
+        let gate = AsyncGate()
+        state.searchResults = [item("old")]
+        state.searchNextCursor = "oldCursor"
+        api.responseFor = { _, endpoint in
+            if endpoint.contains("q=new") && !endpoint.contains("cursor") { await gate.wait() }
+            return Data(self.page(["new"], next: nil).utf8)
+        }
+        let first = Task { await actions.search(query: "new", filters: SearchFilters()) }
+        await Task.yield()
+        await actions.loadNextPage(query: "new", filters: SearchFilters())
+        await gate.open(); await first.value
+        XCTAssertFalse(api.calls.contains { $0.endpoint.contains("cursor=oldCursor") })
+        XCTAssertEqual(state.searchResults.map(\.id), ["new"])
+        XCTAssertNil(state.searchNextCursor)
+    }
+
     func testFailureLeavesTheQueryUnanswered() async {
         state.searchResults = [item("a")]
         api.errorToThrow = APIError.serverError("boom")
