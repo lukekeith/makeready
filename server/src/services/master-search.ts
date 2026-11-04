@@ -25,7 +25,7 @@ import { memberAccessScope } from './member-access.js'
 import { normalizePhone } from './member-fields.js'
 import { getUserOrganizations } from './organization.js'
 import { privateProgramAdminOrgIds } from './study-program.service.js'
-import { listTagCategories } from './tag-categories.js'
+import { listTagCategories, normalizeTag } from './tag-categories.js'
 
 export interface SearchScope {
   userId: string
@@ -604,4 +604,85 @@ export async function recordRecentResult(userId: string, type: SearchType, id: s
 export async function deleteRecentResult(userId: string, type: SearchType, id: string): Promise<void> {
   await prisma.$executeRaw`DELETE FROM "search_recent_results"
     WHERE "userId"::text = ${userId} AND "resourceType" = ${type} AND "resourceId" = ${id}`
+}
+
+export interface FilterOptions {
+  organizations: { id: string; name: string }[]
+  groups: { id: string; name: string; organizationId: string }[]
+  leaders: { id: string; name: string }[]
+  tags: { tag: string; label: string; category: string | null }[]
+}
+
+/** Code-point order, so a sort never depends on the database's collation (D38). */
+const compareText = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
+const byNameThenId = <T extends { id: string; name: string }>(a: T, b: T) => compareText(a.name, b.name) || compareText(a.id, b.id)
+const titleCase = (s: string) => s.replace(/(^|\s)(\S)/g, (_m, space: string, c: string) => space + c.toUpperCase())
+
+/** D31: category members first (categories, then members, by position), then the other stored tags by label. */
+async function buildTagOptions(orgIds: string[]): Promise<FilterOptions['tags']> {
+  const [categories, mediaTags, programTags] = await Promise.all([
+    listTagCategories(),
+    orgIds.length
+      ? prisma.mediaTag.findMany({ where: { media: { isActive: true, organizationId: { in: orgIds } } }, select: { tag: true } })
+      : [],
+    orgIds.length
+      ? prisma.studyProgramTag.findMany({ where: { studyProgram: { isActive: true, organizationId: { in: orgIds } } }, select: { tag: true } })
+      : [],
+  ])
+  const options: FilterOptions['tags'] = []
+  const known = new Set<string>()
+  for (const category of categories) {
+    const seenPositions = new Set<number>()
+    for (const member of category.tags) {
+      known.add(normalizeTag(member.tag))
+      if (seenPositions.has(member.position)) continue
+      seenPositions.add(member.position)
+      options.push({ tag: member.tag, label: member.label, category: category.name })
+    }
+  }
+  // The first stored spelling of each remaining normalized tag, in code-point order so the choice is stable.
+  const firstSpelling = new Map<string, string>()
+  for (const { tag } of [...mediaTags, ...programTags].sort((a, b) => compareText(a.tag, b.tag))) {
+    const key = normalizeTag(tag)
+    if (key && !known.has(key) && !firstSpelling.has(key)) firstSpelling.set(key, tag)
+  }
+  const rest = [...firstSpelling.values()].map((tag) => ({ tag, label: titleCase(tag.trim()), category: null }))
+  rest.sort((a, b) => compareText(a.label, b.label) || compareText(a.tag, b.tag))
+  return [...options, ...rest]
+}
+
+/** C5 (D13, D14, D31, D38): the options of the filter chips, across the caller's orgs. */
+export async function searchFilterOptions(userId: string): Promise<FilterOptions> {
+  const orgs = await getUserOrganizations(userId)
+  if (!orgs.success) throw new Error(orgs.error ?? 'Failed to fetch organizations')
+  const organizations = (orgs.data ?? []).map((o) => ({ id: o.id, name: o.name })).sort(byNameThenId)
+  const orgIds = organizations.map((o) => o.id)
+
+  // The definition of routes/programs.ts's /group-leaders, across orgs and without counts.
+  const [groups, creators, roleHolders, tags] = orgIds.length
+    ? await Promise.all([
+        prisma.group.findMany({ where: { organizationId: { in: orgIds }, isActive: true }, select: { id: true, name: true, organizationId: true } }),
+        prisma.group.findMany({
+          where: { organizationId: { in: orgIds }, isActive: true },
+          select: { creator: { select: { id: true, name: true } } },
+          distinct: ['creatorId'],
+        }),
+        prisma.userRole.findMany({
+          where: { organizationId: { in: orgIds }, role: { name: { in: ['Owner', 'Admin', 'Group Leader'] } } },
+          select: { user: { select: { id: true, name: true } } },
+        }),
+        buildTagOptions(orgIds),
+      ])
+    : [[], [], [], await buildTagOptions([])]
+
+  const leadersById = new Map<string, { id: string; name: string }>()
+  for (const user of [...creators.map((c) => c.creator), ...roleHolders.map((r) => r.user)]) {
+    if (user) leadersById.set(user.id, { id: user.id, name: user.name })
+  }
+  return {
+    organizations,
+    groups: [...groups].sort(byNameThenId),
+    leaders: [...leadersById.values()].sort(byNameThenId),
+    tags,
+  }
 }

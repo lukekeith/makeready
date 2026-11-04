@@ -4,7 +4,7 @@ import { prisma, Prisma } from '../lib/prisma.js'
 import { parseReference, getSearchType, matchBookNames } from '../utils/bible-reference-parser.js'
 import { requireAuth } from '../middleware/auth.js'
 import { SEARCH_TYPES, SearchParamError, parseListFilters, parseRankedParams, parseRecentLimit } from '../services/master-search-query.js'
-import { deleteRecentResult, listRecentResults, recordRecentResult, searchRanked } from '../services/master-search.js'
+import { deleteRecentResult, listRecentResults, recordRecentResult, searchFilterOptions, searchRanked } from '../services/master-search.js'
 
 const router = Router()
 
@@ -1750,6 +1750,73 @@ router.delete('/recent-results/:type/:id', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Delete recent result error:', error)
     res.status(500).json({ success: false, error: 'Failed to remove recent result' })
+  }
+})
+
+/**
+ * @openapi
+ * /api/search/filter-options:
+ *   get:
+ *     tags: [Search]
+ *     summary: Options for the search filter chips
+ *     description: |
+ *       Every organization the caller can search, with its active groups, its leaders (group creators and
+ *       Owner, Admin and Group Leader role holders, one row per user) and the tags in use, merged from media
+ *       and programs. Organizations, groups and leaders sort by name, then id. Tags list each category
+ *       member by category and position, then the remaining tags by label. A caller with no organizations
+ *       gets empty organizations, groups and leaders, and the category tags.
+ *     security:
+ *       - session: []
+ *       - apiKey: []
+ *     responses:
+ *       200:
+ *         description: The filter options
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 organizations:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id: { type: string }
+ *                       name: { type: string }
+ *                 groups:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id: { type: string }
+ *                       name: { type: string }
+ *                       organizationId: { type: string }
+ *                 leaders:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id: { type: string }
+ *                       name: { type: string }
+ *                 tags:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       tag: { type: string }
+ *                       label: { type: string }
+ *                       category: { type: string, nullable: true }
+ *       401:
+ *         description: Not authenticated
+ */
+router.get('/filter-options', requireAuth, async (req, res) => {
+  try {
+    res.json({ success: true, ...(await searchFilterOptions((req.user as any).id)) })
+  } catch (error) {
+    console.error('Search filter options error:', error)
+    res.status(500).json({ success: false, error: 'Failed to load filter options' })
   }
 })
 
