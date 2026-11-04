@@ -39,6 +39,11 @@ export const FIXTURE_KIND = {
   // media-page D14: the Media page's tags.
   mediaTag: '001c',
   inviteEvent: '001d',
+  // master-search D25: the search-home screen's posts, templates, program tags and recent results.
+  post: '001e',
+  template: '001f',
+  programTag: '0020',
+  recent: '0021',
 } as const
 
 export type FixtureKind = keyof typeof FIXTURE_KIND
