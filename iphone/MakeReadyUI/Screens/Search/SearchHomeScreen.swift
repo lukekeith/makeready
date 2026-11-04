@@ -49,6 +49,9 @@ struct SearchHomeScreen: View {
         var resultKinds: [String]
         var resultTitles: [String]
         var resultDescriptions: [String]
+        /// master-search D41 — the results belong to the current query. With no rows and no answer
+        /// the screen keeps the last render instead of printing the no-results line.
+        var queryAnswered: Bool = true
     }
 
     let state: State
@@ -122,7 +125,7 @@ struct SearchHomeScreen: View {
         // swiftlint:disable:next lazy_container_in_overlay_content - §2 Pinning: only a lazy stack pins.
         LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
             Section {
-                if isQuerying {
+                if isQuerying && (!state.resultTitles.isEmpty || state.queryAnswered) {
                     queryContent
                 } else if !state.recentTitles.isEmpty {
                     // §3 state 2: no recents → the section, title included, is absent.

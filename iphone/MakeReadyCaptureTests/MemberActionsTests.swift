@@ -126,6 +126,24 @@ final class MemberActionsTests: XCTestCase {
         XCTAssertEqual(state.memberDaysById["m1"]?.first?.lastActivityAt, "2026-10-24T13:20:00.000Z")
     }
 
+    /// master-search §iphone Member days: a member of a second org still opens with their days.
+    func testMemberDaysOmitsAForeignOrg() async {
+        state.organizationId = "o1"
+        state.memberDetails.upsert(memberDetail("m1", orgIds: ["o2"]))
+        api.responseFor = { _, _ in Data(#"{"success":true,"days":[]}"#.utf8) }
+        await actions().loadMemberDays("m1")
+        XCTAssertFalse(api.calls.last!.endpoint.contains("organizationId"))
+        state.memberDetails.upsert(memberDetail("m2", orgIds: ["o1"]))
+        await actions().loadMemberDays("m2")
+        XCTAssertTrue(api.calls.last!.endpoint.contains("organizationId=o1"))
+    }
+
+    private func memberDetail(_ id: String, orgIds: [String]) -> MemberDetail {
+        var detail = MemberDetail(id: id)
+        detail.organizations = orgIds.map { MemberDetailOrganization(organizationId: $0) }
+        return detail
+    }
+
     /// A sign-out while the request is in flight retires the old session's result.
     func testSignOutMidLoadDropsTheResult() async {
         api.stub("GET", "/api/members/m1", json: #"{"success":true,"data":{"id":"m1","firstName":"Tony"}}"#)
