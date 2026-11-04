@@ -190,9 +190,9 @@ struct UI2Shell: View {
     /// A tab's root page. Home's root is the TopNav + section page (D1: the stack wraps
     /// `HomeSectionLayout`, so TopNav slides left with the root under a push).
     @ViewBuilder private func root(for tab: TabBar.Tab) -> some View {
-        switch tab {
+        switch Self.rootPage(for: tab) {
         case .home: HomeSectionLayout(model: $model) { sectionContent }
-        case .calendar: EmptyPage()
+        case .empty: EmptyPage()
         case .search: SearchHomeContainer()  // master-search R1
         case .profile: ProfileStopgapContainer()
         }

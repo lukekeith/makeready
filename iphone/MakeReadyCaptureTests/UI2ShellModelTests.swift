@@ -8,6 +8,7 @@ final class UI2ShellModelTests: XCTestCase {
         XCTAssertEqual(UI2Shell.rootPage(for: .search), .search)
         XCTAssertEqual(UI2Shell.rootPage(for: .calendar), .empty)
     }
+
     func testEntryPoint() {
         let m = UI2ShellModel()
         XCTAssertEqual(m.tab, .home); XCTAssertEqual(m.section, .home); XCTAssertTrue(m.showsTopNav)
