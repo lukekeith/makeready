@@ -98,7 +98,9 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('recent results (C2, C3, C4)', (
     await prisma.group.update({ where: { id: world.tempGroupId }, data: { isActive: false } })
     await prisma.post.delete({ where: { id: world.tempPostId } })
     await removeRolesOf(world.leader)
-    expect((await list(world.owner)).body.items.map((i: any) => i.id)).not.toEqual(expect.arrayContaining([world.tempGroupId, world.tempPostId]))
+    const ownerIds = (await list(world.owner)).body.items.map((i: any) => i.id)
+    expect(ownerIds).not.toContain(world.tempGroupId)
+    expect(ownerIds).not.toContain(world.tempPostId)
     expect((await list(world.leader)).body.items).toHaveLength(0)
   })
 
@@ -115,6 +117,13 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('recent results (C2, C3, C4)', (
     expect(await prisma.searchRecentResult.count({ where: { userId: world.owner.id } })).toBe(100)
     expect((await list(world.owner)).body.items.length).toBeLessThanOrEqual(50)
     expect((await list(world.owner, { limit: '51' })).status).toBe(400)
+  })
+
+  it('a NUL in an id: C3 answers 400, C4 answers as for an unknown id', async () => {
+    expect((await put(world.owner, 'GROUP', 'a\u0000b')).status).toBe(400)
+    const res = await del(world.owner, 'GROUP', 'a%00b')
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ success: true })
   })
 
   it('C3 answers 404 per type, including a wrong type and an invisible member', async () => {

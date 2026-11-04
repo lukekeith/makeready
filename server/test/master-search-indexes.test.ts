@@ -109,7 +109,9 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('master-search indexes', () => {
     // The arm's `"lessonActivityId" IS NOT NULL` is also what idx_activity_read_blocks_lessonActivityId serves, and
     // on an empty analyzed table that btree is cheaper than the GIN index (the planner may pick either), so it is
     // set aside for this one case. On a table with rows the GIN index wins by selectivity.
-    const without = k === 'readBlock' ? ['idx_activity_read_blocks_lessonActivityId'] : []
+    // mediaTag: the btree on "tag" (idx_media_tags_tag) can be scanned in full with the tsquery as its filter, and on a
+    // small table that can beat the GIN index (the verifier saw this fail once, with a green run at the same sha).
+    const without = k === 'readBlock' ? ['idx_activity_read_blocks_lessonActivityId'] : k === 'mediaTag' ? ['idx_media_tags_tag'] : []
     const plan = await explain(`SELECT 1 FROM "${TABLE[k]}" WHERE ${SEARCH_TEXT[k]} @@ to_tsquery('${config}', $1)${partial}`, ['grace:*'], without)
     expect(plan).toContain(index)
   })

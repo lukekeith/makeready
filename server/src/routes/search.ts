@@ -1536,7 +1536,10 @@ router.get('/ranked', requireAuth, async (req, res) => {
   }
 })
 
-const recentBodySchema = z.object({ type: z.enum(SEARCH_TYPES), id: z.string().min(1) }).strict()
+// A NUL cannot be a Postgres text parameter, so it is a bad body rather than a 500.
+const recentBodySchema = z
+  .object({ type: z.enum(SEARCH_TYPES), id: z.string().min(1).refine((id) => !id.includes('\u0000'), 'id contains an invalid character') })
+  .strict()
 
 /**
  * @openapi
@@ -1744,6 +1747,8 @@ router.put('/recent-results', requireAuth, async (req, res) => {
 router.delete('/recent-results/:type/:id', requireAuth, async (req, res) => {
   const type = (SEARCH_TYPES as readonly string[]).includes(req.params.type) ? (req.params.type as (typeof SEARCH_TYPES)[number]) : null
   if (!type) return res.status(400).json({ success: false, error: `Invalid type: ${req.params.type}` })
+  // A NUL cannot match a stored id (and Postgres refuses it as a parameter): answer as for an unknown id.
+  if (req.params.id.includes('\u0000')) return res.json({ success: true })
   try {
     await deleteRecentResult((req.user as any).id, type, req.params.id)
     res.json({ success: true })

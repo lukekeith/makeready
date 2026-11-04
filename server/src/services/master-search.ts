@@ -58,6 +58,8 @@ export interface TextMatch {
   phone: string | null
   /** D35: the LIKE pattern for a digits-only `q`. */
   phonePattern: string | null
+  /** D35 (extended): the LIKE pattern for `q` as part of an email, LIKE-escaped. */
+  emailPattern: string
 }
 
 export type ArmSource = TextMatch | { ids: string[] }
@@ -131,6 +133,7 @@ export function buildTextMatch(q: string): TextMatch {
     tsQuery: buildTsQuery(tokenizeQuery(q)),
     phone: normalizePhone(q),
     phonePattern: digits ? `%${escapeLike(digits)}%` : null,
+    emailPattern: `%${escapeLike(lowerQuery)}%`,
   }
 }
 
@@ -403,7 +406,11 @@ function memberShape(scope: SearchScope): ArmShape {
         Prisma.sql`lower(m."email") = ${t.lowerQuery}`,
         ...(t.phone ? [Prisma.sql`m."phoneNumber" = ${t.phone}`] : []),
       ],
-      loose: (t) => (t.phonePattern ? [Prisma.sql`m."phoneNumber" LIKE ${t.phonePattern}`] : []),
+      // D35: `simple` keeps an address as one lexeme, so a partial address matches by substring.
+      loose: (t) => [
+        Prisma.sql`lower(m."email") LIKE ${t.emailPattern}`,
+        ...(t.phonePattern ? [Prisma.sql`m."phoneNumber" LIKE ${t.phonePattern}`] : []),
+      ],
     },
   }
 }
@@ -629,10 +636,10 @@ async function buildTagOptions(orgIds: string[]): Promise<FilterOptions['tags']>
   const [categories, mediaTags, programTags] = await Promise.all([
     listTagCategories(),
     orgIds.length
-      ? prisma.mediaTag.findMany({ where: { media: { isActive: true, organizationId: { in: orgIds } } }, select: { tag: true } })
+      ? prisma.mediaTag.findMany({ where: { media: { isActive: true, organizationId: { in: orgIds } } }, select: { tag: true }, distinct: ['tag'] })
       : [],
     orgIds.length
-      ? prisma.studyProgramTag.findMany({ where: { studyProgram: { isActive: true, organizationId: { in: orgIds } } }, select: { tag: true } })
+      ? prisma.studyProgramTag.findMany({ where: { studyProgram: { isActive: true, organizationId: { in: orgIds } } }, select: { tag: true }, distinct: ['tag'] })
       : [],
   ])
   const options: FilterOptions['tags'] = []

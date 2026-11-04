@@ -255,6 +255,25 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('GET /api/search/ranked', () => 
     expect((await first(world.memberEmail.toUpperCase())).id).toBe(world.leadersMemberId)
   })
 
+  it('D35 (extended): a partial email finds the member at tier 1, an exact address at tier 4', async () => {
+    const local = world.mixedCaseEmail.split('@')[0].toLowerCase()
+    const ids = async (q: string) => (await search(world.owner, { q, types: 'MEMBER' })).items
+    for (const q of ['mixed.case', local, `${local}@ms`, local.toUpperCase()]) {
+      const hit = (await ids(q)).find((i: any) => i.id === world.mixedCaseEmailMemberId)
+      expect(hit, q).toBeDefined()
+      expect(hit.score, q).toBeLessThan(2)
+    }
+    const exact = (await ids(world.mixedCaseEmail)).find((i: any) => i.id === world.mixedCaseEmailMemberId)
+    expect(exact.score).toBeGreaterThanOrEqual(4)
+  })
+
+  it('D35 (extended): % and _ in q match literally against email', async () => {
+    const has = async (q: string) => (await search(world.owner, { q, types: 'MEMBER' })).items.some((i: any) => i.id === world.mixedCaseEmailMemberId)
+    expect(await has('mixed_case')).toBe(false)
+    expect(await has('mixed.c%e')).toBe(false)
+    expect((await search(world.owner, { q: '%', types: 'MEMBER' })).items).toHaveLength(0)
+  })
+
   it('D29: one row per series, no generated lesson events', async () => {
     const { items } = await search(world.owner, { q: 'grace series', types: 'EVENT' })
     expect(items.map((i: any) => i.id)).toEqual([world.seriesFirstEventId])
