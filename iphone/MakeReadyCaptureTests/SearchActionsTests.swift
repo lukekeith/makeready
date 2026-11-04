@@ -243,7 +243,7 @@ final class SearchActionsTests: XCTestCase {
 
     /// D26: recents loaded under picks must not render under the next visit's at-rest chips.
     func testRecentsLoadedWithPicksAreClearedOnANewVisit() async {
-        api.stub("GET", "/api/search/recent-results", json: page(["a"], next: nil))
+        api.stub("GET", "/api/search/recent-results?types=GROUP", json: page(["a"], next: nil))
         await actions.loadRecents(filters: SearchFilters(types: ["GROUP"]))
         XCTAssertEqual(state.searchRecents.map(\.id), ["a"])
         actions.clearRecentsLoadedWithPicks()
