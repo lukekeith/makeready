@@ -52,6 +52,31 @@ struct SearchHomeScreen: View {
         /// master-search D41 — the results belong to the current query. With no rows and no answer
         /// the screen keeps the last render instead of printing the no-results line.
         var queryAnswered: Bool = true
+        /// master-search D41 (refined) — the last answered query, when that answer had no rows and
+        /// the current query has none yet. With no rows and no answer, the screen keeps printing the
+        /// no-results line for this query instead of falling through to the recents. nil → today's
+        /// fall-through. A prop, never screen `@State` (R-01).
+        var heldNoResultsQuery: String?
+    }
+
+    /// What the body draws below the header, decided from the inputs alone (§3 states 1–4, D41).
+    enum Content: Equatable {
+        case results
+        case noResults(query: String)
+        case recents
+        case empty
+    }
+
+    /// §3: a query of 2+ characters shows its rows, or its no-results line once answered (D41), or
+    /// the held query's line while the new one is unanswered; otherwise the recents, or nothing.
+    static func content(for state: State, query: String) -> Content {
+        if query.count >= minimumQueryLength {
+            if !state.resultTitles.isEmpty { return .results }
+            if state.queryAnswered { return .noResults(query: query) }
+            if let held = state.heldNoResultsQuery { return .noResults(query: held) }
+        }
+        // §3 state 2: no recents → the section, title included, is absent.
+        return state.recentTitles.isEmpty ? .empty : .recents
     }
 
     let state: State
@@ -102,9 +127,6 @@ struct SearchHomeScreen: View {
 
     // MARK: - Derived (§3)
 
-    /// §3: "A query of 0–1 chars shows state 1/2."
-    private var isQuerying: Bool { query.count >= Self.minimumQueryLength }
-
     /// §2 rail order, each with its current label.
     private var filterChips: [(filter: Filter, label: String)] {
         [
@@ -125,11 +147,11 @@ struct SearchHomeScreen: View {
         // swiftlint:disable:next lazy_container_in_overlay_content - §2 Pinning: only a lazy stack pins.
         LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
             Section {
-                if isQuerying && (!state.resultTitles.isEmpty || state.queryAnswered) {
-                    queryContent
-                } else if !state.recentTitles.isEmpty {
-                    // §3 state 2: no recents → the section, title included, is absent.
-                    recentSection
+                switch Self.content(for: state, query: query) {
+                case .results: resultsList
+                case .noResults(let noResultsQuery): noResultsLine(for: noResultsQuery)
+                case .recents: recentSection
+                case .empty: EmptyView()
                 }
             } header: {
                 header
@@ -194,35 +216,35 @@ struct SearchHomeScreen: View {
 
     // MARK: §3 states 3–4
 
-    @ViewBuilder private var queryContent: some View {
-        if state.resultTitles.isEmpty {
-            // §2 No-results line (state 4, OQ-4b): `type-body-sm`, `color-text-secondary`, centred
-            // in the content width, `space-page-margin` below the header.
-            Text("No results for \"\(query)\"")
-                .designTextStyle(Token.TypeStyle.bodySm)
-                .foregroundStyle(Token.textSecondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-                .padding(Token.Space.pageMargin)
-        } else {
-            // §2 Results list (state 3): padding `space-page-margin`, then C-085 rows + hairlines.
-            // One ranked list: no C-020 title and no per-type sections (D67).
-            LazyVStack(spacing: 0) {
-                ForEach(state.resultTitles.indices, id: \.self) { index in
-                    SearchResultRow(
-                        kind: kind(state.resultKinds, index),
-                        title: state.resultTitles[index],
-                        description: value(state.resultDescriptions, index),
-                        trailing: .none,
-                        onTap: { onOpenResult(index) }
-                    )
-                    .ui2Element(index == 0 ? "C-085 SearchResultRow" : "C-085 SearchResultRow \(index + 1)")
-                    .onAppear { onResultAppear(index) }
-                    hairlineView
-                }
-            }
+    /// §2 No-results line (state 4, OQ-4b): `type-body-sm`, `color-text-secondary`, centred in the
+    /// content width, `space-page-margin` below the header.
+    private func noResultsLine(for noResultsQuery: String) -> some View {
+        Text("No results for \"\(noResultsQuery)\"")
+            .designTextStyle(Token.TypeStyle.bodySm)
+            .foregroundStyle(Token.textSecondary)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
             .padding(Token.Space.pageMargin)
+    }
+
+    /// §2 Results list (state 3): padding `space-page-margin`, then C-085 rows + hairlines.
+    /// One ranked list: no C-020 title and no per-type sections (D67).
+    private var resultsList: some View {
+        LazyVStack(spacing: 0) {
+            ForEach(state.resultTitles.indices, id: \.self) { index in
+                SearchResultRow(
+                    kind: kind(state.resultKinds, index),
+                    title: state.resultTitles[index],
+                    description: value(state.resultDescriptions, index),
+                    trailing: .none,
+                    onTap: { onOpenResult(index) }
+                )
+                .ui2Element(index == 0 ? "C-085 SearchResultRow" : "C-085 SearchResultRow \(index + 1)")
+                .onAppear { onResultAppear(index) }
+                hairlineView
+            }
         }
+        .padding(Token.Space.pageMargin)
     }
 
     /// Deviation 5: the screen's list separator, drawn after each row (R-16). §2 "rows 408×74, no
