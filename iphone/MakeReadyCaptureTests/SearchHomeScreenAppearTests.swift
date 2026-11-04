@@ -75,6 +75,33 @@ final class SearchHomeScreenAppearTests: XCTestCase {
         XCTAssertEqual(scroll.contentOffset.y, 2_000, accuracy: 1)
     }
 
+    /// Agent walk round 4 (P1): the row at a scroll position comes from the lazy stack's height estimate.
+    /// A row and its zero-height hairline as two children made that estimate wrong, and it shifted and
+    /// shrank as rows were measured while paging. Every row is 74 pt, so the height is known exactly.
+    func testPagingKeepsAnExactContentHeight() throws {
+        var count = 20
+        let host = makeHost(page(results(count: count, generation: 0)))
+        settle(host)
+        let scroll = try XCTUnwrap(scrollView(in: host.view))
+        let chrome = scroll.contentSize.height - 74 * CGFloat(count)
+
+        func assertExact(_ moment: String) {
+            XCTAssertEqual(scroll.contentSize.height, chrome + 74 * CGFloat(count), accuracy: 1,
+                           "\(moment), \(count) rows, offset \(scroll.contentOffset.y)")
+        }
+        while count < 100 {
+            for _ in 0..<3 {
+                scroll.contentOffset.y = min(scroll.contentOffset.y + 518, scroll.contentSize.height - scroll.bounds.height)
+                settle(host)
+                assertExact("after a drag")
+            }
+            count += 20
+            host.rootView = page(results(count: count, generation: 0))
+            settle(host)
+            assertExact("after a page landed")
+        }
+    }
+
     /// Agent walk round 3 (X1): what a page leaves below itself is page background, never the window's white.
     func testThePageBottomIsPageBackground() throws {
         let band = try pixel(of: Color.clear.ui2PageBottom(50))

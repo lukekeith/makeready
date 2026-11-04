@@ -245,7 +245,8 @@ struct SearchHomeScreen: View {
                 )
                 .ui2Element(index == 0 ? "C-085 SearchResultRow" : "C-085 SearchResultRow \(index + 1)")
                 .onAppear { onResultAppear(index) }
-                hairlineView
+                // One child per row: a zero-height hairline beside it skews the lazy stack's height estimate (P1).
+                .overlay(alignment: .bottom) { hairlineView }
             }
         }
         .padding(Token.Space.pageMargin)
