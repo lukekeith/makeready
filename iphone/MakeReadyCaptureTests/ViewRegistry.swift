@@ -5479,6 +5479,8 @@ enum ViewRegistry {
         "screen.2.0.media-home",
         "component.ui2.C-130",
         "component.ui2.C-131",
+        "component.ui2.C-132",
+        "screen.2.0.library-home",
     ]
 }
 
