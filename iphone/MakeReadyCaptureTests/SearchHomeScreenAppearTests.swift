@@ -35,11 +35,111 @@ final class SearchHomeScreenAppearTests: XCTestCase {
         XCTAssertLessThan(highest, 25, "rows that appeared: \(appeared.sorted())")
     }
 
+    /// Agent walk round 3 (F18c): rows are keyed by index, so a new first page over rows already drawn
+    /// fires no `onAppear` unless the rows are made anew, and paging stalls at the page's end.
+    func testANewFirstPageMakesItsRowsAppearAgain() {
+        var appeared = Set<Int>()
+        let rows = results(count: 20, generation: 0)
+        let host = makeHost(ScrollView { SearchHomeScreen(state: rows, onResultAppear: { appeared.insert($0) }) })
+        settle(host)
+        XCTAssertTrue(appeared.contains(0))
+
+        appeared.removeAll()
+        var next = rows
+        next.resultsGeneration = 1
+        host.rootView = AnyView(ScrollView { SearchHomeScreen(state: next, onResultAppear: { appeared.insert($0) }) })
+        settle(host)
+        XCTAssertTrue(appeared.contains(0), "no row appeared again: \(appeared.sorted())")
+    }
+
+    /// Agent walk round 3 (F18b, X4, X4b): content that shrinks under a deep scroll position left the
+    /// page blank, the pinned header gone with its section. A cleared query (X4) moves the same token.
+    func testAReplacedListGoesBackToItsFirstRow() throws {
+        var noResults = results(count: 0, generation: 1)
+        noResults.queryAnswered = true
+        for ending in [results(count: 20, generation: 1), noResults] {
+            let host = makeHost(page(results(count: 60, generation: 0)))
+            settle(host)
+            let scroll = try XCTUnwrap(scrollView(in: host.view))
+            scroll.contentOffset.y = 2_000
+            settle(host)
+            XCTAssertEqual(scroll.contentOffset.y, 2_000, accuracy: 1, "the list did not scroll: the test proves nothing")
+
+            host.rootView = page(ending)
+            settle(host)
+            XCTAssertLessThanOrEqual(scroll.contentOffset.y, 1)
+        }
+    }
+
+    /// Paging extends the list and must leave the scroll position alone.
+    func testAnExtendedListKeepsItsScrollPosition() throws {
+        let host = makeHost(page(results(count: 60, generation: 0)))
+        settle(host)
+        let scroll = try XCTUnwrap(scrollView(in: host.view))
+        scroll.contentOffset.y = 2_000
+        settle(host)
+        host.rootView = page(results(count: 80, generation: 0))
+        settle(host)
+        XCTAssertEqual(scroll.contentOffset.y, 2_000, accuracy: 1)
+    }
+
+    /// Agent walk round 3 (X1): what a page leaves below itself is page background, never the window's white.
+    func testThePageBottomIsPageBackground() throws {
+        let band = try pixel(of: Color.clear.ui2PageBottom(50))
+        XCTAssertLessThan(band[0], 32, "the space below the page is not the page background: \(band)")
+        XCTAssertEqual(band[3], 255, "the space below the page is not filled: \(band)")
+    }
+
     /// Agent walk round 1: content shorter than the screen leaves page background below it, never
     /// the host's white (rendered through a real window, as HomeDashboardContainerTests does).
     func testThePageBackgroundFillsBelowShortContent() throws {
+        let below = try pixel(of: SearchPageScroll { Color.clear.frame(height: 10) })
+        XCTAssertLessThan(below[0], 32, "the page below the content is not the page background: \(below)")
+        XCTAssertEqual(below[3], 255, "the page below the content is not filled: \(below)")
+    }
+
+    // MARK: - Helpers
+
+    private func results(count: Int, generation: Int) -> SearchHomeScreen.State {
+        var state = SearchHomeScreen.State.queryingResults
+        state.resultKinds = Array(repeating: "program", count: count)
+        state.resultTitles = (0..<count).map { "Result \($0)" }
+        state.resultDescriptions = Array(repeating: "Created Feb 1, 2021", count: count)
+        state.resultsGeneration = generation
+        return state
+    }
+
+    private func page(_ state: SearchHomeScreen.State) -> AnyView {
+        AnyView(SearchPageScroll(resetToken: state.resultsGeneration) { SearchHomeScreen(state: state) })
+    }
+
+    private func makeHost<V: View>(_ view: V) -> UIHostingController<AnyView> {
+        let host = UIHostingController(rootView: AnyView(view))
+        host.safeAreaRegions = []
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 440, height: 956))
+        window.rootViewController = host
+        window.makeKeyAndVisible()
+        addTeardownBlock { window.isHidden = true }
+        host.view.frame = window.bounds
+        return host
+    }
+
+    private func settle(_ host: UIViewController) {
+        for _ in 0..<10 {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+            host.view.layoutIfNeeded()
+        }
+    }
+
+    private func scrollView(in view: UIView) -> UIScrollView? {
+        if let scroll = view as? UIScrollView { return scroll }
+        return view.subviews.lazy.compactMap { self.scrollView(in: $0) }.first
+    }
+
+    /// The pixel 10 pt above the bottom of `view`, rendered through a real window.
+    private func pixel<V: View>(of view: V) throws -> [UInt8] {
         let size = CGSize(width: 100, height: 300)
-        let host = UIHostingController(rootView: SearchPageScroll { Color.clear.frame(height: 10) })
+        let host = UIHostingController(rootView: view)
         host.safeAreaRegions = []
         let window = UIWindow(frame: CGRect(origin: .zero, size: size))
         window.rootViewController = host
@@ -58,7 +158,6 @@ final class SearchHomeScreenAppearTests: XCTestCase {
             data: &pixel, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
             space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
         context.draw(cropped, in: CGRect(x: 0, y: 0, width: 1, height: 1))
-        XCTAssertLessThan(pixel[0], 32, "the page below the content is not the page background: \(pixel)")
-        XCTAssertEqual(pixel[3], 255, "the page below the content is not filled: \(pixel)")
+        return pixel
     }
 }

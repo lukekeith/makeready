@@ -36,8 +36,9 @@ struct SearchHomeContainer: View {
         let app = AppState.shared
         let output = SearchHomeMapper.output(
             recents: app.searchRecents, results: app.searchResults, query: query,
-            answeredQuery: app.searchAnsweredQuery, selection: selection, options: app.searchFilterOptions, tz: .current)
-        SearchPageScroll {
+            answeredQuery: app.searchAnsweredQuery, selection: selection, options: app.searchFilterOptions, tz: .current,
+            resultsGeneration: app.searchResultsGeneration)
+        SearchPageScroll(resetToken: app.searchResultsGeneration) {
             screen(output: output)
         }
         .filterMenuPresentation(isPresented: openMenu != nil, onDismiss: { openMenu = nil }) {
@@ -225,23 +226,31 @@ struct SearchHomeContainer: View {
 /// master-search §iphone Root scroll: off Home nothing supplies the page's scroll, so this does.
 /// `.underScreenHeader` already gives safe area + 16, so no top padding here.
 struct SearchPageScroll<Content: View>: View {
+    /// A change sends the page back to its first row: content that shrank under a deep scroll
+    /// position left the page blank, the pinned header gone with its section (agent walk round 3).
+    var resetToken = 0
     @ViewBuilder var content: Content
 
+    private enum Anchor: Hashable { case top }
+
     var body: some View {
-        ScrollView {
-            content
-        }
-        .scrollDismissesKeyboard(.interactively)
-        .scrollBounceBehavior(.always, axes: .vertical)
-        // A page shorter than the screen must not show the window's white below its content; the
-        // same background SectionPageScroll and EmptyPage draw (agent walk round 1).
-        .background(Token.layoutBackground.ignoresSafeArea())
-        // The status-bar strip stays page background (HomeSectionLayout), so rows scrolling up
-        // never show through it.
-        .overlay(alignment: .top) {
-            Color.clear.frame(height: 0)
-                .background(alignment: .bottom) { Token.layoutBackground.ignoresSafeArea(edges: .top) }
-                .allowsHitTesting(false)
+        ScrollViewReader { proxy in
+            ScrollView {
+                content.id(Anchor.top)
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .scrollBounceBehavior(.always, axes: .vertical)
+            // A page shorter than the screen must not show the window's white below its content; the
+            // same background SectionPageScroll and EmptyPage draw (agent walk round 1).
+            .background(Token.layoutBackground.ignoresSafeArea())
+            // The status-bar strip stays page background (HomeSectionLayout), so rows scrolling up
+            // never show through it.
+            .overlay(alignment: .top) {
+                Color.clear.frame(height: 0)
+                    .background(alignment: .bottom) { Token.layoutBackground.ignoresSafeArea(edges: .top) }
+                    .allowsHitTesting(false)
+            }
+            .onChange(of: resetToken) { proxy.scrollTo(Anchor.top, anchor: .top) }
         }
     }
 }

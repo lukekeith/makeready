@@ -76,7 +76,8 @@ enum SearchHomeMapper {
     // MARK: - Output
 
     static func output(recents: [SearchItem], results: [SearchItem], query: String, answeredQuery: String?,
-                       selection: Selection, options: SearchFilterOptions?, tz: TimeZone) -> Output {
+                       selection: Selection, options: SearchFilterOptions?, tz: TimeZone,
+                       resultsGeneration: Int = 0) -> Output {
         let recentItems = recents.filter { kind(of: $0.type) != nil }
         let resultItems = results.filter { kind(of: $0.type) != nil }
         let typeLabels = typeOptions.filter { selection.typeIds.contains($0.id) }.map(\.label)
@@ -111,7 +112,8 @@ enum SearchHomeMapper {
             resultDescriptions: resultItems.map { HomeDashboardMapper.createdLabel($0.createdAt, tz: tz) },
             // D41: an answer belongs to one query; another query's answer is not this one's.
             queryAnswered: answered.map { $0 == trimmed } ?? false,
-            heldNoResultsQuery: heldNoResultsQuery)
+            heldNoResultsQuery: heldNoResultsQuery,
+            resultsGeneration: resultsGeneration)
         return Output(state: state, recentItems: recentItems, resultItems: resultItems)
     }
 

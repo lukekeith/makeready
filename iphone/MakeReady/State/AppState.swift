@@ -173,6 +173,9 @@ final class AppState {
     var searchNextCursor: String?
     /// The trimmed query `searchResults` answers; nil until a response for the current query lands (D41).
     var searchAnsweredQuery: String?
+    /// Moves whenever `searchResults` is replaced rather than extended: a first page landed, or the
+    /// query was cancelled. The list starts over from its first row on each (agent walk round 3).
+    var searchResultsGeneration = 0
     /// C5: the chips' options.
     var searchFilterOptions: SearchFilterOptions?
     /// The picks `searchRecents` was loaded with: a visit that filtered them must not leave a filtered
@@ -1091,6 +1094,7 @@ final class AppState {
         searchResults = []
         searchNextCursor = nil
         searchAnsweredQuery = nil
+        searchResultsGeneration = 0
         searchFilterOptions = nil
         searchPendingRemovals = []
         searchRequestToken = UUID()

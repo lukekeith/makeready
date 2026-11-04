@@ -50,6 +50,7 @@ struct SearchActions {
             state.searchResults = Self.deduplicated(response.items)
             state.searchNextCursor = response.nextCursor
             state.searchAnsweredQuery = trimmed
+            state.searchResultsGeneration += 1
         } catch {
             guard isCurrent(token: token, generation: generation) else { return }
             await handleLoadFailure(error, context: "SearchActions.search")
@@ -87,6 +88,7 @@ struct SearchActions {
         state.searchResults = []
         state.searchNextCursor = nil
         state.searchAnsweredQuery = nil
+        state.searchResultsGeneration += 1
     }
 
     /// A new visit to the tab (D26): recents loaded under picks the fresh chips no longer show would

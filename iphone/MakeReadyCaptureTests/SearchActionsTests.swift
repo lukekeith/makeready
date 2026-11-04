@@ -134,6 +134,19 @@ final class SearchActionsTests: XCTestCase {
         XCTAssertTrue(state.searchRecents.isEmpty)
     }
 
+    /// Agent walk round 3: the list starts over when its rows are replaced, never when they are extended.
+    func testGenerationMovesOnAFirstPageAndACancelButNotOnANextPage() async {
+        api.stub("GET", "/api/search/ranked?q=gr", json: page(["a"], next: "c1"))
+        api.stub("GET", "/api/search/ranked?q=gr&cursor=c1", json: page(["b"], next: nil))
+        await actions.search(query: "gr", filters: SearchFilters())
+        XCTAssertEqual(state.searchResultsGeneration, 1)
+        await actions.loadNextPage(query: "gr", filters: SearchFilters())
+        XCTAssertEqual(state.searchResults.map(\.id), ["a", "b"])
+        XCTAssertEqual(state.searchResultsGeneration, 1)
+        actions.cancelQuery()
+        XCTAssertEqual(state.searchResultsGeneration, 2)
+    }
+
     func testClearAllDataEmptiesTheDomain() {
         state.searchRecents = [item("a")]; state.searchResults = [item("b")]; state.searchAnsweredQuery = "gr"
         state.clearAllData()

@@ -57,6 +57,10 @@ struct SearchHomeScreen: View {
         /// no-results line for this query instead of falling through to the recents. nil → today's
         /// fall-through. A prop, never screen `@State` (R-01).
         var heldNoResultsQuery: String?
+        /// master-search agent walk round 3 — moves when a new first page replaces the rows, which
+        /// then appear afresh. Rows are keyed by index, so a replacement alone fires no `onAppear`
+        /// for rows already drawn and paging would stall. No render effect.
+        var resultsGeneration: Int = 0
     }
 
     /// What the body draws below the header, decided from the inputs alone (§3 states 1–4, D41).
@@ -245,6 +249,7 @@ struct SearchHomeScreen: View {
             }
         }
         .padding(Token.Space.pageMargin)
+        .id(state.resultsGeneration)
     }
 
     /// Deviation 5: the screen's list separator, drawn after each row (R-16). §2 "rows 408×74, no
