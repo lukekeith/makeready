@@ -402,19 +402,19 @@ extension SearchHomeScreen.State {
         return sample
     }()
     /// §3 3 Querying — results: one ranked list across types; rows are the frame's and C-085's
-    /// own samples (`recent`, `media`, `group`, `result`, `lesson`, `photo`), mixing circle, square
-    /// and no-image rows (owner ruling 2026-11-05).
+    /// own samples (`recent`, `media`, `group`, `result`, a program found through its lessons,
+    /// `photo`), mixing circle, square and no-image rows (owner ruling 2026-11-05).
     static let queryingResults: Self = {
         var sample = frameRecents
         sample.searchText = "Romans"
-        sample.resultKinds = ["program", "media", "group", "program", "lesson", "photo"]
+        sample.resultKinds = ["program", "media", "group", "program", "program", "photo"]
         sample.resultTitles = [
             "Deep dive on the book of Romans", "Romans 1 — week one teaching", "Tuesday Men's Group",
             "Romans in 30 days", "Justified by faith", "Sunrise over the Sea of Galilee"
         ]
         sample.resultDescriptions = [
             "Created Feb 1, 2021", "Created Jan 15, 2025", "Created Mar 4, 2024",
-            "Created Jan 15, 2025", "Created Feb 1, 2021", "Created Mar 9, 2025"
+            "Created Jan 15, 2025", "12 matching lessons", "Created Mar 9, 2025"
         ]
         sample.resultImageURLs = [sampleProgramURL, nil, sampleGroupURL, nil, nil, samplePhotoURL]
         return sample
