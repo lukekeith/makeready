@@ -307,5 +307,5 @@ Searched-field names corrected to the app: `phoneNumber`, `ActivityReadBlock`, `
 - [ ] re-walk: Search photo rows (iphone), results and recents; the owner tests this on their phone, no agent walk
 - [x] server: C1 and C2 send each type's image in `thumbnailUrl` (D44), with a test
 - [x] iphone: C-085 draws images by shape with a 42 pt slot on every row, through d2m, and the mapper passes them for every type (D44), with a test
-- [ ] server: lessons roll up to their program with `matchingLessons` and D45's ranking, with tests
-- [ ] iphone: Lessons leaves the Type chip; a program row reads `N matching lessons` (D45), with a test
+- [x] server: lessons roll up to their program with `matchingLessons` and D45's ranking, with tests
+- [x] iphone: Lessons leaves the Type chip; a program row reads `N matching lessons` (D45), with a test
