@@ -124,6 +124,25 @@ final class SearchHomeMapperTests: XCTestCase {
         XCTAssertEqual(out.recentItems.map(\.id), ["a"])
     }
 
+    /// D43: a photo previews its thumbnail, falls back to the full image, and nothing else previews.
+    func testPhotoRowsPreviewTheirThumbnail() {
+        var thumbed = item("t", type: "PHOTO", imageUrl: "https://i/full.jpg")
+        thumbed.thumbnailUrl = "https://i/thumb.jpg"
+        let plain = item("p", type: "PHOTO", imageUrl: "https://i/plain.jpg")
+        var emptyThumb = item("e", type: "PHOTO", imageUrl: "https://i/empty.jpg")
+        emptyThumb.thumbnailUrl = ""
+        var video = item("v", type: "VIDEO", imageUrl: "https://i/video.jpg")
+        video.thumbnailUrl = "https://i/video-thumb.jpg"
+        let rows = [thumbed, plain, emptyThumb, video, item("n", type: "PHOTO")]
+        let expected = ["https://i/thumb.jpg", "https://i/plain.jpg", "https://i/empty.jpg", nil, nil]
+            .map { $0.flatMap(URL.init(string:)) }
+        let results = output(results: rows, query: "gr", answered: "gr")
+        XCTAssertEqual(results.state.resultImageURLs, expected)
+        let recents = SearchHomeMapper.output(recents: rows, results: [], query: "", answeredQuery: nil,
+                                              selection: .init(), options: nil, tz: utc)
+        XCTAssertEqual(recents.state.recentImageURLs, expected)
+    }
+
     /// F11: what the code can prove. The next page is asked for only within the last five rows;
     /// whether the eager VStack fires every row at once is only observable on a device (agent walk).
     func testNextPageIsAskedForOnlyNearTheEnd() {

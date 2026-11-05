@@ -107,14 +107,23 @@ enum SearchHomeMapper {
             recentKinds: recentItems.compactMap { kind(of: $0.type) },
             recentTitles: recentItems.map(\.title),
             recentDescriptions: recentItems.map { HomeDashboardMapper.createdLabel($0.createdAt, tz: tz) },
+            recentImageURLs: recentItems.map(previewURL(of:)),
             resultKinds: resultItems.compactMap { kind(of: $0.type) },
             resultTitles: resultItems.map(\.title),
             resultDescriptions: resultItems.map { HomeDashboardMapper.createdLabel($0.createdAt, tz: tz) },
+            resultImageURLs: resultItems.map(previewURL(of:)),
             // D41: an answer belongs to one query; another query's answer is not this one's.
             queryAnswered: answered.map { $0 == trimmed } ?? false,
             heldNoResultsQuery: heldNoResultsQuery,
             resultsGeneration: resultsGeneration)
         return Output(state: state, recentItems: recentItems, resultItems: resultItems)
+    }
+
+    /// D43: a photo row's preview, its thumbnail when it has one; nil for every other type.
+    static func previewURL(of item: SearchItem) -> URL? {
+        guard item.type == "PHOTO" else { return nil }
+        let urls = [item.thumbnailUrl, item.imageUrl].compactMap { $0 }.filter { !$0.isEmpty }
+        return urls.first.flatMap(URL.init(string:))
     }
 
     /// D21: the C-085 `kind` raw value; nil for a type this build does not know (the row is dropped).
