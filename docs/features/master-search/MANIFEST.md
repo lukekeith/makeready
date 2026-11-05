@@ -1,7 +1,7 @@
 size: lg
 state: built
-next: /builder:resume --path docs/features/master-search
-head: dafe9b9f
+next: /builder:agent-walk --path docs/features/master-search
+head: 58a63f12
 ticket: none
 branch: builder/master-search
 pr: none
@@ -13,7 +13,7 @@ tests: slice=own+app end=risk review=slice
 target: feature/master-search
 walk: none
 verify: none
-ready: pending "dev env (fleet walk lane)"
+ready: yes 2026-11-04 dafe9b9f
 ui2: search-home (d2m; C-131, C-034, C-130, C-035, C-020, C-085, C-084, C-083, presents C-036; all built)
 auto: on 2026-11-03
 blocked: none
