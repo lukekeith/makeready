@@ -20,7 +20,7 @@ describe('search-home layer rows (master-search D25)', () => {
 
   it('recents are newest-first with fixed ids', () => {
     const { recents } = searchHomeRows(NOW, daysAgo)
-    expect(recents.map((r) => r.resourceType)).toEqual(['PROGRAM', 'LESSON', 'GROUP', 'PHOTO', 'POST', 'MEMBER'])
+    expect(recents.map((r) => r.resourceType)).toEqual(['PROGRAM', 'GROUP', 'PHOTO', 'POST', 'MEMBER'])
     const times = recents.map((r) => r.openedAt.getTime())
     expect(times).toEqual([...times].sort((a, b) => b - a))
     expect(new Set(times).size).toBe(times.length)
