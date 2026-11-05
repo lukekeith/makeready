@@ -304,5 +304,5 @@ Searched-field names corrected to the app: `phoneNumber`, `ActivityReadBlock`, `
 - [x] server: C1 and C2 send `thumbnailUrl` on PHOTO (D43), with a test
 - [x] iphone: C-085 and search-home take a preview image through d2m, and the mapper passes `thumbnailUrl ?? imageUrl` (D43), with a test
 - [ ] re-walk: Search photo rows (iphone), results and recents; the owner tests this on their phone, no agent walk
-- [ ] server: C1 and C2 send each type's image in `thumbnailUrl` (D44), with a test
-- [ ] iphone: C-085 draws images by shape with a 42 pt slot on every row, through d2m, and the mapper passes them for every type (D44), with a test
+- [x] server: C1 and C2 send each type's image in `thumbnailUrl` (D44), with a test
+- [x] iphone: C-085 draws images by shape with a 42 pt slot on every row, through d2m, and the mapper passes them for every type (D44), with a test

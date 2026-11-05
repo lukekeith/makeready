@@ -1,12 +1,12 @@
 size: lg
 state: verified
 next: /builder:resume --path docs/features/master-search
-head: 40d78769
+head: 126e9fb0
 ticket: none
 branch: feature/master-search
 pr: none
 apps: server+iphone
-contract: open (reopened 2026-11-05)
+contract: frozen 2026-11-05
 hold: none
 go-ahead: auto (recommended) 2026-11-03
 tests: slice=own+app end=risk review=slice
