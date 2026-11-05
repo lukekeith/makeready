@@ -127,7 +127,7 @@ flowchart LR
 ```json
 { "type": "EVENT", "id": "…", "title": "Grace Night", "createdAt": "2026-10-03T…Z",
   "score": 2.41, "imageUrl": null, "thumbnailUrl": null, "matchingLessons": null,
-  "parent": { "type": "GROUP", "id": "…", "name": "Women\'s Bible Study" } }
+  "parent": { "type": "GROUP", "id": "…", "name": "Women's Bible Study" } }
 ```
 
 `imageUrl` is `Media.url` for PHOTO and `null` for every other type. `thumbnailUrl` is the row's image per D44, `null` when it has none (additive, so released builds ignore it). `parent` is set for EVENT and POST (GROUP), and `null` otherwise. `matchingLessons` on C1 is the PROGRAM row's count of matching lessons (D45), and `null` on other types and on C2. `score` is a number on C1 and is comparable only within one response's query. `title` is never null (D28). `id` is always the row's own table id: MEMBER is `Member.id`, which `.memberDetail` loads. Ids are serialized as text whatever the column's type.

@@ -25,6 +25,8 @@ struct SearchItem: Codable, Equatable, Identifiable {
     let imageUrl: String?
     /// D44: the row's cover, avatar or thumbnail; absent from an older server.
     var thumbnailUrl: String? = nil
+    /// D45: C1's PROGRAM rows only, how many of its lessons match the query.
+    var matchingLessons: Int? = nil
     let parent: SearchItemParent?
     /// C2 only.
     let openedAt: String?
