@@ -110,6 +110,7 @@ flowchart LR
 | D32 | Response form | C1–C5 answer `{ success: true, … }` and errors `{ success: false, error }`, and C3 and C4 answer 200 `{ success: true }`, the form `/api/search` and the iPhone `APISuccessResponse` decoding already use. Rejected: bare objects and 204s (a new form for one feature; `api.delete` decodes a body). | align, the app wins, 2026-11-03 |
 | D43 | ~~Photo preview in rows~~ | ~~A PHOTO row in results and recents shows its image as a 42 pt rounded square in place of the 24 pt badge, and the row stays 74 tall. The image is `thumbnailUrl`, falling back to `imageUrl`; the photo glyph shows while loading or on failure. Other types, videos included, keep their glyph. Rejected: keeping the 24 pt disc (too small to recognise a photo, though titles stay aligned); full-size `imageUrl` only (heavy downloads in a long list).~~ Superseded by D44, 2026-11-05. | owner 2026-11-05 |
 | D44 | Image in rows | Every result and recent row with a cover or avatar shows it at 42 pt, in results and recents. MEMBER (`profilePicture`, then `googlePicture`) and GROUP (`coverImageUrl`) are circles. PROGRAM (`coverImageUrl`), LESSON (its program's `coverImageUrl`), PHOTO (`thumbnailUrl`, then `imageUrl`), VIDEO (`thumbnailUrl`), EVENT (`coverImageUrl`) and POST (`imageUrl`) are squares with `radius-card-sm` (4). TEMPLATE has no image and keeps its glyph. Every row has the 42 pt leading slot so titles line up; a row with no image, or one loading or failed, shows its glyph badge in that slot. Rows stay 74. Rejected: photos only (D43); a 24 pt slot on rows with no image (uneven titles, though closer to the frame). | owner 2026-11-05 |
+| D45 | Lessons roll up to their program | LESSON is no longer a result type or a Type chip option: it leaves D5's list, and this edits D1, D7, D9, D16, D21, D28, D33 and D37 where they name it. A program with lessons matching the query is one PROGRAM row whose `matchingLessons` counts them; the row's second line reads `N matching lessons` (`1 matching lesson`) when N > 0, else `Created <date>`. A program that matches itself keeps its own tier and shows the count. Found only through lessons, it ranks below every other match, score under 1: a lesson title match in 0.5–1, lesson text alone in 0–0.5, and more matching lessons rank higher within either band. Lessons searched are the program's own; scheduled copies in enrollments stay out (D16). C2 carries no count, and a stored LESSON recent drops out. Rejected: lesson rows (`Day 27` does not say which program); searching enrollment copies (a row opens the program, where that text may not exist). | owner 2026-11-05 |
 
 ## Contract
 
@@ -124,12 +125,12 @@ flowchart LR
 `SearchType` is D5's closed list. `SearchItem` is:
 
 ```json
-{ "type": "LESSON", "id": "…", "title": "Day 3: Grace", "createdAt": "2026-10-03T…Z",
-  "score": 2.41, "imageUrl": null, "thumbnailUrl": null,
-  "parent": { "type": "PROGRAM", "id": "…", "name": "Romans in 30 days" } }
+{ "type": "EVENT", "id": "…", "title": "Grace Night", "createdAt": "2026-10-03T…Z",
+  "score": 2.41, "imageUrl": null, "thumbnailUrl": null, "matchingLessons": null,
+  "parent": { "type": "GROUP", "id": "…", "name": "Women\'s Bible Study" } }
 ```
 
-`imageUrl` is `Media.url` for PHOTO and `null` for every other type. `thumbnailUrl` is the row's image per D44, `null` when it has none (additive, so released builds ignore it). `parent` is set for LESSON (PROGRAM), EVENT and POST (GROUP), and `null` otherwise. `score` is a number on C1 and is comparable only within one response's query. `title` is never null (D28). `id` is always the row's own table id: MEMBER is `Member.id`, which `.memberDetail` loads. Ids are serialized as text whatever the column's type.
+`imageUrl` is `Media.url` for PHOTO and `null` for every other type. `thumbnailUrl` is the row's image per D44, `null` when it has none (additive, so released builds ignore it). `parent` is set for EVENT and POST (GROUP), and `null` otherwise. `matchingLessons` on C1 is the PROGRAM row's count of matching lessons (D45), and `null` on other types and on C2. `score` is a number on C1 and is comparable only within one response's query. `title` is never null (D28). `id` is always the row's own table id: MEMBER is `Member.id`, which `.memberDetail` loads. Ids are serialized as text whatever the column's type.
 
 ## Schema & API changes
 
@@ -179,7 +180,7 @@ flowchart LR
 3. Set Type to Photos: only photos; tap one and the viewer opens (the image may be blank where the walk has no R2 images).
 4. Clear it, set Tags: programs, lessons, photos and videos only.
 5. Clear the picks and type `video study`: the seeded system template shows. Set Orgs: it is gone.
-6. Tap a lesson: its program opens. Go back, clear the query: that lesson is at the top of recents.
+6. Search a word only a lesson contains: its program shows `N matching lessons`, below other matches. Tap it: the program opens. Go back, clear the query: that program is at the top of recents, showing its created date.
 7. Tap ✕ on a recent: it goes, and stays gone after relaunch.
 8. Type nonsense: `No results for "<query>"`.
 9. Filter recents to nothing: the section is hidden, title included.
@@ -306,3 +307,5 @@ Searched-field names corrected to the app: `phoneNumber`, `ActivityReadBlock`, `
 - [ ] re-walk: Search photo rows (iphone), results and recents; the owner tests this on their phone, no agent walk
 - [x] server: C1 and C2 send each type's image in `thumbnailUrl` (D44), with a test
 - [x] iphone: C-085 draws images by shape with a 42 pt slot on every row, through d2m, and the mapper passes them for every type (D44), with a test
+- [ ] server: lessons roll up to their program with `matchingLessons` and D45's ranking, with tests
+- [ ] iphone: Lessons leaves the Type chip; a program row reads `N matching lessons` (D45), with a test
