@@ -248,14 +248,35 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('GET /api/search/ranked', () => 
     expect((await search(world.owner, { q: 'grace', types: 'PHOTO' })).items[0].imageUrl).toMatch(/^https:/)
   })
 
-  it('D43: only a photo carries its thumbnail', async () => {
-    const photo = (await search(world.owner, { q: 'grace', types: 'PHOTO' })).items[0]
+  it('D44: each type sends its image, and a template has none', async () => {
+    const image = (name: string) => `https://images.test/d44/${name}.jpg`
+    const find = async (type: string, q: string, id?: string) => {
+      const { items } = await search(world.owner, { q, types: type, limit: '50' })
+      return id ? items.find((i: any) => i.id === id) : items[0]
+    }
+    const otherLesson = await prisma.lesson.findUniqueOrThrow({ where: { id: world.otherLessonId } })
+    await prisma.studyProgram.update({ where: { id: otherLesson.studyProgramId as string }, data: { coverImageUrl: image('lesson-program') } })
+    await prisma.studyProgram.update({ where: { id: world.prefixProgramId }, data: { coverImageUrl: image('program') } })
+    await prisma.group.update({ where: { id: world.groupA }, data: { coverImageUrl: image('group') } })
+    await prisma.event.updateMany({ where: { title: 'Grace Night', groupId: world.groupA }, data: { coverImageUrl: image('event') } })
+    await prisma.post.update({ where: { id: world.exactPostId }, data: { imageUrl: image('post') } })
+    await prisma.member.updateMany({ where: { email: world.memberEmail }, data: { profilePicture: null, googlePicture: image('google') } })
+
+    expect((await find('GROUP', 'grace', world.groupA)).thumbnailUrl).toBe(image('group'))
+    expect((await find('GROUP', 'grace', world.groupB)).thumbnailUrl).toBeNull()
+    expect((await find('PROGRAM', 'grace', world.prefixProgramId)).thumbnailUrl).toBe(image('program'))
+    expect((await find('LESSON', otherLesson.title ?? 'grace', world.otherLessonId)).thumbnailUrl).toBe(image('lesson-program'))
+    expect((await find('EVENT', 'grace night')).thumbnailUrl).toBe(image('event'))
+    expect((await find('POST', 'grace', world.exactPostId)).thumbnailUrl).toBe(image('post'))
+    expect((await find('MEMBER', world.memberEmail)).thumbnailUrl).toBe(image('google'))
+    await prisma.member.updateMany({ where: { email: world.memberEmail }, data: { profilePicture: image('profile') } })
+    expect((await find('MEMBER', world.memberEmail)).thumbnailUrl).toBe(image('profile'))
+    expect((await find('VIDEO', 'grace')).thumbnailUrl).toMatch(/^https:\/\/images\.test\/thumb\//)
+    const photo = await find('PHOTO', 'grace')
     expect(photo.thumbnailUrl).toMatch(/^https:\/\/images\.test\/thumb\//)
     expect(photo.imageUrl).not.toEqual(photo.thumbnailUrl)
-    const video = (await search(world.owner, { q: 'grace', types: 'VIDEO' })).items[0]
-    expect(video.thumbnailUrl).toBeNull()
-    const group = (await search(world.owner, { q: 'grace', types: 'GROUP' })).items[0]
-    expect(group.thumbnailUrl).toBeNull()
+    expect((await find('VIDEO', 'grace')).imageUrl).toBeNull()
+    expect((await find('TEMPLATE', 'video study')).thumbnailUrl).toBeNull()
   })
 
   it('D35: formatted and partial phones and any-case email find a member', async () => {

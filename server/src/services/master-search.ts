@@ -238,6 +238,7 @@ function programShape(scope: SearchScope): ArmShape {
     vector: qualifySearchExpr(SEARCH_TEXT.program, 'p'),
     config: 'english',
     outputTitle: 'p."name"',
+    thumbnailUrl: 'p."coverImageUrl"',
     visible: programVisible(scope),
     filters: {
       group: (s, ids) => programEnrolledInPicked('p."id"', s, ids),
@@ -260,6 +261,7 @@ function lessonShape(scope: SearchScope): ArmShape {
     vector: lesson,
     config: 'english',
     outputTitle: `coalesce(nullif(btrim(l."title"), ''), 'Day ' || l."dayNumber")`,
+    thumbnailUrl: 'p."coverImageUrl"',
     parent: { type: 'PROGRAM', id: 'p."id"', name: 'p."name"' },
     visible: programVisible(scope),
     filters: {
@@ -308,6 +310,7 @@ function groupShape(scope: SearchScope): ArmShape {
     vector: qualifySearchExpr(SEARCH_TEXT.group, 'g'),
     config: 'english',
     outputTitle: 'g."name"',
+    thumbnailUrl: 'g."coverImageUrl"',
     visible: groupVisible(scope),
     filters: {
       group: (s, ids) => groupPicked('g."id"', s, ids),
@@ -326,6 +329,7 @@ function eventShape(scope: SearchScope): ArmShape {
     vector: qualifySearchExpr(SEARCH_TEXT.event, 'e'),
     config: 'english',
     outputTitle: 'e."title"',
+    thumbnailUrl: 'e."coverImageUrl"',
     parent: GROUP_PARENT,
     visible: Prisma.sql`e."isActive" AND ${groupVisible(scope)} AND e."type"::text <> 'LESSON'
       AND NOT EXISTS (SELECT 1 FROM "events" earlier WHERE earlier."isActive"
@@ -348,6 +352,7 @@ function postShape(scope: SearchScope): ArmShape {
     vector: qualifySearchExpr(SEARCH_TEXT.post, 'po'),
     config: 'english',
     outputTitle: 'po."title"',
+    thumbnailUrl: 'po."imageUrl"',
     // Enough for serializeSearchItem's 80-character first line, without carrying a long post per row.
     body: 'left(po."content", 1000)',
     parent: GROUP_PARENT,
@@ -371,7 +376,7 @@ function mediaShape(type: 'photo' | 'video', scope: SearchScope): ArmShape {
     config: 'english',
     outputTitle: 'md."title"',
     imageUrl: type === 'photo' ? 'md."url"' : undefined,
-    thumbnailUrl: type === 'photo' ? 'md."thumbnailUrl"' : undefined,
+    thumbnailUrl: 'md."thumbnailUrl"',
     visible: Prisma.sql`md."isActive" AND ${inScope('md."organizationId"', scope)} AND md."type" = ${type}
       AND md."uploadStatus" = 'ready' AND md."source" IS DISTINCT FROM 'auto_capture'
       AND (md."groupId" IS NULL OR EXISTS (SELECT 1 FROM "groups" mg WHERE mg."id"::text = md."groupId"::text AND mg."isActive"))`,
@@ -395,6 +400,7 @@ function memberShape(scope: SearchScope): ArmShape {
     vector: qualifySearchExpr(SEARCH_TEXT.member, 'm'),
     config: 'simple',
     outputTitle: `coalesce(nullif(${name}, ''), m."email", m."phoneNumber")`,
+    thumbnailUrl: 'coalesce(m."profilePicture", m."googlePicture")',
     visible: Prisma.sql`m."isActive" AND (
       EXISTS (SELECT 1 FROM "member_organizations" mo WHERE mo."memberId"::text = m."id"::text
         AND mo."organizationId"::text = ${anyText(scope.allMemberOrgIds)})
