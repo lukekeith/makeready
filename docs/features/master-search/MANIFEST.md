@@ -1,9 +1,9 @@
 size: lg
-state: built
-next: /builder:agent-walk --path docs/features/master-search
-head: 7ff6dbf4
+state: signed-off
+next: /builder:resume --path docs/features/master-search
+head: bcf10ae2
 ticket: none
-branch: builder/master-search
+branch: feature/master-search
 pr: none
 apps: server+iphone
 contract: frozen 2026-11-03
@@ -11,7 +11,7 @@ hold: none
 go-ahead: auto (recommended) 2026-11-03
 tests: slice=own+app end=risk review=slice
 target: feature/master-search
-walk: none
+walk: Luke Keith 2026-11-04
 verify: none
 ready: yes 2026-11-04 7ff6dbf4
 ui2: search-home (d2m; C-131, C-034, C-130, C-035, C-020, C-085, C-084, C-083, presents C-036; all built)
