@@ -120,6 +120,7 @@ describe('layer discovery (D2, D6)', () => {
       'members-home',
       'members-profile',
       'request-detail',
+      'search-home',
       'shared-edit-field',
       'study-program-home',
       'study-programs',

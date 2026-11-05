@@ -18,6 +18,45 @@ final class CoverViewerOverlayTests: XCTestCase {
         XCTAssertNil(CoverViewerOverlay.viewerURL(group: group(cover: nil, original: nil)))
     }
 
+    // MARK: - master-search (agent walk round 1)
+
+    /// With an image the button waits for a tap, as media-viewer-paging says.
+    func testCloseWaitsForATapOverAnImage() {
+        XCTAssertFalse(ImageViewerMath.showsClose(chromeVisible: false, live: true, dragging: false, hasImage: true, closing: false))
+        XCTAssertTrue(ImageViewerMath.showsClose(chromeVisible: true, live: true, dragging: false, hasImage: true, closing: false))
+        XCTAssertFalse(ImageViewerMath.showsClose(chromeVisible: true, live: false, dragging: false, hasImage: true, closing: false))
+        XCTAssertFalse(ImageViewerMath.showsClose(chromeVisible: true, live: true, dragging: true, hasImage: true, closing: false))
+    }
+
+    /// A photo still loading, or one that failed: the button is the way out, with no tap needed.
+    func testCloseStaysUpWithNoImage() {
+        XCTAssertTrue(ImageViewerMath.showsClose(chromeVisible: false, live: false, dragging: false, hasImage: false, closing: false))
+        XCTAssertTrue(ImageViewerMath.showsClose(chromeVisible: false, live: true, dragging: false, hasImage: false, closing: false))
+        XCTAssertFalse(ImageViewerMath.showsClose(chromeVisible: false, live: true, dragging: true, hasImage: false, closing: false))
+        XCTAssertFalse(ImageViewerMath.showsClose(chromeVisible: false, live: false, dragging: false, hasImage: false, closing: true))
+    }
+
+    /// Opening the viewer takes the keyboard down: it would cover the close button.
+    func testOpeningDismissesTheKeyboard() throws {
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.first as? UIWindowScene)
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 440, height: 956)
+        let field = UITextField(frame: CGRect(x: 0, y: 0, width: 200, height: 44))
+        let host = UIHostingController(rootView: AnyView(EmptyView()))
+        window.rootViewController = host
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+        host.view.addSubview(field)
+        try XCTSkipUnless(field.becomeFirstResponder(), "this environment gives the field no first responder")
+
+        host.rootView = AnyView(ImageViewer(url: "not a url", sourceFrame: nil, accessibilityLabel: "Photo", onClose: {}))
+        for _ in 0..<20 where field.isFirstResponder {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+        }
+
+        XCTAssertFalse(field.isFirstResponder)
+    }
+
     // MARK: - image-viewer-zoom-dismiss (reference §2)
 
     private let viewport = CGRect(x: 0, y: 0, width: 400, height: 1000)

@@ -13,6 +13,14 @@ final class MediaHomeContainerTests: XCTestCase {
         .init(tiles: tiles, tagSections: [], leaderOptions: [], dateRange: nil, isEmptyLibrary: empty, isNoResults: noResults)
     }
 
+    /// master-search D9, §iphone Pushed pages: a pushed Media page has a header and the viewer, never an upload.
+    func testPushedModeOffersNoUploadAndShowsViewer() {
+        XCTAssertFalse(MediaHomeContainer.allowsUpload(.pushed))
+        XCTAssertTrue(MediaHomeContainer.opensViewer(.pushed))
+        XCTAssertTrue(MediaHomeContainer.drawsHeader(.pushed))
+        XCTAssertFalse(MediaHomeContainer.drawsHeader(.browse))
+    }
+
     func testLoadsOncePerSessionPerOrg() {
         XCTAssertTrue(MediaHomeContainer.shouldLoad(loadedOrgId: nil, orgId: "o1"))
         XCTAssertFalse(MediaHomeContainer.shouldLoad(loadedOrgId: "o1", orgId: "o1"))

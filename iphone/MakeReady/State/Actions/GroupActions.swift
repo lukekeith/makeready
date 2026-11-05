@@ -298,6 +298,8 @@ struct GroupActions {
         let enrollmentIds = Set(state.groupEnrollmentIndex.get(id))
 
         state.groups.remove(id)
+        // The group, and the events and posts that open into it.
+        state.dropSearchItems { ($0.type == "GROUP" && $0.id == id) || ($0.parent?.type == "GROUP" && $0.parent?.id == id) }
 
         let postIds = state.groupPostIndex.get(id)
         state.posts.removeMany(postIds)

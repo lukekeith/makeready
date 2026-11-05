@@ -145,22 +145,27 @@ struct SearchField: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: Token.Radius.cardSm)
-                .fill(fill)
-                .overlay(
-                    RoundedRectangle(cornerRadius: Token.Radius.cardSm)
-                        .strokeBorder(border, lineWidth: Geometry.borderWidth)
-                )
+            ZStack(alignment: .topLeading) {
+                RoundedRectangle(cornerRadius: Token.Radius.cardSm)
+                    .fill(fill)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Token.Radius.cardSm)
+                            .strokeBorder(border, lineWidth: Geometry.borderWidth)
+                    )
 
-            searchGlyph
-            if editable { editableRow } else { contentRow }
+                searchGlyph
+                if editable { editableRow } else { contentRow }
+            }
+            .contentShape(Rectangle())
+            // D19: a tap anywhere on the field (the glyph, the inset) focuses the editable form.
+            // The clear button sits outside this stack, so its tap never runs this gesture: its
+            // own action is the only focus setter on that tap (`clearDismisses` must stick).
+            .simultaneousGesture(TapGesture().onEnded { if editable { inputFocused = true } })
+
             if hasValue || showsClearWhenEmpty { clearButton }
         }
         .frame(maxWidth: .infinity, minHeight: Geometry.height, maxHeight: Geometry.height)
         .clipped()                                  // §2: "content clipped"
-        .contentShape(Rectangle())
-        // D19: a tap anywhere on the field (the glyph, the inset) focuses the editable form.
-        .simultaneousGesture(TapGesture().onEnded { if editable { inputFocused = true } })
         .onChange(of: inputFocused) { _, focused in onFocusChange(focused) }
         .ui2Element("SearchField")
     }

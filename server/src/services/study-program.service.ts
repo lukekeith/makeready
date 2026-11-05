@@ -61,12 +61,11 @@ export async function programListScope(userId: string): Promise<string[]> {
 }
 
 /**
- * D13: a private program is listed only to its creator, its leader, the owner of its org, an Owner or
- * Admin role-holder there, and super admins. A visibility rule, not mutation auth — so not
- * `canManageOrgContent`, which is true for every role-holder.
+ * D13: the orgs whose private programs a caller sees whatever their creator or leader — those they own
+ * and those where they hold an Owner or Admin role — or `null` for a super admin, who sees them all.
  */
-export async function privateProgramVisibility(userId: string): Promise<Prisma.StudyProgramWhereInput> {
-  if (await isSuperAdmin(userId)) return {}
+export async function privateProgramAdminOrgIds(userId: string): Promise<string[] | null> {
+  if (await isSuperAdmin(userId)) return null
   const [owned, adminRoles] = await Promise.all([
     prisma.organization.findMany({ where: { ownerId: userId }, select: { id: true } }),
     prisma.userRole.findMany({
@@ -74,7 +73,17 @@ export async function privateProgramVisibility(userId: string): Promise<Prisma.S
       select: { organizationId: true },
     }),
   ])
-  const orgIds = [...new Set([...owned.map((o) => o.id), ...adminRoles.map((r) => r.organizationId)])]
+  return [...new Set([...owned.map((o) => o.id), ...adminRoles.map((r) => r.organizationId)])]
+}
+
+/**
+ * D13: a private program is listed only to its creator, its leader, the owner of its org, an Owner or
+ * Admin role-holder there, and super admins. A visibility rule, not mutation auth — so not
+ * `canManageOrgContent`, which is true for every role-holder.
+ */
+export async function privateProgramVisibility(userId: string): Promise<Prisma.StudyProgramWhereInput> {
+  const orgIds = await privateProgramAdminOrgIds(userId)
+  if (orgIds === null) return {}
   return {
     OR: [
       { isPrivate: false },

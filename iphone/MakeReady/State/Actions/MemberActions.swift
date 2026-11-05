@@ -91,9 +91,14 @@ struct MemberActions {
     func loadMemberDays(_ id: String) async {
         let window = HomeDashboardMapper.days(endingAt: now(), back: Self.railDays - 1, ahead: 0, tz: timeZone)
         guard let from = window.first?.key, let to = window.last?.key else { return }
+        // A member from a second org is not in the active one: the server would scope them to an empty rail.
+        let activeOrg = state.organizationId ?? ""
+        let foreign = state.memberDetails[id].map { detail in
+            !detail.organizations.contains { $0.organizationId == activeOrg }
+        } ?? false
         let path = Self.path("/api/home/days", [
             ("from", from), ("to", to), ("tz", timeZone.identifier),
-            ("memberId", id), ("organizationId", state.organizationId ?? "")
+            ("memberId", id), ("organizationId", foreign ? "" : activeOrg)
         ])
         guard let response = await fetch("loadMemberDays", path, HomeDaysResponse.self) else { return }
         state.memberDaysById[id] = response.days

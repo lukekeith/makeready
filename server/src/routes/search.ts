@@ -3,6 +3,8 @@ import { z } from 'zod'
 import { prisma, Prisma } from '../lib/prisma.js'
 import { parseReference, getSearchType, matchBookNames } from '../utils/bible-reference-parser.js'
 import { requireAuth } from '../middleware/auth.js'
+import { SEARCH_TYPES, SearchParamError, parseListFilters, parseRankedParams, parseRecentLimit } from '../services/master-search-query.js'
+import { deleteRecentResult, listRecentResults, recordRecentResult, searchFilterOptions, searchRanked } from '../services/master-search.js'
 
 const router = Router()
 
@@ -1408,6 +1410,418 @@ router.delete('/recent', async (req, res) => {
   } catch (error) {
     console.error('Error clearing search history:', error)
     res.status(500).json({ error: 'Failed to clear search history' })
+  }
+})
+
+// ============================================
+// MASTER SEARCH - One ranked list across types
+// ============================================
+
+/**
+ * @openapi
+ * /api/search/ranked:
+ *   get:
+ *     tags: [Search]
+ *     summary: Ranked search across nine resource types
+ *     description: |
+ *       One list across programs, templates, members, groups, lessons, events, posts, videos and
+ *       photos, scoped to the caller's organizations plus system templates. `score` is comparable
+ *       only within one response's query. Foreign or malformed ids in a filter only narrow.
+ *     security:
+ *       - session: []
+ *       - apiKey: []
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         required: true
+ *         schema:
+ *           type: string
+ *           minLength: 2
+ *           maxLength: 200
+ *         description: Search query, trimmed
+ *       - in: query
+ *         name: types
+ *         schema:
+ *           type: string
+ *         description: "Comma list of PROGRAM,TEMPLATE,MEMBER,GROUP,LESSON,EVENT,POST,VIDEO,PHOTO"
+ *       - in: query
+ *         name: orgIds
+ *         schema:
+ *           type: string
+ *         description: Comma list, at most 50; a set list also drops system templates
+ *       - in: query
+ *         name: groupIds
+ *         schema:
+ *           type: string
+ *         description: Comma list, at most 50
+ *       - in: query
+ *         name: leaderIds
+ *         schema:
+ *           type: string
+ *         description: Comma list of user ids, at most 50
+ *       - in: query
+ *         name: tags
+ *         schema:
+ *           type: string
+ *         description: Comma list, at most 50
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           minimum: 1
+ *           maximum: 50
+ *       - in: query
+ *         name: cursor
+ *         schema:
+ *           type: string
+ *         description: The previous response's nextCursor
+ *     responses:
+ *       200:
+ *         description: One ranked page
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 items:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       type:
+ *                         type: string
+ *                       id:
+ *                         type: string
+ *                       title:
+ *                         type: string
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                       score:
+ *                         type: number
+ *                       imageUrl:
+ *                         type: string
+ *                         nullable: true
+ *                       parent:
+ *                         type: object
+ *                         nullable: true
+ *                         properties:
+ *                           type:
+ *                             type: string
+ *                           id:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                 nextCursor:
+ *                   type: string
+ *                   nullable: true
+ *       400:
+ *         description: Bad q, types, limit or cursor, or a filter list above 50
+ *       401:
+ *         description: Not authenticated
+ */
+router.get('/ranked', requireAuth, async (req, res) => {
+  try {
+    const { items, nextCursor } = await searchRanked((req.user as any).id, parseRankedParams(req.query))
+    res.json({ success: true, items, nextCursor })
+  } catch (error) {
+    if (error instanceof SearchParamError) {
+      return res.status(400).json({ success: false, error: error.message })
+    }
+    console.error('Ranked search error:', error)
+    res.status(500).json({ success: false, error: 'Search failed' })
+  }
+})
+
+// A NUL cannot be a Postgres text parameter, so it is a bad body rather than a 500.
+const recentBodySchema = z
+  .object({ type: z.enum(SEARCH_TYPES), id: z.string().min(1).refine((id) => !id.includes('\u0000'), 'id contains an invalid character') })
+  .strict()
+
+/**
+ * @openapi
+ * /api/search/recent-results:
+ *   get:
+ *     tags: [Search]
+ *     summary: Recently opened search results
+ *     description: |
+ *       The caller's recently opened results, newest first, with the same filters as ranked search.
+ *       Entries that were deleted, deactivated or are no longer visible to the caller are left out.
+ *       `score` is always null.
+ *     security:
+ *       - session: []
+ *       - apiKey: []
+ *     parameters:
+ *       - in: query
+ *         name: types
+ *         schema:
+ *           type: string
+ *         description: "Comma list of PROGRAM,TEMPLATE,MEMBER,GROUP,LESSON,EVENT,POST,VIDEO,PHOTO"
+ *       - in: query
+ *         name: orgIds
+ *         schema:
+ *           type: string
+ *         description: Comma list, at most 50
+ *       - in: query
+ *         name: groupIds
+ *         schema:
+ *           type: string
+ *         description: Comma list, at most 50
+ *       - in: query
+ *         name: leaderIds
+ *         schema:
+ *           type: string
+ *         description: Comma list of user ids, at most 50
+ *       - in: query
+ *         name: tags
+ *         schema:
+ *           type: string
+ *         description: Comma list, at most 50
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *           minimum: 1
+ *           maximum: 50
+ *     responses:
+ *       200:
+ *         description: Recent results
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 items:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       type:
+ *                         type: string
+ *                       id:
+ *                         type: string
+ *                       title:
+ *                         type: string
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                       score:
+ *                         type: number
+ *                         nullable: true
+ *                       imageUrl:
+ *                         type: string
+ *                         nullable: true
+ *                       parent:
+ *                         type: object
+ *                         nullable: true
+ *                         properties:
+ *                           type:
+ *                             type: string
+ *                           id:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                       openedAt:
+ *                         type: string
+ *                         format: date-time
+ *       400:
+ *         description: Bad types or limit, or a filter list above 50
+ *       401:
+ *         description: Not authenticated
+ */
+router.get('/recent-results', requireAuth, async (req, res) => {
+  try {
+    const filters = parseListFilters(req.query)
+    const limit = parseRecentLimit(req.query)
+    res.json({ success: true, items: await listRecentResults((req.user as any).id, filters, limit) })
+  } catch (error) {
+    if (error instanceof SearchParamError) {
+      return res.status(400).json({ success: false, error: error.message })
+    }
+    console.error('Recent results error:', error)
+    res.status(500).json({ success: false, error: 'Failed to load recent results' })
+  }
+})
+
+/**
+ * @openapi
+ * /api/search/recent-results:
+ *   put:
+ *     tags: [Search]
+ *     summary: Record an opened search result
+ *     description: |
+ *       Adds the item to the caller's recents or moves it to the top. The caller keeps their newest
+ *       100 entries. The item must be visible to the caller as the given type.
+ *     security:
+ *       - session: []
+ *       - apiKey: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [type, id]
+ *             additionalProperties: false
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 enum: [PROGRAM, TEMPLATE, MEMBER, GROUP, LESSON, EVENT, POST, VIDEO, PHOTO]
+ *               id:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Recorded
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *       400:
+ *         description: Bad body
+ *       401:
+ *         description: Not authenticated
+ *       404:
+ *         description: Not found, or not visible to the caller as that type
+ */
+router.put('/recent-results', requireAuth, async (req, res) => {
+  const body = recentBodySchema.safeParse(req.body)
+  if (!body.success) {
+    return res.status(400).json({ success: false, error: 'Invalid body', details: body.error.flatten() })
+  }
+  try {
+    const recorded = await recordRecentResult((req.user as any).id, body.data.type, body.data.id)
+    if (!recorded) return res.status(404).json({ success: false, error: 'Not found' })
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Record recent result error:', error)
+    res.status(500).json({ success: false, error: 'Failed to record recent result' })
+  }
+})
+
+/**
+ * @openapi
+ * /api/search/recent-results/{type}/{id}:
+ *   delete:
+ *     tags: [Search]
+ *     summary: Remove a recent result
+ *     description: Removes the caller's own entry. Answers 200 whether or not one existed.
+ *     security:
+ *       - session: []
+ *       - apiKey: []
+ *     parameters:
+ *       - in: path
+ *         name: type
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [PROGRAM, TEMPLATE, MEMBER, GROUP, LESSON, EVENT, POST, VIDEO, PHOTO]
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Removed, or nothing to remove
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *       400:
+ *         description: Bad type
+ *       401:
+ *         description: Not authenticated
+ */
+router.delete('/recent-results/:type/:id', requireAuth, async (req, res) => {
+  const type = (SEARCH_TYPES as readonly string[]).includes(req.params.type) ? (req.params.type as (typeof SEARCH_TYPES)[number]) : null
+  if (!type) return res.status(400).json({ success: false, error: `Invalid type: ${req.params.type}` })
+  // A NUL cannot match a stored id (and Postgres refuses it as a parameter): answer as for an unknown id.
+  if (req.params.id.includes('\u0000')) return res.json({ success: true })
+  try {
+    await deleteRecentResult((req.user as any).id, type, req.params.id)
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Delete recent result error:', error)
+    res.status(500).json({ success: false, error: 'Failed to remove recent result' })
+  }
+})
+
+/**
+ * @openapi
+ * /api/search/filter-options:
+ *   get:
+ *     tags: [Search]
+ *     summary: Options for the search filter chips
+ *     description: |
+ *       Every organization the caller can search, with its active groups, its leaders (group creators and
+ *       Owner, Admin and Group Leader role holders, one row per user) and the tags in use, merged from media
+ *       and programs. Organizations, groups and leaders sort by name, then id. Tags list each category
+ *       member by category and position, then the remaining tags by label. A caller with no organizations
+ *       gets empty organizations, groups and leaders, and the category tags.
+ *     security:
+ *       - session: []
+ *       - apiKey: []
+ *     responses:
+ *       200:
+ *         description: The filter options
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 organizations:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id: { type: string }
+ *                       name: { type: string }
+ *                 groups:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id: { type: string }
+ *                       name: { type: string }
+ *                       organizationId: { type: string }
+ *                 leaders:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id: { type: string }
+ *                       name: { type: string }
+ *                 tags:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       tag: { type: string }
+ *                       label: { type: string }
+ *                       category: { type: string, nullable: true }
+ *       401:
+ *         description: Not authenticated
+ */
+router.get('/filter-options', requireAuth, async (req, res) => {
+  try {
+    res.json({ success: true, ...(await searchFilterOptions((req.user as any).id)) })
+  } catch (error) {
+    console.error('Search filter options error:', error)
+    res.status(500).json({ success: false, error: 'Failed to load filter options' })
   }
 })
 

@@ -18,7 +18,20 @@ struct MediaHomeContainer: View {
         case browse
         /// media-library D9: choose a group's or program's cover from the library.
         case pick(CoverOwner)
+        /// master-search D9: pushed from a search result (a video's exit). A header with a back button, the
+        /// viewer on, no upload; the page has no TopNav.
+        case pushed
     }
+
+    /// The upload entry exists only on Home's own Media section.
+    static func allowsUpload(_ mode: Mode) -> Bool { mode == .browse }
+    /// A tap opens the viewer everywhere except the cover picker, where it picks.
+    static func opensViewer(_ mode: Mode) -> Bool {
+        if case .pick = mode { return false }
+        return true
+    }
+    /// The modes that sit under their own `PageHeader` (no TopNav above them).
+    static func drawsHeader(_ mode: Mode) -> Bool { mode != .browse }
 
     let mode: Mode
     /// media-library D13: bumped by the Media TopNav `add`.
@@ -96,6 +109,10 @@ struct MediaHomeContainer: View {
             // media-library D9: the picker page's header — back, and what it is for.
             PageHeader(style: .default, title: "Choose image", showIcons: false, rightButtons: [],
                        onLeading: { navigator.pop() })
+          } else if mode == .pushed {
+            // master-search D9: a pushed page has no TopNav, so it draws its own back header.
+            PageHeader(style: .default, title: "Media", showIcons: false, rightButtons: [],
+                       onLeading: { navigator.pop() })
           }
           MediaImageGenerationReader(images: images) { generation in
             MediaHomeScreen(
@@ -163,7 +180,7 @@ struct MediaHomeContainer: View {
             requestImages(tiles: tiles)
         }
         .background(Token.layoutBackground.ignoresSafeArea())
-        .preference(key: UI2HidesTopNavKey.self, value: mode == .browse && searchActive)
+        .preference(key: UI2HidesTopNavKey.self, value: mode == .browse && searchActive)  // .pick and .pushed have no TopNav
         .filterMenuPresentation(isPresented: openMenu != nil, onDismiss: { openMenu = nil }) {
             if let chip = openMenu { menu(for: chip, output: output, sources: sources) }
         }
@@ -412,7 +429,7 @@ struct MediaHomeContainer: View {
     /// media-library D8/D13: the TopNav `add` — straight to Photos for one org, the Upload-to menu for
     /// several, a banner when the leader can upload nowhere.
     private func beginUpload() {
-        guard mode == .browse else { return }
+        guard Self.allowsUpload(mode) else { return }
         let app = AppState.shared
         let targets = Self.uploadTargets(sources: app.mediaSources, selection: selection, primaryOrgId: app.organizationId)
         if let direct = targets.direct {

@@ -216,6 +216,9 @@ models:
       searchHistory:
         type: one_to_many
         target: SearchHistory
+      searchRecentResults:
+        type: one_to_many
+        target: SearchRecentResult
       createdThemes:
         type: one_to_many
         target: TextTheme
@@ -281,6 +284,7 @@ models:
   # ===========================================================================
   Group:
     table_name: groups
+    # Search indexes (*_search_idx, *_title_lower_idx) are hand-managed in migration 20261104000602_master_search_indexes.sql; atlas.hcl drop_index skip keeps them out of migrate diff.
     fields:
       id:
         type: uuid
@@ -663,6 +667,7 @@ models:
   # ===========================================================================
   Member:
     table_name: members
+    # Search indexes (*_search_idx, *_title_lower_idx) are hand-managed in migration 20261104000602_master_search_indexes.sql; atlas.hcl drop_index skip keeps them out of migrate diff.
     fields:
       id:
         type: uuid
@@ -1015,6 +1020,7 @@ models:
   # ===========================================================================
   Media:
     table_name: media
+    # Search indexes (*_search_idx, *_title_lower_idx) are hand-managed in migration 20261104000602_master_search_indexes.sql; atlas.hcl drop_index skip keeps them out of migrate diff.
     fields:
       id:
         type: uuid
@@ -1169,6 +1175,7 @@ models:
   # ---------------------------------------------------------------------------
   MediaTag:
     table_name: media_tags
+    # Search indexes (*_search_idx, *_title_lower_idx) are hand-managed in migration 20261104000602_master_search_indexes.sql; atlas.hcl drop_index skip keeps them out of migrate diff.
     fields:
       id:
         type: uuid
@@ -1968,8 +1975,39 @@ models:
   # ===========================================================================
   # Lesson Template Models
   # ===========================================================================
+  SearchRecentResult:
+    table_name: search_recent_results
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      userId:
+        type: string
+      resourceType:
+        type: string
+        description: "A SearchType (PROGRAM, TEMPLATE, MEMBER, GROUP, LESSON, EVENT, POST, VIDEO, PHOTO)"
+      resourceId:
+        type: string
+        description: "Id of the opened resource; spans tables, so no FK"
+      openedAt:
+        type: datetime
+        default: now()
+    relations:
+      user:
+        type: many_to_one
+        target: User
+        fields: [userId]
+        references: [id]
+        onDelete: Cascade
+    indexes:
+      - fields: [userId, resourceType, resourceId]
+        unique: true
+      - fields: [userId, openedAt]
+
   LessonTemplate:
     table_name: lesson_templates
+    # Search indexes (*_search_idx, *_title_lower_idx) are hand-managed in migration 20261104000602_master_search_indexes.sql; atlas.hcl drop_index skip keeps them out of migrate diff.
     fields:
       id:
         type: uuid
@@ -2122,6 +2160,7 @@ models:
   # ===========================================================================
   StudyProgram:
     table_name: study_programs
+    # Search indexes (*_search_idx, *_title_lower_idx) are hand-managed in migration 20261104000602_master_search_indexes.sql; atlas.hcl drop_index skip keeps them out of migrate diff.
     fields:
       id:
         type: uuid
@@ -2354,6 +2393,7 @@ models:
 
   Lesson:
     table_name: lessons
+    # Search indexes (*_search_idx, *_title_lower_idx) are hand-managed in migration 20261104000602_master_search_indexes.sql; atlas.hcl drop_index skip keeps them out of migrate diff.
     fields:
       id:
         type: uuid
@@ -2398,6 +2438,7 @@ models:
 
   LessonActivity:
     table_name: lesson_activities
+    # Search indexes (*_search_idx, *_title_lower_idx) are hand-managed in migration 20261104000602_master_search_indexes.sql; atlas.hcl drop_index skip keeps them out of migrate diff.
     fields:
       id:
         type: uuid
@@ -2952,6 +2993,7 @@ models:
   # ===========================================================================
   Event:
     table_name: events
+    # Search indexes (*_search_idx, *_title_lower_idx) are hand-managed in migration 20261104000602_master_search_indexes.sql; atlas.hcl drop_index skip keeps them out of migrate diff.
     fields:
       id:
         type: uuid
@@ -3249,6 +3291,7 @@ models:
   # ===========================================================================
   Post:
     table_name: posts
+    # Search indexes (*_search_idx, *_title_lower_idx) are hand-managed in migration 20261104000602_master_search_indexes.sql; atlas.hcl drop_index skip keeps them out of migrate diff.
     fields:
       id:
         type: uuid
@@ -3976,6 +4019,7 @@ models:
   # ===========================================================================
   ActivityReadBlock:
     table_name: activity_read_blocks
+    # Search indexes (*_search_idx, *_title_lower_idx) are hand-managed in migration 20261104000602_master_search_indexes.sql; atlas.hcl drop_index skip keeps them out of migrate diff.
     fields:
       id:
         type: uuid

@@ -301,6 +301,7 @@ private let api: APIClientProtocol
         }
 
         state.mediaLibrary.remove(id)
+        state.dropSearchItems { ($0.type == "PHOTO" || $0.type == "VIDEO") && $0.id == id }
         state.persist()
         NSLog("📸 MediaActions: Deleted media \(id)")
     }

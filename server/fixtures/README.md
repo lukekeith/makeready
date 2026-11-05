@@ -101,6 +101,8 @@ ago, so the app's stale-start rule reads `Draft · 5/6`, started by Nathan Hughe
 makes Nathan Hughes the second group creator in the Leaders filter. Neither layer adds member
 progress; base enrollment 4's progress (home-dashboard) is spread over days.
 
+`screens/search-home.ts` — master-search D25: rows of every search type sharing the word `Grace` (program + tag + lesson, an exact-title post, an org template, events and a recurring series, an untitled post, a photo and a video tagged `romans`) on the third base group, plus six recents for the fixture user.
+
 `screens/media-home.ts` — 360 library photos over 3 years for the Media page (media-page D14); empty without base images.
 
 ## Layers
@@ -136,7 +138,7 @@ activity in the 07:00–21:00 Chicago band so it lands on the same calendar day 
 `0008` enrollments, `0009` schedules, `000a` lesson progress, `000b` video progress, `000c`
 membership events, `000d` client events, `000e` user roles, `000f` group members, `0010` member
 orgs, `0011` user preferences, `0015` join requests, `0016` feed activities, `0017` events, `0018`
-scheduled activities, `0019` videos, `001a` read blocks, `001b` enrollment drafts, `001c` media tags. A new kind gets the next free code. Rows that hang off a fixture
+scheduled activities, `0019` videos, `001a` read blocks, `001b` enrollment drafts, `001c` media tags, `001e` posts, `001f` templates, `0020` program tags, `0021` recent results. A new kind gets the next free code. Rows that hang off a fixture
 member, group, program or the fixture user are deleted by reset's cascade; anything else needs a
 line in `wipe.ts`. The Group-Leader user is `user` n 2 and its group `group` n 4; the Empty Group is `group` n 5; the members-home
 memberships are `groupMember` n 25–27. Reset deletes both users (`FIXTURE_USER_IDS`).

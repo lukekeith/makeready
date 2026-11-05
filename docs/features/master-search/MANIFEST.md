@@ -1,20 +1,20 @@
 size: lg
-state: spec
-next: /builder:resume --path docs/features/master-search
-head: 007dd419
+state: built
+next: /builder:agent-walk --path docs/features/master-search
+head: 7ff6dbf4
 ticket: none
-branch: feature/master-search
+branch: builder/master-search
 pr: none
 apps: server+iphone
-contract: open
+contract: frozen 2026-11-03
 hold: none
-go-ahead: none
+go-ahead: auto (recommended) 2026-11-03
 tests: slice=own+app end=risk review=slice
 target: feature/master-search
 walk: none
 verify: none
-ready: none
+ready: yes 2026-11-04 7ff6dbf4
 ui2: search-home (d2m; C-131, C-034, C-130, C-035, C-020, C-085, C-084, C-083, presents C-036; all built)
-auto: off
+auto: on 2026-11-03
 blocked: none
-agent-walk: off
+agent-walk: on 2026-11-03

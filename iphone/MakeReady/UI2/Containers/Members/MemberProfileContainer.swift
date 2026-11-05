@@ -145,11 +145,12 @@ struct MemberProfileContainer: View {
                 AppState.shared.recordError(error, context: "MemberProfileContainer.signOut", surface: false)
             }
         })
-        async let detail: () = actions.loadMember(memberId)
+        // The detail first: the days read its organizations, and a cold open from search has none.
+        await actions.loadMember(memberId)
         async let groups: () = actions.loadMemberGroups(memberId)
         async let engagement: () = actions.loadEngagement(memberId)
         async let days: () = actions.loadMemberDays(memberId)
-        _ = await (detail, groups, engagement, days)
+        _ = await (groups, engagement, days)
     }
 
     /// Each URL already in Ui2ImageCache, else "" (C-059's missing-cover box until it lands).

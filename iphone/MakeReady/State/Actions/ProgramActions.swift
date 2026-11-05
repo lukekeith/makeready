@@ -452,6 +452,8 @@ let api: APIClientProtocol
     @MainActor
     func forgetProgram(id: String) {
         state.programs.remove(id)
+        // master-search D42: the program, and the lessons that open into it.
+        state.dropSearchItems { ($0.type == "PROGRAM" && $0.id == id) || ($0.parent?.type == "PROGRAM" && $0.parent?.id == id) }
 
         let lessonIds = state.programLessonIndex.get(id)
         for lessonId in lessonIds {

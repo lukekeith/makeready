@@ -1,4 +1,4 @@
-h1:E+xXoj2F3PnpfMQToM2gjFww0uXGloDoEI877awyFjw=
+h1:J1YtM5q6V8Jd2f5tXjC39QdMzET/T/IY4Ml1IzkaD8c=
 20260129053731.sql h1:1voeZOgN+wZ08ea/ueAr/rs3ph6pyzXrp8m07aKzmYA=
 20260203052425.sql h1:hrlKcHs/bGvb+eu45uxABeJ9ci0+Vx2YREwba5HVoaQ=
 20260203052525.sql h1:J9XoYZEMUZPsk2ObTITwZhTR7W3mKkZ1x66gTNh+WSs=
@@ -75,3 +75,5 @@ h1:E+xXoj2F3PnpfMQToM2gjFww0uXGloDoEI877awyFjw=
 20261101211727_media_library_makeready_org.sql h1:JZKqcqMa5ve8YvAu3fkX+pwJs7NjJjxI46z7w0uQmmM=
 20261102040206_tag_categories.sql h1:L/dJOeU376ykfdVHIjK9y00uv9rhWItgs8qnEm7g6A0=
 20261102071026_invitations.sql h1:Xc0hrtpdtQ56Wk5+EA5gxEcPDfHjGoxuyYcSRFkcJAE=
+20261103120000_master_search_recents.sql h1:jG0ol+ZxHBkAuLKkYSpfOPWueVVvbOoMPU9qfwosELM=
+20261104000602_master_search_indexes.sql h1:Q2MXXJHARM8qQ4MWVmH+t0fEDt2eSmOeE10nOKQdbRM=

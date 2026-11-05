@@ -70,7 +70,8 @@ struct ImageViewer: View {
             let viewport = CGRect(origin: .zero, size: proxy.size)
             let origin = proxy.frame(in: .global).origin
             let fitted = image.map { ImageViewerMath.fittedFrame(imageSize: $0.size, in: viewport) } ?? viewport
-            let showsChrome = chromeVisible && zoomLive && drag == .zero
+            let showsChrome = ImageViewerMath.showsClose(chromeVisible: chromeVisible, live: zoomLive, dragging: drag != .zero,
+                                                         hasImage: image != nil, closing: closing)
             ZStack(alignment: .topLeading) {
                 Token.layoutBackground.opacity(backdrop)
                 if zoomLive {
@@ -98,7 +99,7 @@ struct ImageViewer: View {
                         .clipped()
                         .position(x: flightFrame.midX, y: flightFrame.midY)
                         .accessibilityLabel(accessibilityLabel(current))
-                } else {
+                } else if !closing {
                     ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
@@ -170,12 +171,25 @@ struct ImageViewer: View {
 
     @MainActor
     private func open(viewport: CGRect, origin: CGPoint) async {
-        guard urls.indices.contains(startIndex), let u = URL(string: urls[startIndex]) else { return }
-        let tile = placeholder(startIndex)
-        if Ui2ImageCache.shared.image(for: u) == nil, tile == nil {
-            _ = await UI2ImageLoader.seed([urls[startIndex]], context: "ImageViewer")
+        // master-search (agent walk round 1): the viewer is full screen, and a keyboard left up
+        // would cover its close button and the image's lower edge.
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        let url = urls.indices.contains(startIndex) ? URL(string: urls[startIndex]) : nil
+        let tile = urls.indices.contains(startIndex) ? placeholder(startIndex) : nil
+        let cached = { url.flatMap { Ui2ImageCache.shared.image(for: $0) } }
+        if cached() == nil, tile == nil, let url {
+            // Nothing to fly yet: the page goes behind the backdrop, and the close button stays usable.
+            withAnimation(ImageViewerMath.openSpring) { backdrop = 1 }
+            _ = await UI2ImageLoader.seed([url.absoluteString], context: "ImageViewer")
         }
-        guard let first = Self.openingImage(cached: Ui2ImageCache.shared.image(for: u), placeholder: tile) else { return }
+        guard !closing else { return }
+        guard let first = Self.openingImage(cached: cached(), placeholder: tile) else {
+            // The image cannot load: a blank page, live, so the viewer can still be left.
+            withAnimation(ImageViewerMath.openSpring) { backdrop = 1 } completion: {
+                if !closing { zoomLive = true }
+            }
+            return
+        }
         image = first
         let target = ImageViewerMath.fittedFrame(imageSize: first.size, in: viewport)
         flightFrame = ImageViewerMath.startFrame(source: sourceFrame(startIndex)?.offsetBy(dx: -origin.x, dy: -origin.y), fitted: target)
@@ -210,7 +224,7 @@ struct ImageViewer: View {
 
     /// Fly from where the image is now into the current page's source (or off the bottom), then close.
     private func dismiss(fitted: CGRect, viewport: CGRect, origin: CGPoint) {
-        guard !closing, image != nil else { return }
+        guard !closing else { return }
         closing = true
         chromeHideTask?.cancel()
         chromeVisible = false
@@ -252,6 +266,13 @@ enum ImageViewerMath {
     static let doubleTapZoom: CGFloat = 2.5
     /// media-viewer-paging: how long a tap shows the close button.
     static let chromeHold: Duration = .seconds(3)
+
+    /// media-viewer-paging: a tap shows the close button. With no image there is nothing to tap on
+    /// and nothing to read as a viewer, so it stays up (master-search, agent walk round 1).
+    static func showsClose(chromeVisible: Bool, live: Bool, dragging: Bool, hasImage: Bool, closing: Bool) -> Bool {
+        guard !closing, !dragging else { return false }
+        return hasImage ? chromeVisible && live : true
+    }
 
     /// media-viewer-paging: the page on screen for a pager scrolled to `offsetX` — the nearest
     /// page, clamped to the list.

@@ -49,6 +49,38 @@ struct SearchHomeScreen: View {
         var resultKinds: [String]
         var resultTitles: [String]
         var resultDescriptions: [String]
+        /// master-search D41 — the results belong to the current query. With no rows and no answer
+        /// the screen keeps the last render instead of printing the no-results line.
+        var queryAnswered: Bool = true
+        /// master-search D41 (refined) — the last answered query, when that answer had no rows and
+        /// the current query has none yet. With no rows and no answer, the screen keeps printing the
+        /// no-results line for this query instead of falling through to the recents. nil → today's
+        /// fall-through. A prop, never screen `@State` (R-01).
+        var heldNoResultsQuery: String?
+        /// master-search agent walk round 3 — moves when a new first page replaces the rows, which
+        /// then appear afresh. Rows are keyed by index, so a replacement alone fires no `onAppear`
+        /// for rows already drawn and paging would stall. No render effect.
+        var resultsGeneration: Int = 0
+    }
+
+    /// What the body draws below the header, decided from the inputs alone (§3 states 1–4, D41).
+    enum Content: Equatable {
+        case results
+        case noResults(query: String)
+        case recents
+        case empty
+    }
+
+    /// §3: a query of 2+ characters shows its rows, or its no-results line once answered (D41), or
+    /// the held query's line while the new one is unanswered; otherwise the recents, or nothing.
+    static func content(for state: State, query: String) -> Content {
+        if query.count >= minimumQueryLength {
+            if !state.resultTitles.isEmpty { return .results }
+            if state.queryAnswered { return .noResults(query: query) }
+            if let held = state.heldNoResultsQuery { return .noResults(query: held) }
+        }
+        // §3 state 2: no recents → the section, title included, is absent.
+        return state.recentTitles.isEmpty ? .empty : .recents
     }
 
     let state: State
@@ -99,9 +131,6 @@ struct SearchHomeScreen: View {
 
     // MARK: - Derived (§3)
 
-    /// §3: "A query of 0–1 chars shows state 1/2."
-    private var isQuerying: Bool { query.count >= Self.minimumQueryLength }
-
     /// §2 rail order, each with its current label.
     private var filterChips: [(filter: Filter, label: String)] {
         [
@@ -117,19 +146,24 @@ struct SearchHomeScreen: View {
 
     var body: some View {
         // D22: no ScrollView at the root — in the app the container's scroll scrolls it; the
-        // capture canvas lays it out at its full length. §2 Pinning: C-131 is the pinned section
-        // header of a LazyVStack, so only the list scrolls. The status bar is the harness's.
-        // swiftlint:disable:next lazy_container_in_overlay_content - §2 Pinning: only a lazy stack pins.
-        LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
-            Section {
-                if isQuerying {
-                    queryContent
-                } else if !state.recentTitles.isEmpty {
-                    // §3 state 2: no recents → the section, title included, is absent.
-                    recentSection
+        // capture canvas lays it out at its full length. §2 Pinning: C-131 stays at the top of the
+        // scroll's visible area, so only the list scrolls. The status bar is the harness's.
+        //
+        // Not a pinned-header LazyVStack (master-search P1): a lazy stack is the one layout here whose
+        // height is not the sum of its children's. When a page landed during a fast drag it reported
+        // 13904 pt where 120 rows need 9028 and put the difference above the rows, which jumped. This
+        // stack's height is exact by construction, and the header's pin costs no layout.
+        VStack(alignment: .leading, spacing: 0) {
+            header
+                .visualEffect { effect, proxy in
+                    effect.offset(y: max(0, -proxy.frame(in: .scrollView(axis: .vertical)).minY))
                 }
-            } header: {
-                header
+                .zIndex(1)                                   // §2: the list scrolls beneath it
+            switch Self.content(for: state, query: query) {
+            case .results: resultsList
+            case .noResults(let noResultsQuery): noResultsLine(for: noResultsQuery)
+            case .recents: recentSection
+            case .empty: EmptyView()
             }
         }
         .frame(maxWidth: .infinity, alignment: .top)
@@ -191,35 +225,38 @@ struct SearchHomeScreen: View {
 
     // MARK: §3 states 3–4
 
-    @ViewBuilder private var queryContent: some View {
-        if state.resultTitles.isEmpty {
-            // §2 No-results line (state 4, OQ-4b): `type-body-sm`, `color-text-secondary`, centred
-            // in the content width, `space-page-margin` below the header.
-            Text("No results for \"\(query)\"")
-                .designTextStyle(Token.TypeStyle.bodySm)
-                .foregroundStyle(Token.textSecondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-                .padding(Token.Space.pageMargin)
-        } else {
-            // §2 Results list (state 3): padding `space-page-margin`, then C-085 rows + hairlines.
-            // One ranked list: no C-020 title and no per-type sections (D67).
-            VStack(spacing: 0) {
-                ForEach(state.resultTitles.indices, id: \.self) { index in
-                    SearchResultRow(
-                        kind: kind(state.resultKinds, index),
-                        title: state.resultTitles[index],
-                        description: value(state.resultDescriptions, index),
-                        trailing: .none,
-                        onTap: { onOpenResult(index) }
-                    )
-                    .ui2Element(index == 0 ? "C-085 SearchResultRow" : "C-085 SearchResultRow \(index + 1)")
-                    .onAppear { onResultAppear(index) }
-                    hairlineView
-                }
-            }
+    /// §2 No-results line (state 4, OQ-4b): `type-body-sm`, `color-text-secondary`, centred in the
+    /// content width, `space-page-margin` below the header.
+    private func noResultsLine(for noResultsQuery: String) -> some View {
+        Text("No results for \"\(noResultsQuery)\"")
+            .designTextStyle(Token.TypeStyle.bodySm)
+            .foregroundStyle(Token.textSecondary)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
             .padding(Token.Space.pageMargin)
-        }
+    }
+
+    /// §2 Results list (state 3): padding `space-page-margin`, then C-085 rows + hairlines.
+    /// One ranked list: no C-020 title and no per-type sections (D67).
+    private var resultsList: some View {
+        ResultRows(
+            count: state.resultTitles.count,
+            hasDescription: { value(state.resultDescriptions, $0) != nil },
+            row: { index in
+                SearchResultRow(
+                    kind: kind(state.resultKinds, index),
+                    title: state.resultTitles[index],
+                    description: value(state.resultDescriptions, index),
+                    trailing: .none,
+                    onTap: { onOpenResult(index) }
+                )
+                .ui2Element(index == 0 ? "C-085 SearchResultRow" : "C-085 SearchResultRow \(index + 1)")
+                .onAppear { onResultAppear(index) }
+                .overlay(alignment: .bottom) { hairlineView }
+            }
+        )
+        .padding(Token.Space.pageMargin)
+        .id(state.resultsGeneration)
     }
 
     /// Deviation 5: the screen's list separator, drawn after each row (R-16). §2 "rows 408×74, no
@@ -239,6 +276,73 @@ struct SearchHomeScreen: View {
 
     private func value(_ values: [String], _ index: Int) -> String? {
         index < values.count && !values[index].isEmpty ? values[index] : nil
+    }
+}
+
+/// The result rows, near the viewport only, each placed from its known height. A lazy stack places
+/// rows from an estimate of the heights above them, and in the app that estimate moved the rows up to
+/// 1781 pt when a page landed while `contentOffset` held (master-search P1). A row's height follows
+/// from its inputs (C-085 §2), so nothing here is estimated: the page height and every row's place
+/// are exact, and a row's `onAppear` still fires only near the viewport (§2).
+private struct ResultRows<Row: View>: View {
+    let count: Int
+    let hasDescription: (Int) -> Bool
+    @ViewBuilder let row: (Int) -> Row
+
+    /// C-085 §2 / deviation 3: 74 with a description, 52 without.
+    private static var rowHeight: CGFloat { 74 }
+    private static var rowHeightNoDescription: CGFloat { 52 }
+    /// Rows kept drawn past each edge of the viewport, as a lazy stack keeps its own.
+    private static var overscan: Int { 6 }
+    /// What draws before the scroll view is measured: no more than a lazy stack's first layout.
+    private static var firstLayoutRows: Int { 20 }
+
+    /// R-31 ephemeral UI: the part of the list the scroll view shows; nil → no scroll view (the
+    /// capture canvas lays the screen out at its full length, D22), so every row draws.
+    @SwiftUI.State private var viewport: ClosedRange<CGFloat>? = 0...0
+    @SwiftUI.State private var measured = false
+
+    var body: some View {
+        let tops = rowTops
+        let window = visibleRows(tops: tops)
+        VStack(spacing: 0) {
+            Color.clear.frame(height: tops[window.lowerBound])
+            ForEach(window, id: \.self) { index in
+                row(index)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .top)
+        .frame(height: tops[count], alignment: .top)
+        .onGeometryChange(for: CGRect?.self) { $0.bounds(of: .scrollView) } action: { bounds in
+            measured = true
+            viewport = bounds.map { $0.minY...$0.maxY }
+        }
+    }
+
+    /// Each row's top, and the list's height as the last entry.
+    private var rowTops: [CGFloat] {
+        var tops = [CGFloat](repeating: 0, count: count + 1)
+        for index in 0..<count {
+            tops[index + 1] = tops[index] + (hasDescription(index) ? Self.rowHeight : Self.rowHeightNoDescription)
+        }
+        return tops
+    }
+
+    private func visibleRows(tops: [CGFloat]) -> Range<Int> {
+        guard measured else { return 0..<min(count, Self.firstLayoutRows) }
+        guard let viewport else { return 0..<count }
+        // The last row whose top is at or above a position, by binary search.
+        func row(at position: CGFloat) -> Int {
+            var low = 0, high = count
+            while low < high {
+                let middle = (low + high) / 2
+                if tops[middle + 1] <= position { low = middle + 1 } else { high = middle }
+            }
+            return min(low, count - 1)
+        }
+        let first = max(0, row(at: viewport.lowerBound) - Self.overscan)
+        let last = min(count - 1, row(at: viewport.upperBound) + Self.overscan)
+        return first < last + 1 ? first..<(last + 1) : 0..<0
     }
 }
 

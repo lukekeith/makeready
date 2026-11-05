@@ -12,7 +12,7 @@ import {
 import { type WipeClient, fixtureUserExists, wipeFixtures } from '../wipe.js'
 
 describe('wipeFixtures (D7)', () => {
-  it('deletes exactly the fixture graph, in the D7 order', async () => {
+  it('deletes exactly the fixture graph, in the D7 order, templates included', async () => {
     const calls: Array<{ model: string; args: unknown }> = []
     const model = (name: string) => ({
       deleteMany: async (args: unknown) => {
@@ -25,6 +25,7 @@ describe('wipeFixtures (D7)', () => {
       member: model('member'),
       group: model('group'),
       studyProgram: model('studyProgram'),
+      lessonTemplate: model('lessonTemplate'),
       user: model('user'),
     } as unknown as WipeClient
 
@@ -38,6 +39,7 @@ describe('wipeFixtures (D7)', () => {
       { model: 'member', args: { where: { id: { in: FIXTURE_MEMBER_IDS } } } },
       { model: 'group', args: { where: { organizationId: FIXTURE_ORG_ID } } },
       { model: 'studyProgram', args: { where: { organizationId: FIXTURE_ORG_ID } } },
+      { model: 'lessonTemplate', args: { where: { organizationId: FIXTURE_ORG_ID } } },
       { model: 'user', args: { where: { id: { in: [FIXTURE_USER_ID, FIXTURE_LEADER_USER_ID, FIXTURE_ORG2_OWNER_USER_ID] } } } },
     ])
   })

@@ -41,9 +41,24 @@ struct UI2Shell: View {
     /// itself, so the bar sliding away moves nothing. Each tab's NavigationStack already insets its
     /// pages by the home-indicator safe area (`safeBottom`, measured on device: 34pt, whatever its
     /// SwiftUI parents ignore), so a page adds only the rest of the bar's 84 — and a full-screen page
-    /// nothing: the stack's inset is its home-indicator clearance.
-    static func pageBottomPadding(fullScreen: Bool, tabBarHeight: CGFloat, safeBottom: CGFloat) -> CGFloat {
-        fullScreen ? 0 : max(0, tabBarHeight - safeBottom)
+    /// nothing: the stack's inset is its home-indicator clearance. A keyboard takes over that inset
+    /// (measured, agent walk round 3: a 344 keyboard ends the page 344 + this padding above the bottom)
+    /// and covers the bar it would reserve for, so a page ends at the higher of the bar and the keyboard.
+    static func pageBottomPadding(fullScreen: Bool, tabBarHeight: CGFloat, safeBottom: CGFloat,
+                                  keyboardHeight: CGFloat = 0) -> CGFloat {
+        fullScreen ? 0 : max(0, max(tabBarHeight, keyboardHeight) - max(safeBottom, keyboardHeight))
+    }
+
+    /// master-search R1: the page each tab's root renders, named so a test can read it.
+    enum RootPage: Equatable { case home, empty, search, profile }
+
+    static func rootPage(for tab: TabBar.Tab) -> RootPage {
+        switch tab {
+        case .home: .home
+        case .calendar: .empty
+        case .search: .search
+        case .profile: .profile
+        }
     }
 
     /// The window's bottom safe area — the inset each NavigationStack applies to its pages.
@@ -55,7 +70,7 @@ struct UI2Shell: View {
         ZStack(alignment: .bottom) {
             // ui2-members-browse D1/D2: one NavigationStack per tab, above the TabBar. Home stays
             // mounted — its TopNav keeps its own scroll position (SPEC D12) and its pushed page
-            // survives a tab switch (D2); any other tab mounts while selected (none pushes yet).
+            // survives a tab switch (D2); any other tab mounts while selected (Search pushes, T9).
             ZStack {
                 ForEach(UI2ShellModel.tabs, id: \.self) { tab in
                     if tab == .home || tab == model.tab {
@@ -146,15 +161,17 @@ struct UI2Shell: View {
     private func stack(for tab: TabBar.Tab) -> some View {
         NavigationStack(path: pathBinding(for: tab)) {
             root(for: tab)
-                .padding(.bottom, Self.pageBottomPadding(fullScreen: false, tabBarHeight: tabBarHeight, safeBottom: safeBottom))
+                .ui2PageBottom(Self.pageBottomPadding(fullScreen: false, tabBarHeight: tabBarHeight, safeBottom: safeBottom,
+                                                keyboardHeight: keyboardHeight))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .toolbar(.hidden, for: .navigationBar)
                 .background(UI2InteractivePop())
                 .navigationDestination(for: UI2Destination.self) { destination in
                     UI2PushedPage {                            // group-cover-image D26: + its back-swipe guard
                         page(for: destination)
-                            .padding(.bottom, Self.pageBottomPadding(fullScreen: destination.isFullScreen,
-                                                                     tabBarHeight: tabBarHeight, safeBottom: safeBottom))
+                            .ui2PageBottom(Self.pageBottomPadding(fullScreen: destination.isFullScreen,
+                                                                     tabBarHeight: tabBarHeight, safeBottom: safeBottom,
+                                                                     keyboardHeight: keyboardHeight))
                     }
                 }
         }
@@ -178,9 +195,10 @@ struct UI2Shell: View {
     /// A tab's root page. Home's root is the TopNav + section page (D1: the stack wraps
     /// `HomeSectionLayout`, so TopNav slides left with the root under a push).
     @ViewBuilder private func root(for tab: TabBar.Tab) -> some View {
-        switch tab {
+        switch Self.rootPage(for: tab) {
         case .home: HomeSectionLayout(model: $model) { sectionContent }
-        case .calendar, .search: EmptyPage()
+        case .empty: EmptyPage()
+        case .search: SearchHomeContainer()  // master-search R1
         case .profile: ProfileStopgapContainer()
         }
     }
@@ -213,6 +231,8 @@ struct UI2Shell: View {
         case let .enrollSelectSync(flowId): EnrollSelectSyncContainer(flowId: flowId)
         case let .enrollSelectAccess(flowId): EnrollSelectAccessContainer(flowId: flowId)
         case let .chooseCoverFromLibrary(owner): MediaHomeContainer(mode: .pick(owner))  // media-library D9
+        case .mediaHome: MediaHomeContainer(mode: .pushed)   // master-search D9: a video result's exit
+        case .programsHome: ProgramsHomeHost()                // master-search D27: a template result's exit
         }
     }
 
@@ -227,5 +247,14 @@ struct UI2Shell: View {
         case .media: MediaHomeContainer(addRequest: model.mediaAddRequest)  // media-page D1, media-library D13
         case .library: LibraryHomeContainer()  // library-home §7
         }
+    }
+}
+
+extension View {
+    /// The space a page leaves below itself in its tab's NavigationStack: page background, since the
+    /// stack's own is the window's white wherever the TabBar does not cover it (agent walk round 3).
+    func ui2PageBottom(_ padding: CGFloat) -> some View {
+        self.padding(.bottom, padding)
+            .background(Token.layoutBackground.ignoresSafeArea())
     }
 }

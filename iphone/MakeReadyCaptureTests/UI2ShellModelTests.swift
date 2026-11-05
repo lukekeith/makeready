@@ -3,6 +3,12 @@ import UIKit
 @testable import MakeReady
 
 final class UI2ShellModelTests: XCTestCase {
+    /// master-search R1: the Search tab renders the ranked search screen; Calendar stays empty.
+    func testSearchTabRendersSearchAndCalendarStaysEmpty() {
+        XCTAssertEqual(UI2Shell.rootPage(for: .search), .search)
+        XCTAssertEqual(UI2Shell.rootPage(for: .calendar), .empty)
+    }
+
     func testEntryPoint() {
         let m = UI2ShellModel()
         XCTAssertEqual(m.tab, .home); XCTAssertEqual(m.section, .home); XCTAssertTrue(m.showsTopNav)
@@ -49,6 +55,24 @@ final class UI2ShellModelTests: XCTestCase {
         XCTAssertEqual(UI2Shell.pageBottomPadding(fullScreen: true, tabBarHeight: 84, safeBottom: 34) + 34, 34)
         XCTAssertTrue(UI2Destination.editGroupCover(groupId: "g", source: .stored).isFullScreen)
         XCTAssertFalse(UI2Destination.createGroup.isFullScreen)
+    }
+    /// Agent walk round 3 (X1): over a keyboard the stack insets by the keyboard's height (measured:
+    /// a 344 keyboard ended the page 395 above the screen's bottom), and the bar is covered, so a page
+    /// reserves nothing and ends at the keyboard. Below the bar's height the bar's top still decides.
+    func testPageBottomPaddingReservesNothingOverAKeyboardThatCoversTheBar() {
+        func padding(_ keyboard: CGFloat, fullScreen: Bool = false) -> CGFloat {
+            UI2Shell.pageBottomPadding(fullScreen: fullScreen, tabBarHeight: 84, safeBottom: 34, keyboardHeight: keyboard)
+        }
+        XCTAssertEqual(padding(344), 0)
+        XCTAssertEqual(padding(84), 0)
+        XCTAssertEqual(padding(50) + 50, 84)
+        XCTAssertEqual(padding(0) + 34, 84)
+        XCTAssertEqual(padding(344, fullScreen: true), 0)
+    }
+    /// master-search §iphone Pushed pages: the exits to Media and Programs keep the TabBar.
+    func testExitDestinationsKeepTheTabBar() {
+        XCTAssertFalse(UI2Destination.mediaHome.isFullScreen)
+        XCTAssertFalse(UI2Destination.programsHome.isFullScreen)
     }
     func testTopNavOnlyOnHome() {
         var m = UI2ShellModel()
