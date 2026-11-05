@@ -119,9 +119,8 @@ enum SearchHomeMapper {
         return Output(state: state, recentItems: recentItems, resultItems: resultItems)
     }
 
-    /// D43: a photo row's preview, its thumbnail when it has one; nil for every other type.
+    /// D44: a row's image, the server's `thumbnailUrl`, then a photo's full image; nil for none.
     static func previewURL(of item: SearchItem) -> URL? {
-        guard item.type == "PHOTO" else { return nil }
         let urls = [item.thumbnailUrl, item.imageUrl].compactMap { $0 }.filter { !$0.isEmpty }
         return urls.first.flatMap(URL.init(string:))
     }

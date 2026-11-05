@@ -23,7 +23,7 @@ struct SearchItem: Codable, Equatable, Identifiable {
     let title: String
     let createdAt: String
     let imageUrl: String?
-    /// D43: PHOTO only; absent from an older server.
+    /// D44: the row's cover, avatar or thumbnail; absent from an older server.
     var thumbnailUrl: String? = nil
     let parent: SearchItemParent?
     /// C2 only.

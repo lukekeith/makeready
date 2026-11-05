@@ -124,17 +124,22 @@ final class SearchHomeMapperTests: XCTestCase {
         XCTAssertEqual(out.recentItems.map(\.id), ["a"])
     }
 
-    /// D43: a photo previews its thumbnail, falls back to the full image, and nothing else previews.
-    func testPhotoRowsPreviewTheirThumbnail() {
+    /// D44: every type shows its image; a photo falls back to its full image; no image is nil.
+    func testRowsShowTheirImage() {
         var thumbed = item("t", type: "PHOTO", imageUrl: "https://i/full.jpg")
         thumbed.thumbnailUrl = "https://i/thumb.jpg"
         let plain = item("p", type: "PHOTO", imageUrl: "https://i/plain.jpg")
         var emptyThumb = item("e", type: "PHOTO", imageUrl: "https://i/empty.jpg")
         emptyThumb.thumbnailUrl = ""
-        var video = item("v", type: "VIDEO", imageUrl: "https://i/video.jpg")
-        video.thumbnailUrl = "https://i/video-thumb.jpg"
-        let rows = [thumbed, plain, emptyThumb, video, item("n", type: "PHOTO")]
-        let expected = ["https://i/thumb.jpg", "https://i/plain.jpg", "https://i/empty.jpg", nil, nil]
+        var member = item("m", type: "MEMBER")
+        member.thumbnailUrl = "https://i/member.jpg"
+        var group = item("g", type: "GROUP")
+        group.thumbnailUrl = "https://i/group.jpg"
+        var lesson = item("l", type: "LESSON")
+        lesson.thumbnailUrl = "https://i/program.jpg"
+        let rows = [thumbed, plain, emptyThumb, member, group, lesson, item("n", type: "PROGRAM")]
+        let expected = ["https://i/thumb.jpg", "https://i/plain.jpg", "https://i/empty.jpg", "https://i/member.jpg",
+                        "https://i/group.jpg", "https://i/program.jpg", nil]
             .map { $0.flatMap(URL.init(string:)) }
         let results = output(results: rows, query: "gr", answered: "gr")
         XCTAssertEqual(results.state.resultImageURLs, expected)
