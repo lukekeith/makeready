@@ -4160,7 +4160,7 @@ private func buildUI2C085(_ fixture: CaptureFixture) throws -> AnyView {
     guard let ui2C085Trailing = c.trailing.flatMap(MakeReadyUI.SearchResultRow.Trailing.init(rawValue:)) else {
         throw ViewRegistryError.unknownView("component.ui2.C-085: props.trailing must be remove|none")
     }
-    // Seed the photo synchronously, same mechanism and same reason as the C-033 case. A URL that
+    // Seed the image synchronously, same mechanism and same reason as the C-033 case. A URL that
     // cannot load (`photo-with-failed-image`) is not seeded, so the row shows its §2 fallback.
     let ui2C085ImageURL = c.imageURL.flatMap(URL.init(string:))
     if let photoURL = ui2C085ImageURL, photoURL.scheme?.hasPrefix("http") == true,

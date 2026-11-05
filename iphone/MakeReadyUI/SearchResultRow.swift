@@ -16,11 +16,12 @@ import SwiftUI
 /// history are the consumer's.
 ///
 /// Chrome-free and width-driven (R-16; deviation 1): it fills the width it is given and states
-/// its own intrinsic height — 74 with a description or a photo preview, 52 otherwise — paints no
+/// its own intrinsic height — 74 with a description or an `imageURL`, 52 otherwise — paints no
 /// background, draws no hairline (deviation 10, the consumer's) and adds no outer padding.
 struct SearchResultRow: View {
 
-    /// §4 `kind` — "Selects the badge glyph". Nested per R-36; one case per §4 value (R-06).
+    /// §4 `kind` — "Selects the badge glyph and the image's shape". Nested per R-36; one case per
+    /// §4 value (R-06).
     enum Kind: String {
         case member
         case media
@@ -43,11 +44,12 @@ struct SearchResultRow: View {
     let kind: Kind
     /// §4 `title` — required. "The single-line title".
     let title: String
-    /// §4 `description` — "The meta line, supplied formatted; nil → the line is not rendered
-    /// and the row is 52 (deviation 3)". Default `nil`.
+    /// §4 `description` — "The meta line, supplied formatted; nil → the line is not rendered; the
+    /// row is 52, or 74 when `imageURL` is set (deviation 3)". Default `nil`.
     var description: String?
-    /// §4 `imageURL` — "Photo preview source. With `kind=photo` and a non-nil value the leading
-    /// slot is the 42pt preview (§2); otherwise ignored". Default `nil`.
+    /// §4 `imageURL` — "The row's image, for every kind. Non-nil → the 42pt image in the leading
+    /// slot, circle or square by `kind`, and the row is 74. Nil, loading or failed → the 24pt
+    /// glyph badge in the same 42pt slot, no spinner". Default `nil`.
     var imageURL: URL?
     /// §4 `trailing` — required.
     let trailing: Trailing
@@ -91,45 +93,58 @@ struct SearchResultRow: View {
         .ui2Element("Content")
     }
 
-    /// §2 Leading slot: "Normally the Badge; for `kind=photo` with `imageURL` set, the Photo
-    /// preview". Every other kind ignores `imageURL` (§4).
+    /// §2 Leading slot: "always 42 wide (deviation 11, owner ruling 2026-11-05), whatever the kind,
+    /// with or without `imageURL`, so every title starts at the same x". The Badge sits at the
+    /// slot's leading edge, y-centred.
     @ViewBuilder private var leadingSlot: some View {
-        if kind == .photo, let imageURL {
-            photoPreview(imageURL)
+        if let imageURL {
+            rowImage(imageURL)
         } else {
             badge
+                .frame(width: Self.slotSize, alignment: .leading)
         }
     }
 
-    /// §2 Photo preview: "42×42 rounded square, `radius-card` (8), image scaled to fill and
-    /// clipped". Cache-first, as Avatar.swift's `photo(_:)`: a snapshot renders in one synchronous
-    /// layout pass, so an `AsyncImage` alone comes out empty in a capture (Ui2ImageCache.swift).
-    /// "While loading or on failure the slot shows the normal 24pt photo glyph badge at the slot's
-    /// leading edge — the slot stays 42 wide so the title does not shift — with no spinner." The
-    /// slot is 42 tall as well, so the row's height follows `imageURL`, never the load result.
-    private func photoPreview(_ url: URL) -> some View {
+    /// §2 Image: "42×42, image scaled to fill and clipped, filling the slot". Cache-first, as
+    /// Avatar.swift's `photo(_:)`: a snapshot renders in one synchronous layout pass, so an
+    /// `AsyncImage` alone comes out empty in a capture (Ui2ImageCache.swift). While loading or on
+    /// failure the slot shows the 24pt glyph badge at its leading edge, no spinner. The slot is 42
+    /// tall as well, so the row's height follows `imageURL`, never the load result.
+    private func rowImage(_ url: URL) -> some View {
         Group {
             if let cached = Ui2ImageCache.shared.image(for: url) {
-                previewImage(Image(uiImage: cached))
+                loadedImage(Image(uiImage: cached))
             } else {
                 AsyncImage(url: url) { image in
-                    previewImage(image)
+                    loadedImage(image)
                 } placeholder: {
                     badge
                 }
             }
         }
-        .frame(width: Self.previewSize, height: Self.previewSize, alignment: .leading)
-        .accessibilityHidden(true)              // §4 Accessibility: "The preview image is decorative"
+        .frame(width: Self.slotSize, height: Self.slotSize, alignment: .leading)
+        .accessibilityHidden(true)              // §4 Accessibility: "The image is decorative"
     }
 
-    private func previewImage(_ image: Image) -> some View {
+    private func loadedImage(_ image: Image) -> some View {
         image
             .resizable()
             .scaledToFill()
-            .frame(width: Self.previewSize, height: Self.previewSize)
-            .clipShape(RoundedRectangle(cornerRadius: Token.Radius.card))
-            .ui2Element("Photo preview")
+            .frame(width: Self.slotSize, height: Self.slotSize)
+            .clipShape(imageShape)
+            .ui2Element("Image")
+    }
+
+    /// §2 Image: "Shape follows `kind`: member, group → circle (`radius-circle`); program, media,
+    /// lesson, event, post, photo → square, `radius-card-sm` (4)". `radius-circle` is 50%
+    /// (parsed:false), drawn as Circle.
+    private var imageShape: AnyShape {
+        switch kind {
+        case .member, .group:
+            return AnyShape(Circle())
+        case .program, .media, .lesson, .event, .post, .photo:
+            return AnyShape(RoundedRectangle(cornerRadius: Token.Radius.cardSm))
+        }
     }
 
     /// §2 Badge (inline part, OQ-C-085-001): "24×24 disc, `radius-circle`, fill
@@ -261,9 +276,9 @@ struct SearchResultRow: View {
 
     // GAP — C-085 §2: "24×24 disc" — badge diameter, no token row.
     private static let badgeSize: CGFloat = 24
-    // GAP — C-085 §2: "photo preview 42 (owner ruling 2026-11-05; equals the description-shown
-    // band)", no token row.
-    private static let previewSize: CGFloat = 42
+    // GAP — C-085 §2: "leading slot / image 42 (owner ruling 2026-11-05; equals the
+    // description-shown band)", no token row.
+    private static let slotSize: CGFloat = 42
     // GAP — C-085 §2: glyphs "18×18"; the glyph size scale has no 18 step.
     private static let glyphSize: CGFloat = 18
     // GAP — C-085 §2 / deviation 6: "a 44pt invisible hit target", no token row.

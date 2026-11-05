@@ -45,13 +45,13 @@ struct SearchHomeScreen: View {
         var recentTitles: [String]
         /// C-085 `description` — the "Created <date>" meta line (§3), supplied formatted.
         var recentDescriptions: [String]
-        /// C-085 `imageURL` — a photo row's preview source; nil, or no entry, → the glyph badge.
+        /// C-085 `imageURL` — any row's image, by `kind`; nil, or no entry, → the glyph badge.
         var recentImageURLs: [URL?] = []
         // ── Query results (§3 states 3/4) — C-085 `trailing=none`, in relevance order ──
         var resultKinds: [String]
         var resultTitles: [String]
         var resultDescriptions: [String]
-        /// C-085 `imageURL` — a photo row's preview source; nil, or no entry, → the glyph badge.
+        /// C-085 `imageURL` — any row's image, by `kind`; nil, or no entry, → the glyph badge.
         var resultImageURLs: [URL?] = []
         /// master-search D41 — the results belong to the current query. With no rows and no answer
         /// the screen keeps the last render instead of printing the no-results line.
@@ -204,7 +204,8 @@ struct SearchHomeScreen: View {
     // MARK: §2 Recent section
 
     /// §2: "column, padding `space-page-margin`, gap `space-stack-gap`" — C-020 then C-085 rows,
-    /// each followed by a hairline.
+    /// each followed by a hairline. Every title sits 18pt right of the frozen frame: C-085's 42pt
+    /// leading slot (C-085 deviation 11, owner ruling 2026-11-05).
     private var recentSection: some View {
         VStack(alignment: .leading, spacing: Token.Space.stackGap) {
             SectionHeader(title: Self.recentTitle, style: .section, accessory: .none)
@@ -246,10 +247,10 @@ struct SearchHomeScreen: View {
     private var resultsList: some View {
         ResultRows(
             count: state.resultTitles.count,
-            // C-085 §2: "a photo row with `imageURL` set is always 74, whatever the description".
+            // C-085 §2: "with `imageURL` set the row is always 74, for every kind and either
+            // description state".
             isFullHeight: { index in
-                value(state.resultDescriptions, index) != nil
-                    || (kind(state.resultKinds, index) == .photo && imageURL(state.resultImageURLs, index) != nil)
+                value(state.resultDescriptions, index) != nil || imageURL(state.resultImageURLs, index) != nil
             },
             row: { index in
                 SearchResultRow(
@@ -303,7 +304,7 @@ private struct ResultRows<Row: View>: View {
     let isFullHeight: (Int) -> Bool
     @ViewBuilder let row: (Int) -> Row
 
-    /// C-085 §2 / deviation 3: 74 with a description or a photo preview, 52 otherwise.
+    /// C-085 §2 / deviation 3: 74 with a description or an `imageURL`, 52 otherwise.
     private static var rowHeight: CGFloat { 74 }
     private static var rowHeightNoDescription: CGFloat { 52 }
     /// Rows kept drawn past each edge of the viewport, as a lazy stack keeps its own.
@@ -368,7 +369,11 @@ extension SearchHomeScreen.State {
     private static let frameTitles = ["Deep dive on the book of Romans", "Romans in 30 days"]
     private static let frameDescriptions = ["Created Feb 1, 2021", "Created Jan 15, 2025"]
 
-    /// A catalog photo (image-6) for the sample photo rows' C-085 `imageURL`.
+    /// Catalog images for the sample rows' C-085 `imageURL`: a square program cover, a circle member
+    /// avatar and group cover, a square photo.
+    private static let sampleProgramURL = URL(string: "http://localhost:5961/api/projects/makeready/images/romans-grafted-olive")
+    private static let sampleMemberURL = URL(string: "http://localhost:5961/api/projects/makeready/images/tony-stark")
+    private static let sampleGroupURL = URL(string: "http://localhost:5961/api/projects/makeready/images/image-5")
     private static let samplePhotoURL = URL(string: "http://localhost:5961/api/projects/makeready/images/image-6")
 
     /// The frozen frame's rows, every chip at rest — what every state but the two below starts from.
@@ -378,14 +383,14 @@ extension SearchHomeScreen.State {
         leaderFilterLabel: "Leaders", tagFilterLabel: "Tags", activeFilters: [],
         recentKinds: frameKinds, recentTitles: frameTitles, recentDescriptions: frameDescriptions,
         resultKinds: [], resultTitles: [], resultDescriptions: [])
-    /// §3 1 Recents — populated: the frozen frame's rows, then a photo row with its preview
-    /// (C-085 `imageURL`, owner ruling 2026-11-05).
+    /// §3 1 Recents — populated: the frozen frame's rows, then a member and a photo, mixing square,
+    /// no-image and circle rows (C-085 `imageURL`, owner ruling 2026-11-05).
     static let recentsPopulated: Self = {
         var sample = frameRecents
-        sample.recentKinds.append("photo")
-        sample.recentTitles.append("Sunrise over the Sea of Galilee")
-        sample.recentDescriptions.append("Created Mar 9, 2025")
-        sample.recentImageURLs = [nil, nil, samplePhotoURL]
+        sample.recentKinds += ["member", "photo"]
+        sample.recentTitles += ["Tony Stark", "Sunrise over the Sea of Galilee"]
+        sample.recentDescriptions += ["Joined Jan 3, 2025", "Created Mar 9, 2025"]
+        sample.recentImageURLs = [sampleProgramURL, nil, sampleMemberURL, samplePhotoURL]
         return sample
     }()
     /// §3 2 Recents — empty: the header only.
@@ -397,20 +402,21 @@ extension SearchHomeScreen.State {
         return sample
     }()
     /// §3 3 Querying — results: one ranked list across types; rows are the frame's and C-085's
-    /// own samples (`recent`, `result`, `media`, `lesson`, `photo`).
+    /// own samples (`recent`, `media`, `group`, `result`, `lesson`, `photo`), mixing circle, square
+    /// and no-image rows (owner ruling 2026-11-05).
     static let queryingResults: Self = {
         var sample = frameRecents
         sample.searchText = "Romans"
-        sample.resultKinds = ["program", "media", "program", "lesson", "photo"]
+        sample.resultKinds = ["program", "media", "group", "program", "lesson", "photo"]
         sample.resultTitles = [
-            "Deep dive on the book of Romans", "Romans 1 — week one teaching", "Romans in 30 days",
-            "Justified by faith", "Sunrise over the Sea of Galilee"
+            "Deep dive on the book of Romans", "Romans 1 — week one teaching", "Tuesday Men's Group",
+            "Romans in 30 days", "Justified by faith", "Sunrise over the Sea of Galilee"
         ]
         sample.resultDescriptions = [
-            "Created Feb 1, 2021", "Created Jan 15, 2025", "Created Jan 15, 2025",
-            "Created Feb 1, 2021", "Created Mar 9, 2025"
+            "Created Feb 1, 2021", "Created Jan 15, 2025", "Created Mar 4, 2024",
+            "Created Jan 15, 2025", "Created Feb 1, 2021", "Created Mar 9, 2025"
         ]
-        sample.resultImageURLs = [nil, nil, nil, nil, samplePhotoURL]
+        sample.resultImageURLs = [sampleProgramURL, nil, sampleGroupURL, nil, nil, samplePhotoURL]
         return sample
     }()
     /// §3 4 Querying — no results.
