@@ -102,6 +102,24 @@ final class SearchHomeScreenAppearTests: XCTestCase {
         }
     }
 
+    /// Agent walk round 6 (P1): the header pins without a lazy stack. Deep in the list the field stays
+    /// where it sat at rest, and a tap there reaches the field and not the rows scrolling beneath it.
+    func testTheHeaderStaysPinnedAndTappableDeepInTheList() throws {
+        let host = makeHost(page(results(count: 60, generation: 0)))
+        settle(host)
+        let scroll = try XCTUnwrap(scrollView(in: host.view))
+        let field = try XCTUnwrap(textField(in: host.view))
+        func fieldCentre() -> CGPoint { field.convert(CGPoint(x: field.bounds.midX, y: field.bounds.midY), to: host.view) }
+        let atRest = fieldCentre()
+
+        scroll.contentOffset.y = 2_000
+        settle(host)
+        XCTAssertEqual(scroll.contentOffset.y, 2_000, accuracy: 1, "the list did not scroll: the test proves nothing")
+        XCTAssertEqual(fieldCentre().y, atRest.y, accuracy: 1)
+        let hit = host.view.hitTest(fieldCentre(), with: nil)
+        XCTAssertTrue(hit === field || hit?.isDescendant(of: field) == true, "the tap reached \(String(describing: hit))")
+    }
+
     /// Agent walk round 3 (X1): what a page leaves below itself is page background, never the window's white.
     func testThePageBottomIsPageBackground() throws {
         let band = try pixel(of: Color.clear.ui2PageBottom(50))
@@ -214,6 +232,11 @@ final class SearchHomeScreenAppearTests: XCTestCase {
             RunLoop.main.run(until: Date().addingTimeInterval(0.1))
             host.view.layoutIfNeeded()
         }
+    }
+
+    private func textField(in view: UIView) -> UITextField? {
+        if let field = view as? UITextField { return field }
+        return view.subviews.lazy.compactMap { self.textField(in: $0) }.first
     }
 
     private func scrollView(in view: UIView) -> UIScrollView? {

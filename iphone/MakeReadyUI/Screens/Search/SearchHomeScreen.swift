@@ -146,19 +146,24 @@ struct SearchHomeScreen: View {
 
     var body: some View {
         // D22: no ScrollView at the root — in the app the container's scroll scrolls it; the
-        // capture canvas lays it out at its full length. §2 Pinning: C-131 is the pinned section
-        // header of a LazyVStack, so only the list scrolls. The status bar is the harness's.
-        // swiftlint:disable:next lazy_container_in_overlay_content - §2 Pinning: only a lazy stack pins.
-        LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
-            Section {
-                switch Self.content(for: state, query: query) {
-                case .results: resultsList
-                case .noResults(let noResultsQuery): noResultsLine(for: noResultsQuery)
-                case .recents: recentSection
-                case .empty: EmptyView()
+        // capture canvas lays it out at its full length. §2 Pinning: C-131 stays at the top of the
+        // scroll's visible area, so only the list scrolls. The status bar is the harness's.
+        //
+        // Not a pinned-header LazyVStack (master-search P1): a lazy stack is the one layout here whose
+        // height is not the sum of its children's. When a page landed during a fast drag it reported
+        // 13904 pt where 120 rows need 9028 and put the difference above the rows, which jumped. This
+        // stack's height is exact by construction, and the header's pin costs no layout.
+        VStack(alignment: .leading, spacing: 0) {
+            header
+                .visualEffect { effect, proxy in
+                    effect.offset(y: max(0, -proxy.frame(in: .scrollView(axis: .vertical)).minY))
                 }
-            } header: {
-                header
+                .zIndex(1)                                   // §2: the list scrolls beneath it
+            switch Self.content(for: state, query: query) {
+            case .results: resultsList
+            case .noResults(let noResultsQuery): noResultsLine(for: noResultsQuery)
+            case .recents: recentSection
+            case .empty: EmptyView()
             }
         }
         .frame(maxWidth: .infinity, alignment: .top)
