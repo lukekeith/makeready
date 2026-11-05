@@ -35,15 +35,13 @@ final class SearchHomeMapperTests: XCTestCase {
     func testKindMapDropsUnknownTypes() {
         let types = ["PROGRAM", "TEMPLATE", "MEMBER", "GROUP", "LESSON", "EVENT", "POST", "VIDEO", "PHOTO", "FUTURE"]
         let out = output(results: types.map { item($0, type: $0) }, query: "gr", answered: "gr")
-        XCTAssertEqual(out.state.resultKinds, ["program", "program", "member", "group", "lesson", "event", "post", "media", "photo"])
-        XCTAssertEqual(out.resultItems.count, 9)
+        XCTAssertEqual(out.state.resultKinds, ["program", "program", "member", "group", "event", "post", "media", "photo"])
+        XCTAssertEqual(out.resultItems.count, 8)   // D45: LESSON is no longer a type, as FUTURE
     }
 
     func testExitsForEveryType() {
-        let parent = SearchItemParent(type: "PROGRAM", id: "p", name: "Romans")
         let group = SearchItemParent(type: "GROUP", id: "gp", name: "Youth")
         XCTAssertEqual(SearchHomeMapper.exit(for: item("t", type: "TEMPLATE")), .push(.programsHome))
-        XCTAssertEqual(SearchHomeMapper.exit(for: item("l", type: "LESSON", parent: parent)), .push(.studyProgramHome(id: "p", name: "Romans")))
         XCTAssertEqual(SearchHomeMapper.exit(for: item("v", type: "VIDEO")), .push(.mediaHome))
         XCTAssertEqual(SearchHomeMapper.exit(for: item("m", type: "MEMBER", title: "Ann")), .push(.memberDetail(id: "m", name: "Ann")))
         XCTAssertEqual(SearchHomeMapper.exit(for: item("g", type: "GROUP", title: "G")), .push(.groupDetail(id: "g", name: "G")))
@@ -73,7 +71,7 @@ final class SearchHomeMapperTests: XCTestCase {
 
     func testTypeOptionsAreInDesignOrder() {
         XCTAssertEqual(SearchHomeMapper.typeOptions.map(\.label),
-                       ["Programs", "Members", "Groups", "Lessons", "Events", "Posts", "Videos", "Photos"])
+                       ["Programs", "Members", "Groups", "Events", "Posts", "Videos", "Photos"])
     }
 
     func testTagSectionsKeepC5Order() {
@@ -110,18 +108,54 @@ final class SearchHomeMapperTests: XCTestCase {
         XCTAssertNil(output(results: [], query: "xyz", answered: " x ").state.heldNoResultsQuery)
     }
 
+    /// D45: a program with matching lessons counts them; 0 and no count read as the created date.
+    func testProgramRowCountsItsMatchingLessons() {
+        func row(_ id: String, _ count: Int?) -> SearchItem {
+            var program = item(id, type: "PROGRAM", createdAt: "2026-10-03T12:00:00.000Z")
+            program.matchingLessons = count
+            return program
+        }
+        let out = output(results: [row("a", 30), row("b", 1), row("c", 0), row("d", nil)], query: "gr", answered: "gr")
+        XCTAssertEqual(out.state.resultDescriptions,
+                       ["30 matching lessons", "1 matching lesson", "Created Oct 3, 2026", "Created Oct 3, 2026"])
+    }
+
     func testDescriptionIsCreatedDate() {
         let out = output(results: [item("a", createdAt: "2026-10-03T12:00:00.000Z")], query: "gr", answered: "gr")
         XCTAssertEqual(out.state.resultDescriptions, ["Created Oct 3, 2026"])
     }
 
     func testRecentsMapWithTheSameKindsAndDropUnknownTypes() {
-        let recents = [item("a", type: "LESSON", title: "Day 1"), item("b", type: "FUTURE")]
+        let recents = [item("a", type: "EVENT", title: "Day 1"), item("b", type: "FUTURE")]
         let out = SearchHomeMapper.output(recents: recents, results: [], query: "", answeredQuery: nil,
                                           selection: .init(), options: nil, tz: utc)
-        XCTAssertEqual(out.state.recentKinds, ["lesson"])
+        XCTAssertEqual(out.state.recentKinds, ["event"])
         XCTAssertEqual(out.state.recentTitles, ["Day 1"])
         XCTAssertEqual(out.recentItems.map(\.id), ["a"])
+    }
+
+    /// D44: every type shows its image; a photo falls back to its full image; no image is nil.
+    func testRowsShowTheirImage() {
+        var thumbed = item("t", type: "PHOTO", imageUrl: "https://i/full.jpg")
+        thumbed.thumbnailUrl = "https://i/thumb.jpg"
+        let plain = item("p", type: "PHOTO", imageUrl: "https://i/plain.jpg")
+        var emptyThumb = item("e", type: "PHOTO", imageUrl: "https://i/empty.jpg")
+        emptyThumb.thumbnailUrl = ""
+        var member = item("m", type: "MEMBER")
+        member.thumbnailUrl = "https://i/member.jpg"
+        var group = item("g", type: "GROUP")
+        group.thumbnailUrl = "https://i/group.jpg"
+        var event = item("l", type: "EVENT")
+        event.thumbnailUrl = "https://i/program.jpg"
+        let rows = [thumbed, plain, emptyThumb, member, group, event, item("n", type: "PROGRAM")]
+        let expected = ["https://i/thumb.jpg", "https://i/plain.jpg", "https://i/empty.jpg", "https://i/member.jpg",
+                        "https://i/group.jpg", "https://i/program.jpg", nil]
+            .map { $0.flatMap(URL.init(string:)) }
+        let results = output(results: rows, query: "gr", answered: "gr")
+        XCTAssertEqual(results.state.resultImageURLs, expected)
+        let recents = SearchHomeMapper.output(recents: rows, results: [], query: "", answeredQuery: nil,
+                                              selection: .init(), options: nil, tz: utc)
+        XCTAssertEqual(recents.state.recentImageURLs, expected)
     }
 
     /// F11: what the code can prove. The next page is asked for only within the last five rows;

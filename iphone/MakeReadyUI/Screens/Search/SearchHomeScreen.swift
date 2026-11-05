@@ -45,10 +45,14 @@ struct SearchHomeScreen: View {
         var recentTitles: [String]
         /// C-085 `description` — the "Created <date>" meta line (§3), supplied formatted.
         var recentDescriptions: [String]
+        /// C-085 `imageURL` — any row's image, by `kind`; nil, or no entry, → the glyph badge.
+        var recentImageURLs: [URL?] = []
         // ── Query results (§3 states 3/4) — C-085 `trailing=none`, in relevance order ──
         var resultKinds: [String]
         var resultTitles: [String]
         var resultDescriptions: [String]
+        /// C-085 `imageURL` — any row's image, by `kind`; nil, or no entry, → the glyph badge.
+        var resultImageURLs: [URL?] = []
         /// master-search D41 — the results belong to the current query. With no rows and no answer
         /// the screen keeps the last render instead of printing the no-results line.
         var queryAnswered: Bool = true
@@ -200,7 +204,8 @@ struct SearchHomeScreen: View {
     // MARK: §2 Recent section
 
     /// §2: "column, padding `space-page-margin`, gap `space-stack-gap`" — C-020 then C-085 rows,
-    /// each followed by a hairline.
+    /// each followed by a hairline. Every title sits 18pt right of the frozen frame: C-085's 42pt
+    /// leading slot (C-085 deviation 11, owner ruling 2026-11-05).
     private var recentSection: some View {
         VStack(alignment: .leading, spacing: Token.Space.stackGap) {
             SectionHeader(title: Self.recentTitle, style: .section, accessory: .none)
@@ -211,6 +216,7 @@ struct SearchHomeScreen: View {
                         kind: kind(state.recentKinds, index),
                         title: state.recentTitles[index],
                         description: value(state.recentDescriptions, index),
+                        imageURL: imageURL(state.recentImageURLs, index),
                         trailing: .remove,
                         onTap: { onOpenRecent(index) },
                         onRemove: { onRemoveRecent(index) }
@@ -241,12 +247,17 @@ struct SearchHomeScreen: View {
     private var resultsList: some View {
         ResultRows(
             count: state.resultTitles.count,
-            hasDescription: { value(state.resultDescriptions, $0) != nil },
+            // C-085 §2: "with `imageURL` set the row is always 74, for every kind and either
+            // description state".
+            isFullHeight: { index in
+                value(state.resultDescriptions, index) != nil || imageURL(state.resultImageURLs, index) != nil
+            },
             row: { index in
                 SearchResultRow(
                     kind: kind(state.resultKinds, index),
                     title: state.resultTitles[index],
                     description: value(state.resultDescriptions, index),
+                    imageURL: imageURL(state.resultImageURLs, index),
                     trailing: .none,
                     onTap: { onOpenResult(index) }
                 )
@@ -277,6 +288,10 @@ struct SearchHomeScreen: View {
     private func value(_ values: [String], _ index: Int) -> String? {
         index < values.count && !values[index].isEmpty ? values[index] : nil
     }
+
+    private func imageURL(_ urls: [URL?], _ index: Int) -> URL? {
+        index < urls.count ? urls[index] : nil
+    }
 }
 
 /// The result rows, near the viewport only, each placed from its known height. A lazy stack places
@@ -286,10 +301,10 @@ struct SearchHomeScreen: View {
 /// are exact, and a row's `onAppear` still fires only near the viewport (§2).
 private struct ResultRows<Row: View>: View {
     let count: Int
-    let hasDescription: (Int) -> Bool
+    let isFullHeight: (Int) -> Bool
     @ViewBuilder let row: (Int) -> Row
 
-    /// C-085 §2 / deviation 3: 74 with a description, 52 without.
+    /// C-085 §2 / deviation 3: 74 with a description or an `imageURL`, 52 otherwise.
     private static var rowHeight: CGFloat { 74 }
     private static var rowHeightNoDescription: CGFloat { 52 }
     /// Rows kept drawn past each edge of the viewport, as a lazy stack keeps its own.
@@ -323,7 +338,7 @@ private struct ResultRows<Row: View>: View {
     private var rowTops: [CGFloat] {
         var tops = [CGFloat](repeating: 0, count: count + 1)
         for index in 0..<count {
-            tops[index + 1] = tops[index] + (hasDescription(index) ? Self.rowHeight : Self.rowHeightNoDescription)
+            tops[index + 1] = tops[index] + (isFullHeight(index) ? Self.rowHeight : Self.rowHeightNoDescription)
         }
         return tops
     }
@@ -354,47 +369,66 @@ extension SearchHomeScreen.State {
     private static let frameTitles = ["Deep dive on the book of Romans", "Romans in 30 days"]
     private static let frameDescriptions = ["Created Feb 1, 2021", "Created Jan 15, 2025"]
 
-    /// §3 1 Recents — populated: the frozen frame, every chip at rest.
-    static let recentsPopulated = Self(
+    /// Catalog images for the sample rows' C-085 `imageURL`: a square program cover, a circle member
+    /// avatar and group cover, a square photo.
+    private static let sampleProgramURL = URL(string: "http://localhost:5961/api/projects/makeready/images/romans-grafted-olive")
+    private static let sampleMemberURL = URL(string: "http://localhost:5961/api/projects/makeready/images/tony-stark")
+    private static let sampleGroupURL = URL(string: "http://localhost:5961/api/projects/makeready/images/image-5")
+    private static let samplePhotoURL = URL(string: "http://localhost:5961/api/projects/makeready/images/image-6")
+
+    /// The frozen frame's rows, every chip at rest — what every state but the two below starts from.
+    private static let frameRecents = Self(
         searchText: "",
         typeFilterLabel: "Type", orgFilterLabel: "Orgs", groupFilterLabel: "Groups",
         leaderFilterLabel: "Leaders", tagFilterLabel: "Tags", activeFilters: [],
         recentKinds: frameKinds, recentTitles: frameTitles, recentDescriptions: frameDescriptions,
         resultKinds: [], resultTitles: [], resultDescriptions: [])
+    /// §3 1 Recents — populated: the frozen frame's rows, then a member and a photo, mixing square,
+    /// no-image and circle rows (C-085 `imageURL`, owner ruling 2026-11-05).
+    static let recentsPopulated: Self = {
+        var sample = frameRecents
+        sample.recentKinds += ["member", "photo"]
+        sample.recentTitles += ["Tony Stark", "Sunrise over the Sea of Galilee"]
+        sample.recentDescriptions += ["Joined Jan 3, 2025", "Created Mar 9, 2025"]
+        sample.recentImageURLs = [sampleProgramURL, nil, sampleMemberURL, samplePhotoURL]
+        return sample
+    }()
     /// §3 2 Recents — empty: the header only.
     static let recentsEmpty: Self = {
-        var sample = recentsPopulated
+        var sample = frameRecents
         sample.recentKinds = []
         sample.recentTitles = []
         sample.recentDescriptions = []
         return sample
     }()
     /// §3 3 Querying — results: one ranked list across types; rows are the frame's and C-085's
-    /// own samples (`recent`, `result`, `media`, `lesson`, `photo`).
+    /// own samples (`recent`, `media`, `group`, `result`, a program found through its lessons,
+    /// `photo`), mixing circle, square and no-image rows (owner ruling 2026-11-05).
     static let queryingResults: Self = {
-        var sample = recentsPopulated
+        var sample = frameRecents
         sample.searchText = "Romans"
-        sample.resultKinds = ["program", "media", "program", "lesson", "photo"]
+        sample.resultKinds = ["program", "media", "group", "program", "program", "photo"]
         sample.resultTitles = [
-            "Deep dive on the book of Romans", "Romans 1 — week one teaching", "Romans in 30 days",
-            "Justified by faith", "Sunrise over the Sea of Galilee"
+            "Deep dive on the book of Romans", "Romans 1 — week one teaching", "Tuesday Men's Group",
+            "Romans in 30 days", "Justified by faith", "Sunrise over the Sea of Galilee"
         ]
         sample.resultDescriptions = [
-            "Created Feb 1, 2021", "Created Jan 15, 2025", "Created Jan 15, 2025",
-            "Created Feb 1, 2021", "Created Mar 9, 2025"
+            "Created Feb 1, 2021", "Created Jan 15, 2025", "Created Mar 4, 2024",
+            "Created Jan 15, 2025", "12 matching lessons", "Created Mar 9, 2025"
         ]
+        sample.resultImageURLs = [sampleProgramURL, nil, sampleGroupURL, nil, nil, samplePhotoURL]
         return sample
     }()
     /// §3 4 Querying — no results.
     static let queryingNoResults: Self = {
-        var sample = recentsPopulated
+        var sample = frameRecents
         sample.searchText = "Romans"
         return sample
     }()
     /// §3 5 Loading (R-27): the cached recents render at once, no spinner.
-    static let loading = recentsPopulated
+    static let loading = frameRecents
     /// §3 6 Error: the last rendered state is kept, no error UI.
-    static let error = recentsPopulated
+    static let error = frameRecents
 }
 
 #Preview("Recents — populated") {

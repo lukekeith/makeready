@@ -16,11 +16,12 @@ import SwiftUI
 /// history are the consumer's.
 ///
 /// Chrome-free and width-driven (R-16; deviation 1): it fills the width it is given and states
-/// its own intrinsic height — 74 with a description, 52 without — paints no background, draws
-/// no hairline (deviation 10, the consumer's) and adds no outer padding.
+/// its own intrinsic height — 74 with a description or an `imageURL`, 52 otherwise — paints no
+/// background, draws no hairline (deviation 10, the consumer's) and adds no outer padding.
 struct SearchResultRow: View {
 
-    /// §4 `kind` — "Selects the badge glyph". Nested per R-36; one case per §4 value (R-06).
+    /// §4 `kind` — "Selects the badge glyph and the image's shape". Nested per R-36; one case per
+    /// §4 value (R-06).
     enum Kind: String {
         case member
         case media
@@ -43,9 +44,13 @@ struct SearchResultRow: View {
     let kind: Kind
     /// §4 `title` — required. "The single-line title".
     let title: String
-    /// §4 `description` — "The meta line, supplied formatted; nil → the line is not rendered
-    /// and the row is 52 (deviation 3)". Default `nil`.
+    /// §4 `description` — "The meta line, supplied formatted; nil → the line is not rendered; the
+    /// row is 52, or 74 when `imageURL` is set (deviation 3)". Default `nil`.
     var description: String?
+    /// §4 `imageURL` — "The row's image, for every kind. Non-nil → the 42pt image in the leading
+    /// slot, circle or square by `kind`, and the row is 74. Nil, loading or failed → the 24pt
+    /// glyph badge in the same 42pt slot, no spinner". Default `nil`.
+    var imageURL: URL?
     /// §4 `trailing` — required.
     let trailing: Trailing
     /// §4 `onTap` — "The whole-row tap". R-03's no-op default.
@@ -77,7 +82,7 @@ struct SearchResultRow: View {
         // because it is "value-equal and measured 16 in the symbol and both instances" (the
         // C-037 precedent).
         HStack(alignment: .center, spacing: Token.Space.cardPadding) {
-            badge
+            leadingSlot
             info
             trailingSlot
         }
@@ -86,6 +91,60 @@ struct SearchResultRow: View {
         // §2: no background, border or radius of its own; the whole row is the tap target.
         .contentShape(Rectangle())
         .ui2Element("Content")
+    }
+
+    /// §2 Leading slot: "always 42 wide (deviation 11, owner ruling 2026-11-05), whatever the kind,
+    /// with or without `imageURL`, so every title starts at the same x". The Badge sits at the
+    /// slot's leading edge, y-centred.
+    @ViewBuilder private var leadingSlot: some View {
+        if let imageURL {
+            rowImage(imageURL)
+        } else {
+            badge
+                .frame(width: Self.slotSize, alignment: .leading)
+        }
+    }
+
+    /// §2 Image: "42×42, image scaled to fill and clipped, filling the slot". Cache-first, as
+    /// Avatar.swift's `photo(_:)`: a snapshot renders in one synchronous layout pass, so an
+    /// `AsyncImage` alone comes out empty in a capture (Ui2ImageCache.swift). While loading or on
+    /// failure the slot shows the 24pt glyph badge at its leading edge, no spinner. The slot is 42
+    /// tall as well, so the row's height follows `imageURL`, never the load result.
+    private func rowImage(_ url: URL) -> some View {
+        Group {
+            if let cached = Ui2ImageCache.shared.image(for: url) {
+                loadedImage(Image(uiImage: cached))
+            } else {
+                AsyncImage(url: url) { image in
+                    loadedImage(image)
+                } placeholder: {
+                    badge
+                }
+            }
+        }
+        .frame(width: Self.slotSize, height: Self.slotSize, alignment: .leading)
+        .accessibilityHidden(true)              // §4 Accessibility: "The image is decorative"
+    }
+
+    private func loadedImage(_ image: Image) -> some View {
+        image
+            .resizable()
+            .scaledToFill()
+            .frame(width: Self.slotSize, height: Self.slotSize)
+            .clipShape(imageShape)
+            .ui2Element("Image")
+    }
+
+    /// §2 Image: "Shape follows `kind`: member, group → circle (`radius-circle`); program, media,
+    /// lesson, event, post, photo → square, `radius-card-sm` (4)". `radius-circle` is 50%
+    /// (parsed:false), drawn as Circle.
+    private var imageShape: AnyShape {
+        switch kind {
+        case .member, .group:
+            return AnyShape(Circle())
+        case .program, .media, .lesson, .event, .post, .photo:
+            return AnyShape(RoundedRectangle(cornerRadius: Token.Radius.cardSm))
+        }
     }
 
     /// §2 Badge (inline part, OQ-C-085-001): "24×24 disc, `radius-circle`, fill
@@ -217,6 +276,9 @@ struct SearchResultRow: View {
 
     // GAP — C-085 §2: "24×24 disc" — badge diameter, no token row.
     private static let badgeSize: CGFloat = 24
+    // GAP — C-085 §2: "leading slot / image 42 (owner ruling 2026-11-05; equals the
+    // description-shown band)", no token row.
+    private static let slotSize: CGFloat = 42
     // GAP — C-085 §2: glyphs "18×18"; the glyph size scale has no 18 step.
     private static let glyphSize: CGFloat = 18
     // GAP — C-085 §2 / deviation 6: "a 44pt invisible hit target", no token row.

@@ -16,14 +16,14 @@ const idsOf = (items: any[]) => new Set(items.map((i) => i.id))
 
 /**
  * D6, D7, D37, closed: which of an org's `lampword` rows each filter reaches. `first` is the enrolled, tagged
- * program or lesson alone; a type missing from a row drops out.
+ * program alone; a type missing from a row drops out.
  */
 type MappedFilter = 'orgIds' | 'groupIds' | 'leaderIds' | 'tags'
 const D7_ROWS: Record<MappedFilter, Partial<Record<SearchType, 'all' | 'first'>>> = {
-  orgIds: { PROGRAM: 'all', TEMPLATE: 'all', GROUP: 'all', PHOTO: 'all', VIDEO: 'all', EVENT: 'all', POST: 'all', LESSON: 'all', MEMBER: 'all' },
-  groupIds: { GROUP: 'all', EVENT: 'all', POST: 'all', PHOTO: 'all', VIDEO: 'all', MEMBER: 'all', PROGRAM: 'first', LESSON: 'first' },
-  leaderIds: { GROUP: 'all', PROGRAM: 'all', LESSON: 'all', TEMPLATE: 'all', EVENT: 'all', POST: 'all', PHOTO: 'all', VIDEO: 'all' },
-  tags: { PROGRAM: 'first', LESSON: 'first', PHOTO: 'all', VIDEO: 'all' },
+  orgIds: { PROGRAM: 'all', TEMPLATE: 'all', GROUP: 'all', PHOTO: 'all', VIDEO: 'all', EVENT: 'all', POST: 'all', MEMBER: 'all' },
+  groupIds: { GROUP: 'all', EVENT: 'all', POST: 'all', PHOTO: 'all', VIDEO: 'all', MEMBER: 'all', PROGRAM: 'first' },
+  leaderIds: { GROUP: 'all', PROGRAM: 'all', TEMPLATE: 'all', EVENT: 'all', POST: 'all', PHOTO: 'all', VIDEO: 'all' },
+  tags: { PROGRAM: 'first', PHOTO: 'all', VIDEO: 'all' },
 }
 const D7_CASES = (Object.keys(D7_ROWS) as MappedFilter[]).flatMap((filter) => SEARCH_TYPES.map((type) => [filter, type] as const))
 
@@ -82,7 +82,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('GET /api/search/ranked', () => 
 
   it('orders by tier across types', async () => {
     const { items } = await search(world.owner, { q: 'grace notes' })
-    expect(items.map((i: any) => i.id).slice(0, 4)).toEqual([world.exactPostId, world.prefixProgramId, world.wordsGroupId, world.otherLessonId])
+    expect(items.map((i: any) => i.id).slice(0, 3)).toEqual([world.exactPostId, world.prefixProgramId, world.wordsGroupId])
     expect(items[0].score).toBeGreaterThanOrEqual(4)
     expect(items[0].score).toBeLessThan(5)
     expect(typeof items[0].score).toBe('number')
@@ -101,9 +101,9 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('GET /api/search/ranked', () => 
   })
 
   it.each([
-    ['groupIds', () => world.groupA, ['GROUP', 'EVENT', 'POST', 'PHOTO', 'VIDEO', 'MEMBER', 'PROGRAM', 'LESSON']],
-    ['leaderIds', () => world.nullLeaderProgramCreator, ['PROGRAM', 'LESSON']],
-    ['tags', () => 'lent', ['PROGRAM', 'LESSON', 'PHOTO', 'VIDEO']],
+    ['groupIds', () => world.groupA, ['GROUP', 'EVENT', 'POST', 'PHOTO', 'VIDEO', 'MEMBER', 'PROGRAM']],
+    ['leaderIds', () => world.nullLeaderProgramCreator, ['PROGRAM']],
+    ['tags', () => 'lent', ['PROGRAM', 'PHOTO', 'VIDEO']],
   ] as const)('each filter maps as D7 rules, with drop-outs: %s', async (key, value, types) => {
     const { items } = await search(world.owner, { q: 'grace', limit: '50', [key]: value() })
     expect(new Set(items.map((i: any) => i.type))).toEqual(new Set(types))
@@ -144,7 +144,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('GET /api/search/ranked', () => 
   })
 
   it('D33, D38: a super admin sees private programs in their orgs and gets no wider scope', async () => {
-    expect((await search(world.superAdmin, { q: 'secret', types: 'PROGRAM,LESSON' })).items).toHaveLength(2)
+    expect((await search(world.superAdmin, { q: 'secret', types: 'PROGRAM' })).items).toHaveLength(1)
     const ids = idsOf((await search(world.superAdmin, { q: 'grace', types: 'GROUP,MEMBER,PROGRAM', limit: '50' })).items)
     expect(ids).toContain(world.groupA)
     expect(ids).toContain(world.leadersMemberId)
@@ -161,30 +161,45 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('GET /api/search/ranked', () => 
     }
   })
 
-  it('D16, D39: a read block alone matches a lesson and sets its rank; an activity text sets it too', async () => {
-    for (const [q, id] of [['blockonlyword', world.blockOnlyLessonId], ['lessontext', world.untitledLessonId]]) {
-      const { items } = await search(world.owner, { q, types: 'LESSON' })
-      expect(items.map((i: any) => i.id)).toEqual([id])
-      expect(items[0].score).toBeGreaterThan(1)
-      expect(items[0].score).toBeLessThan(2)
+  it('D16, D45: a read block or an activity alone returns the lesson\'s program, counted and under tier 1', async () => {
+    for (const [q, lessonId] of [['blockonlyword', world.blockOnlyLessonId], ['lessontext', world.untitledLessonId]]) {
+      const { studyProgramId } = await prisma.lesson.findUniqueOrThrow({ where: { id: lessonId } })
+      const { items } = await search(world.owner, { q, limit: '50' })
+      expect(items.map((i: any) => [i.type, i.id])).toEqual([['PROGRAM', studyProgramId]])
+      expect(items[0].matchingLessons).toBe(1)
+      expect(items[0].score).toBeGreaterThan(0)
+      expect(items[0].score).toBeLessThan(0.5)
     }
   })
 
-  it('D39: a title, an activity and a read block rank together, one row per lesson at its greatest rank', async () => {
-    const { items } = await search(world.owner, { q: 'orchardword', types: 'LESSON' })
-    expect(items.map((i: any) => i.id)).toEqual(world.orchardLessonIdsByRank)
-    const [title, strong, block, weak] = items.map((i: any) => i.score)
-    expect(title).toBeGreaterThan(2)
-    expect(title).toBeLessThan(3)
-    expect(strong).toBeGreaterThan(block)
-    expect(block).toBeGreaterThan(weak)
-    expect(weak).toBeGreaterThan(1)
-    expect(strong).toBeLessThan(2)
+  it('D45: a lesson is never a row, and its program counts each matching lesson once', async () => {
+    const { items } = await search(world.owner, { q: 'orchardword', limit: '50' })
+    expect(items.map((i: any) => i.id)).toEqual([world.programId])
+    expect(items[0].matchingLessons).toBe(4)
+    expect(items[0].score).toBeGreaterThanOrEqual(0.5)
+    expect(items[0].score).toBeLessThan(1)
+    expect((await rawSearch(world.owner, { q: 'orchardword', types: 'LESSON' })).status).toBe(400)
   })
 
-  it('F4: LESSON reads activities and read blocks once per query, never once per lesson', async () => {
+  it('D45: own matches outrank lesson matches; a lesson title outranks lesson text; more lessons rank higher', async () => {
+    const { items } = await search(world.owner, { q: 'ridgeword', limit: '50' })
+    expect(items.map((i: any) => i.id)).toEqual([world.ridgeTitledId, world.groupB, world.ridgeLessonTitledId, world.ridgeManyId, world.ridgeFewId])
+    expect(items.map((i: any) => i.matchingLessons)).toEqual([1, null, 1, 2, 1])
+    expect(items[0].score).toBeGreaterThanOrEqual(3)
+    expect(items[1].score).toBeGreaterThanOrEqual(1)
+    expect(items[2].score).toBeLessThan(1)
+    expect(items[3].score).toBeLessThan(0.5)
+  })
+
+  it('D45: a program with no matching lesson counts 0, and other types carry no count', async () => {
+    const { items } = await search(world.owner, { q: 'grace notes', limit: '50' })
+    expect(items.find((i: any) => i.id === world.prefixProgramId).matchingLessons).toBe(0)
+    expect(items.find((i: any) => i.id === world.exactPostId).matchingLessons).toBeNull()
+  })
+
+  it('F4: PROGRAM reads activities and read blocks once per query, never once per program', async () => {
     const scope = await buildSearchScope(world.owner.id)
-    const [row] = await prisma.$queryRaw<any[]>(Prisma.sql`EXPLAIN (FORMAT JSON) ${buildArm('LESSON', scope, {}, buildTextMatch('orchardword'))}`)
+    const [row] = await prisma.$queryRaw<any[]>(Prisma.sql`EXPLAIN (FORMAT JSON) ${buildArm('PROGRAM', scope, {}, buildTextMatch('orchardword'))}`)
     const read: { relation: string; perLesson: boolean }[] = []
     const walk = (node: any, inSubPlan: boolean) => {
       const perLesson = inSubPlan || node['Parent Relationship'] === 'SubPlan'
@@ -231,11 +246,13 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('GET /api/search/ranked', () => 
     expect((await search(world.leader, { q: 'gracie', types: 'MEMBER' })).items.map((i: any) => i.id)).toEqual([world.leadersMemberId])
   })
 
-  it('D33: a private program and its lessons stay hidden from another leader', async () => {
-    const q = { q: 'secret', types: 'PROGRAM,LESSON' }
+  it('D33: a private program stays hidden from another leader, its lessons included', async () => {
+    const q = { q: 'secret', types: 'PROGRAM' }
     expect((await search(world.leader, q)).items).toHaveLength(0)
-    expect((await search(world.admin, q)).items).toHaveLength(2)
-    expect((await search(world.privateCreator, q)).items).toHaveLength(2)
+    expect((await search(world.admin, q)).items).toHaveLength(1)
+    expect((await search(world.privateCreator, q)).items).toHaveLength(1)
+    expect((await search(world.privateCreator, { q: 'secret lesson', types: 'PROGRAM' })).items[0].matchingLessons).toBe(1)
+    expect((await search(world.leader, { q: 'secret lesson', types: 'PROGRAM' })).items).toHaveLength(0)
   })
 
   it('D34 and D15: an auto-captured cover and a pending row are out', async () => {
@@ -246,6 +263,34 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('GET /api/search/ranked', () => 
     const video = (await search(world.owner, { q: 'grace', types: 'VIDEO' })).items[0]
     expect(video.imageUrl).toBeNull()
     expect((await search(world.owner, { q: 'grace', types: 'PHOTO' })).items[0].imageUrl).toMatch(/^https:/)
+  })
+
+  it('D44: each type sends its image, and a template has none', async () => {
+    const image = (name: string) => `https://images.test/d44/${name}.jpg`
+    const find = async (type: string, q: string, id?: string) => {
+      const { items } = await search(world.owner, { q, types: type, limit: '50' })
+      return id ? items.find((i: any) => i.id === id) : items[0]
+    }
+    await prisma.studyProgram.update({ where: { id: world.prefixProgramId }, data: { coverImageUrl: image('program') } })
+    await prisma.group.update({ where: { id: world.groupA }, data: { coverImageUrl: image('group') } })
+    await prisma.event.updateMany({ where: { title: 'Grace Night', groupId: world.groupA }, data: { coverImageUrl: image('event') } })
+    await prisma.post.update({ where: { id: world.exactPostId }, data: { imageUrl: image('post') } })
+    await prisma.member.updateMany({ where: { email: world.memberEmail }, data: { profilePicture: null, googlePicture: image('google') } })
+
+    expect((await find('GROUP', 'grace', world.groupA)).thumbnailUrl).toBe(image('group'))
+    expect((await find('GROUP', 'grace', world.groupB)).thumbnailUrl).toBeNull()
+    expect((await find('PROGRAM', 'grace', world.prefixProgramId)).thumbnailUrl).toBe(image('program'))
+    expect((await find('EVENT', 'grace night')).thumbnailUrl).toBe(image('event'))
+    expect((await find('POST', 'grace', world.exactPostId)).thumbnailUrl).toBe(image('post'))
+    expect((await find('MEMBER', world.memberEmail)).thumbnailUrl).toBe(image('google'))
+    await prisma.member.updateMany({ where: { email: world.memberEmail }, data: { profilePicture: image('profile') } })
+    expect((await find('MEMBER', world.memberEmail)).thumbnailUrl).toBe(image('profile'))
+    expect((await find('VIDEO', 'grace')).thumbnailUrl).toMatch(/^https:\/\/images\.test\/thumb\//)
+    const photo = await find('PHOTO', 'grace')
+    expect(photo.thumbnailUrl).toMatch(/^https:\/\/images\.test\/thumb\//)
+    expect(photo.imageUrl).not.toEqual(photo.thumbnailUrl)
+    expect((await find('VIDEO', 'grace')).imageUrl).toBeNull()
+    expect((await find('TEMPLATE', 'video study')).thumbnailUrl).toBeNull()
   })
 
   it('D35: formatted and partial phones and any-case email find a member', async () => {
@@ -284,12 +329,11 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('GET /api/search/ranked', () => 
     const post = (await search(world.owner, { q: 'untitled grace body', types: 'POST' })).items[0]
     expect(post.title).toBe(world.untitledPostFirstLine80)
     expect(post.score).toBeLessThan(2)
-    expect((await search(world.owner, { q: 'lessontext', types: 'LESSON' })).items[0].title).toBe('Day 7')
   })
 
   it('parent, id and date shapes', async () => {
-    const { items } = await search(world.owner, { q: 'grace', types: 'LESSON' })
-    expect(items[0].parent).toEqual({ type: 'PROGRAM', id: world.programId, name: world.programName })
+    const { items } = await search(world.owner, { q: 'grace night', types: 'EVENT' })
+    expect(items[0].parent).toEqual({ type: 'GROUP', id: world.groupA, name: 'Grace Fellowship' })
     expect(items[0].createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
     expect(typeof items[0].id).toBe('string')
   })
@@ -306,9 +350,10 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('GET /api/search/ranked', () => 
     expect(seen).toHaveLength(world.tiedRowCount)
   })
 
-  it('a many-activity lesson and a many-enrollment program are one row', async () => {
-    const { items } = await search(world.owner, { q: 'manyword', types: 'LESSON,PROGRAM', groupIds: `${world.groupA},${world.groupB}` })
-    expect(items).toHaveLength(2)
+  it('a many-activity lesson counts once and a many-enrollment program is one row', async () => {
+    const { items } = await search(world.owner, { q: 'manyword', types: 'PROGRAM', groupIds: `${world.groupA},${world.groupB}` })
+    expect(items).toHaveLength(1)
+    expect(items[0].matchingLessons).toBe(1)
   })
 
   it.each(["'%", '_:', '&!', 'the', 'gospel of j'])('answers 200 for %s', async (q) => {

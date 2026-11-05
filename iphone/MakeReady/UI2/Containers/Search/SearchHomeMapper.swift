@@ -34,7 +34,6 @@ enum SearchHomeMapper {
         ("programs", "Programs", ["PROGRAM", "TEMPLATE"]),
         ("members", "Members", ["MEMBER"]),
         ("groups", "Groups", ["GROUP"]),
-        ("lessons", "Lessons", ["LESSON"]),
         ("events", "Events", ["EVENT"]),
         ("posts", "Posts", ["POST"]),
         ("videos", "Videos", ["VIDEO"]),
@@ -107,14 +106,30 @@ enum SearchHomeMapper {
             recentKinds: recentItems.compactMap { kind(of: $0.type) },
             recentTitles: recentItems.map(\.title),
             recentDescriptions: recentItems.map { HomeDashboardMapper.createdLabel($0.createdAt, tz: tz) },
+            recentImageURLs: recentItems.map(previewURL(of:)),
             resultKinds: resultItems.compactMap { kind(of: $0.type) },
             resultTitles: resultItems.map(\.title),
-            resultDescriptions: resultItems.map { HomeDashboardMapper.createdLabel($0.createdAt, tz: tz) },
+            resultDescriptions: resultItems.map { resultDescription(of: $0, tz: tz) },
+            resultImageURLs: resultItems.map(previewURL(of:)),
             // D41: an answer belongs to one query; another query's answer is not this one's.
             queryAnswered: answered.map { $0 == trimmed } ?? false,
             heldNoResultsQuery: heldNoResultsQuery,
             resultsGeneration: resultsGeneration)
         return Output(state: state, recentItems: recentItems, resultItems: resultItems)
+    }
+
+    /// D45: a program found through its lessons says how many; everything else its created date.
+    static func resultDescription(of item: SearchItem, tz: TimeZone) -> String {
+        guard let count = item.matchingLessons, count > 0 else {
+            return HomeDashboardMapper.createdLabel(item.createdAt, tz: tz)
+        }
+        return count == 1 ? "1 matching lesson" : "\(count) matching lessons"
+    }
+
+    /// D44: a row's image, the server's `thumbnailUrl`, then a photo's full image; nil for none.
+    static func previewURL(of item: SearchItem) -> URL? {
+        let urls = [item.thumbnailUrl, item.imageUrl].compactMap { $0 }.filter { !$0.isEmpty }
+        return urls.first.flatMap(URL.init(string:))
     }
 
     /// D21: the C-085 `kind` raw value; nil for a type this build does not know (the row is dropped).
@@ -123,7 +138,6 @@ enum SearchHomeMapper {
         case "PROGRAM", "TEMPLATE": return "program"
         case "MEMBER": return "member"
         case "GROUP": return "group"
-        case "LESSON": return "lesson"
         case "EVENT": return "event"
         case "POST": return "post"
         case "VIDEO": return "media"
@@ -140,9 +154,6 @@ enum SearchHomeMapper {
         case "TEMPLATE": return .push(.programsHome)
         case "MEMBER": return .push(.memberDetail(id: item.id, name: item.title))
         case "GROUP": return .push(.groupDetail(id: item.id, name: item.title))
-        case "LESSON":
-            guard let parent = item.parent else { return .push(.programsHome) }   // contract: always set
-            return .push(.studyProgramHome(id: parent.id, name: parent.name))
         case "EVENT", "POST":
             guard let parent = item.parent else { return .push(.programsHome) }   // contract: always set
             return .push(.groupDetail(id: parent.id, name: parent.name))

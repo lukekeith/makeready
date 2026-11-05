@@ -204,6 +204,7 @@ final class SearchHomeScreenAppearTests: XCTestCase {
         state.resultKinds = Array(repeating: "program", count: count)
         state.resultTitles = (0..<count).map { "Result \($0)" }
         state.resultDescriptions = Array(repeating: "Created Feb 1, 2021", count: count)
+        state.resultImageURLs = []      // an image makes a row 74 (C-085 §2); these heights follow the descriptions
         state.resultsGeneration = generation
         return state
     }
