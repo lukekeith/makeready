@@ -71,6 +71,7 @@ export interface SearchItem {
   createdAt: string
   score: number | null
   imageUrl: string | null
+  thumbnailUrl: string | null
   parent: { type: string; id: string; name: string } | null
 }
 
@@ -81,6 +82,7 @@ export interface SearchRow {
   title: string | null
   body: string | null
   imageUrl: string | null
+  thumbnailUrl: string | null
   parentType: string | null
   parentId: string | null
   parentName: string | null
@@ -189,6 +191,7 @@ interface ArmShape {
   outputTitle: string
   body?: string
   imageUrl?: string
+  thumbnailUrl?: string
   parent?: { type: 'PROGRAM' | 'GROUP'; id: string; name: string }
   visible: Prisma.Sql
   filters: FilterColumns
@@ -368,6 +371,7 @@ function mediaShape(type: 'photo' | 'video', scope: SearchScope): ArmShape {
     config: 'english',
     outputTitle: 'md."title"',
     imageUrl: type === 'photo' ? 'md."url"' : undefined,
+    thumbnailUrl: type === 'photo' ? 'md."thumbnailUrl"' : undefined,
     visible: Prisma.sql`md."isActive" AND ${inScope('md."organizationId"', scope)} AND md."type" = ${type}
       AND md."uploadStatus" = 'ready' AND md."source" IS DISTINCT FROM 'auto_capture'
       AND (md."groupId" IS NULL OR EXISTS (SELECT 1 FROM "groups" mg WHERE mg."id"::text = md."groupId"::text AND mg."isActive"))`,
@@ -486,6 +490,7 @@ export function buildArm(type: SearchType, scope: SearchScope, filters: ArmFilte
       ${column(shape.outputTitle)} AS "title",
       ${column(shape.body)} AS "body",
       ${column(shape.imageUrl)} AS "imageUrl",
+      ${column(shape.thumbnailUrl)} AS "thumbnailUrl",
       ${raw(shape.parent ? `'${shape.parent.type}'::text` : 'NULL::text')} AS "parentType",
       ${column(shape.parent?.id)} AS "parentId",
       ${column(shape.parent?.name)} AS "parentName",
@@ -514,6 +519,7 @@ export function serializeSearchItem(row: SearchRow): SearchItem {
     createdAt: new Date(row.createdAt).toISOString(),
     score: row.score,
     imageUrl: row.imageUrl,
+    thumbnailUrl: row.thumbnailUrl,
     parent: row.parentId ? { type: row.parentType as string, id: row.parentId, name: row.parentName as string } : null,
   }
 }

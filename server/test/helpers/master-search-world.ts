@@ -116,7 +116,7 @@ export async function seedMasterSearchWorld(prisma: PrismaClient) {
 
   const media = (title: string, type: 'photo' | 'video', extra: { source?: string; uploadStatus?: string; groupId?: string; organizationId?: string; uploadedBy?: string; isActive?: boolean } = {}) =>
     prisma.media.create({
-      data: { title, type, url: `https://images.test/${type}/${randomUUID()}.jpg`, organizationId: orgA.id, uploadedBy: owner.id, ...extra },
+      data: { title, type, url: `https://images.test/${type}/${randomUUID()}.jpg`, thumbnailUrl: `https://images.test/thumb/${randomUUID()}.jpg`, organizationId: orgA.id, uploadedBy: owner.id, ...extra },
     })
   const photo = await media('Grace Photo', 'photo', { groupId: groupA.id })
   const video = await media('Grace Video', 'video', { groupId: groupA.id })

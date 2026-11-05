@@ -248,6 +248,16 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('GET /api/search/ranked', () => 
     expect((await search(world.owner, { q: 'grace', types: 'PHOTO' })).items[0].imageUrl).toMatch(/^https:/)
   })
 
+  it('D43: only a photo carries its thumbnail', async () => {
+    const photo = (await search(world.owner, { q: 'grace', types: 'PHOTO' })).items[0]
+    expect(photo.thumbnailUrl).toMatch(/^https:\/\/images\.test\/thumb\//)
+    expect(photo.imageUrl).not.toEqual(photo.thumbnailUrl)
+    const video = (await search(world.owner, { q: 'grace', types: 'VIDEO' })).items[0]
+    expect(video.thumbnailUrl).toBeNull()
+    const group = (await search(world.owner, { q: 'grace', types: 'GROUP' })).items[0]
+    expect(group.thumbnailUrl).toBeNull()
+  })
+
   it('D35: formatted and partial phones and any-case email find a member', async () => {
     const first = async (q: string) => (await search(world.owner, { q, types: 'MEMBER' })).items[0]
     expect((await first(world.memberPhoneFormatted)).score).toBeGreaterThanOrEqual(4)

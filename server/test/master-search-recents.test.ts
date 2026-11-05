@@ -104,6 +104,12 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('recent results (C2, C3, C4)', (
     expect((await list(world.leader)).body.items).toHaveLength(0)
   })
 
+  it('D43: a recent photo carries its thumbnail', async () => {
+    await put(world.owner, 'PHOTO', world.photoId)
+    const recent = (await list(world.owner, { types: 'PHOTO' })).body.items[0]
+    expect(recent.thumbnailUrl).toMatch(/^https:\/\/images\.test\/thumb\//)
+  })
+
   it("C2's filters match C1's", async () => {
     await put(world.owner, 'PHOTO', world.photoId); await put(world.owner, 'GROUP', world.groupA)
     expect((await list(world.owner, { tags: 'lent' })).body.items.map((i: any) => i.type)).toEqual(['PHOTO'])
