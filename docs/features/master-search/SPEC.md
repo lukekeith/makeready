@@ -1,5 +1,6 @@
 # master-search — spec
 > ✅ SIGNED OFF 2026-11-04 — bcf10ae2 · by Luke Keith: "Tested on my phone, it seems to work well"
+> ✅ SIGNED OFF 2026-11-05 — 93df3843 · by Luke Keith: "works very well"
 > lg · ticket none · prototype mode (`ui2: search-home`; Figma 4536:8480)
 
 ## Idea
@@ -304,7 +305,7 @@ Searched-field names corrected to the app: `phoneNumber`, `ActivityReadBlock`, `
 - [x] iphone: Search list, a next page lands during a faster drag (P1, the known-heights fix cured slow drags only: unfiltered `library photo`, XCUITest `.fast` and `.default` drag speeds, keyboard up or down) — expected the position holds at any scrolling speed, so the next drag continues from top row 77 to about 88, saw top row 77→22 (three of three `.fast` runs), 79→25 (`.default`) and 83→25 (`.fast`, keyboard up), all at one landing near row 100. The rows stay contiguous at 74 pt with correct labels, so the block moved, not the rows. Debugger read at the landing: `contentSize` 13904 where 120 rows need 9028, and rows 4875 pt below their exact place; the two differ by the same height at every wrong read, so height belonging to no row sits above the rows. Slow drags (6 runs, 14–26 drags, to top row 180) hold exactly, and the keyboard no longer separates the runs. Cause not established. Lead, not proven: the outer pinned-header `LazyVStack` (`SearchHomeScreen.swift:152`) is the remaining lazy layout and now has the whole results block as its one row-bearing child (agent walk round 6) Cause, by elimination: `ResultRows` reports an exact height and every other layout up to the scroll view sums exact sizes, so the outer `LazyVStack` is the only one that can report 13904 pt. Why a faster drag sets it off is still not established. The screen now uses a plain `VStack`, its height exact by construction, and C-131 pins itself with a render-time offset, as `MediaBrowser`'s pills do; §2's pinned-section wording is superseded here, reported to d2m. A test proves the header stays in place at depth and that a tap there reaches the field in front of the rows. The test host does not reproduce the jump in either form (real touch is what it lacks), so the re-walk of P1 at `.fast` and `.default` speeds is its check, and P2 and the at-depth chip taps are the pin's.
 - [x] server: C1 and C2 send `thumbnailUrl` on PHOTO (D43), with a test
 - [x] iphone: C-085 and search-home take a preview image through d2m, and the mapper passes `thumbnailUrl ?? imageUrl` (D43), with a test
-- [ ] re-walk: Search photo rows (iphone), results and recents; the owner tests this on their phone, no agent walk
+- [x] re-walk: Search photo rows (iphone), results and recents; the owner tests this on their phone, no agent walk
 - [x] server: C1 and C2 send each type's image in `thumbnailUrl` (D44), with a test
 - [x] iphone: C-085 draws images by shape with a 42 pt slot on every row, through d2m, and the mapper passes them for every type (D44), with a test
 - [x] server: lessons roll up to their program with `matchingLessons` and D45's ranking, with tests
