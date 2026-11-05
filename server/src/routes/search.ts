@@ -1443,7 +1443,7 @@ router.delete('/recent', async (req, res) => {
  *         name: types
  *         schema:
  *           type: string
- *         description: "Comma list of PROGRAM,TEMPLATE,MEMBER,GROUP,LESSON,EVENT,POST,VIDEO,PHOTO"
+ *         description: "Comma list of PROGRAM,TEMPLATE,MEMBER,GROUP,EVENT,POST,VIDEO,PHOTO"
  *       - in: query
  *         name: orgIds
  *         schema:
@@ -1559,7 +1559,7 @@ const recentBodySchema = z
  *         name: types
  *         schema:
  *           type: string
- *         description: "Comma list of PROGRAM,TEMPLATE,MEMBER,GROUP,LESSON,EVENT,POST,VIDEO,PHOTO"
+ *         description: "Comma list of PROGRAM,TEMPLATE,MEMBER,GROUP,EVENT,POST,VIDEO,PHOTO"
  *       - in: query
  *         name: orgIds
  *         schema:
@@ -1672,7 +1672,7 @@ router.get('/recent-results', requireAuth, async (req, res) => {
  *             properties:
  *               type:
  *                 type: string
- *                 enum: [PROGRAM, TEMPLATE, MEMBER, GROUP, LESSON, EVENT, POST, VIDEO, PHOTO]
+ *                 enum: [PROGRAM, TEMPLATE, MEMBER, GROUP, EVENT, POST, VIDEO, PHOTO]
  *               id:
  *                 type: string
  *     responses:
@@ -1723,7 +1723,7 @@ router.put('/recent-results', requireAuth, async (req, res) => {
  *         required: true
  *         schema:
  *           type: string
- *           enum: [PROGRAM, TEMPLATE, MEMBER, GROUP, LESSON, EVENT, POST, VIDEO, PHOTO]
+ *           enum: [PROGRAM, TEMPLATE, MEMBER, GROUP, EVENT, POST, VIDEO, PHOTO]
  *       - in: path
  *         name: id
  *         required: true

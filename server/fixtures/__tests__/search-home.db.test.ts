@@ -23,8 +23,8 @@ describe.skipIf(!TEST_DB_URL)('search-home fixture', () => {
     const { parseRankedParams } = await import('../../src/services/master-search-query.js')
     const { items } = await searchRanked(FIXTURE_USER_ID, parseRankedParams({ q: 'grace', limit: '50' }))
     expect(items[0].title).toBe('Grace')
-    expect(new Set(items.map((i: any) => i.type)).size).toBeGreaterThanOrEqual(8)
-    expect((await listRecentResults(FIXTURE_USER_ID, {})).map((i: any) => i.type)).toEqual(['PROGRAM', 'LESSON', 'GROUP', 'PHOTO', 'POST', 'MEMBER'])
+    expect(new Set(items.map((i: any) => i.type)).size).toBeGreaterThanOrEqual(7)
+    expect((await listRecentResults(FIXTURE_USER_ID, {})).map((i: any) => i.type)).toEqual(['PROGRAM', 'GROUP', 'PHOTO', 'POST', 'MEMBER'])
   }, 180_000)
 
   it('a second reset succeeds with the same ids', async () => {

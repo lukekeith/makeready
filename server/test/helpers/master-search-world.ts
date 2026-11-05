@@ -213,7 +213,6 @@ export async function seedMasterSearchWorld(prisma: PrismaClient) {
   await memberOf('Vesperword', [orgA.id], [{ groupId: groupA.id }], false)
   const vesperLive = {
     PROGRAM: [vesperProgram.id],
-    LESSON: [vesperLesson.id],
     TEMPLATE: [vesperTemplate.id],
     GROUP: [vesperGroup.id],
     EVENT: [vesperEvent.id],
@@ -248,6 +247,19 @@ export async function seedMasterSearchWorld(prisma: PrismaClient) {
   const orchardWeakActivityLesson = await lesson(mainProgram.id, 33, 'Harbor Dusk')
   await orchardActivity(orchardWeakActivityLesson.id, 1, 'orchardword')
 
+  // `ridgeword` (D45): one row for each rank a lesson match can land on, with a program's own title above them all.
+  const ridgeProgram = (name: string) => program(name, owner.id)
+  const ridgeTitled = await ridgeProgram('Ridgeword Study')
+  await orchardActivity((await lesson(ridgeTitled.id, 1, 'Day 1')).id, 1, 'ridgeword')
+  const ridgeLessonTitled = await ridgeProgram('Hill Study')
+  await lesson(ridgeLessonTitled.id, 1, 'The Ridgeword Day')
+  const ridgeMany = await ridgeProgram('Valley Study')
+  await orchardActivity((await lesson(ridgeMany.id, 1, 'Day 1')).id, 1, 'ridgeword')
+  await orchardActivity((await lesson(ridgeMany.id, 2, 'Day 2')).id, 1, 'ridgeword')
+  const ridgeFew = await ridgeProgram('Meadow Study')
+  await orchardActivity((await lesson(ridgeFew.id, 1, 'Day 1')).id, 1, 'ridgeword')
+  await prisma.group.update({ where: { id: groupB.id }, data: { description: 'ridgeword' } })
+
   const mixedCaseEmail = `Mixed.Case-${stamp}@MS.Test`
   const mixedCaseEmailMember = await memberOf('Harbor', [orgA.id], [], true, mixedCaseEmail)
 
@@ -274,7 +286,6 @@ export async function seedMasterSearchWorld(prisma: PrismaClient) {
       groupId: mappedGroup.id,
       rows: {
         PROGRAM: [made.id, led.id],
-        LESSON: [madeLesson.id, ledLesson.id],
         TEMPLATE: [template.id],
         GROUP: [mappedGroup.id],
         EVENT: [mappedEvent.id],
@@ -320,6 +331,10 @@ export async function seedMasterSearchWorld(prisma: PrismaClient) {
     seriesFirstEventId: seriesFirst.id,
     untitledPostFirstLine80: untitledFirstLine.slice(0, 80),
     photoId: photo.id,
+    ridgeTitledId: ridgeTitled.id,
+    ridgeLessonTitledId: ridgeLessonTitled.id,
+    ridgeManyId: ridgeMany.id,
+    ridgeFewId: ridgeFew.id,
     autoCaptureId: autoCapture.id,
     pendingPhotoId: pendingPhoto.id,
     spacedTagPhotoId: spacedTagPhoto.id,

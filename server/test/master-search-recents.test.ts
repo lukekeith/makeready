@@ -110,6 +110,14 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('recent results (C2, C3, C4)', (
     expect(recent.thumbnailUrl).toMatch(/^https:\/\/images\.test\/thumb\//)
   })
 
+  it('D45: a recent program carries no lesson count, and an old lesson recent drops out', async () => {
+    await put(world.owner, 'PROGRAM', world.programId)
+    await prisma.searchRecentResult.create({ data: { userId: world.owner.id, resourceType: 'LESSON', resourceId: world.otherLessonId } })
+    const { items } = (await list(world.owner)).body
+    expect(items.map((i: any) => i.type)).toEqual(['PROGRAM'])
+    expect(items[0].matchingLessons).toBeNull()
+  })
+
   it("C2's filters match C1's", async () => {
     await put(world.owner, 'PHOTO', world.photoId); await put(world.owner, 'GROUP', world.groupA)
     expect((await list(world.owner, { tags: 'lent' })).body.items.map((i: any) => i.type)).toEqual(['PHOTO'])

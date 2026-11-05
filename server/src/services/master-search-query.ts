@@ -5,7 +5,7 @@
 import { normalizeTag, type TagCategoryDTO } from './tag-categories.js'
 
 /** D5: the closed list of searchable types. */
-export const SEARCH_TYPES = ['PROGRAM', 'TEMPLATE', 'MEMBER', 'GROUP', 'LESSON', 'EVENT', 'POST', 'VIDEO', 'PHOTO'] as const
+export const SEARCH_TYPES = ['PROGRAM', 'TEMPLATE', 'MEMBER', 'GROUP', 'EVENT', 'POST', 'VIDEO', 'PHOTO'] as const
 export type SearchType = (typeof SEARCH_TYPES)[number]
 
 const MAX_LIST = 50

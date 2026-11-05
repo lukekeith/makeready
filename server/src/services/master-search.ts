@@ -72,6 +72,7 @@ export interface SearchItem {
   score: number | null
   imageUrl: string | null
   thumbnailUrl: string | null
+  matchingLessons: number | null
   parent: { type: string; id: string; name: string } | null
 }
 
@@ -83,6 +84,7 @@ export interface SearchRow {
   body: string | null
   imageUrl: string | null
   thumbnailUrl: string | null
+  matchingLessons: number | null
   parentType: string | null
   parentId: string | null
   parentName: string | null
@@ -192,16 +194,16 @@ interface ArmShape {
   body?: string
   imageUrl?: string
   thumbnailUrl?: string
-  parent?: { type: 'PROGRAM' | 'GROUP'; id: string; name: string }
+  parent?: { type: 'GROUP'; id: string; name: string }
   visible: Prisma.Sql
   filters: FilterColumns
   /** Text other than the arm's own vector that also matches, at tier 1 (D16). */
   otherMatch?: (tsq: Prisma.Sql) => Prisma.Sql
   /**
-   * A LEFT JOIN giving `ot."rank"`, the greatest rank of the row's other text and null when none of it matches.
-   * Both the match and the rank read it (D39), so that text is evaluated once per query, not once per row (F4).
+   * A LEFT JOIN giving `ot."count"` and `ot."inTitle"` for the row's lessons that match (D45), null when none.
+   * The match, the score and the count all read it, so lesson text is evaluated once per query (F4).
    */
-  otherTextJoin?: (tsq: Prisma.Sql) => Prisma.Sql
+  lessonRollup?: (tsq: Prisma.Sql) => Prisma.Sql
   /** D35: `exact` predicates score tier 4; `loose` ones only match, at tier 1. */
   contact?: { exact: (m: TextMatch) => Prisma.Sql[]; loose: (m: TextMatch) => Prisma.Sql[] }
 }
@@ -210,7 +212,7 @@ function inScope(column: string, scope: SearchScope) {
   return Prisma.sql`${raw(column)}::text = ${anyText(scope.orgIds)}`
 }
 
-/** PROGRAM's rules over alias `p`; LESSON inherits them (D33, D38). */
+/** PROGRAM's rules over alias `p` (D33, D38). */
 function programVisible(scope: SearchScope) {
   const adminOrgs = scope.privateAdminOrgIds
   const privateRule =
@@ -245,43 +247,32 @@ function programShape(scope: SearchScope): ArmShape {
       leader: (ids) => leaderIn(['p."leaderId"', 'p."creatorId"'], ids),
       tag: (tags) => tagIn('study_program_tags', 'studyProgramId', 'p."id"', tags),
     },
+    lessonRollup: programLessonRollup,
   }
 }
 
-function lessonShape(scope: SearchScope): ArmShape {
-  const activity = qualifySearchExpr(SEARCH_TEXT.activity, 'la')
-  const block = qualifySearchExpr(SEARCH_TEXT.readBlock, 'rb')
-  const lesson = qualifySearchExpr(SEARCH_TEXT.lesson, 'l')
-  return {
-    from: `"lessons" l JOIN "study_programs" p ON p."id"::text = l."studyProgramId"::text`,
-    id: 'l."id"',
-    createdAt: 'l."createdAt"',
-    storedTitle: 'l."title"',
-    lowerTitle: qualifySearchExpr(SEARCH_TITLE.lesson, 'l'),
-    vector: lesson,
-    config: 'english',
-    outputTitle: `coalesce(nullif(btrim(l."title"), ''), 'Day ' || l."dayNumber")`,
-    thumbnailUrl: 'p."coverImageUrl"',
-    parent: { type: 'PROGRAM', id: 'p."id"', name: 'p."name"' },
-    visible: programVisible(scope),
-    filters: {
-      group: (s, ids) => programEnrolledInPicked('l."studyProgramId"', s, ids),
-      leader: (ids) => leaderIn(['p."leaderId"', 'p."creatorId"'], ids),
-      tag: (tags) => tagIn('study_program_tags', 'studyProgramId', 'l."studyProgramId"', tags),
-    },
-    // `"lessonActivityId" IS NOT NULL` keeps scheduled copies out (D16) and is the partial index's predicate.
-    otherTextJoin: (tsq) => Prisma.sql`LEFT JOIN (
-      SELECT t."lessonId", max(t."rank") AS "rank" FROM (
-        SELECT la."lessonId"::text AS "lessonId", ts_rank(${raw(activity)}, ${tsq}, 32) AS "rank"
-          FROM "lesson_activities" la
-          WHERE ${raw(activity)} @@ ${tsq}
-        UNION ALL
-        SELECT la."lessonId"::text, ts_rank(${raw(block)}, ${tsq}, 32)
-          FROM "activity_read_blocks" rb JOIN "lesson_activities" la ON la."id"::text = rb."lessonActivityId"::text
-          WHERE rb."lessonActivityId" IS NOT NULL AND ${raw(block)} @@ ${tsq}
-      ) t GROUP BY t."lessonId"
-    ) ot ON ot."lessonId" = l."id"::text`,
-  }
+/** D45: a program's matching lessons, by their title or their text. `"lessonActivityId" IS NOT NULL` keeps scheduled copies out (D16). */
+function programLessonRollup(tsq: Prisma.Sql): Prisma.Sql {
+  const lesson = raw(qualifySearchExpr(SEARCH_TEXT.lesson, 'l'))
+  const activity = raw(qualifySearchExpr(SEARCH_TEXT.activity, 'la'))
+  const block = raw(qualifySearchExpr(SEARCH_TEXT.readBlock, 'rb'))
+  return Prisma.sql`LEFT JOIN (
+    SELECT t."programId", count(DISTINCT t."lessonId")::int AS "count", bool_or(t."inTitle") AS "inTitle" FROM (
+      SELECT l."studyProgramId"::text AS "programId", l."id"::text AS "lessonId", TRUE AS "inTitle"
+        FROM "lessons" l
+        WHERE ${lesson} @@ ${tsq}
+      UNION ALL
+      SELECT l."studyProgramId"::text, l."id"::text, FALSE
+        FROM "lesson_activities" la JOIN "lessons" l ON l."id"::text = la."lessonId"::text
+        WHERE ${activity} @@ ${tsq}
+      UNION ALL
+      SELECT l."studyProgramId"::text, l."id"::text, FALSE
+        FROM "activity_read_blocks" rb
+        JOIN "lesson_activities" la ON la."id"::text = rb."lessonActivityId"::text
+        JOIN "lessons" l ON l."id"::text = la."lessonId"::text
+        WHERE rb."lessonActivityId" IS NOT NULL AND ${block} @@ ${tsq}
+    ) t GROUP BY t."programId"
+  ) ot ON ot."programId" = p."id"::text`
 }
 
 function templateShape(scope: SearchScope): ArmShape {
@@ -428,7 +419,6 @@ function memberShape(scope: SearchScope): ArmShape {
 function shapeFor(type: SearchType, scope: SearchScope): ArmShape {
   switch (type) {
     case 'PROGRAM': return programShape(scope)
-    case 'LESSON': return lessonShape(scope)
     case 'TEMPLATE': return templateShape(scope)
     case 'GROUP': return groupShape(scope)
     case 'EVENT': return eventShape(scope)
@@ -456,27 +446,22 @@ function textPredicates(shape: ArmShape, t: TextMatch) {
   const tier = Prisma.sql`CASE WHEN ${Prisma.join([exact, ...contactExact], ' OR ')} THEN 4
     WHEN ${prefix} THEN 3 ${tierTwo} ELSE 1 END`
 
-  const match = Prisma.join(
-    [
-      exact,
-      prefix,
-      ...(tsq ? [Prisma.sql`${raw(shape.vector)} @@ ${tsq}`] : []),
-      ...(tsq && shape.otherMatch ? [shape.otherMatch(tsq)] : []),
-      ...(tsq && shape.otherTextJoin ? [Prisma.sql`ot."rank" IS NOT NULL`] : []),
-      ...contactExact,
-      ...contactLoose,
-    ],
+  const own = Prisma.join(
+    [exact, prefix, ...(tsq ? [Prisma.sql`${raw(shape.vector)} @@ ${tsq}`] : []), ...(tsq && shape.otherMatch ? [shape.otherMatch(tsq)] : []), ...contactExact, ...contactLoose],
     ' OR ',
   )
-
-  const join = tsq && shape.otherTextJoin ? shape.otherTextJoin(tsq) : Prisma.empty
-  const ownRank = tsq && Prisma.sql`ts_rank(${raw(shape.vector)}, ${tsq}, 32)`
-  const rank = !ownRank
-    ? Prisma.sql`0`
-    : shape.otherTextJoin
-      ? Prisma.sql`coalesce(GREATEST(${ownRank}, ot."rank")::float8, 0)`
-      : Prisma.sql`coalesce(${ownRank}::float8, 0)`
-  return { match, join, score: Prisma.sql`(${tier})::float8 + ${rank}` }
+  const rollup = tsq && shape.lessonRollup ? shape.lessonRollup(tsq) : null
+  const ownScore = Prisma.sql`(${tier})::float8 + ${tsq ? Prisma.sql`coalesce(ts_rank(${raw(shape.vector)}, ${tsq}, 32)::float8, 0)` : Prisma.sql`0`}`
+  if (!rollup) return { match: own, join: Prisma.empty, score: ownScore, matchingLessons: Prisma.sql`NULL` }
+  // D45: found only through its lessons, a program ranks below every other match (under 1): a lesson title
+  // match in 0.5-1, lesson text alone in 0-0.5, more matching lessons higher inside either band.
+  const lessonScore = Prisma.sql`(CASE WHEN ot."inTitle" THEN 0.5 ELSE 0 END + 0.5 * ot."count"::float8 / (ot."count" + 1))::float8`
+  return {
+    match: Prisma.sql`${own} OR ot."count" IS NOT NULL`,
+    join: rollup,
+    score: Prisma.sql`CASE WHEN ${own} THEN ${ownScore} ELSE ${lessonScore} END`,
+    matchingLessons: Prisma.sql`coalesce(ot."count", 0)`,
+  }
 }
 
 /**
@@ -485,9 +470,9 @@ function textPredicates(shape: ArmShape, t: TextMatch) {
  */
 export function buildArm(type: SearchType, scope: SearchScope, filters: ArmFilters, source: ArmSource): Prisma.Sql {
   const shape = shapeFor(type, scope)
-  const { match, join, score } =
+  const { match, join, score, matchingLessons } =
     'ids' in source
-      ? { match: Prisma.sql`${raw(shape.id)}::text = ${anyText(source.ids)}`, join: Prisma.empty, score: Prisma.sql`NULL::float8` }
+      ? { match: Prisma.sql`${raw(shape.id)}::text = ${anyText(source.ids)}`, join: Prisma.empty, score: Prisma.sql`NULL::float8`, matchingLessons: Prisma.sql`NULL` }
       : textPredicates(shape, source)
   const column = (expr: string | undefined) => raw(expr ? `(${expr})::text` : 'NULL::text')
   return Prisma.sql`SELECT s.*, s."score"::text AS "scoreText", s."createdAt"::text AS "createdAtText" FROM (
@@ -497,6 +482,7 @@ export function buildArm(type: SearchType, scope: SearchScope, filters: ArmFilte
       ${column(shape.body)} AS "body",
       ${column(shape.imageUrl)} AS "imageUrl",
       ${column(shape.thumbnailUrl)} AS "thumbnailUrl",
+      (${matchingLessons})::int AS "matchingLessons",
       ${raw(shape.parent ? `'${shape.parent.type}'::text` : 'NULL::text')} AS "parentType",
       ${column(shape.parent?.id)} AS "parentId",
       ${column(shape.parent?.name)} AS "parentName",
@@ -526,6 +512,7 @@ export function serializeSearchItem(row: SearchRow): SearchItem {
     score: row.score,
     imageUrl: row.imageUrl,
     thumbnailUrl: row.thumbnailUrl,
+    matchingLessons: row.matchingLessons,
     parent: row.parentId ? { type: row.parentType as string, id: row.parentId, name: row.parentName as string } : null,
   }
 }

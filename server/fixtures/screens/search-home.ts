@@ -134,7 +134,6 @@ export function searchHomeRows(_now: Date, daysAgo: (n: number) => Date) {
   })
   const recents = [
     recentOf(1, 'PROGRAM', programId),
-    recentOf(2, 'LESSON', lessonId),
     recentOf(3, 'GROUP', GROUP_ID),
     recentOf(4, 'PHOTO', photoId),
     recentOf(5, 'POST', exactPostId),
