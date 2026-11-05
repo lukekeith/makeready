@@ -234,8 +234,10 @@ struct SearchHomeScreen: View {
     /// §2 Results list (state 3): padding `space-page-margin`, then C-085 rows + hairlines.
     /// One ranked list: no C-020 title and no per-type sections (D67).
     private var resultsList: some View {
-        LazyVStack(spacing: 0) {
-            ForEach(state.resultTitles.indices, id: \.self) { index in
+        ResultRows(
+            count: state.resultTitles.count,
+            hasDescription: { value(state.resultDescriptions, $0) != nil },
+            row: { index in
                 SearchResultRow(
                     kind: kind(state.resultKinds, index),
                     title: state.resultTitles[index],
@@ -245,10 +247,9 @@ struct SearchHomeScreen: View {
                 )
                 .ui2Element(index == 0 ? "C-085 SearchResultRow" : "C-085 SearchResultRow \(index + 1)")
                 .onAppear { onResultAppear(index) }
-                // One child per row: a zero-height hairline beside it skews the lazy stack's height estimate (P1).
                 .overlay(alignment: .bottom) { hairlineView }
             }
-        }
+        )
         .padding(Token.Space.pageMargin)
         .id(state.resultsGeneration)
     }
@@ -270,6 +271,73 @@ struct SearchHomeScreen: View {
 
     private func value(_ values: [String], _ index: Int) -> String? {
         index < values.count && !values[index].isEmpty ? values[index] : nil
+    }
+}
+
+/// The result rows, near the viewport only, each placed from its known height. A lazy stack places
+/// rows from an estimate of the heights above them, and in the app that estimate moved the rows up to
+/// 1781 pt when a page landed while `contentOffset` held (master-search P1). A row's height follows
+/// from its inputs (C-085 §2), so nothing here is estimated: the page height and every row's place
+/// are exact, and a row's `onAppear` still fires only near the viewport (§2).
+private struct ResultRows<Row: View>: View {
+    let count: Int
+    let hasDescription: (Int) -> Bool
+    @ViewBuilder let row: (Int) -> Row
+
+    /// C-085 §2 / deviation 3: 74 with a description, 52 without.
+    private static var rowHeight: CGFloat { 74 }
+    private static var rowHeightNoDescription: CGFloat { 52 }
+    /// Rows kept drawn past each edge of the viewport, as a lazy stack keeps its own.
+    private static var overscan: Int { 6 }
+    /// What draws before the scroll view is measured: no more than a lazy stack's first layout.
+    private static var firstLayoutRows: Int { 20 }
+
+    /// R-31 ephemeral UI: the part of the list the scroll view shows; nil → no scroll view (the
+    /// capture canvas lays the screen out at its full length, D22), so every row draws.
+    @SwiftUI.State private var viewport: ClosedRange<CGFloat>? = 0...0
+    @SwiftUI.State private var measured = false
+
+    var body: some View {
+        let tops = rowTops
+        let window = visibleRows(tops: tops)
+        VStack(spacing: 0) {
+            Color.clear.frame(height: tops[window.lowerBound])
+            ForEach(window, id: \.self) { index in
+                row(index)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .top)
+        .frame(height: tops[count], alignment: .top)
+        .onGeometryChange(for: CGRect?.self) { $0.bounds(of: .scrollView) } action: { bounds in
+            measured = true
+            viewport = bounds.map { $0.minY...$0.maxY }
+        }
+    }
+
+    /// Each row's top, and the list's height as the last entry.
+    private var rowTops: [CGFloat] {
+        var tops = [CGFloat](repeating: 0, count: count + 1)
+        for index in 0..<count {
+            tops[index + 1] = tops[index] + (hasDescription(index) ? Self.rowHeight : Self.rowHeightNoDescription)
+        }
+        return tops
+    }
+
+    private func visibleRows(tops: [CGFloat]) -> Range<Int> {
+        guard measured else { return 0..<min(count, Self.firstLayoutRows) }
+        guard let viewport else { return 0..<count }
+        // The last row whose top is at or above a position, by binary search.
+        func row(at position: CGFloat) -> Int {
+            var low = 0, high = count
+            while low < high {
+                let middle = (low + high) / 2
+                if tops[middle + 1] <= position { low = middle + 1 } else { high = middle }
+            }
+            return min(low, count - 1)
+        }
+        let first = max(0, row(at: viewport.lowerBound) - Self.overscan)
+        let last = min(count - 1, row(at: viewport.upperBound) + Self.overscan)
+        return first < last + 1 ? first..<(last + 1) : 0..<0
     }
 }
 

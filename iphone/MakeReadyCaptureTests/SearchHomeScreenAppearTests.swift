@@ -117,6 +117,68 @@ final class SearchHomeScreenAppearTests: XCTestCase {
         XCTAssertEqual(below[3], 255, "the page below the content is not filled: \(below)")
     }
 
+    /// Agent walk round 5 (P1): a lazy stack places rows from an estimate of the heights above them, and
+    /// in the app a page landing moved the rows while the offset held. Heights known from the row's inputs
+    /// leave nothing to estimate, which rows of two heights show: the page height is exact from the first
+    /// layout and stays exact at every position, before any row there has been drawn.
+    func testMixedRowHeightsGiveAnExactPageFromTheFirstLayout() throws {
+        var uniform = results(count: 60, generation: 0)
+        uniform.resultDescriptions = Array(repeating: "Created Feb 1, 2021", count: 60)
+        let reference = makeHost(page(uniform))
+        settle(reference)
+        let chrome = try XCTUnwrap(scrollView(in: reference.view)).contentSize.height - 74 * 60
+
+        var mixed = uniform
+        mixed.resultDescriptions = (0..<60).map { $0 % 2 == 0 ? "Created Feb 1, 2021" : "" }
+        let host = makeHost(page(mixed))
+        settle(host)
+        let scroll = try XCTUnwrap(scrollView(in: host.view))
+        let exact = chrome + (74 + 52) * 30
+        XCTAssertEqual(scroll.contentSize.height, exact, accuracy: 1, "at the first layout")
+        for offset: CGFloat in [3_000, 500, 2_000, 0] {
+            scroll.contentOffset.y = offset
+            settle(host)
+            XCTAssertEqual(scroll.contentSize.height, exact, accuracy: 1, "at offset \(offset)")
+        }
+    }
+
+    /// Agent walk round 5 (P1): every row stays where its index puts it while pages land under a scroll.
+    func testRowsKeepTheirPlaceWhilePagesLand() throws {
+        var count = 20
+        let map = UI2ElementMap()
+        func view() -> AnyView { AnyView(page(results(count: count, generation: 0)).ui2ElementMap(map)) }
+        let host = makeHost(view())
+        settle(host)
+        let scroll = try XCTUnwrap(scrollView(in: host.view))
+        let rowZero = try XCTUnwrap(map.elements.first { $0.name == "C-085 SearchResultRow" })
+        let firstY = rowZero.rect.minY + scroll.contentOffset.y
+
+        while count < 100 {
+            for _ in 0..<3 {
+                scroll.contentOffset.y = min(scroll.contentOffset.y + 508, scroll.contentSize.height - scroll.bounds.height)
+                settle(host)
+            }
+            count += 20
+            host.rootView = view()
+            settle(host)
+            let rows = map.elements.filter { $0.name.hasPrefix("C-085 SearchResultRow ") }
+            XCTAssertFalse(rows.isEmpty, "no rows drawn at offset \(scroll.contentOffset.y)")
+            for row in rows {
+                let index = try XCTUnwrap(Int(row.name.dropFirst(22))) - 1
+                XCTAssertEqual(row.rect.minY, firstY + 74 * CGFloat(index) - scroll.contentOffset.y, accuracy: 1,
+                               "row \(index) with \(count) rows, offset \(scroll.contentOffset.y)")
+            }
+        }
+    }
+
+    /// D22: with no scroll view (the capture canvas) the screen lays out at its full length, every row drawn.
+    func testEveryRowDrawsWithNoScrollView() {
+        var appeared = Set<Int>()
+        let host = makeHost(SearchHomeScreen(state: results(count: 40, generation: 0), onResultAppear: { appeared.insert($0) }))
+        settle(host)
+        XCTAssertEqual(appeared.count, 40, "rows that appeared: \(appeared.sorted())")
+    }
+
     // MARK: - Helpers
 
     private func results(count: Int, generation: Int) -> SearchHomeScreen.State {
