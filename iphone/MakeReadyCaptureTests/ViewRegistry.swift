@@ -3631,6 +3631,18 @@ private func buildScreenSearchHome(_ fixture: CaptureFixture) throws -> AnyView 
     // A missing field takes this build's `recents-populated` sample (the preview linked to the
     // frozen frame `search-home`), single-sourced on the screen's State.
     let sample = MakeReadyUI.SearchHomeScreen.State.recentsPopulated
+    // C-085 `imageURL`: the fixture names each photo by URL and the harness resolves the bytes into
+    // the preview module's cache, as the C-038 case does — the view performs no I/O here. A missing
+    // list is State's own default (no previews), so a preview without one stays on its glyph badges.
+    let ui2SearchRecentImageURLs = (c.recentImageURLs ?? []).map { $0.flatMap(URL.init(string:)) }
+    let ui2SearchResultImageURLs = (c.resultImageURLs ?? []).map { $0.flatMap(URL.init(string:)) }
+    for case let url? in ui2SearchRecentImageURLs + ui2SearchResultImageURLs {
+        if url.scheme?.hasPrefix("http") == true,
+           MakeReadyUI.Ui2ImageCache.shared.image(for: url) == nil,
+           let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
+            MakeReadyUI.Ui2ImageCache.shared.seed(image, for: url)
+        }
+    }
     // The canvas is the harness's (CaptureRunner's `screen.*` branch) — the bare screen here.
     return AnyView(MakeReadyUI.SearchHomeScreen(
         state: .init(
@@ -3644,9 +3656,11 @@ private func buildScreenSearchHome(_ fixture: CaptureFixture) throws -> AnyView 
             recentKinds: c.recentKinds ?? sample.recentKinds,
             recentTitles: c.recentTitles ?? sample.recentTitles,
             recentDescriptions: c.recentDescriptions ?? sample.recentDescriptions,
+            recentImageURLs: ui2SearchRecentImageURLs,
             resultKinds: c.resultKinds ?? sample.resultKinds,
             resultTitles: c.resultTitles ?? sample.resultTitles,
-            resultDescriptions: c.resultDescriptions ?? sample.resultDescriptions
+            resultDescriptions: c.resultDescriptions ?? sample.resultDescriptions,
+            resultImageURLs: ui2SearchResultImageURLs
         )
     ))
 }
@@ -4135,7 +4149,7 @@ private func buildUI2C085(_ fixture: CaptureFixture) throws -> AnyView {
         throw ViewRegistryError.unknownView("component.ui2.C-085: missing state.component")
     }
     // C-085 §4: `kind`, `title` and `trailing` are required (R-07), so a nil is a fixture bug;
-    // `description` defaults to nil. `onTap` / `onRemove` are no-ops in a still capture.
+    // `description` and `imageURL` default to nil. `onTap` / `onRemove` are no-ops in a still capture.
     guard let ui2C085Kind = c.kind.flatMap(MakeReadyUI.SearchResultRow.Kind.init(rawValue:)) else {
         throw ViewRegistryError.unknownView(
             "component.ui2.C-085: props.kind must be member|media|program|group|lesson|event|post|photo")
@@ -4146,11 +4160,19 @@ private func buildUI2C085(_ fixture: CaptureFixture) throws -> AnyView {
     guard let ui2C085Trailing = c.trailing.flatMap(MakeReadyUI.SearchResultRow.Trailing.init(rawValue:)) else {
         throw ViewRegistryError.unknownView("component.ui2.C-085: props.trailing must be remove|none")
     }
+    // Seed the photo synchronously, same mechanism and same reason as the C-033 case. A URL that
+    // cannot load (`photo-with-failed-image`) is not seeded, so the row shows its §2 fallback.
+    let ui2C085ImageURL = c.imageURL.flatMap(URL.init(string:))
+    if let photoURL = ui2C085ImageURL, photoURL.scheme?.hasPrefix("http") == true,
+       let data = try? Data(contentsOf: photoURL), let image = UIImage(data: data) {
+        MakeReadyUI.Ui2ImageCache.shared.seed(image, for: photoURL)
+    }
     return declareCase(
         MakeReadyUI.SearchResultRow(
             kind: ui2C085Kind,
             title: ui2C085Title,
             description: c.description,
+            imageURL: ui2C085ImageURL,
             trailing: ui2C085Trailing
         ),
         // C-085 §1: the instance is 408 wide on search-home — the master width. Margin and
