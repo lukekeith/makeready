@@ -9,8 +9,8 @@
 //  API-GAPs in §5).
 //  PREVIEW ONLY: referenced by no app screen, route, tab, flag or navigation case.
 //  ui2-programs container inputs (§3, as groups-detail D27): `showsHeader`, `loading`,
-//  `failed` + `onRetry` (reload = pull-to-refresh, OQ-study-program-home-19), `onCoverTap` and
-//  `onCoverFrameChange`.
+//  `failed` + `onRetry` (reload = pull-to-refresh, OQ-study-program-home-19), `onCoverTap`,
+//  `onCoverFrameChange`, `onAddActivity` and `onOpenLessonMenu`.
 //
 
 import SwiftUI
@@ -93,6 +93,9 @@ struct StudyProgramHomeScreen: View {
     var onCoverTap: () -> Void = {}                     // C-087 tap → the cover flow (group-cover-image D1/D2)
     var onCoverFrameChange: (CGRect) -> Void = { _ in } // C-087 global frame → the image viewer's zoom origin
     var onRetry: () -> Void = {}                        // pull-to-refresh → reload (host applies `.pullToRefresh`)
+    // §3: the `Int` is the lesson's index into the state's lesson arrays, not its lesson/day number.
+    var onAddActivity: (Int) -> Void = { _ in }         // C-063 add → activity creation for that lesson
+    var onOpenLessonMenu: (Int) -> Void = { _ in }      // C-063 actions → the host's lesson menu
 
     init(
         state: State,
@@ -107,7 +110,9 @@ struct StudyProgramHomeScreen: View {
         onOpenActivity: @escaping (Int, Int) -> Void = { _, _ in },
         onCoverTap: @escaping () -> Void = {},
         onRetry: @escaping () -> Void = {},
-        onCoverFrameChange: @escaping (CGRect) -> Void = { _ in }
+        onCoverFrameChange: @escaping (CGRect) -> Void = { _ in },
+        onAddActivity: @escaping (Int) -> Void = { _ in },
+        onOpenLessonMenu: @escaping (Int) -> Void = { _ in }
     ) {
         self.state = state
         self.showsHeader = showsHeader
@@ -122,6 +127,8 @@ struct StudyProgramHomeScreen: View {
         self.onCoverTap = onCoverTap
         self.onRetry = onRetry
         self.onCoverFrameChange = onCoverFrameChange
+        self.onAddActivity = onAddActivity
+        self.onOpenLessonMenu = onOpenLessonMenu
     }
 
     // §3 has no UI-only rule on this screen: the day selection is reported through `onSelectDay`
@@ -390,15 +397,19 @@ struct StudyProgramHomeScreen: View {
     private var lessonList: some View {
         VStack(alignment: .leading, spacing: Token.Space.sectionGap) {
             ForEach(state.lessonTitles.indices, id: \.self) { index in
+                let meta = Self.splitMeta(state.lessonDurations[safe: index] ?? "")
                 LessonCard(
                     header: .numbered(lessonNumber: state.lessonNumbers[safe: index] ?? index + 1),
                     title: state.lessonTitles[index],
-                    metaLabel: state.lessonDurations[safe: index] ?? "",
+                    metaLabel: meta.number,
                     // §4 C-063 amendment: "Both hosts consume the `plain` variant" — no progress.
                     progress: nil,
                     slides: slides(index),
                     onOpen: { onOpenLesson(index) },
-                    onSelectSlide: { slide in onOpenActivity(index, slide) }
+                    onSelectSlide: { slide in onOpenActivity(index, slide) },
+                    onAddActivity: { onAddActivity(index) },
+                    onActions: { onOpenLessonMenu(index) },
+                    metaUnit: meta.unit
                 )
                 .ui2Element(Self.partName("C-063 LessonCard", ordinal: index + 1))
                 // §3 container input: the lesson scroll identity the host's ScrollViewReader
@@ -424,6 +435,13 @@ struct StudyProgramHomeScreen: View {
     }
 
     // MARK: - Derived (JSON-native props → the §4 views' types)
+
+    /// §3 Lesson meta: "splits it at the first space into a number and a unit … A label with no
+    /// space renders whole as the number with an empty unit."
+    private static func splitMeta(_ label: String) -> (number: String, unit: String) {
+        guard let space = label.firstIndex(of: " ") else { return (label, "") }
+        return (String(label[..<space]), String(label[label.index(after: space)...]))
+    }
 
     private static func optionalText(_ text: String?) -> String? {
         guard let text, !text.isEmpty else { return nil }

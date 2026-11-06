@@ -823,6 +823,9 @@ struct CaptureComponent: Codable {
     let header: CaptureUI2LessonHeader?        // C-063 — `LessonCard.Header`
     let metaLabel: String?                     // C-063
     let slides: [CaptureUI2LessonSlide]?       // C-063 — [LessonCard.Slide]; C-081 — [ActivityNavBar.Slide]
+    let onAddActivity: Bool?                   // C-063 §4 #8: true = `onAddActivity` set (add card)
+    let onActions: Bool?                       // C-063 §4 #9: true = `onActions` set (chevron)
+    let metaUnit: String?                      // C-063 §4 #10 — two-tone meta's unit
     // ── preview props ──
     // C-081 ActivityNavBar build 2026-09-29. §4 `slides` reuses the field above under the
     // contract's own name (its entries gain `id`, additive, below); `activeID` has no field.

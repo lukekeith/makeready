@@ -7,7 +7,6 @@
 //  POST /api/programs/{programId}/lessons/{lessonId}/activities ·
 //  POST /api/enrollments/{enrollmentId}/schedules/{scheduleId}/activities
 //  (§5 API-GAP: the server enum has no value per `ActivityType` case yet — OQ-1).
-//  PREVIEW ONLY: referenced by no app screen, route, tab, flag or navigation case.
 //
 
 import SwiftUI
@@ -84,16 +83,16 @@ struct ActivityNewScreen: View {
             )
             .ui2Element("C-040 PageHeader")
 
-            // §2.3: content region, padding `space-page-margin` on all four sides → C-086.
-            // §2.4: the flexible space below the grid pins the bar to the bottom.
-            ActivityTypeGrid(pendingType: pendingType, onSelect: onSelect)
-                .ui2Element("C-086 ActivityTypeGrid")
-                .padding(Token.Space.pageMargin)
-                // GAP — activity-new §2: content region y 105 → 880 (775pt) between the header
-                // and the bar, no spacing token. A minimum so the bar sits at the canvas bottom
-                // when the harness proposes no height; flexible above it.
-                .frame(maxWidth: .infinity, minHeight: Self.contentRegionHeight,
-                       maxHeight: .infinity, alignment: .top)
+            // §2.3: the flexible content region — whatever height lies between the header and
+            // C-081, scrolling only when the grid does not fit. Padding `space-page-margin` on
+            // all four sides → C-086.
+            // §2.4: the space left inside the region below the grid stays empty.
+            ScrollView(.vertical) {
+                ActivityTypeGrid(pendingType: pendingType, onSelect: onSelect)
+                    .ui2Element("C-086 ActivityTypeGrid")
+                    .padding(Token.Space.pageMargin)
+            }
+            .scrollBounceBehavior(.basedOnSize, axes: .vertical)
 
             // §2.5: C-081 `default`, pinned to the bottom; the placeholder chip is `activeID`.
             ActivityNavBar(
@@ -130,8 +129,6 @@ struct ActivityNewScreen: View {
     private static let errorTitle = "Couldn't add activity"
     private static let retryLabel = "Retry"
     private static let cancelLabel = "Cancel"
-    /// GAP — activity-new §2: content region y 105 → 880, no spacing token.
-    private static let contentRegionHeight: CGFloat = 775
 }
 
 // MARK: - Sample data (the previews' props, single-sourced for the #Preview blocks and the

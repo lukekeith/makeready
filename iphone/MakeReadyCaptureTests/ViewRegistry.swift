@@ -2340,7 +2340,11 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
                 title: ui2C063Title,
                 metaLabel: ui2C063MetaLabel,
                 progress: c.progress,
-                slides: ui2C063Slides
+                slides: ui2C063Slides,
+                // §4 #8–10: a fixture cannot carry a closure, so `true` means the host set it.
+                onAddActivity: c.onAddActivity == true ? {} : nil,
+                onActions: c.onActions == true ? {} : nil,
+                metaUnit: c.metaUnit
             ),
             // C-063 §1 dev 3: the card is full-bleed at the host's width — the frame-local
             // source is 440 wide, so the master width is 440 with no horizontal margin (its
