@@ -1,7 +1,7 @@
 size: md
-state: audited
+state: planned
 next: /builder:resume --path docs/features/program-lesson-add-activity
-head: e20f2c61
+head: d0fc8c5a
 ticket: none
 branch: builder/program-lesson-add-activity
 pr: none
