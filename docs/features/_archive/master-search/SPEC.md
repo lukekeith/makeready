@@ -1,6 +1,5 @@
 # master-search — spec
-> ✅ SIGNED OFF 2026-11-04 — bcf10ae2 · by Luke Keith: "Tested on my phone, it seems to work well"
-> ✅ SIGNED OFF 2026-11-05 — 93df3843 · by Luke Keith: "works very well"
+> ✅ SHIPPED 2026-11-05 — merged 1a2e7b0e · no ticket · signed off by Luke Keith: "works very well" · not verified
 > lg · ticket none · prototype mode (`ui2: search-home`; Figma 4536:8480)
 
 ## Idea
