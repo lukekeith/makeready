@@ -113,3 +113,67 @@ final class StudyProgramHomeContainerTests: XCTestCase {
         XCTAssertNil(StudyProgramHomeContainer.lessonID(at: 2, in: lessons))
     }
 }
+
+/// program-day-rail-sticky: a day chip's scroll must leave the whole lesson visible, its title row below
+/// the pinned rail. Measured in the real scroll view, because the landing is SwiftUI's.
+@MainActor
+final class StudyProgramHomeLandingTests: XCTestCase {
+    private final class ProxyBox { var proxy: ScrollViewProxy? }
+
+    func testASelectedDayLandsItsTitleRowBelowThePinnedRail() throws {
+        var state = StudyProgramHomeScreen.State.populated
+        let count = 12
+        state.dayCount = count
+        state.lessonNumbers = Array(1...count)
+        state.lessonTitles = (1...count).map { "Lesson \($0)" }
+        state.lessonDurations = Array(repeating: "3 mins", count: count)
+        state.lessonSlideImages = Array(repeating: [""], count: count)
+        state.lessonSlideLabels = Array(repeating: ["Slide"], count: count)
+
+        let box = ProxyBox()
+        let map = UI2ElementMap()
+        let root = ScrollViewReader { proxy in
+            ScrollView(.vertical) {
+                StudyProgramHomeScreen(state: state, showsHeader: false)
+                    .ui2ElementMap(map)
+            }
+            .onAppear { box.proxy = proxy }
+        }
+        let host = UIHostingController(rootView: AnyView(root))
+        host.safeAreaRegions = []
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        let window = scene.map(UIWindow.init(windowScene:)) ?? UIWindow()
+        window.frame = CGRect(x: 0, y: 0, width: 440, height: 956)
+        window.rootViewController = host
+        window.makeKeyAndVisible()
+        addTeardownBlock { window.isHidden = true }
+        host.view.frame = window.bounds
+        settle(host)
+
+        let day = 6
+        let name = "C-063 LessonCard \(day)"
+        let card = try XCTUnwrap(map.elements.first { $0.name.hasPrefix(name) }, "no \(name) in \(map.elements.map(\.name).prefix(40))")
+        let scroll = try XCTUnwrap(scrollView(in: host.view))
+        XCTAssertEqual(scroll.contentOffset.y, 0, accuracy: 1)
+
+        box.proxy?.scrollTo(StudyProgramHomeScreen.lessonScrollID(day), anchor: .top)
+        settle(host)
+
+        // The pinned band is 64 tall (48 chips + 8 either side); the lesson starts 16 below it.
+        let titleTop = card.rect.minY - scroll.contentOffset.y
+        XCTAssertEqual(titleTop, 80, accuracy: 2, "the lesson's title row sits at y \(titleTop); under 64 it is behind the rail")
+    }
+
+    private func settle(_ host: UIViewController) {
+        for _ in 0..<10 {
+            host.view.layoutIfNeeded()
+            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        }
+    }
+
+    private func scrollView(in view: UIView) -> UIScrollView? {
+        if let scroll = view as? UIScrollView, scroll.bounds.height > 500 { return scroll }
+        for child in view.subviews { if let found = scrollView(in: child) { return found } }
+        return nil
+    }
+}
