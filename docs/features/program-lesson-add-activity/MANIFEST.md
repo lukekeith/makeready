@@ -9,6 +9,8 @@ apps: iphone
 contract: none
 hold: none
 go-ahead: none
+tests: walk=none review=slice
+target: feature/program-lesson-add-activity
 walk: none
 verify: none
 ready: none
