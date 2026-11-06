@@ -125,6 +125,6 @@ describe('layer discovery (D2, D6)', () => {
       'study-program-home',
       'study-programs',
     ])
-    expect(availableScenarios(layers.screens)).toEqual(['full', 'sparse', 'empty'])
+    expect(availableScenarios(layers.screens)).toEqual(['full', 'sparse', 'empty', 'new-group'])
   })
 })
