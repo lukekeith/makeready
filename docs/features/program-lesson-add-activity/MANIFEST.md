@@ -1,7 +1,7 @@
 size: md
 state: building
 next: /builder:resume --path docs/features/program-lesson-add-activity
-head: c4f02404
+head: cf474d80
 ticket: none
 branch: builder/program-lesson-add-activity
 pr: none
@@ -13,7 +13,7 @@ tests: walk=none review=slice
 target: feature/program-lesson-add-activity
 walk: none
 verify: none
-ready: none
+ready: pending "dev env (fleet walk lane)"
 ui2: none
 auto: on 2026-11-06
 blocked: none
