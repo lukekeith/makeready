@@ -43,7 +43,7 @@ nightly at 08:00 UTC for both fixtures, and on `workflow_dispatch` with input `f
 concurrency group keeps runs from overlapping, and the job stops after 30 minutes. It needs three
 GitHub secrets: `STAGING_DATABASE_URL`, `STAGING_DIRECT_URL` and `FIXTURES_STAGING_DB_ENDPOINT`.
 With any unset, a scheduled run skips with a notice and passes, and a manual run fails naming them.
-`FIXTURE_IMAGES` is `off` there, so staging fixtures show no pictures until staging has its own bucket.
+Images are on there, in staging's own `makeready-staging` bucket on the `staging-images` Railway service (`assertFixtureBucket` refuses any other).
 
 A reset is not one transaction: a failed run leaves a partial fixture until the next good run.
 

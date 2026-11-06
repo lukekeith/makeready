@@ -87,6 +87,12 @@ describe('fixture images as real uploads (fixture-real-uploads)', () => {
     expect(() => assertFixtureBucket({ ...r2, R2_PUBLIC_URL: 'https://images.makeready.org' })).toThrow(/production bucket/)
   })
 
+  it('a staging seed writes only to makeready-staging', () => {
+    const staging = { ...r2, FIXTURES_TARGET: 'staging' }
+    expect(() => assertFixtureBucket({ ...staging, R2_BUCKET_NAME: 'makeready' })).toThrow(/only makeready-staging/)
+    expect(() => assertFixtureBucket({ ...staging, R2_BUCKET_NAME: 'makeready-staging' })).not.toThrow()
+  })
+
   it('fails the reset when images are on and R2 is not configured', async () => {
     vi.stubEnv('FIXTURE_IMAGES', 'on')
     vi.stubEnv('R2_BUCKET_NAME', '')

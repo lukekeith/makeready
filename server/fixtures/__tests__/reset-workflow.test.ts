@@ -17,10 +17,12 @@ describe('reset-staging-fixtures workflow', () => {
     expect(wf.concurrency).toEqual({ group: 'reset-staging-fixtures', 'cancel-in-progress': false })
     expect(job['timeout-minutes']).toBe(30)
   })
-  it('it targets staging with images off and only staging secrets', () => {
+  it('it targets staging with images on in its own bucket and only staging secrets', () => {
     expect(job.env.FIXTURES_TARGET).toBe('staging')
     expect(job.env.NODE_ENV).toBe('development')
-    expect(job.env.FIXTURE_IMAGES).toBe('off')
+    expect(job.env.FIXTURE_IMAGES).toBe('on')
+    expect(job.env.R2_BUCKET_NAME).toBe('makeready-staging')
+    expect(job.env.R2_SECRET_ACCESS_KEY).toBe('${{ secrets.STAGING_R2_SECRET_ACCESS_KEY }}')
     expect(job.env.DATABASE_URL).toBe('${{ secrets.STAGING_DATABASE_URL }}')
     expect(job.env.DIRECT_URL).toBe('${{ secrets.STAGING_DIRECT_URL }}')
     expect(JSON.stringify(wf)).not.toContain('PRODUCTION_')

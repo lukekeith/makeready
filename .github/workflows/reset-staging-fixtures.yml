@@ -45,10 +45,14 @@ jobs:
     env:
       NODE_ENV: development
       FIXTURES_TARGET: staging
-      # Stays 'off' until the owner confirms staging has its own R2 bucket:
-      # seeded images would otherwise upload to whatever bucket the runner
-      # resolves, and fixtures show no pictures on staging until then (F2).
-      FIXTURE_IMAGES: 'off'
+      # Staging's own bucket on the staging-images Railway service; assertFixtureBucket refuses any other.
+      FIXTURE_IMAGES: 'on'
+      R2_ACCOUNT_ID: staging
+      R2_BUCKET_NAME: makeready-staging
+      R2_ENDPOINT: ${{ secrets.STAGING_R2_ENDPOINT }}
+      R2_ACCESS_KEY_ID: ${{ secrets.STAGING_R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.STAGING_R2_SECRET_ACCESS_KEY }}
+      R2_PUBLIC_URL: ${{ secrets.STAGING_R2_PUBLIC_URL }}
       FIXTURE: ${{ inputs.fixture || 'all' }}
       DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
       DIRECT_URL: ${{ secrets.STAGING_DIRECT_URL }}
@@ -65,6 +69,10 @@ jobs:
           [ -z "$DATABASE_URL" ] && missing="$missing STAGING_DATABASE_URL"
           [ -z "$DIRECT_URL" ] && missing="$missing STAGING_DIRECT_URL"
           [ -z "$FIXTURES_STAGING_DB_ENDPOINT" ] && missing="$missing FIXTURES_STAGING_DB_ENDPOINT"
+          [ -z "$R2_ENDPOINT" ] && missing="$missing STAGING_R2_ENDPOINT"
+          [ -z "$R2_ACCESS_KEY_ID" ] && missing="$missing STAGING_R2_ACCESS_KEY_ID"
+          [ -z "$R2_SECRET_ACCESS_KEY" ] && missing="$missing STAGING_R2_SECRET_ACCESS_KEY"
+          [ -z "$R2_PUBLIC_URL" ] && missing="$missing STAGING_R2_PUBLIC_URL"
           if [ -n "$missing" ]; then
             if [ "${{ github.event_name }}" = "schedule" ]; then
               echo "::notice::Skipping the nightly staging fixture reset; repo secret(s) not set:$missing."
