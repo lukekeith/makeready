@@ -179,9 +179,12 @@ final class StudyProgramHomeLandingTests: XCTestCase {
         host.view.frame = window.bounds
         settle(host)
 
-        let card = try XCTUnwrap(map.elements.first { $0.name.hasPrefix("C-063 LessonCard 6") })
+        let card = try XCTUnwrap(map.elements.first { $0.name.hasPrefix("C-063 LessonCard 15") })
         let scroll = try XCTUnwrap(scrollView(in: host.view))
-        box.select?(6)
+        // As on the phone: the rail is already pinned when the chip is tapped.
+        scroll.contentOffset.y = 1_500
+        settle(host)
+        box.select?(15)
         RunLoop.main.run(until: Date().addingTimeInterval(1.5))
         settle(host)
 
@@ -198,7 +201,7 @@ final class StudyProgramHomeLandingTests: XCTestCase {
 
         var body: some View {
             var state = StudyProgramHomeScreen.State.populated
-            let count = 12
+            let count = 20
             state.dayCount = count
             state.activeDay = activeDay
             state.lessonNumbers = Array(1...count)
@@ -214,6 +217,8 @@ final class StudyProgramHomeLandingTests: XCTestCase {
                     })
                     .ui2ElementMap(map)
                 }
+                .scrollIndicators(.hidden)
+                .pullDownRefresh { }
                 .onAppear {
                     box.select = { day in
                         activeDay = day
