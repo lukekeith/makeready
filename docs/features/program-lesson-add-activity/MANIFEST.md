@@ -1,11 +1,11 @@
 size: md
-state: spec
+state: audited
 next: /builder:resume --path docs/features/program-lesson-add-activity
-head: 295d48f5
+head: e20f2c61
 ticket: none
-branch: main
+branch: builder/program-lesson-add-activity
 pr: none
-apps: iphone
+apps: server+iphone
 contract: none
 hold: none
 go-ahead: none
@@ -15,6 +15,6 @@ walk: none
 verify: none
 ready: none
 ui2: none
-auto: off
+auto: on 2026-11-06
 blocked: none
-agent-walk: off
+agent-walk: on 2026-11-06
