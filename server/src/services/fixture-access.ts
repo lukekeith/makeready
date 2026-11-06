@@ -49,8 +49,11 @@ export async function dispatchFixtureReset(fixture: Fixture, env: Env): Promise<
       body: JSON.stringify({ ref: 'main', inputs: { fixture } }),
       signal: AbortSignal.timeout(10_000),
     })
-    return res.status === 204
-  } catch {
+    if (res.status === 204) return true
+    console.error(`fixture reset dispatch refused: GitHub status ${res.status}`)
+    return false
+  } catch (err) {
+    console.error(`fixture reset dispatch failed: ${err instanceof Error ? err.name : 'unknown error'}`)
     return false
   }
 }

@@ -31,6 +31,9 @@ on:
         default: all
         options: [full, new-group, all]
 
+permissions:
+  contents: read
+
 concurrency:
   group: reset-staging-fixtures
   cancel-in-progress: false
