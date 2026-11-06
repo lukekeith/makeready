@@ -1,7 +1,7 @@
 size: md
-state: built
-next: /builder:agent-walk --path docs/features/staging-fixtures
-head: 9b475dcc
+state: signed-off
+next: /builder:resume --path docs/features/staging-fixtures
+head: 36e5d2ca
 ticket: none
 branch: builder/staging-fixtures
 pr: none
@@ -11,7 +11,7 @@ hold: none
 go-ahead: auto (recommended) 2026-11-05
 tests: walk=none review=app
 target: main
-walk: none
+walk: agent-pass 2026-11-05 36e5d2ca
 verify: none
 ready: yes 2026-11-05 9b475dcc
 auto: on 2026-11-05
