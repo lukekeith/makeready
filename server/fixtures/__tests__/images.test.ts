@@ -66,7 +66,7 @@ const r2 = {
   R2_ACCOUNT_ID: 'a',
   R2_ACCESS_KEY_ID: 'k',
   R2_SECRET_ACCESS_KEY: 's',
-  R2_BUCKET_NAME: 'makeready',
+  R2_BUCKET_NAME: 'makeready-dev',
   R2_PUBLIC_URL: 'https://pub-x.r2.dev',
 }
 
@@ -83,7 +83,7 @@ describe('fixture images as real uploads (fixture-real-uploads)', () => {
   it('needs every R2 setting, and refuses the production bucket', () => {
     expect(() => assertFixtureBucket(r2)).not.toThrow()
     expect(() => assertFixtureBucket({ ...r2, R2_PUBLIC_URL: '' })).toThrow(/R2_PUBLIC_URL not set/)
-    expect(() => assertFixtureBucket({ ...r2, R2_BUCKET_NAME: 'makeready-media' })).toThrow(/production bucket/)
+    expect(() => assertFixtureBucket({ ...r2, R2_BUCKET_NAME: 'makeready' })).toThrow(/production bucket/)
     expect(() => assertFixtureBucket({ ...r2, R2_PUBLIC_URL: 'https://images.makeready.org' })).toThrow(/production bucket/)
   })
 

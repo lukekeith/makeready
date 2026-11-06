@@ -192,11 +192,11 @@ export function assertFixtureBucket(env: NodeJS.ProcessEnv = process.env): void 
   if (missing.length) {
     throw new FixtureError(`fixture images need R2 — ${missing.join(', ')} not set (FIXTURE_IMAGES=off skips images)`)
   }
-  // staging-fixtures: dev, staging and production have shared `makeready`, so a staging seed names its own bucket.
+  // Staging seeds only its own bucket. Dev has its own too: `makeready` is production's, which dev used to share.
   if (env.FIXTURES_TARGET === 'staging' && env.R2_BUCKET_NAME !== 'makeready-staging') {
     throw new FixtureError(`refusing to seed staging fixture images into ${env.R2_BUCKET_NAME}: only makeready-staging`)
   }
-  if (env.R2_BUCKET_NAME === 'makeready-media' || /images\.makeready\.org/.test(env.R2_PUBLIC_URL ?? '')) {
+  if (env.R2_BUCKET_NAME === 'makeready' || /images\.makeready\.org/.test(env.R2_PUBLIC_URL ?? '')) {
     throw new FixtureError(`refusing to seed fixture images into the production bucket (${env.R2_BUCKET_NAME}, ${env.R2_PUBLIC_URL})`)
   }
 }
