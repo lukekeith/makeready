@@ -56,6 +56,10 @@ struct LessonCard: View {
     /// §4 #10 — "`nil` → one-tone meta. Non-nil → two-tone: `metaLabel` in
     /// `color-text-primary`, `metaUnit` in `color-text-secondary`".
     var metaUnit: String? = nil
+    /// §4 #11 — "`false` → the number draws as "{n}" (today's look). `true` with `.numbered` →
+    /// uppercase "DAY {n}", tracking 1.4pt, same type and colour, never truncated; no effect
+    /// with `.linked`. VoiceOver labels unchanged".
+    var showsDayLabel: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -127,7 +131,7 @@ struct LessonCard: View {
         HStack(alignment: .center, spacing: Self.titleRowGap) {
             if case .numbered(let lessonNumber) = header {
                 // §2 ↳ lesson number: `type-title-card`, `color-accent`, intrinsic width.
-                Text(String(lessonNumber))
+                lessonNumberText(lessonNumber)
                     .designTextStyle(Token.TypeStyle.titleCard)
                     .foregroundStyle(Token.accent)
                     .fixedSize()
@@ -154,6 +158,13 @@ struct LessonCard: View {
         // `onActions` is set (Figma Top frame `4789:45916`).
         .frame(height: onActions == nil ? Token.TypeStyle.titleCard.lineHeight : Self.titleRowHeightWithActions)
         .ui2Element("Title row")
+    }
+
+    /// §2 Day label: "uppercase "DAY {n}" instead of "{n}" … tracking 0.1em = 1.4pt at 14pt".
+    /// The tracking sits on the `Text` itself so it outranks the type style's own tracking.
+    private func lessonNumberText(_ lessonNumber: Int) -> Text {
+        guard showsDayLabel else { return Text(String(lessonNumber)) }
+        return Text(verbatim: "DAY \(lessonNumber)").tracking(Self.dayLabelTracking)
     }
 
     private var metaText: Text {
@@ -304,6 +315,10 @@ struct LessonCard: View {
     // FLAGGED LITERAL — C-063 §2: title-row gap 10, no spacing token (program's 2nd occurrence
     // after C-033's root stack, per study-program-home §2).
     private static let titleRowGap: CGFloat = 10
+
+    // GAP — C-063 §2: day-label tracking 0.1em = 1.4pt at 14pt, no tracking token (owner ruling
+    // 2026-11-06, program-day-rail-sticky).
+    private static let dayLabelTracking: CGFloat = 1.4
 
     // GAP — C-063 §2 / §1 dev 4: slide width 112, no size token (OQ-C-063-008).
     private static let slideWidth: CGFloat = 112
