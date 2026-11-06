@@ -1,4 +1,5 @@
 # program-lesson-add-activity — spec
+> 🤖 AGENT SIGNED OFF — no walk (tests: walk=none) — not human-tested · 2026-11-06 — 6b18e24c
 > md · ticket none
 
 ## Idea
@@ -140,14 +141,3 @@ No schema change (established 2026-11-06).
 | F10 | `D1`'s 244pt card height and C-079's 243.35pt slide (112 × 956/440) differ by under 1pt. | build-time risk: the d2m C-063 task settles it. Recommended: the add card takes the slide's height so the rail doesn't change height. |
 | F11 | New `UI2/Containers` files are not picked up automatically: the project has no synchronised groups, and `makereadyui-sync.rb` covers only `MakeReadyUI/`. | build-time risk: the `ActivityNewContainer` task adds it to the app target's `project.pbxproj`, then runs `capture-targets.rb`. |
 | F12 | Noted, not changed: the server's last-lesson check reads `program.days` outside its transaction, so two concurrent deletes could pass it. | Out of scope (the §Out of scope last-lesson line). Existing behaviour, reachable only by two simultaneous sessions. |
-
-## Plan
-
-The plan, task by task: `docs/features/program-lesson-add-activity/PLAN.md` (§PLAN.md).
-
-- Phase 1 · Task 1 · The activity-new fixture layer
-- Phase 2 · Task 2 · Check d2m's delivery of the card, chevron and picker fit
-- Phase 2 · Task 3 · deleteLesson succeeds when the delete does
-- Phase 2 · Task 4 · Lesson wording and the selected day after a delete
-- Phase 2 · Task 5 · The activity-new route and container
-- Phase 2 · Task 6 · The lesson menu, confirmation and delete on the program page
