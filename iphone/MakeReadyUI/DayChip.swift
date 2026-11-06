@@ -9,11 +9,11 @@
 import SwiftUI
 
 /// C-052 DayChip — one filled shape and one centred text run, in two looks (§2):
-/// `day` (the 32×40 rounded box holding an ordinal program-day number) and `weekday`
+/// `day` (the 40×48 rounded box holding an ordinal program-day number) and `weekday`
 /// (the 32×32 circle holding one uppercase weekday letter).
 ///
-/// §1 deviation 5: no border, no shadow, no icon, no press look — except §3d's outline for a
-/// day with no content. §3a: within one look the fill is the only delta when `isEmpty` is
+/// §1 deviation 5: no border, no shadow, no icon, no press look — except §3d's dashed outline
+/// for a day with no content. §3a: within one look the fill is the only delta when `isEmpty` is
 /// false; `look` changes shape, size and label type, never the fill.
 ///
 /// **Fixed, not content-sized.** §1 deviation 1: a fixed box with `overflow: clip`; a label
@@ -23,7 +23,7 @@ import SwiftUI
 struct DayChip: View {
 
     /// §4 `content` — what the chip shows, and so its `look` (§3a). The case IS the look, so
-    /// a weekday letter can never be drawn in the 32×40 box or a day number in the circle.
+    /// a weekday letter can never be drawn in the 40×48 box or a day number in the circle.
     enum Content {
         /// The ordinal program day 1…N — not a calendar date.
         case day(Int)
@@ -71,26 +71,29 @@ struct DayChip: View {
         switch content {
         case .day(let number):
             label(String(number), style: Token.TypeStyle.body, lineBox: Self.dayLineBox, part: "Number")
-                // §2: fixed 32 × 40, contents centred on both axes.
+                // §2 (owner ruling 2026-11-06): fixed 40 × 48, contents centred on both axes.
                 .frame(width: Self.dayWidth, height: Self.dayHeight)
                 .background(
-                    // §2: `radius-card-sm` (4), fill per state; a stroke only for §3d's outline,
-                    // drawn inside the box so the size stays 32 × 40.
+                    // §2: `radius-card-sm` (4), fill per state; a stroke only for §3d's dashed
+                    // outline, drawn inside the box so the size stays 40 × 48.
                     RoundedRectangle(cornerRadius: Token.Radius.cardSm)
                         .fill(fill)
                         .overlay {
                             if isOutlined {
                                 RoundedRectangle(cornerRadius: Token.Radius.cardSm)
-                                    .strokeBorder(Token.layoutBorder, lineWidth: Self.outlineWidth)
+                                    .strokeBorder(
+                                        Token.accent,
+                                        style: StrokeStyle(lineWidth: Self.outlineWidth, dash: Self.outlineDash)
+                                    )
                             }
                         }
                         .ui2Element("Chip")
                 )
                 // §1 deviation 1: `overflow: clip`, cut by the chip's own rounded rect.
                 .clipShape(RoundedRectangle(cornerRadius: Token.Radius.cardSm))
-                // §3c / OQ-C-052-5: day target 32 wide × 44 tall — the 2pt rail gap keeps
-                // the width at 32. The footprint stays §2's 32 × 40.
-                .contentShape(HitOutset(width: Self.dayWidth, height: Self.hitSize))
+                // §3c (owner ruling 2026-11-06): the day target is the chip's own 40 × 48 box,
+                // with no expansion beyond it.
+                .contentShape(Rectangle())
         case .weekday(let letter, _):
             label(letter, style: Token.TypeStyle.titleCard, lineBox: Self.weekdayLineBox, part: "Letter")
                 // §2: fixed 32 × 32, contents centred on both axes.
@@ -154,13 +157,14 @@ struct DayChip: View {
     }
 
     /// §2: the day look's fixed box.
-    private static let dayWidth: CGFloat = 32
-    private static let dayHeight: CGFloat = 40
-    /// §3d: the outline's 1pt border.
+    private static let dayWidth: CGFloat = 40
+    private static let dayHeight: CGFloat = 48
+    /// §3d: the outline's stroke width and dash, read from Figma's `state=Incomplete` (`4788:45576`).
     private static let outlineWidth: CGFloat = 1
+    private static let outlineDash: [CGFloat] = [2, 2]
     /// §2: the weekday look's fixed circle.
     private static let weekdaySide: CGFloat = 32
-    /// §3c / OQ-C-052-5: the expanded target on every axis that does not overlap a neighbour.
+    /// §3c / OQ-C-052-5: the weekday look's expanded target, both axes.
     private static let hitSize: CGFloat = 44
     /// §2: `type-body`'s 14pt line (day) and `type-title-card`'s 20pt line (weekday).
     private static let dayLineBox: CGFloat = 14

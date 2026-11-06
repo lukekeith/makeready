@@ -890,7 +890,7 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         }
         return declareCase(
             MakeReadyUI.DayChip(content: ui2C052Content, state: ui2C052State, isEmpty: c.isEmpty ?? false),
-            // C-052 §2 fixes the component's own footprint (32×40 day, 32×32 weekday), so the
+            // C-052 §2 fixes the component's own footprint (40×48 day, 32×32 weekday), so the
             // call site fixes no width — it supplies the outer margin and the ground only.
             PreviewFrame(alignment: .leading, intrinsic: true)
         )
