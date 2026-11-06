@@ -164,6 +164,66 @@ final class StudyProgramHomeLandingTests: XCTestCase {
         XCTAssertEqual(titleTop, 80, accuracy: 2, "the lesson's title row sits at y \(titleTop); under 64 it is behind the rail")
     }
 
+    /// The real tap: the selected day changes (the rail centres its chip) and the page scrolls, animated.
+    func testTappingADayChipLandsItsTitleRowBelowThePinnedRail() throws {
+        let box = SelectBox()
+        let map = UI2ElementMap()
+        let host = UIHostingController(rootView: AnyView(TapHost(box: box, map: map)))
+        host.safeAreaRegions = []
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        let window = scene.map(UIWindow.init(windowScene:)) ?? UIWindow()
+        window.frame = CGRect(x: 0, y: 0, width: 440, height: 956)
+        window.rootViewController = host
+        window.makeKeyAndVisible()
+        addTeardownBlock { window.isHidden = true }
+        host.view.frame = window.bounds
+        settle(host)
+
+        let card = try XCTUnwrap(map.elements.first { $0.name.hasPrefix("C-063 LessonCard 6") })
+        let scroll = try XCTUnwrap(scrollView(in: host.view))
+        box.select?(6)
+        RunLoop.main.run(until: Date().addingTimeInterval(1.5))
+        settle(host)
+
+        let titleTop = card.rect.minY - scroll.contentOffset.y
+        XCTAssertEqual(titleTop, 80, accuracy: 2, "after a real tap the title row sits at y \(titleTop), offset \(scroll.contentOffset.y)")
+    }
+
+    private final class SelectBox { var select: ((Int) -> Void)? }
+
+    private struct TapHost: View {
+        let box: SelectBox
+        let map: UI2ElementMap
+        @State private var activeDay = 1
+
+        var body: some View {
+            var state = StudyProgramHomeScreen.State.populated
+            let count = 12
+            state.dayCount = count
+            state.activeDay = activeDay
+            state.lessonNumbers = Array(1...count)
+            state.lessonTitles = (1...count).map { "Lesson \($0)" }
+            state.lessonDurations = Array(repeating: "3 mins", count: count)
+            state.lessonSlideImages = Array(repeating: [""], count: count)
+            state.lessonSlideLabels = Array(repeating: ["Slide"], count: count)
+            return ScrollViewReader { proxy in
+                ScrollView(.vertical) {
+                    StudyProgramHomeScreen(state: state, showsHeader: false, onSelectDay: { day in
+                        activeDay = day
+                        withAnimation { proxy.scrollTo(StudyProgramHomeScreen.lessonScrollID(day), anchor: .top) }
+                    })
+                    .ui2ElementMap(map)
+                }
+                .onAppear {
+                    box.select = { day in
+                        activeDay = day
+                        withAnimation { proxy.scrollTo(StudyProgramHomeScreen.lessonScrollID(day), anchor: .top) }
+                    }
+                }
+            }
+        }
+    }
+
     private func settle(_ host: UIViewController) {
         for _ in 0..<10 {
             host.view.layoutIfNeeded()
