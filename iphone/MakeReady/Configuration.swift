@@ -345,18 +345,21 @@ struct AppConfiguration {
 enum DevLoginIdentity: String, CaseIterable {
     case you
     case fixtures
+    case newGroup
 
     var email: String {
         switch self {
         case .you: return "luke@lukekeith.com"
         case .fixtures: return "fixtures@makeready.local"
+        case .newGroup: return "fixtures-new@makeready.local"
         }
     }
 
     var title: String {
         switch self {
         case .you: return "You"
-        case .fixtures: return "Fixtures"
+        case .fixtures: return StagingFixture.full.title
+        case .newGroup: return StagingFixture.newGroup.title
         }
     }
 

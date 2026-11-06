@@ -513,7 +513,7 @@ class AuthManager: NSObject {
     /// `User not found` for the Fixtures identity means `fixtures:reset` never ran; a 404
     /// `Not found` (server not in development) and every other failure keep today's error.
     static func devLoginFailure(status: Int, body: Data, email: String) -> Error {
-        if status == 404, email == DevLoginIdentity.fixtures.email,
+        if status == 404, email != DevLoginIdentity.you.email,
            let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
            json["error"] as? String == "User not found" {
             return AuthError.fixturesNotSeeded

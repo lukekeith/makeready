@@ -255,7 +255,8 @@ final class AuthManagerLaunchTests: XCTestCase {
         XCTAssertEqual(DevLoginIdentity.current, .fixtures)
         XCTAssertEqual(DevLoginIdentity.you.email, "luke@lukekeith.com")
         XCTAssertEqual(DevLoginIdentity.fixtures.email, "fixtures@makeready.local")
-        XCTAssertEqual(DevLoginIdentity.allCases.map(\.title), ["You", "Fixtures"])
+        XCTAssertEqual(DevLoginIdentity.newGroup.email, "fixtures-new@makeready.local")
+        XCTAssertEqual(DevLoginIdentity.allCases.map(\.title), ["You", "Fully populated", "New group"])
     }
 
     func testSignInToReachableLocalDevLogsInAsTheSelectedIdentity() async throws {
@@ -268,7 +269,7 @@ final class AuthManagerLaunchTests: XCTestCase {
             let signedIn = try await auth.signInToReachableLocal()
             XCTAssertTrue(signedIn)
         }
-        XCTAssertEqual(devLoginEmails(), ["luke@lukekeith.com", "fixtures@makeready.local"])
+        XCTAssertEqual(devLoginEmails(), ["luke@lukekeith.com", "fixtures@makeready.local", "fixtures-new@makeready.local"])
     }
 
     func testSignInDevLogsInAsTheSelectedIdentity() async throws {

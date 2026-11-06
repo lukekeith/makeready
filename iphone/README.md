@@ -251,7 +251,7 @@ xcrun simctl launch booted com.makeready.app
 
 ### Staging from a local build
 
-With `iphone/Staging.local.xcconfig` (git-ignored) in place, a Debug build on your phone keeps Local, Staging and Production, and selecting Staging shows Test data.
+With `iphone/Staging.local.xcconfig` (git-ignored) in place, a Debug build on your phone keeps Local, Staging and Production, and selecting Staging shows Test data. On Local, the identity picker offers You, Fully populated and New group; seed them with `docker exec makeready-server npm run fixtures:reset` and `docker exec makeready-server npm run fixtures:reset -- new-group`.
 
 ### Staging TestFlight build
 
