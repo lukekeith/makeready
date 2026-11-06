@@ -104,7 +104,7 @@ if (mode === 'setup') {
         return r.status === 0 ? r.stdout.trim() : ''
       }
       const expected = [
-        ['Staging', { CFBundleIdentifier: 'com.makeready.app.staging', DEV_MODE: 'YES', CFBundleDisplayName: 'MakeReady-Staging' }],
+        ['Staging', { CFBundleIdentifier: 'com.makeready.app', DEV_MODE: 'YES', CFBundleDisplayName: 'MakeReady-Staging' }],
         ['Release', { CFBundleIdentifier: 'com.makeready.app', DEV_MODE: 'NO', FIXTURE_ACCESS_KEY: '', CFBundleDisplayName: 'MakeReady' }],
       ]
       let failed = false

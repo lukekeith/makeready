@@ -41,7 +41,7 @@ final class StagingBuildConfigTests: XCTestCase {
     func testStagingXcconfigHoldsTheStagingSettings() throws {
         let config = try text("Staging.xcconfig")
         XCTAssertTrue(config.contains("DEV_MODE = YES"))
-        XCTAssertTrue(config.contains("PRODUCT_BUNDLE_IDENTIFIER = com.makeready.app.staging"))
+        XCTAssertTrue(config.contains("PRODUCT_BUNDLE_IDENTIFIER = com.makeready.app\n"))
         XCTAssertTrue(config.contains("APP_DISPLAY_NAME = MakeReady-Staging"))
         XCTAssertTrue(config.contains("SWIFT_ACTIVE_COMPILATION_CONDITIONS = STAGING"))
         XCTAssertTrue(config.contains("#include? \"Staging.local.xcconfig\""))
@@ -64,8 +64,8 @@ final class StagingBuildConfigTests: XCTestCase {
     func testProjectHasAStagingConfigurationOnEveryList() throws {
         let project = try text("MakeReady.xcodeproj/project.pbxproj")
         XCTAssertEqual(project.components(separatedBy: "name = Staging;").count - 1, 6)
-        XCTAssertEqual(project.components(separatedBy: "PRODUCT_BUNDLE_IDENTIFIER = com.makeready.app.staging;").count - 1, 1)
-        XCTAssertEqual(project.components(separatedBy: "PRODUCT_BUNDLE_IDENTIFIER = com.makeready.app;").count - 1, 2)
+        XCTAssertFalse(project.contains("com.makeready.app.staging"))
+        XCTAssertEqual(project.components(separatedBy: "PRODUCT_BUNDLE_IDENTIFIER = com.makeready.app;").count - 1, 3)
     }
 
     func testStagingSchemeArchivesWithStaging() throws {

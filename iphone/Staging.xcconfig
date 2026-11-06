@@ -1,9 +1,9 @@
 // Staging.xcconfig
-// Configuration for the staging TestFlight app (com.makeready.app.staging)
+// Configuration for the staging TestFlight build of MakeReady Groups (com.makeready.app)
 
 API_BASE_URL = https:/$()/staging.api.makeready.org
 
-PRODUCT_BUNDLE_IDENTIFIER = com.makeready.app.staging
+PRODUCT_BUNDLE_IDENTIFIER = com.makeready.app
 PRODUCT_NAME = MakeReady
 APP_DISPLAY_NAME = MakeReady-Staging
 
