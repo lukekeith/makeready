@@ -430,30 +430,33 @@ struct StudyProgramHomeScreen: View {
                         .padding(.vertical, Token.Space.cardPadding)
                         .ui2Element(Self.partName("C-088 SectionDivider lesson", ordinal: index))
                 }
-                LessonCard(
-                    header: .numbered(lessonNumber: state.lessonNumbers[safe: index] ?? index + 1),
-                    title: state.lessonTitles[index],
-                    metaLabel: meta.number,
-                    // §4 C-063 amendment: "Both hosts consume the `plain` variant" — no progress.
-                    progress: nil,
-                    slides: slides(index),
-                    onOpen: { onOpenLesson(index) },
-                    onSelectSlide: { slide in onOpenActivity(index, slide) },
-                    onAddActivity: { onAddActivity(index) },
-                    onActions: { onOpenLessonMenu(index) },
-                    metaUnit: meta.unit,
-                    showsDayLabel: true
-                )
-                .ui2Element(Self.partName("C-063 LessonCard", ordinal: index + 1))
                 // §3 container input: the lesson scroll identity the host's ScrollViewReader
                 // scrolls to on `onSelectDay` (OQ-11 default). The screen itself never scrolls.
-                // Above the card by the pinned rail's height, so a selected lesson lands below the rail.
-                .background(alignment: .top) {
+                // A real layout element above the card, because scrollTo ignores an offset marker in
+                // a background: the title row lands below the pinned rail. The negative padding
+                // takes the marker's height back, so nothing moves.
+                VStack(alignment: .leading, spacing: 0) {
                     Color.clear
                         .frame(height: Self.lessonLandingInset)
-                        .alignmentGuide(.top) { _ in Self.lessonLandingInset }
+                        .allowsHitTesting(false)
                         .id(Self.lessonScrollID(state.lessonNumbers[safe: index] ?? index + 1))
+                    LessonCard(
+                        header: .numbered(lessonNumber: state.lessonNumbers[safe: index] ?? index + 1),
+                        title: state.lessonTitles[index],
+                        metaLabel: meta.number,
+                        // §4 C-063 amendment: "Both hosts consume the `plain` variant" — no progress.
+                        progress: nil,
+                        slides: slides(index),
+                        onOpen: { onOpenLesson(index) },
+                        onSelectSlide: { slide in onOpenActivity(index, slide) },
+                        onAddActivity: { onAddActivity(index) },
+                        onActions: { onOpenLessonMenu(index) },
+                        metaUnit: meta.unit,
+                        showsDayLabel: true
+                    )
+                    .ui2Element(Self.partName("C-063 LessonCard", ordinal: index + 1))
                 }
+                .padding(.top, -Self.lessonLandingInset)
             }
         }
     }
