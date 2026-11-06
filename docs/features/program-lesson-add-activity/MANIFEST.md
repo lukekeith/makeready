@@ -1,12 +1,12 @@
 size: md
 state: building
 next: /builder:resume --path docs/features/program-lesson-add-activity
-head: 17ad725e
+head: c4f02404
 ticket: none
 branch: builder/program-lesson-add-activity
 pr: none
 apps: server+iphone
-contract: none
+contract: frozen 2026-11-06
 hold: none
 go-ahead: auto (recommended) 2026-11-06
 tests: walk=none review=slice
