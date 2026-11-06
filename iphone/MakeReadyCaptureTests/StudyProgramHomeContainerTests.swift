@@ -74,6 +74,16 @@ final class StudyProgramHomeContainerTests: XCTestCase {
     }
 
     /// D5: the only lesson can't be deleted.
+    func testLessonMenuTitleNamesTheDayAndTitle() {
+        XCTAssertEqual(StudyProgramHomeContainer.lessonMenuTitle(dayNumber: 15, title: "It is evident"), "Day 15 · It is evident")
+    }
+
+    func testLessonMenuTitleIsOnlyTheDayWithNoTitle() {
+        XCTAssertEqual(StudyProgramHomeContainer.lessonMenuTitle(dayNumber: 15, title: nil), "Day 15")
+        XCTAssertEqual(StudyProgramHomeContainer.lessonMenuTitle(dayNumber: 15, title: ""), "Day 15")
+        XCTAssertEqual(StudyProgramHomeContainer.lessonMenuTitle(dayNumber: 15, title: "   "), "Day 15")
+    }
+
     func testLessonMenuOmitsDeleteForTheOnlyLesson() {
         XCTAssertEqual(StudyProgramHomeContainer.lessonMenuRows(lessonCount: 1).map(\.label), ["Add activity"])
     }

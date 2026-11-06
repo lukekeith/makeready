@@ -144,7 +144,10 @@ struct StudyProgramHomeContainer: View {
                     pendingLessonChoice = LessonMenuChoice(rawValue: item.label)
                     closeLessonMenu()
                 },
-                onDone: { closeLessonMenu() }
+                onDone: { closeLessonMenu() },
+                menuTitle: heldLessonId.flatMap { AppState.shared.lessons[$0] }.map {
+                    Self.lessonMenuTitle(dayNumber: $0.dayNumber, title: $0.title)
+                }
             )
         }
         // D8/D16: the delete confirmation — one destructive action, Cancel keeps the lesson.
@@ -380,6 +383,13 @@ struct StudyProgramHomeContainer: View {
             rows.append(.init(glyph: "trash-2", label: LessonMenuChoice.deleteLesson.rawValue, tone: .destructive))
         }
         return rows
+    }
+
+    /// program-day-rail-sticky: the menu's title — "Day 15 · It is evident", or "Day 15" alone when
+    /// the lesson has no title, so no dot hangs off the end.
+    static func lessonMenuTitle(dayNumber: Int, title: String?) -> String {
+        let name = (title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty ? "Day \(dayNumber)" : "Day \(dayNumber) · \(name)"
     }
 
     /// D16: the id at a screen index — the screen's lesson arrays run in `dayNumber` order.
