@@ -60,3 +60,4 @@ Alternatives:
 ## History
 
 - 2026-11-05 parked — the Staging build gate needs a config line only the owner can add
+- 2026-11-05 owner chose one build over the config line. `cd iphone && node ../scripts/builder-verify.mjs staging-build` ran at 0c8b58cd in a throwaway worktree and exited 0: MakeReady Staging (Staging), MakeReady (Release) and MakeReadyCapture (Debug) all BUILD SUCCEEDED, and the built Info.plist values passed. The gate is discharged: do not edit .claude/builder.md and do not park on it again; a later code change to the build files needs this run again. Owner also said nothing in the staging database needs keeping, so F3's data question is closed.
