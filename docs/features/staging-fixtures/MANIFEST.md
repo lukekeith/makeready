@@ -1,12 +1,12 @@
 size: md
 state: planned
 next: /builder:resume --path docs/features/staging-fixtures
-head: 93df30d6
+head: 29dd68c9
 ticket: none
 branch: builder/staging-fixtures
 pr: none
 apps: server+iphone
-contract: open
+contract: frozen 2026-11-05
 hold: none
 go-ahead: auto (recommended) 2026-11-05
 tests: walk=none review=app
