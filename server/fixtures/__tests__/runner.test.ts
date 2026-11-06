@@ -54,8 +54,14 @@ describe('availableScenarios (D6)', () => {
     expect(availableScenarios([{ name: 'home-dashboard', module: { full: async () => undefined } }])).toEqual([
       'full',
       'empty',
+      'new-group',
     ])
-    expect(availableScenarios([])).toEqual(['empty'])
+    expect(availableScenarios([])).toEqual(['empty', 'new-group'])
+  })
+
+  it('availableScenarios lists new-group last', () => {
+    expect(availableScenarios([{ name: 'home-dashboard', module: { full: async () => undefined } }])).toEqual(['full', 'empty', 'new-group'])
+    expect(availableScenarios([])).toEqual(['empty', 'new-group'])
   })
 })
 
@@ -64,14 +70,14 @@ describe('main (§Testing f)', () => {
     const { deps, errors, createPrisma } = stubDeps()
     expect(await main(['reset', 'bogus'], LOCAL_ENV, deps)).toBe(1)
     expect(errors.join('\n')).toContain('unknown scenario "bogus"')
-    expect(errors.join('\n')).toContain('Available scenarios: full, empty')
+    expect(errors.join('\n')).toContain('Available scenarios: full, empty, new-group')
     expect(createPrisma).not.toHaveBeenCalled()
   })
 
   it('exits 1 on a scenario no layer implements beyond base', async () => {
     const { deps, errors } = stubDeps()
     expect(await main(['reset', 'sparse'], LOCAL_ENV, deps)).toBe(1)
-    expect(errors.join('\n')).toContain('Available scenarios: full, empty')
+    expect(errors.join('\n')).toContain('Available scenarios: full, empty, new-group')
   })
 
   it('exits 1 on an unknown command', async () => {
