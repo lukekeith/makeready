@@ -573,7 +573,7 @@ it('every step after the secrets check is skipped on a scheduled skip', () => {
 - [ ] **Step 2: Run `cd server && npx vitest run fixtures/__tests__/reset-workflow.test.ts`, watch them fail** — no workflow file yet
 - [ ] **Step 3: Write the workflow, then the `.env.example` and README edits**
 - [ ] **Step 4: Run the same command and watch them pass, then run `gh secret list` for F3**
-- [ ] **Step 5: Write `contract: frozen <today>` to the manifest** — `node <builder>/scripts/advance.mjs docs/features/staging-fixtures --set "contract=frozen <today>"`, with no `--commit`, so it joins this task's commit
+- [ ] **Step 5: Write `contract: frozen <today>` to the manifest** — `node <builder>/scripts/advance.mjs docs/features/staging-fixtures --set "contract=frozen <today>" --no-commit`, so it joins this task's commit
 - [ ] **Step 6: Commit** — `feat(staging-fixtures): staging fixture reset workflow, contract frozen`
 
 ### Task 5: The Staging build configuration and scheme

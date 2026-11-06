@@ -1,7 +1,7 @@
 size: md
 state: planned
 next: /builder:resume --path docs/features/staging-fixtures
-head: 6fcd8407
+head: 93df30d6
 ticket: none
 branch: builder/staging-fixtures
 pr: none
