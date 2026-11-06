@@ -36,6 +36,8 @@ enum AuthError: LocalizedError {
     case leaderAccessDenied
     /// The Fixtures dev identity has no user on the local server yet (ui2-fixtures D14).
     case fixturesNotSeeded
+    /// The staging fixture's user is missing while a reset runs (staging-fixtures D12).
+    case fixturesBeingReset
 
     var errorDescription: String? {
         switch self {
@@ -45,6 +47,8 @@ enum AuthError: LocalizedError {
             return "This account doesn't have leader access."
         case .fixturesNotSeeded:
             return "Fixtures not seeded — run npm run fixtures:reset in the server container."
+        case .fixturesBeingReset:
+            return "This test data is being reset. Try again in a few minutes."
         }
     }
 }
@@ -61,6 +65,8 @@ struct AuthIO {
     var clearCredential: () -> Void
     /// Probes (and heals) the Local API port before a Local login; stubbed in tests.
     var heal: () async -> LocalPortHealer.Outcome = { await LocalPortHealer.heal() }
+    /// The `X-Fixture-Key` for staging fixture sign-in and reset (staging-fixtures D6).
+    var fixtureKey: () -> String = { AppConfiguration.fixtureAccessKey }
 
     static var live: AuthIO {
         AuthIO(
@@ -155,11 +161,24 @@ class AuthManager: NSObject {
     func signIn() async throws {
         await resolveLoginEnvironment()
 
-        if AppConfiguration.isLocalDevelopment {
-            try await devLoginAsSelectedIdentity()
-        } else {
-            try await signInWithGoogle()
+        let route = Self.loginRoute(env: AppConfiguration.selectedEnvironment,
+                                    devMode: AppConfiguration.devMode,
+                                    fixtureKey: io.fixtureKey())
+        switch route {
+        case .devLogin: try await devLoginAsSelectedIdentity()
+        case .fixtureLogin: try await fixtureLogin(StagingFixture.current)
+        case .google: try await signInWithGoogle()
         }
+    }
+
+    enum LoginRoute { case devLogin, fixtureLogin, google }
+
+    /// staging-fixtures D6: Local dev-logs-in, Staging with a key uses C1, all else is Google.
+    static func loginRoute(env: AppConfiguration.SelectedEnvironment, devMode: Bool, fixtureKey: String) -> LoginRoute {
+        guard devMode else { return .google }
+        if env == .local { return .devLogin }
+        if env == .staging, !fixtureKey.isEmpty { return .fixtureLogin }
+        return .google
     }
 
     /// If the user picked Local, verify it's reachable before committing the
@@ -487,19 +506,38 @@ class AuthManager: NSObject {
             throw Self.devLoginFailure(status: statusCode, body: data, email: email)
         }
 
+        try await completeLogin(data: data, label: "Dev login")
+    }
+
+    /// ui2-fixtures D14 / SPEC §Contract: both dev-login 404s look alike, so the body decides.
+    /// `User not found` for the Fixtures identity means `fixtures:reset` never ran; a 404
+    /// `Not found` (server not in development) and every other failure keep today's error.
+    static func devLoginFailure(status: Int, body: Data, email: String) -> Error {
+        if status == 404, email == DevLoginIdentity.fixtures.email,
+           let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+           json["error"] as? String == "User not found" {
+            return AuthError.fixturesNotSeeded
+        }
+        return URLError(.userAuthenticationRequired)
+    }
+
+    /// Shared by dev-login and fixture-login (identical 200 body): stores the session, runs the
+    /// leader-access check before flipping `isAuthenticated`, then sets the user.
+    @MainActor
+    private func completeLogin(data: Data, label: String) async throws {
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         guard let success = json?["success"] as? Bool, success,
               let sessionCookie = json?["sessionCookie"] as? String,
               let userDict = json?["user"] as? [String: Any] else {
-            print("❌ Dev login: invalid response")
+            Log.auth.error("\(label, privacy: .public): invalid response")
             throw URLError(.userAuthenticationRequired)
         }
 
         // Store session cookie using the same mechanism as exchangeAuthCode
         storeSessionCookie(sessionCookie)
-        print("🍪 Dev login: stored session cookie")
+        Log.auth.info("\(label, privacy: .public): stored session cookie")
 
-        // SPEC D7: dev-login is not leader-gated server-side — check before flipping isAuthenticated.
+        // SPEC D7: dev-login and fixture-login are not leader-gated server-side — check before flipping isAuthenticated.
         struct LeaderAccess: Decodable { let canAccess: Bool }
         let access: LeaderAccess
         do {
@@ -523,17 +561,51 @@ class AuthManager: NSObject {
         )
         self.currentUser = user
         self.isAuthenticated = true
-        print("✅ Dev login: authenticated as \(user.name)")
+        Log.auth.info("\(label, privacy: .public): authenticated")
     }
 
-    /// ui2-fixtures D14 / SPEC §Contract: both dev-login 404s look alike, so the body decides.
-    /// `User not found` for the Fixtures identity means `fixtures:reset` never ran; a 404
-    /// `Not found` (server not in development) and every other failure keep today's error.
-    static func devLoginFailure(status: Int, body: Data, email: String) -> Error {
-        if status == 404, email == DevLoginIdentity.fixtures.email,
+    // MARK: - Fixture login (staging builds only)
+
+    /// POST /auth/fixture-login (C1): signs in as the seeded staging fixture's account.
+    @MainActor
+    func fixtureLogin(_ fixture: StagingFixture) async throws {
+        let request = try fixtureRequest("/auth/fixture-login", fixture)
+        let (data, response) = try await io.send(request)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            Log.auth.error("fixture login failed: HTTP \(status, privacy: .public)")
+            throw Self.fixtureLoginFailure(status: status, body: data)
+        }
+        try await completeLogin(data: data, label: "Fixture login")
+    }
+
+    /// POST /auth/fixture-reset (C2): asks the server to reseed the fixture; 202 on success.
+    @MainActor
+    func fixtureReset(_ fixture: StagingFixture) async throws {
+        let request = try fixtureRequest("/auth/fixture-reset", fixture)
+        let (_, response) = try await io.send(request)
+        guard (response as? HTTPURLResponse)?.statusCode == 202 else {
+            throw URLError(.badServerResponse)
+        }
+    }
+
+    private func fixtureRequest(_ path: String, _ fixture: StagingFixture) throws -> URLRequest {
+        guard let url = URL(string: "\(AppConfiguration.baseURL)\(path)") else { throw URLError(.badURL) }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(io.fixtureKey(), forHTTPHeaderField: "X-Fixture-Key")
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["fixture": fixture.rawValue])
+        return request
+    }
+
+    /// D12 / §Contract: a 404 with `error: fixtures_not_seeded` means the fixture is mid-reset;
+    /// anything else (including Express's non-JSON 404 for a closed gate) is a plain failure.
+    static func fixtureLoginFailure(status: Int, body: Data) -> Error {
+        if status == 404,
            let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
-           json["error"] as? String == "User not found" {
-            return AuthError.fixturesNotSeeded
+           json["error"] as? String == "fixtures_not_seeded" {
+            return AuthError.fixturesBeingReset
         }
         return URLError(.userAuthenticationRequired)
     }

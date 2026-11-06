@@ -9,6 +9,9 @@ final class AuthManagerLaunchTests: XCTestCase {
     private var savedUser: Data?
     private var savedIdentity: String?
     private var savedEnvironment: String?
+    private var savedFixture: String?
+    private var fixtureKey = ""
+    private var sentFixtureKeys: [String: [String]] = [:]
     private var credential: String?
     private var responses: [String: Result<(Int, String), Error>] = [:]
     private var sentBodies: [String: [Data]] = [:]
@@ -19,6 +22,9 @@ final class AuthManagerLaunchTests: XCTestCase {
         savedUser = UserDefaults.standard.data(forKey: userKey)
         savedIdentity = UserDefaults.standard.string(forKey: "devLoginIdentity")
         savedEnvironment = UserDefaults.standard.string(forKey: "selectedEnvironment")
+        savedFixture = UserDefaults.standard.string(forKey: "stagingFixture")
+        fixtureKey = ""
+        sentFixtureKeys = [:]
         StatePersistence.shared.clear()
         AppState.shared.clearAllData()
         api = StubAPIClient()
@@ -31,6 +37,7 @@ final class AuthManagerLaunchTests: XCTestCase {
         if let savedUser { UserDefaults.standard.set(savedUser, forKey: userKey) } else { UserDefaults.standard.removeObject(forKey: userKey) }
         restore(savedIdentity, forKey: "devLoginIdentity")
         restore(savedEnvironment, forKey: "selectedEnvironment")
+        restore(savedFixture, forKey: "stagingFixture")
         AppState.shared.clearAllData()
         super.tearDown()
     }
@@ -44,6 +51,7 @@ final class AuthManagerLaunchTests: XCTestCase {
             send: { [unowned self] request in
                 let path = request.url?.path ?? ""
                 if let body = request.httpBody { self.sentBodies[path, default: []].append(body) }
+                if let key = request.value(forHTTPHeaderField: "X-Fixture-Key") { self.sentFixtureKeys[path, default: []].append(key) }
                 switch self.responses[path] ?? .success((404, "{}")) {
                 case .failure(let error): throw error
                 case .success(let (status, body)):
@@ -55,7 +63,8 @@ final class AuthManagerLaunchTests: XCTestCase {
             credential: { [unowned self] in self.credential },
             storeCredential: { [unowned self] in self.credential = $0 },
             clearCredential: { [unowned self] in self.credential = nil },
-            heal: { .healthy(3010) }
+            heal: { .healthy(3010) },
+            fixtureKey: { [unowned self] in self.fixtureKey }
         )
     }
 
@@ -171,6 +180,69 @@ final class AuthManagerLaunchTests: XCTestCase {
         try await auth.devLogin(email: "m@example.com")
         XCTAssertTrue(auth.isAuthenticated)
         XCTAssertEqual(credential, "dev-cookie")
+    }
+
+    // MARK: - staging-fixtures: C1 / C2
+
+    private let c1Body = #"{"success":true,"user":{"id":"u1","email":"fixtures-new@makeready.local","name":"New","avatarURL":null},"sessionCookie":"s:abc"}"#
+
+    func testSignInUsesC1OnStagingWithAKey() async throws {
+        AppConfiguration.selectedEnvironment = .staging
+        StagingFixture.current = .newGroup
+        fixtureKey = "k"
+        responses["/auth/fixture-login"] = .success((200, c1Body))
+        api.stub("GET", "/auth/leader-access", json: #"{"canAccess":true}"#)
+        let auth = AuthManager(io: io())
+        try await auth.signIn()
+        XCTAssertEqual(sentFixtureKeys["/auth/fixture-login"], ["k"])
+        let body = try XCTUnwrap(sentBodies["/auth/fixture-login"]?.first)
+        XCTAssertEqual(try JSONSerialization.jsonObject(with: body) as? [String: String], ["fixture": "new-group"])
+        XCTAssertEqual(devLoginEmails(), [])
+    }
+
+    func testFixtureLoginDecodesAndAuthenticates() async throws {
+        fixtureKey = "k"
+        responses["/auth/fixture-login"] = .success((200, c1Body))
+        api.stub("GET", "/auth/leader-access", json: #"{"canAccess":true}"#)
+        let auth = AuthManager(io: io())
+        try await auth.fixtureLogin(.newGroup)
+        XCTAssertTrue(auth.isAuthenticated)
+        XCTAssertEqual(auth.currentUser?.email, "fixtures-new@makeready.local")
+        XCTAssertEqual(credential, "s:abc")
+    }
+
+    func testFixturesNotSeededMapsToBeingResetAndKeepsTheFixture() async {
+        StagingFixture.current = .newGroup
+        responses["/auth/fixture-login"] = .success((404, #"{"success":false,"error":"fixtures_not_seeded"}"#))
+        let auth = AuthManager(io: io())
+        do {
+            try await auth.fixtureLogin(.newGroup)
+            XCTFail("expected a failure")
+        } catch {
+            guard case AuthError.fixturesBeingReset = error else { return XCTFail("got \(error)") }
+        }
+        XCTAssertEqual(StagingFixture.current, .newGroup)
+        XCTAssertFalse(auth.isAuthenticated)
+    }
+
+    func testNonJsonFixture404IsNotBeingReset() {
+        let error = AuthManager.fixtureLoginFailure(status: 404, body: Data("<html>Cannot POST</html>".utf8))
+        XCTAssertEqual((error as? URLError)?.code, .userAuthenticationRequired)
+    }
+
+    func testFixtureResetSucceedsOnlyOn202() async throws {
+        fixtureKey = "k"
+        responses["/auth/fixture-reset"] = .success((202, #"{"success":true}"#))
+        let auth = AuthManager(io: io())
+        try await auth.fixtureReset(.full)
+        XCTAssertEqual(sentFixtureKeys["/auth/fixture-reset"], ["k"])
+        responses["/auth/fixture-reset"] = .success((502, #"{"success":false,"error":"reset_unavailable"}"#))
+        do {
+            try await auth.fixtureReset(.full)
+            XCTFail("expected a failure")
+        } catch {
+            XCTAssertEqual((error as? URLError)?.code, .badServerResponse)
+        }
     }
 
     // MARK: - ui2-fixtures D13/D14: the Local dev-login identity

@@ -14,12 +14,16 @@ LOCAL_SERVER_URL = lukes-macbook-pro
 // App Configuration
 PRODUCT_BUNDLE_IDENTIFIER = com.makeready.app.debug
 PRODUCT_NAME = MakeReady-Debug
+APP_DISPLAY_NAME = MakeReady
 
 // Version Configuration
 MARKETING_VERSION = 1.1.3
 
 // Developer Mode (enables environment switcher in user profile)
 DEV_MODE = YES
+
+// Fixture sign-in key: empty here, only the Staging build carries one
+FIXTURE_ACCESS_KEY =
 
 // Build Settings
 SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG

@@ -1,0 +1,110 @@
+name: Reset Staging Fixtures
+
+# Wipes and re-seeds the staging fixture worlds (staging-fixtures D10): "Fully
+# populated" (`full`) and "New group" (`new-group`). Runs nightly at 08:00 UTC
+# for both, and by hand (or from the app's Reset button, which dispatches this
+# workflow through the staging server) for one or both.
+#
+# Seeding runs here, never inside the API image: the seeder deletes data and
+# carries 84 MB of images that must not be promoted to production.
+#
+# Required secrets (set under Settings → Secrets and variables → Actions):
+#   - STAGING_DATABASE_URL           staging Postgres, a public connection
+#   - STAGING_DIRECT_URL             the same database, for migrations/seeding
+#   - FIXTURES_STAGING_DB_ENDPOINT   host:port of that database; the fixtures
+#                                    guard refuses any URL that does not match
+# With any unset, a scheduled run skips with a notice and passes; a manual run
+# fails naming them.
+#
+# A reset is not one transaction: a failed run leaves a partial fixture until
+# the next good run.
+
+on:
+  schedule:
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+    inputs:
+      fixture:
+        description: Which fixture to reset
+        required: true
+        type: choice
+        default: all
+        options: [full, new-group, all]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reset-staging-fixtures
+  cancel-in-progress: false
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NODE_ENV: development
+      FIXTURES_TARGET: staging
+      # Stays 'off' until the owner confirms staging has its own R2 bucket:
+      # seeded images would otherwise upload to whatever bucket the runner
+      # resolves, and fixtures show no pictures on staging until then (F2).
+      FIXTURE_IMAGES: 'off'
+      FIXTURE: ${{ inputs.fixture || 'all' }}
+      DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.STAGING_DIRECT_URL }}
+      FIXTURES_STAGING_DB_ENDPOINT: ${{ secrets.FIXTURES_STAGING_DB_ENDPOINT }}
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - name: Verify secrets are present
+        id: secrets
+        working-directory: .
+        run: |
+          missing=""
+          [ -z "$DATABASE_URL" ] && missing="$missing STAGING_DATABASE_URL"
+          [ -z "$DIRECT_URL" ] && missing="$missing STAGING_DIRECT_URL"
+          [ -z "$FIXTURES_STAGING_DB_ENDPOINT" ] && missing="$missing FIXTURES_STAGING_DB_ENDPOINT"
+          if [ -n "$missing" ]; then
+            if [ "${{ github.event_name }}" = "schedule" ]; then
+              echo "::notice::Skipping the nightly staging fixture reset; repo secret(s) not set:$missing."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "::error::Missing repo secret(s):$missing. Add them under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.secrets.outputs.skip != 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.secrets.outputs.skip != 'true'
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        if: steps.secrets.outputs.skip != 'true'
+        working-directory: .
+        run: npm ci
+
+      - name: Generate Prisma Client
+        if: steps.secrets.outputs.skip != 'true'
+        run: npx prisma generate
+
+      - name: Reset fixtures
+        if: steps.secrets.outputs.skip != 'true'
+        run: |
+          case "$FIXTURE" in
+            all)
+              npm run fixtures:reset -- full
+              npm run fixtures:reset -- new-group
+              ;;
+            full|new-group)
+              npm run fixtures:reset -- "$FIXTURE"
+              ;;
+            *)
+              echo "::error::Unknown fixture '$FIXTURE'. Use full, new-group or all."
+              exit 1
+              ;;
+          esac

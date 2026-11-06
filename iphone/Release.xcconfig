@@ -7,12 +7,16 @@ API_BASE_URL = https:/$()/api.makeready.org
 // App Configuration
 PRODUCT_BUNDLE_IDENTIFIER = com.makeready.app
 PRODUCT_NAME = MakeReady
+APP_DISPLAY_NAME = MakeReady
 
 // Version Configuration
 MARKETING_VERSION = 1.1.3
 
 // Developer Mode (enables environment switcher in user profile)
 DEV_MODE = NO
+
+// Fixture sign-in key: empty here, only the Staging build carries one
+FIXTURE_ACCESS_KEY =
 
 // Build Settings
 SWIFT_ACTIVE_COMPILATION_CONDITIONS = RELEASE

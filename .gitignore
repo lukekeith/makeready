@@ -104,3 +104,6 @@ iphone/InjectionProject/
 
 # d2m render lane scratch jobs (renderJobDir)
 iphone/capture/fixtures/ztmp-*/
+
+# Staging TestFlight fixture key (staging-fixtures D13)
+iphone/Staging.local.xcconfig

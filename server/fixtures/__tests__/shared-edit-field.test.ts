@@ -20,7 +20,7 @@ beforeEach(() => {
 describe('shared-edit-field layer (ui2-members-edit T5)', () => {
   it('exports sparse only, so full keeps every member populated', () => {
     expect(Object.keys(layer).filter((k) => (LAYER_SCENARIOS as readonly string[]).includes(k))).toEqual(['sparse'])
-    expect(availableScenarios([{ name: 'shared-edit-field', module: { sparse: layer.sparse } }])).toEqual(['sparse', 'empty'])
+    expect(availableScenarios([{ name: 'shared-edit-field', module: { sparse: layer.sparse } }])).toEqual(['sparse', 'empty', 'new-group'])
   })
 
   it('picks a Prayer Team member the Group-Leader user sees, never the leader’s own member or James Carter', () => {

@@ -249,6 +249,15 @@ xcrun simctl launch booted com.makeready.app
 3. Add to TestFlight
 4. Invite testers
 
+### Staging TestFlight build
+
+The `MakeReady Staging` scheme archives the `Staging` configuration: bundle id `com.makeready.app.staging`, home-screen name MakeReady-Staging, pointed at `staging.api.makeready.org`.
+
+1. Create `iphone/Staging.local.xcconfig` (git-ignored) with `FIXTURE_ACCESS_KEY = <alphanumeric key>`, a value equal to the server's `FIXTURE_ACCESS_KEY`. Alphanumeric only, because `//` starts a comment in an xcconfig. Without it the archive shows no fixture picker and signs in through Google, and nothing fails the build.
+2. Archive the `MakeReady Staging` scheme (Xcode: select it, Any iOS Device, Product → Archive).
+3. Upload to the MakeReady-Staging record in App Store Connect. That needs the App Store Connect record and App ID for `com.makeready.app.staging`.
+4. To rotate the key, change the server's `FIXTURE_ACCESS_KEY` setting, update `Staging.local.xcconfig` and rebuild.
+
 ### App Store
 
 1. Archive and upload

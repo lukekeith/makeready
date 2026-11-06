@@ -83,4 +83,41 @@ if (mode === 'setup') {
   for (const f of findings) console.log(`${f.file.replace(`${cwd}/`, '')}:${f.line}:${f.character ?? 0}: ${f.severity}: ${f.rule_id}: ${f.reason}`)
   if (r.status !== 0 && !findings.length) throw new Error(`SwiftLint failed without findings: ${r.stderr}`)
   process.exitCode = r.status
+} else if (mode === 'staging-build') {
+  // Builds the three configurations the Staging work can break and asserts the built Info.plist values.
+  const gitOut = args => { const r = spawnSync('git', args, { cwd: root, encoding: 'utf8' }); return r.status === 0 ? r.stdout.trim() : '' }
+  const base = gitOut(['merge-base', 'HEAD', 'main']) || gitOut(['merge-base', 'HEAD', 'origin/main'])
+  const watched = ['iphone/Debug.xcconfig', 'iphone/Release.xcconfig', 'iphone/Staging.xcconfig', 'iphone/MakeReady.xcodeproj', 'iphone/MakeReady/Info.plist']
+  if (base && !gitOut(['diff', '--name-only', base, 'HEAD', '--', ...watched])) {
+    console.log('staging-build: nothing to check')
+  } else {
+    const iphone = join(root, 'iphone')
+    const dir = mkdtempSync(join(tmpdir(), 'makeready-verifier-staging-'))
+    try {
+      const builds = [['MakeReady Staging', 'Staging'], ['MakeReady', 'Release'], ['MakeReadyCapture', 'Debug']]
+      for (const [scheme, configuration] of builds) {
+        run('xcodebuild', ['-project', 'MakeReady.xcodeproj', '-scheme', scheme, '-configuration', configuration, '-destination', 'generic/platform=iOS Simulator', '-derivedDataPath', dir, 'CODE_SIGNING_ALLOWED=NO', 'build'], iphone)
+      }
+      const read = (config, key) => {
+        const plist = join(dir, 'Build/Products', `${config}-iphonesimulator`, 'MakeReady.app/Info.plist')
+        const r = spawnSync('plutil', ['-extract', key, 'raw', plist], { encoding: 'utf8' })
+        return r.status === 0 ? r.stdout.trim() : ''
+      }
+      const expected = [
+        ['Staging', { CFBundleIdentifier: 'com.makeready.app.staging', DEV_MODE: 'YES', CFBundleDisplayName: 'MakeReady-Staging' }],
+        ['Release', { CFBundleIdentifier: 'com.makeready.app', DEV_MODE: 'NO', FIXTURE_ACCESS_KEY: '', CFBundleDisplayName: 'MakeReady' }],
+      ]
+      let failed = false
+      for (const [config, keys] of expected) {
+        for (const [key, want] of Object.entries(keys)) {
+          const got = read(config, key)
+          if (got !== want) { console.error(`staging-build: ${config} ${key}: expected "${want}", got "${got}"`); failed = true }
+        }
+      }
+      if (failed) process.exitCode = 1
+    } finally {
+      spawnSync('git', ['checkout', '--', 'iphone/MakeReady/Info.plist'], { cwd: root })
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }
 } else throw new Error(`Unknown verifier operation: ${mode}`)

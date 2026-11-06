@@ -102,4 +102,28 @@ struct EnvironmentActions {
             throw error
         }
     }
+
+    /// staging-fixtures D12: switches the staging fixture. Persists it, signs out (dropping the
+    /// other fixture's cached world), then signs in again, which C1-logs-in as the new fixture.
+    /// Unlike `switchIdentity`, a failure keeps the fixture so the next sign-in retries it; the
+    /// message goes to Login (`AuthManager.loginNotice`) and the error is rethrown to be recorded.
+    @MainActor
+    func switchFixture(_ fixture: StagingFixture, auth: AuthManager) async throws {
+        guard StagingFixture.current != fixture else { return }
+        StagingFixture.current = fixture
+        do {
+            try await auth.signOut()
+            try await auth.signIn()
+        } catch {
+            auth.loginNotice = LoginOutcome.message(for: error)
+            throw error
+        }
+    }
+
+    /// staging-fixtures D11/D15: asks the server to reset the fixture (C2). The session stays:
+    /// the tester sees the fresh world by signing out and back in once the reset finishes.
+    @MainActor
+    func resetFixture(_ fixture: StagingFixture, auth: AuthManager) async throws {
+        try await auth.fixtureReset(fixture)
+    }
 }

@@ -18,12 +18,19 @@ import {
 } from './context.js'
 import { type RowCounts, countFixtureRows, formatCounts } from './counts.js'
 import { checkGuard } from './guard.js'
+import {
+  NEW_GROUP_SCENARIO,
+  countNewGroupRows,
+  newGroupUserExists,
+  seedNewGroup,
+  wipeNewGroup,
+} from './new-group.js'
 import { fixtureUserExists, wipeFixtures } from './wipe.js'
 
 export const FIXTURES_DIR = dirname(fileURLToPath(import.meta.url))
 
 export type Command = 'reset' | 'seed'
-export type Scenario = LayerScenario | 'empty'
+export type Scenario = LayerScenario | 'empty' | typeof NEW_GROUP_SCENARIO
 
 export interface NamedLayer {
   name: string
@@ -48,10 +55,10 @@ export function parseCommand(argv: readonly string[]): { command: Command; scena
   return { command, scenario }
 }
 
-/** D6: scenarios some screen layer implements, plus `empty` (base only). */
+/** D6: scenarios some screen layer implements, plus `empty` (base only) and `new-group` (its own module, D16). */
 export function availableScenarios(screens: readonly NamedLayer[]): Scenario[] {
   const implemented = LAYER_SCENARIOS.filter((s) => screens.some((layer) => typeof layer.module[s] === 'function'))
-  return [...implemented, 'empty']
+  return [...implemented, 'empty', NEW_GROUP_SCENARIO]
 }
 
 // ── D10: refresh the analytics view, retrying while another instance holds the lock ──
@@ -122,7 +129,24 @@ export interface RunOptions {
   log: (line: string) => void
 }
 
+/** staging-fixtures D16: `new-group` has its own wipe, seed and counts, and never runs `wipeFixtures` or `seedBase`. */
+async function runNewGroup(o: RunOptions): Promise<RowCounts> {
+  if (o.command === 'seed' && (await newGroupUserExists(o.prisma))) {
+    throw new FixtureError('the New group fixture user already exists — run fixtures:reset -- new-group instead')
+  }
+  if (o.command === 'reset') {
+    o.log('fixtures: wiping the New group world')
+    await wipeNewGroup(o.prisma)
+  }
+  o.log('fixtures: new-group')
+  await seedNewGroup(o.prisma, o.now)
+  o.log('fixtures: refreshing analytics')
+  await refreshUntilRan(o.refresh, o.sleep)
+  return countNewGroupRows(o.prisma)
+}
+
 export async function runFixtures(o: RunOptions): Promise<RowCounts> {
+  if (o.scenario === NEW_GROUP_SCENARIO) return runNewGroup(o)
   if (o.command === 'seed' && (await fixtureUserExists(o.prisma))) {
     throw new FixtureError('the fixture user already exists — run fixtures:reset instead')
   }

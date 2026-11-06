@@ -29,6 +29,8 @@
 			<false/>
 		</dict>
 	</array>
+	<key>CFBundleDisplayName</key>
+	<string>$(APP_DISPLAY_NAME)</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIconName</key>
@@ -60,6 +62,8 @@
 	<string>452</string>
 	<key>DEV_MODE</key>
 	<string>$(DEV_MODE)</string>
+	<key>FIXTURE_ACCESS_KEY</key>
+	<string>$(FIXTURE_ACCESS_KEY)</string>
 	<key>LOCAL_SERVER_URL</key>
 	<string>$(LOCAL_SERVER_URL)</string>
 	<key>LSSupportsOpeningDocumentsInPlace</key>

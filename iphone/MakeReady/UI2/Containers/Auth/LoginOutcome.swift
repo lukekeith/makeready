@@ -9,6 +9,9 @@ enum LoginOutcome {
         if case AuthError.fixturesNotSeeded = error {
             return "Fixtures not seeded — run npm run fixtures:reset in the server container."
         }
+        if case AuthError.fixturesBeingReset = error {
+            return "This test data is being reset. Try again in a few minutes."
+        }
         let ns = error as NSError
         if ns.domain == ASWebAuthenticationSessionErrorDomain,
            ns.code == ASWebAuthenticationSessionError.canceledLogin.rawValue { return nil }

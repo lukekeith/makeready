@@ -84,6 +84,15 @@ export const FIXTURE_ORG2_ID = fixtureId('organization', 2)
 /** Every fixture user — reset deletes exactly these (cascading the orgs they own). */
 export const FIXTURE_USER_IDS: string[] = [FIXTURE_USER_ID, FIXTURE_LEADER_USER_ID, FIXTURE_ORG2_OWNER_USER_ID]
 
+/**
+ * staging-fixtures D1, D2: the New group world — its own user, org and group, in the n = 900 range so
+ * no layer's id can collide. Not in FIXTURE_USER_IDS, so `full`'s reset never touches it (D16).
+ */
+export const FIXTURE_NEW_GROUP_USER_EMAIL = 'fixtures-new@makeready.local'
+export const FIXTURE_NEW_GROUP_USER_ID = fixtureId('user', 900)
+export const FIXTURE_NEW_GROUP_ORG_ID = fixtureId('organization', 900)
+export const FIXTURE_NEW_GROUP_GROUP_ID = fixtureId('group', 900)
+
 export const FIXTURE_IDS = {
   user: FIXTURE_USER_ID,
   org: FIXTURE_ORG_ID,
