@@ -1,7 +1,7 @@
 size: md
-state: planned
+state: building
 next: /builder:resume --path docs/features/staging-fixtures
-head: 29dd68c9
+head: f23d62d8
 ticket: none
 branch: builder/staging-fixtures
 pr: none
@@ -13,7 +13,7 @@ tests: walk=none review=app
 target: main
 walk: none
 verify: none
-ready: none
+ready: pending "dev env (fleet walk lane)"
 auto: on 2026-11-05
-blocked: none
+blocked: "config change needed — the Staging and Release app builds have never been run, and the check that runs them is not in the verifier's config — next: apply the diff in PARKED.md to .claude/builder.md on main, then /builder:agent"
 agent-walk: on 2026-11-05
