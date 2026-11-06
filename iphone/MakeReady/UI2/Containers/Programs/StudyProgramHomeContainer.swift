@@ -37,6 +37,8 @@ struct StudyProgramHomeContainer: View {
     /// D16: the lesson the chevron was tapped on — held so a background reload can't retarget the action.
     @State private var heldLessonId: String?
     @State private var lessonMenuOpen = false
+    /// True from the menu's dismissal until `onHidden` — taps reach the page during the slide-out.
+    @State private var lessonMenuHiding = false
     @State private var lessonMenuRows = StudyProgramHomeContainer.lessonMenuRows(lessonCount: 2)
     @State private var pendingLessonChoice: LessonMenuChoice?
     @State private var deleteConfirmOpen = false
@@ -104,6 +106,9 @@ struct StudyProgramHomeContainer: View {
                         },
                         // D4/D16: the chevron holds that lesson's id and opens the menu.
                         onOpenLessonMenu: { index in
+                            // One lesson at a time: ignore a tap while a menu is open or sliding out,
+                            // or a choice or confirmation is pending, so the held id can't be retargeted.
+                            guard !lessonMenuOpen, !lessonMenuHiding, pendingLessonChoice == nil, !deleteConfirmOpen else { return }
                             guard let lessonId = Self.lessonID(at: index, in: AppState.shared.lessonsFor(programId: programId)) else { return }
                             heldLessonId = lessonId
                             lessonMenuRows = Self.lessonMenuRows(lessonCount: state.lessonCount)
@@ -131,15 +136,15 @@ struct StudyProgramHomeContainer: View {
         }
         // program-lesson-add-activity D4/D16: Add activity · Delete lesson; Done stays. The chosen row
         // runs once the menu has hidden, as the cover menu does.
-        .actionMenuPresentation(isPresented: lessonMenuOpen, onDismiss: { lessonMenuOpen = false },
+        .actionMenuPresentation(isPresented: lessonMenuOpen, onDismiss: { closeLessonMenu() },
                                 onHidden: { runPendingLessonChoice() }) {
             ActionMenuOverlay(
                 actions: lessonMenuRows,
                 onSelect: { item in
                     pendingLessonChoice = LessonMenuChoice(rawValue: item.label)
-                    lessonMenuOpen = false
+                    closeLessonMenu()
                 },
-                onDone: { lessonMenuOpen = false }
+                onDone: { closeLessonMenu() }
             )
         }
         // D8/D16: the delete confirmation — one destructive action, Cancel keeps the lesson.
@@ -298,7 +303,13 @@ struct StudyProgramHomeContainer: View {
 
     // MARK: - Lesson menu (program-lesson-add-activity D4, D8, D15, D16)
 
+    private func closeLessonMenu() {
+        lessonMenuOpen = false
+        lessonMenuHiding = true
+    }
+
     private func runPendingLessonChoice() {
+        lessonMenuHiding = false
         guard let choice = pendingLessonChoice else { heldLessonId = nil; return }
         pendingLessonChoice = nil
         switch choice {
@@ -364,7 +375,7 @@ struct StudyProgramHomeContainer: View {
 
     /// D4/D5/D16: Add activity, then Delete lesson unless it is the only lesson.
     static func lessonMenuRows(lessonCount: Int) -> [ActionMenuOverlay.ActionItem] {
-        var rows = [ActionMenuOverlay.ActionItem(glyph: "add", label: LessonMenuChoice.addActivity.rawValue)]
+        var rows = [ActionMenuOverlay.ActionItem(glyph: "add-large-carbon", label: LessonMenuChoice.addActivity.rawValue)]
         if lessonCount > 1 {
             rows.append(.init(glyph: "trash-2", label: LessonMenuChoice.deleteLesson.rawValue, tone: .destructive))
         }

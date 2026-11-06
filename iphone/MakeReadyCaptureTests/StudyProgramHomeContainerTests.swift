@@ -67,7 +67,9 @@ final class StudyProgramHomeContainerTests: XCTestCase {
     func testLessonMenuRowsInOrderWithGlyphsAndTones() {
         let rows = StudyProgramHomeContainer.lessonMenuRows(lessonCount: 2)
         XCTAssertEqual(rows.map(\.label), ["Add activity", "Delete lesson"])
-        XCTAssertEqual(rows.map(\.glyph), ["add", "trash-2"])
+        XCTAssertEqual(rows.map(\.glyph), ["add-large-carbon", "trash-2"])
+        // A glyph the library lacks draws the dashed error stub, so every row must resolve.
+        for row in rows { XCTAssertNotNil(GlyphName(rawValue: row.glyph), row.glyph) }
         XCTAssertEqual(rows.map(\.tone), [.standard, .destructive])
     }
 
