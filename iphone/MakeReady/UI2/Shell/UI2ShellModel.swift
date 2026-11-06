@@ -69,6 +69,9 @@ enum UI2Destination: Hashable {
     case mediaHome
     /// master-search D27: the Programs list, pushed by a tapped template; the TabBar stays.
     case programsHome
+    /// program-lesson-add-activity D2/D4: the activity-type picker for one lesson, pushed from the program
+    /// page's "+" card or lesson menu. Reached only from there — no deep link or notification target.
+    case activityNew(programId: String, lessonId: String)
 }
 
 extension UI2Destination {
@@ -83,6 +86,8 @@ extension UI2Destination {
     var isFullScreen: Bool {
         switch self {
         case .editGroupCover, .editMemberAvatar, .editProgramCover, .chooseCoverFromLibrary: return true
+        // program-lesson-add-activity D13: C-081 is pinned to the bottom, so no TabBar sits under it.
+        case .activityNew: return true
         // Owner 2026-10-29: no TabBar on any enrollment page — the enrollment's own page, the
         // checklist and its six pickers.
         case .enrollmentHome, .enrollChecklist, .enrollSelectGroup, .enrollSelectProgram, .enrollSelectSchedule,

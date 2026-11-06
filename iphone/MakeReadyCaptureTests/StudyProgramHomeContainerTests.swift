@@ -13,6 +13,26 @@ final class StudyProgramHomeContainerTests: XCTestCase {
         XCTAssertEqual(StudyProgramHomeContainer.loadFailure(for: APIHTTPError(status: 500, message: nil)), .failed)
     }
 
+    /// program-lesson-add-activity D10/D17: the picker's strip — activities by order, then the placeholder, active.
+    func testActivityNewStripListsActivitiesThenThePlaceholder() {
+        let lesson = Lesson(id: "l1", dayNumber: 1, title: "A",
+                            activities: [StudyActivity(id: "a2", type: .read, orderNumber: 2, title: "Second"),
+                                         StudyActivity(id: "a1", type: .video, orderNumber: 1, title: "First")])
+        let s = ActivityNewMapper.state(lesson: lesson)
+        XCTAssertEqual(s.slideIDs, ["a1", "a2", "placeholder"])
+        XCTAssertEqual(s.slideLabels, ["First", "Second", "New activity"])
+        XCTAssertEqual(s.activeID, "placeholder")
+        XCTAssertEqual(s.pendingType, "")
+        XCTAssertFalse(s.createFailed)
+    }
+
+    /// D17: a lesson missing from AppState shows the placeholder alone.
+    func testActivityNewWithoutTheLessonShowsThePlaceholderAlone() {
+        let s = ActivityNewMapper.state(lesson: nil)
+        XCTAssertEqual(s.slideIDs, ["placeholder"])
+        XCTAssertEqual(s.slideLabels, ["New activity"])
+    }
+
     func testSettingsRowsOpenTheirEditPageOnceLoaded() {
         let program = StudyProgram(id: "p1", name: "Walk")
         XCTAssertEqual(StudyProgramHomeContainer.editDestination(programId: "p1", label: "Age", program: program),
