@@ -171,6 +171,11 @@ struct StudyProgramHomeScreen: View {
     // GAP — study-program-home §2 item 8: "Bottom content padding 16" — a vertical 16 with no
     // spacing token naming the role (page-margin is horizontal).
     private static let bottomPadding: CGFloat = 16
+    // GAP — program-day-rail-sticky: the pinned rail's band padding, owner 2026-11-06; no spacing
+    // token names the role. Taken out of §2.7's 32s, so the resting layout is unchanged.
+    private static let railBandPadding: CGFloat = 8
+    /// The pinned band's height (40 rail + padding both sides) plus the band-to-lesson gap.
+    private static let lessonLandingInset: CGFloat = 40 + railBandPadding * 2 + Token.Space.cardPadding
 
     // MARK: - Body (§2 top → bottom)
 
@@ -363,9 +368,19 @@ struct StudyProgramHomeScreen: View {
             .ui2Element("C-020 SectionHeader 2")
             // §3 `Empty (no lessons)`: "day rail and lesson list omitted"; §3 `Loading` too.
             if !state.loading, !state.lessonTitles.isEmpty {
-                Spacer().frame(height: Token.Space.sectionGap)       // §2.7: "→ 32 →"
+                // §2.7: "→ 32 →" either side; the band's own padding is part of each 32, so the
+                // resting layout doesn't move.
+                Spacer().frame(height: Token.Space.sectionGap - Self.railBandPadding)
                 dayRail
-                Spacer().frame(height: Token.Space.sectionGap)       // §2.7: "→ 32 →"
+                    .padding(.vertical, Self.railBandPadding)
+                    .background(Token.layoutBackground)
+                    // The rail pins itself at the top of the scroll view, as C-131 does on
+                    // search-home: it stays tappable, and the pin costs no layout.
+                    .visualEffect { effect, proxy in
+                        effect.offset(y: max(0, -proxy.frame(in: .scrollView(axis: .vertical)).minY))
+                    }
+                    .zIndex(1)
+                Spacer().frame(height: Token.Space.sectionGap - Self.railBandPadding)
                 lessonList
             }
         }
@@ -375,20 +390,28 @@ struct StudyProgramHomeScreen: View {
     /// `space-chip-gap` (2), exactly one `Active`; N = program day count". A horizontal
     /// carousel keeps its own ScrollView (D22); §1 deviation 3.
     private var dayRail: some View {
-        HorizontalRail {
-            HStack(spacing: Token.Space.chipGap) {
-                ForEach(Array(1...max(state.dayCount, 1)), id: \.self) { day in
-                    DayChip(
-                        content: .day(day),
-                        state: day == state.activeDay ? .active : .default,
-                        onTap: { onSelectDay(day) }
-                    )
-                    .ui2Element(Self.partName("C-052 DayChip", ordinal: day))
+        ScrollViewReader { rail in
+            HorizontalRail {
+                HStack(spacing: Token.Space.chipGap) {
+                    ForEach(Array(1...max(state.dayCount, 1)), id: \.self) { day in
+                        DayChip(
+                            content: .day(day),
+                            state: day == state.activeDay ? .active : .default,
+                            isEmpty: dayIsEmpty(day),
+                            onTap: { onSelectDay(day) }
+                        )
+                        .id(day)
+                        .ui2Element(Self.partName("C-052 DayChip", ordinal: day))
+                    }
                 }
+                .padding(.horizontal, Token.Space.pageMargin)
             }
-            .padding(.horizontal, Token.Space.pageMargin)
+            .scrollIndicators(.hidden)
+            // The selected chip stays in view, wherever the rail was swiped to.
+            .onChange(of: state.activeDay) { _, day in
+                withAnimation { rail.scrollTo(day, anchor: .center) }
+            }
         }
-        .scrollIndicators(.hidden)
     }
 
     /// §2.7: "lesson list: three C-063 LessonCard, gap `space-section-gap` (32)". C-063 is
@@ -414,7 +437,13 @@ struct StudyProgramHomeScreen: View {
                 .ui2Element(Self.partName("C-063 LessonCard", ordinal: index + 1))
                 // §3 container input: the lesson scroll identity the host's ScrollViewReader
                 // scrolls to on `onSelectDay` (OQ-11 default). The screen itself never scrolls.
-                .id(Self.lessonScrollID(state.lessonNumbers[safe: index] ?? index + 1))
+                // Above the card by the pinned rail's height, so a selected lesson lands below the rail.
+                .background(alignment: .top) {
+                    Color.clear
+                        .frame(height: Self.lessonLandingInset)
+                        .alignmentGuide(.top) { _ in Self.lessonLandingInset }
+                        .id(Self.lessonScrollID(state.lessonNumbers[safe: index] ?? index + 1))
+                }
             }
         }
     }
@@ -424,6 +453,13 @@ struct StudyProgramHomeScreen: View {
     /// DayChip calls `onSelectDay(day)`.
     static func lessonScrollID(_ lessonNumber: Int) -> String {
         "study-program-home.lesson.\(lessonNumber)"
+    }
+
+    /// program-day-rail-sticky: C-052's outline — a lesson with no activities. A day with no lesson
+    /// loaded stays filled, as this screen's sample days past its three lessons do.
+    private func dayIsEmpty(_ day: Int) -> Bool {
+        guard let lesson = state.lessonNumbers.firstIndex(of: day) else { return false }
+        return state.lessonSlideImages[safe: lesson]?.isEmpty ?? false
     }
 
     private func slides(_ lesson: Int) -> [LessonCard.Slide] {
