@@ -29,6 +29,10 @@ Nobody has waived this gate. Leaving the config alone was the build agent's ruli
 - `iphone/MakeReady.xcodeproj/project.pbxproj` — the six `Staging` configurations.
 - Not yet ruled out: a compile failure in the Staging or Release configuration, or a capture target broken by the third configuration.
 
+## Your choices
+1. Take what you want of the config change yourself and drop it from the branch (the next step says how), then rebuild — `/builder:agent --path docs/features/staging-fixtures`
+2. Leave it for now
+
 ## Recommended next step
 
 Add this line to `.claude/builder.md` on `main`, under `verify.checks`, then run `/builder:agent`:
