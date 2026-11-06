@@ -38,16 +38,22 @@ enum StudyProgramHomeMapper {
             enrollmentLeaders: input.enrollments.map { MemberProfileMapper.leaderShortName($0.group?.creator?.name) },
             enrollmentMemberCounts: input.enrollments.map { $0.group?._count?.members ?? 0 },
             dayCount: lessons.count,
-            activeDay: input.activeDay,
+            activeDay: min(max(input.activeDay, 1), max(lessons.count, 1)),
             lessonNumbers: lessons.map(\.dayNumber),
             lessonTitles: lessons.map { $0.title ?? "" },
-            lessonDurations: lessons.map { $0.estimatedMinutes.map { "\($0) min" } ?? "" },
+            lessonDurations: lessons.map { lessonDuration($0.estimatedMinutes) },
             lessonSlideImages: lessons.map { $0.activities.sorted { $0.orderNumber < $1.orderNumber }.map(slideImage) },
             lessonSlideLabels: lessons.map { $0.activities.sorted { $0.orderNumber < $1.orderNumber }.map { $0.title ?? "" } },
             // D5: skeletons only with nothing cached; a failure over a cache keeps the page.
             loading: p == nil && !input.failed,
             failed: p == nil && input.failed
         )
+    }
+
+    /// D11: the row's meta — "N mins", "1 min" singular, "0 mins" for 0 or no estimate.
+    static func lessonDuration(_ minutes: Int?) -> String {
+        let n = minutes ?? 0
+        return n == 1 ? "1 min" : "\(n) mins"
     }
 
     /// D6: the program's two flat bounds as Group's AgeRange (nil when neither is set).

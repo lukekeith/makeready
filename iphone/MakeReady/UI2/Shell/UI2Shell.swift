@@ -233,6 +233,7 @@ struct UI2Shell: View {
         case let .chooseCoverFromLibrary(owner): MediaHomeContainer(mode: .pick(owner))  // media-library D9
         case .mediaHome: MediaHomeContainer(mode: .pushed)   // master-search D9: a video result's exit
         case .programsHome: ProgramsHomeHost()                // master-search D27: a template result's exit
+        case let .activityNew(programId, lessonId): ActivityNewContainer(programId: programId, lessonId: lessonId)  // program-lesson-add-activity D2
         }
     }
 
