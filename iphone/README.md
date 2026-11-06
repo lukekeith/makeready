@@ -249,6 +249,10 @@ xcrun simctl launch booted com.makeready.app
 3. Add to TestFlight
 4. Invite testers
 
+### Staging from a local build
+
+With `iphone/Staging.local.xcconfig` (git-ignored) in place, a Debug build on your phone keeps Local, Staging and Production, and selecting Staging shows Test data.
+
 ### Staging TestFlight build
 
 The `MakeReady Staging` scheme archives the `Staging` configuration: bundle id `com.makeready.app`, the same as MakeReady Groups, home-screen name MakeReady-Staging, pointed at `staging.api.makeready.org`.

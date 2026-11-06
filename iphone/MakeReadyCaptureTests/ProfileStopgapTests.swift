@@ -47,14 +47,19 @@ final class StagingBuildConfigTests: XCTestCase {
         XCTAssertTrue(config.contains("#include? \"Staging.local.xcconfig\""))
     }
 
-    func testDebugAndReleaseCarryNoKey() throws {
+    func testDebugAndReleaseCommitNoKey() throws {
         for name in ["Debug.xcconfig", "Release.xcconfig"] {
             let config = try text(name)
             let line = config.split(separator: "\n").first { $0.hasPrefix("FIXTURE_ACCESS_KEY") }
             XCTAssertEqual(line.map { $0.trimmingCharacters(in: .whitespaces) }, "FIXTURE_ACCESS_KEY =")
             XCTAssertTrue(config.contains("APP_DISPLAY_NAME = MakeReady"))
-            XCTAssertFalse(config.contains("Staging.local"))
         }
+    }
+
+    /// A local Debug build reads the git-ignored key so Staging offers Test data; a store build never does.
+    func testOnlyDebugAndStagingReadTheLocalKey() throws {
+        XCTAssertTrue(try text("Debug.xcconfig").contains("#include? \"Staging.local.xcconfig\""))
+        XCTAssertFalse(try text("Release.xcconfig").contains("Staging.local"))
     }
 
     func testOldStagingXcconfigIsGone() {

@@ -23,7 +23,9 @@ MARKETING_VERSION = 1.1.3
 DEV_MODE = YES
 
 // Fixture sign-in key: empty here, only the Staging build carries one
+// Empty unless iphone/Staging.local.xcconfig (git-ignored) sets it: the Test data picker on Staging.
 FIXTURE_ACCESS_KEY =
+#include? "Staging.local.xcconfig"
 
 // Build Settings
 SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG
