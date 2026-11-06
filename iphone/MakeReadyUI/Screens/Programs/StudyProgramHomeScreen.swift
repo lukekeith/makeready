@@ -174,8 +174,8 @@ struct StudyProgramHomeScreen: View {
     // GAP — program-day-rail-sticky: the pinned rail's band padding, owner 2026-11-06; no spacing
     // token names the role. Taken out of §2.7's 32s, so the resting layout is unchanged.
     private static let railBandPadding: CGFloat = 8
-    /// The pinned band's height (40 rail + padding both sides) plus the band-to-lesson gap.
-    private static let lessonLandingInset: CGFloat = 40 + railBandPadding * 2 + Token.Space.cardPadding
+    /// The pinned band's height (48 chips + padding both sides) plus the band-to-lesson gap.
+    private static let lessonLandingInset: CGFloat = 48 + railBandPadding * 2 + Token.Space.cardPadding
 
     // MARK: - Body (§2 top → bottom)
 
@@ -392,7 +392,8 @@ struct StudyProgramHomeScreen: View {
     private var dayRail: some View {
         ScrollViewReader { rail in
             HorizontalRail {
-                HStack(spacing: Token.Space.chipGap) {
+                // Owner 2026-11-06: gap 4, with C-052's day look at 40×48 (was `space-chip-gap` 2).
+                HStack(spacing: Token.Space.metaGap) {
                     ForEach(Array(1...max(state.dayCount, 1)), id: \.self) { day in
                         DayChip(
                             content: .day(day),
