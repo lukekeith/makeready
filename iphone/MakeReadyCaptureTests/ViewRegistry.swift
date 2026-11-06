@@ -889,7 +889,7 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-052: props.state must be Default|Active")
         }
         return declareCase(
-            MakeReadyUI.DayChip(content: ui2C052Content, state: ui2C052State),
+            MakeReadyUI.DayChip(content: ui2C052Content, state: ui2C052State, isEmpty: c.isEmpty ?? false),
             // C-052 §2 fixes the component's own footprint (32×40 day, 32×32 weekday), so the
             // call site fixes no width — it supplies the outer margin and the ground only.
             PreviewFrame(alignment: .leading, intrinsic: true)

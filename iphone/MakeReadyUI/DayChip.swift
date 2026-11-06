@@ -12,8 +12,9 @@ import SwiftUI
 /// `day` (the 32×40 rounded box holding an ordinal program-day number) and `weekday`
 /// (the 32×32 circle holding one uppercase weekday letter).
 ///
-/// §1 deviation 5: no border, no shadow, no icon, no press look. §3a: within one look the
-/// fill is the only delta; `look` changes shape, size and label type, never the fill.
+/// §1 deviation 5: no border, no shadow, no icon, no press look — except §3d's outline for a
+/// day with no content. §3a: within one look the fill is the only delta when `isEmpty` is
+/// false; `look` changes shape, size and label type, never the fill.
 ///
 /// **Fixed, not content-sized.** §1 deviation 1: a fixed box with `overflow: clip`; a label
 /// wider than the box is clipped, not wrapped and not grown (OQ-C-052-4, ruled).
@@ -31,7 +32,7 @@ struct DayChip: View {
         case weekday(letter: String, name: String)
     }
 
-    /// §4 `state` — selects the fill and nothing else (§3a). `Active` = selected / on, never
+    /// §4 `state` — selects the fill (§3a). `Active` = selected / on, never
     /// "today" (§3b). Raw values are §3's labels verbatim — the fixture's values.
     enum State: String {
         case `default` = "Default"
@@ -44,6 +45,11 @@ struct DayChip: View {
     /// §4 `state`. Required (R-07).
     let state: State
 
+    /// §4 `isEmpty` — this day has no content. With `.day` and `state == .default` it draws the
+    /// outline (§3d); ignored for `.weekday`, and a selected chip keeps Active's fill. Defaulted
+    /// (R-03), so no existing caller changes.
+    var isEmpty: Bool = false
+
     /// §4 `onTap` — what it means (select a day, toggle a weekday) is the consumer's call.
     /// No render effect; a defaulted no-op (R-03, R-33).
     var onTap: () -> Void = {}
@@ -55,6 +61,7 @@ struct DayChip: View {
         .buttonStyle(.plain)
         // §4 Accessibility (R-17): a button, selected when Active, labelled per look.
         .accessibilityLabel(accessibilityLabel)
+        .accessibilityValue(isEmptyDay ? "No content" : "")
         .accessibilityAddTraits(state == .active ? [.isButton, .isSelected] : .isButton)
         .ui2Element("DayChip")     // capture element map — UI2Element.swift
     }
@@ -67,9 +74,16 @@ struct DayChip: View {
                 // §2: fixed 32 × 40, contents centred on both axes.
                 .frame(width: Self.dayWidth, height: Self.dayHeight)
                 .background(
-                    // §2: `radius-card-sm` (4), fill per state, no stroke.
+                    // §2: `radius-card-sm` (4), fill per state; a stroke only for §3d's outline,
+                    // drawn inside the box so the size stays 32 × 40.
                     RoundedRectangle(cornerRadius: Token.Radius.cardSm)
                         .fill(fill)
+                        .overlay {
+                            if isOutlined {
+                                RoundedRectangle(cornerRadius: Token.Radius.cardSm)
+                                    .strokeBorder(Token.layoutBorder, lineWidth: Self.outlineWidth)
+                            }
+                        }
                         .ui2Element("Chip")
                 )
                 // §1 deviation 1: `overflow: clip`, cut by the chip's own rounded rect.
@@ -101,20 +115,34 @@ struct DayChip: View {
     private func label(_ text: String, style: DesignTextStyle, lineBox: CGFloat, part: String) -> some View {
         Text(text)
             .designTextStyle(style)
-            // §2: `color-text-primary`, both looks (deviation 2, ruled via OQ-C-022-4).
-            .foregroundColor(Token.textPrimary)
+            // §2: `color-text-primary`, both looks (deviation 2, ruled via OQ-C-022-4);
+            // §3d: the outline chip's number is `color-text-secondary`.
+            .foregroundColor(isOutlined ? Token.textSecondary : Token.textPrimary)
             .lineLimit(1)
             .fixedSize()
             .frame(height: lineBox)
             .ui2Element(part)
     }
 
-    /// §3a: the one delta within a look, the same two tokens in both looks.
+    /// §3d: `isEmpty` has a designed meaning in the day look only.
+    private var isEmptyDay: Bool {
+        guard case .day = content else { return false }
+        return isEmpty
+    }
+
+    /// §3d: the outline draws for an unselected empty day; selection wins (§3a).
+    private var isOutlined: Bool {
+        isEmptyDay && state == .default
+    }
+
+    /// §3a: the one delta within a look, the same two tokens in both looks; §3d's outline has
+    /// no fill.
     private var fill: Color {
+        if isOutlined { return .clear }
         switch state {
         // §1 deviation 3: white at 20% alpha, not a grey — it composites against the ground.
-        case .default: Token.white20
-        case .active: Token.accent
+        case .default: return Token.white20
+        case .active: return Token.accent
         }
     }
 
@@ -128,6 +156,8 @@ struct DayChip: View {
     /// §2: the day look's fixed box.
     private static let dayWidth: CGFloat = 32
     private static let dayHeight: CGFloat = 40
+    /// §3d: the outline's 1pt border.
+    private static let outlineWidth: CGFloat = 1
     /// §2: the weekday look's fixed circle.
     private static let weekdaySide: CGFloat = 32
     /// §3c / OQ-C-052-5: the expanded target on every axis that does not overlap a neighbour.

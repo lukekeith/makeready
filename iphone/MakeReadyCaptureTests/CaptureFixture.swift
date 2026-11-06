@@ -1307,6 +1307,8 @@ struct CaptureComponent: Codable {
     // ── screen search-home (C-085 photo preview, 2026-11-05) ──
     let recentImageURLs: [String?]?
     let resultImageURLs: [String?]?
+    // ── preview props ──
+    let isEmpty: Bool?                         // C-052 DayChip — §3d, a day with no content
 }
 
 /// C-123 §4 `look` — "Fixtures encode `look` as an object: `{\"kind\": \"<case>\", …associated
