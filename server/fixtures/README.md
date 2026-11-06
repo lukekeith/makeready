@@ -29,6 +29,24 @@ unknown scenario (listing the available ones), when the fixture user already exi
 
 Then, in an iPhone dev build on Local: Profile → Local identity → **Fixtures**.
 
+### Staging
+
+The guard has exactly one more way through. With `NODE_ENV` still `development` or `test`, it admits
+a run when `FIXTURES_TARGET=staging`, `DATABASE_URL` and `DIRECT_URL` are both set, and each URL's
+`host:port` equals `FIXTURES_STAGING_DB_ENDPOINT` (which must include a port: Railway's public
+proxies are shared hostnames told apart by port). Anything else, such as a production-looking host,
+the same host on another port or an unset `DIRECT_URL`, is refused with the text above.
+
+The **Reset Staging Fixtures** workflow (`.github/workflows/reset-staging-fixtures.yml`) runs it:
+nightly at 08:00 UTC for both fixtures, and on `workflow_dispatch` with input `fixture` = `full`,
+`new-group` or `all` (`all` runs `full`, then `new-group`, and stops on the first failure). One
+concurrency group keeps runs from overlapping, and the job stops after 30 minutes. It needs three
+GitHub secrets: `STAGING_DATABASE_URL`, `STAGING_DIRECT_URL` and `FIXTURES_STAGING_DB_ENDPOINT`.
+With any unset, a scheduled run skips with a notice and passes, and a manual run fails naming them.
+`FIXTURE_IMAGES` is `off` there, so staging fixtures show no pictures until staging has its own bucket.
+
+A reset is not one transaction: a failed run leaves a partial fixture until the next good run.
+
 ## Scenarios
 
 `full` (default) runs `base.ts` and every screen layer's `full`. `empty` runs `base.ts` only. A
@@ -104,6 +122,13 @@ progress; base enrollment 4's progress (home-dashboard) is spread over days.
 `screens/search-home.ts` — master-search D25: rows of every search type sharing the word `Grace` (program + tag + lesson, an exact-title post, an org template, events and a recurring series, an untitled post, a photo and a video tagged `romans`) on the third base group, plus six recents for the fixture user.
 
 `screens/media-home.ts` — 360 library photos over 3 years for the Media page (media-page D14); empty without base images.
+
+`new-group` (staging-fixtures D2) is a separate world, not a layer: user `fixtures-new@makeready.local`
+(Owner of org **New Group Fixtures**) with one active group, **My First Group**, and no members,
+programs, enrollments, events, posts or media. `docker exec makeready-server npm run fixtures:reset -- new-group`.
+It lives in `new-group.ts` with its own wipe, which removes rows under its org (including ones a tester
+added) but keeps member rows, minus their org and group links. `full` never touches its ids, and
+`reset -- new-group` then `reset -- full` leaves both worlds intact.
 
 ## Layers
 
