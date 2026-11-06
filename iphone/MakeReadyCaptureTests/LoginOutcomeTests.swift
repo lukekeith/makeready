@@ -24,4 +24,10 @@ final class LoginOutcomeTests: XCTestCase {
         XCTAssertEqual(AuthError.fixturesNotSeeded.errorDescription,
                        "Fixtures not seeded — run npm run fixtures:reset in the server container.")
     }
+
+    func testFixturesBeingResetMessage() {
+        let text = "This test data is being reset. Try again in a few minutes."
+        XCTAssertEqual(LoginOutcome.message(for: AuthError.fixturesBeingReset), text)
+        XCTAssertEqual(AuthError.fixturesBeingReset.errorDescription, text)
+    }
 }

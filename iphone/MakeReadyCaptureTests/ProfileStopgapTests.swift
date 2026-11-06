@@ -66,3 +66,36 @@ final class StagingBuildConfigTests: XCTestCase {
         XCTAssertTrue(plist.contains("<key>CFBundleDisplayName</key>\n\t<string>$(APP_DISPLAY_NAME)</string>"))
     }
 }
+
+final class StagingEnvironmentTests: XCTestCase {
+    func testEnvironmentListForEachBuild() {
+        XCTAssertEqual(AppConfiguration.switcherEnvironments(for: .staging), [.staging, .production])
+        XCTAssertEqual(AppConfiguration.switcherEnvironments(for: .debug), [.local, .staging, .production])
+        XCTAssertEqual(AppConfiguration.switcherEnvironments(for: .production), [.local, .staging, .production])
+    }
+
+    func testDefaultEnvironmentForEachBuild() {
+        XCTAssertEqual(AppConfiguration.defaultEnvironment(for: .staging), .staging)
+        XCTAssertEqual(AppConfiguration.defaultEnvironment(for: .debug), .production)
+        XCTAssertEqual(AppConfiguration.defaultEnvironment(for: .production), .production)
+    }
+
+    func testStagingFixtureTitlesOrderAndDefault() {
+        let saved = UserDefaults.standard.string(forKey: "stagingFixture")
+        defer { UserDefaults.standard.set(saved, forKey: "stagingFixture") }
+        UserDefaults.standard.removeObject(forKey: "stagingFixture")
+        XCTAssertEqual(StagingFixture.allCases.map(\.title), ["Fully populated", "New group"])
+        XCTAssertEqual(StagingFixture.allCases.map(\.rawValue), ["full", "new-group"])
+        XCTAssertEqual(StagingFixture.current, .full)
+        StagingFixture.current = .newGroup
+        XCTAssertEqual(StagingFixture.current, .newGroup)
+    }
+
+    func testLoginRouteForEveryEnvironmentAndKey() {
+        XCTAssertEqual(AuthManager.loginRoute(env: .local, devMode: true, fixtureKey: "k"), .devLogin)
+        XCTAssertEqual(AuthManager.loginRoute(env: .staging, devMode: true, fixtureKey: "k"), .fixtureLogin)
+        XCTAssertEqual(AuthManager.loginRoute(env: .staging, devMode: true, fixtureKey: ""), .google)
+        XCTAssertEqual(AuthManager.loginRoute(env: .production, devMode: true, fixtureKey: "k"), .google)
+        XCTAssertEqual(AuthManager.loginRoute(env: .staging, devMode: false, fixtureKey: "k"), .google)
+    }
+}

@@ -118,12 +118,30 @@ struct AppConfiguration {
         }
     }
 
+    /// staging-fixtures D5: the environments the switcher and its health probes list. The
+    /// staging build omits Local (a tester's phone cannot reach it).
+    static func switcherEnvironments(for build: Environment) -> [SelectedEnvironment] {
+        build == .staging ? [.staging, .production] : SelectedEnvironment.allCases
+    }
+
+    /// staging-fixtures D5: what a first launch selects. Staging in the staging build,
+    /// Production everywhere else.
+    static func defaultEnvironment(for build: Environment) -> SelectedEnvironment {
+        build == .staging ? .staging : .production
+    }
+
+    /// staging-fixtures D6/D13: the fixture-login key from Info.plist (`FIXTURE_ACCESS_KEY`).
+    /// Empty in Debug and Release, so those builds never show or use fixture sign-in.
+    static var fixtureAccessKey: String {
+        Bundle.main.object(forInfoDictionaryKey: "FIXTURE_ACCESS_KEY") as? String ?? ""
+    }
+
     static var selectedEnvironment: SelectedEnvironment {
         get {
             guard devMode else { return .production }
             guard let raw = UserDefaults.standard.string(forKey: environmentKey),
                   let env = SelectedEnvironment(rawValue: raw) else {
-                return .production // Default to production until explicitly changed
+                return defaultEnvironment(for: current) // Until explicitly changed
             }
             return env
         }
@@ -346,6 +364,29 @@ enum DevLoginIdentity: String, CaseIterable {
 
     static var current: DevLoginIdentity {
         get { UserDefaults.standard.string(forKey: key).flatMap(DevLoginIdentity.init(rawValue:)) ?? .you }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: key) }
+    }
+}
+
+// MARK: - Staging fixture (staging-fixtures D1)
+
+/// Which seeded staging world the staging build signs in as. Persisted in UserDefaults.
+/// Raw values are the C1/C2 `fixture` strings.
+enum StagingFixture: String, CaseIterable {
+    case full
+    case newGroup = "new-group"
+
+    var title: String {
+        switch self {
+        case .full: return "Fully populated"
+        case .newGroup: return "New group"
+        }
+    }
+
+    private static let key = "stagingFixture"
+
+    static var current: StagingFixture {
+        get { UserDefaults.standard.string(forKey: key).flatMap(StagingFixture.init(rawValue:)) ?? .full }
         set { UserDefaults.standard.set(newValue.rawValue, forKey: key) }
     }
 }
