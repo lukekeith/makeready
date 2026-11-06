@@ -206,7 +206,20 @@ jobs:
           DIRECT_URL: postgresql://postgres:postgres@localhost:5432/makeready_test
 
       - name: Run Server Tests
-        run: npx vitest run --reporter=verbose --exclude='test/integration/production.test.ts' --exclude='test/rate-limit-verification.test.ts'
+        # The invitations-* files below refuse any DB but a local Builder verifier lease (postgres_vt_*
+        # on :5434, assertInvitationTestDatabase), so they run in the verifier gates, not here.
+        run: >-
+          npx vitest run --reporter=verbose
+          --exclude='test/integration/production.test.ts'
+          --exclude='test/rate-limit-verification.test.ts'
+          --exclude='test/invitations-legacy-contract.test.ts'
+          --exclude='test/invitations-legacy-isolation.test.ts'
+          --exclude='test/invitations-lifecycle.test.ts'
+          --exclude='test/invitations-links.test.ts'
+          --exclude='test/invitations-migration.test.ts'
+          --exclude='test/invitations-mutations.test.ts'
+          --exclude='test/invitations-read.test.ts'
+          --exclude='test/invitations-sms-batch.test.ts'
         env:
           NODE_ENV: test
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/makeready_test

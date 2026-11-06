@@ -83,7 +83,7 @@ describe('POST /api/enrollments (ui2-enrollment-create)', () => {
       where: { enrollmentId: res.body.enrollment.id }, orderBy: { scheduledDate: 'asc' },
     })
     const local = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(d)
-    const hour = (d: Date) => new Intl.DateTimeFormat('en-US', { timeZone: TZ, hour: '2-digit', hour12: false }).format(d)
+    const hour = (d: Date) => new Intl.DateTimeFormat('en-US', { timeZone: TZ, hour: '2-digit', hourCycle: 'h23' }).format(d)
     expect(schedules.map((s) => local(s.scheduledDate))).toEqual(dates)
     expect(schedules.every((s) => hour(s.scheduledDate) === '00')).toBe(true)
     const e = await prisma.enrollment.findUniqueOrThrow({ where: { id: res.body.enrollment.id } })
