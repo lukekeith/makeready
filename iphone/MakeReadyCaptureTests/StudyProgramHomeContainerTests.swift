@@ -1,3 +1,5 @@
+import SwiftUI
+import UIKit
 import XCTest
 @testable import MakeReady
 
@@ -26,5 +28,18 @@ final class StudyProgramHomeContainerTests: XCTestCase {
         s.lessonSlideImages = [["https://s", ""]]
         s.enrollmentPhotoURLs = ["", "https://g"]
         XCTAssertEqual(StudyProgramHomeContainer.imageURLs(s), ["https://c", "https://s"])   // rows load list copies
+    }
+
+    /// D12: the closures d2m delivered are the names the container calls.
+    func testProgramPageTakesBothLessonClosures() {
+        let state = StudyProgramHomeMapper.state(.init(name: "", program: nil, lessons: [], enrollments: [], failed: false, activeDay: 1),
+                                                 timeZone: .current)
+        _ = StudyProgramHomeScreen(state: state, onAddActivity: { _ in }, onOpenLessonMenu: { _ in })
+    }
+
+    /// D13/F5: the 775pt minimum is gone, so the picker fits a proposed 700pt.
+    func testActivityNewFitsAPhone() {
+        let host = UIHostingController(rootView: ActivityNewScreen(state: .populated))
+        XCTAssertLessThanOrEqual(host.sizeThatFits(in: CGSize(width: 390, height: 700)).height, 700)
     }
 }
