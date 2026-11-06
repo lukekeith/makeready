@@ -117,7 +117,7 @@ final class StudyProgramHomeContainerTests: XCTestCase {
 /// program-day-rail-sticky: a day chip's scroll must leave the whole lesson visible, its title row below
 /// the pinned rail. Measured in the real scroll view, because the landing is SwiftUI's.
 @MainActor
-final class StudyProgramHomeLandingTests: XCTestCase {
+extension StudyProgramHomeContainerTests {
     private final class ProxyBox { var proxy: ScrollViewProxy? }
 
     func testASelectedDayLandsItsTitleRowBelowThePinnedRail() throws {
