@@ -104,13 +104,13 @@ struct LessonCard: View {
         .ui2Element("Title block")
     }
 
-    /// §2 ↳ actions chevron: "Chevron glyph from the library, `color-text-secondary`; hit
-    /// target ≥ 44 high". The 24 glyph (Figma `4789:45921`) sits in the title row's 20 height
-    /// so the row stays §2's height; the hit area is an expanded content shape, as C-021 does.
+    /// §2 ↳ actions chevron: "Glyph `chevron-down-carbon` 24, tint `color-accent` … hit target
+    /// ≥ 44 high". The 24 glyph (Figma `4789:45921`) fills the title row's 24 height; the hit
+    /// area is an expanded content shape, as C-021 does.
     private func actionsChevron(_ action: @escaping () -> Void) -> some View {
         SwiftUI.Button(action: action) {
-            Glyph(.chevronDownCarbon, size: .md, tint: Token.textSecondary)
-                .frame(height: Token.TypeStyle.titleCard.lineHeight)
+            Glyph(.chevronDownCarbon, size: .md, tint: Token.accent)
+                .frame(height: Self.titleRowHeightWithActions)
                 .contentShape(Rectangle().inset(by: -Self.chevronHitInset))
         }
         .buttonStyle(PressedDim())
@@ -121,7 +121,8 @@ struct LessonCard: View {
         .ui2Element("Actions chevron")
     }
 
-    /// §2 Title row: "height 20, HStack centre-aligned, gap 10 — FLAGGED LITERAL".
+    /// §2 Title row: "height 20; 24 when `onActions` is set, HStack centre-aligned, gap 10 —
+    /// FLAGGED LITERAL".
     private var titleRow: some View {
         HStack(alignment: .center, spacing: Self.titleRowGap) {
             if case .numbered(let lessonNumber) = header {
@@ -149,8 +150,9 @@ struct LessonCard: View {
                 .fixedSize()
                 .ui2Element("Meta")
         }
-        // §2 "height 20" — the row is exactly one `type-title-card` line (Bold 14/20).
-        .frame(height: Token.TypeStyle.titleCard.lineHeight)
+        // §2 "height 20" — the row is exactly one `type-title-card` line (Bold 14/20); 24 when
+        // `onActions` is set (Figma Top frame `4789:45916`).
+        .frame(height: onActions == nil ? Token.TypeStyle.titleCard.lineHeight : Self.titleRowHeightWithActions)
         .ui2Element("Title row")
     }
 
@@ -238,8 +240,8 @@ struct LessonCard: View {
         return onAddActivity
     }
 
-    /// §2 Add card: "112 wide, the slide's height … Add icon 24×24 centred,
-    /// `color-text-secondary`. Surface and corner radius follow Figma `4494:40744`" (#2e2e2e,
+    /// §2 Add card: "112 wide, the slide's height … Glyph `add-large-carbon` 24×24 centred,
+    /// tint `color-white-50`. Surface and corner radius follow Figma `4494:40744`" (#2e2e2e,
     /// radius 8). The hidden C-079 gives the height, so the rail is the same height with or
     /// without slides and follows C-079's aspect if it ever moves.
     private func addCard(_ action: @escaping () -> Void) -> some View {
@@ -250,7 +252,7 @@ struct LessonCard: View {
                 .overlay {
                     RoundedRectangle(cornerRadius: Token.Radius.card)
                         .fill(Token.activitySlidePlaceholder)
-                    Glyph(.addLargeCarbon, size: .md, tint: Token.textSecondary)
+                    Glyph(.addLargeCarbon, size: .md, tint: Token.white50)
                         .ui2Element("Add icon")
                 }
         }
@@ -306,7 +308,10 @@ struct LessonCard: View {
     // GAP — C-063 §2 / §1 dev 4: slide width 112, no size token (OQ-C-063-008).
     private static let slideWidth: CGFloat = 112
 
-    // GAP — C-063 §2: "hit target ≥ 44 high", no size token. 12 above and below the 20 row.
+    // GAP — C-063 §2: title row "24 when `onActions` is set", no size token.
+    private static let titleRowHeightWithActions: CGFloat = 24
+
+    // GAP — C-063 §2: "hit target ≥ 44 high", no size token. 12 above and below the 24 row.
     private static let chevronHitInset: CGFloat = 12
 
     /// §1 deviation 4 / OQ-C-063-6: "0.6 press feedback". Ephemeral, owned by the button (R-02).
