@@ -1363,7 +1363,7 @@ The app automatically switches between local development and production environm
 | **Staging** (`MakeReady Staging` scheme) | YES (switcher lists Staging and Production only) | https://staging.api.makeready.org | Disabled |
 | **Release (Archive)** | NO | https://api.makeready.org | Disabled |
 
-Defined in `MakeReady/Configuration/*.xcconfig` and resolved at runtime by `MakeReady/Configuration.swift`. With DEV_MODE on, the selected environment persists in UserDefaults and defaults to Production until changed. On a physical device, Local uses the IP/port configured on the Profile screen (default `192.168.1.65:3010`).
+Defined in the `iphone/*.xcconfig` files (`Debug`, `Release`, `Staging`) and resolved at runtime by `MakeReady/Configuration.swift`. With DEV_MODE on, the selected environment persists in UserDefaults. It defaults to Production in Debug and to Staging in the Staging build, until changed. On a physical device, Local uses the IP/port configured on the Profile screen (default `192.168.1.65:3010`).
 
 ### For Local Development
 
