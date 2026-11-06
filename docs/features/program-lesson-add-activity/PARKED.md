@@ -61,3 +61,4 @@ Alternatives:
 - 2026-11-06 parked — false regression from a truncated verifier baseline, after the phase tier ran twice
 - 2026-11-06 unparked by the fleet — automatic retry 1 of 2
 - 2026-11-06 parked again — cause confirmed unchanged at 17ad725e; complete output shows branch and target identical; the delete awaits the owner
+- 2026-11-06 unparked by a person — named to /builder:agent or /builder:fleet

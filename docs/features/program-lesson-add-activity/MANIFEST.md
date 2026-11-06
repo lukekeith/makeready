@@ -16,5 +16,5 @@ verify: none
 ready: none
 ui2: none
 auto: on 2026-11-06
-blocked: "the server phase can't close: the web style check's cached baseline holds 483 of its 853 lines, so old violations read as new — next: delete the file named in PARKED.md from the main checkout, then /builder:agent"
+blocked: none
 agent-walk: on 2026-11-06
