@@ -80,10 +80,23 @@ struct ActionMenuOverlay: View {
     var confirmLabel: String? = nil
     /// Fired by the confirmation button; no render effect (OQ-PB-3).
     var onConfirm: () -> Void = {}
+    /// program-day-rail-sticky (owner 2026-11-06): one centred line naming what the menu acts on.
+    /// Unlike `title` it keeps the normal rows. Default nil keeps the frozen C-066 snapshot.
+    var menuTitle: String? = nil
 
     var body: some View {
         // §2: "internal gap 16" — between the actions list and the Done button.
         VStack(spacing: Self.gap) {
+            if let menuTitle, !menuTitle.isEmpty {
+                Text(menuTitle)
+                    .designTextStyle(Token.TypeStyle.titleCard)
+                    .foregroundStyle(Token.textPrimary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .accessibilityAddTraits(.isHeader)
+                    .ui2Element("Menu title")
+            }
             if let title, !title.isEmpty {
                 header(title: title).ui2Element("Header")
             }
