@@ -8,6 +8,12 @@ import { prisma } from '../lib/prisma.js'
 import { linkGoogleProfile, type GoogleProfile } from '../services/member-google.js'
 import { linkMemberViaGoogle, getLinkedUser } from '../services/account-linking.js'
 import { createVerifyService } from '../services/twilio.js'
+import {
+  fixtureGateOpen,
+  fixtureBodySchema,
+  FIXTURE_LOGIN_EMAILS,
+  dispatchFixtureReset,
+} from '../services/fixture-access.js'
 
 const router = Router()
 
@@ -1227,6 +1233,65 @@ router.post('/dev-login', async (req, res) => {
     console.error('❌ Dev login error:', error)
     res.status(500).json({ success: false, error: 'Login failed' })
   }
+})
+
+// ============================================================================
+// Staging fixtures (key-gated; look like an unknown route until the gate passes)
+// ============================================================================
+
+/** POST /auth/fixture-login - signs in one of the fixture accounts. Takes no email. */
+router.post('/fixture-login', async (req, res, next) => {
+  if (!fixtureGateOpen(req.get('X-Fixture-Key'), process.env)) return next()
+
+  const parsed = fixtureBodySchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ success: false, error: 'unknown_fixture' })
+  }
+
+  try {
+    const user = await prisma.user.findUnique({ where: { email: FIXTURE_LOGIN_EMAILS[parsed.data.fixture] } })
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'fixtures_not_seeded' })
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      req.logIn(user, (err) => {
+        if (err) return reject(err)
+        resolve()
+      })
+    })
+
+    const signed = 's:' + signature.sign(req.sessionID, process.env.SESSION_SECRET!)
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        avatarURL: user.picture,
+      },
+      sessionCookie: signed,
+    })
+  } catch (error) {
+    console.error('❌ Fixture login error:', error)
+    res.status(500).json({ success: false, error: 'Login failed' })
+  }
+})
+
+/** POST /auth/fixture-reset - asks GitHub to run the reset workflow for a fixture. */
+router.post('/fixture-reset', async (req, res, next) => {
+  if (!fixtureGateOpen(req.get('X-Fixture-Key'), process.env)) return next()
+
+  const parsed = fixtureBodySchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ success: false, error: 'unknown_fixture' })
+  }
+
+  if (await dispatchFixtureReset(parsed.data.fixture, process.env)) {
+    return res.status(202).json({ success: true })
+  }
+  res.status(502).json({ success: false, error: 'reset_unavailable' })
 })
 
 export default router
