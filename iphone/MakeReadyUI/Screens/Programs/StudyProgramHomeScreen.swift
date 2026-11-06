@@ -419,9 +419,17 @@ struct StudyProgramHomeScreen: View {
     /// full-bleed with its own `space-page-margin` inset (C-063 §1 deviation 3), so the page
     /// adds no margin here — its rail scrolls under the screen edges (§1 deviation 3).
     private var lessonList: some View {
-        VStack(alignment: .leading, spacing: Token.Space.sectionGap) {
+        VStack(alignment: .leading, spacing: 0) {
             ForEach(state.lessonTitles.indices, id: \.self) { index in
                 let meta = Self.splitMeta(state.lessonDurations[safe: index] ?? "")
+                // Owner 2026-11-06: C-088 between lessons, 16 either side, tighter than the page's
+                // section dividers, so the lessons still read as one list.
+                if index > 0 {
+                    SectionDivider()
+                        .padding(.horizontal, Token.Space.pageMargin)
+                        .padding(.vertical, Token.Space.cardPadding)
+                        .ui2Element(Self.partName("C-088 SectionDivider lesson", ordinal: index))
+                }
                 LessonCard(
                     header: .numbered(lessonNumber: state.lessonNumbers[safe: index] ?? index + 1),
                     title: state.lessonTitles[index],
@@ -433,7 +441,8 @@ struct StudyProgramHomeScreen: View {
                     onSelectSlide: { slide in onOpenActivity(index, slide) },
                     onAddActivity: { onAddActivity(index) },
                     onActions: { onOpenLessonMenu(index) },
-                    metaUnit: meta.unit
+                    metaUnit: meta.unit,
+                    showsDayLabel: true
                 )
                 .ui2Element(Self.partName("C-063 LessonCard", ordinal: index + 1))
                 // §3 container input: the lesson scroll identity the host's ScrollViewReader
