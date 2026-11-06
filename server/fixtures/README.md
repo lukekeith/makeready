@@ -123,6 +123,14 @@ progress; base enrollment 4's progress (home-dashboard) is spread over days.
 
 `screens/media-home.ts` — 360 library photos over 3 years for the Media page (media-page D14); empty without base images.
 
+### What `full` makes non-empty on the activity picker
+
+`screens/activity-new.ts` (program-lesson-add-activity D18): "Lesson Rail Samples" (program 200, 3 days)
+has lessons with 2 (READ + USER_INPUT), 1 (READ) and 0 activities and estimated minutes 3, 5 and none, so the
+program page's rail shows a full row, a short row and the "+" card alone, and the picker's strip shows each
+lesson's activities plus the placeholder. "Single Lesson Study" (program 201, 1 day) has one empty lesson, so
+its lesson menu omits Delete lesson. Both are in the fixture org, created and led by the fixture user.
+
 `new-group` (staging-fixtures D2) is a separate world, not a layer: user `fixtures-new@makeready.local`
 (Owner of org **New Group Fixtures**) with one active group, **My First Group**, and no members,
 programs, enrollments, events, posts or media. `docker exec makeready-server npm run fixtures:reset -- new-group`.
