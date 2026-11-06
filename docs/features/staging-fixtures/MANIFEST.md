@@ -1,7 +1,7 @@
 size: md
-state: audited
+state: planned
 next: /builder:resume --path docs/features/staging-fixtures
-head: 9c2a9a4e
+head: 32a1a956
 ticket: none
 branch: builder/staging-fixtures
 pr: none

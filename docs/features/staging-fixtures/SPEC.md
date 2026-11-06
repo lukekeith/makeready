@@ -148,3 +148,14 @@ No schema change (established 2026-11-05).
 | F13 | Both apps register the `makeready` URL scheme, so with both installed a `makeready://` link may open either. OAuth's callback is tied to its session and is unaffected. | Accepted for a test app. |
 | F14 | `iphone/scripts/capture-targets.rb` copies settings per configuration name and creates Debug and Release on new targets, and the agent walk harness runs it against a project that now has a third configuration. | `build-time risk`: the build-configuration task runs the script once and confirms the Debug capture targets still build, then restores the project. |
 
+## Plan
+
+The plan, task by task: `docs/features/staging-fixtures/PLAN.md` (§PLAN.md).
+
+- Phase 1 · Task 1 · Fixture guard admits the named staging database
+- Phase 1 · Task 2 · The `new-group` scenario
+- Phase 1 · Task 3 · C1 and C2 behind the fixture gate
+- Phase 1 · Task 4 · The reset workflow, its settings and the contract freeze
+- Phase 2 · Task 5 · The Staging build configuration and scheme
+- Phase 2 · Task 6 · Config and sign-in for the staging build
+- Phase 2 · Task 7 · Test data on Profile
