@@ -1,5 +1,5 @@
 # staging-fixtures — spec
-> 🤖 AGENT SIGNED OFF — no walk (tests: walk=none) — not human-tested · 2026-11-05 — 36e5d2ca
+> ✅ SHIPPED 2026-11-05 — merged into main · no ticket · 🤖 agent signed off (no walk), not human-tested · quick-checked
 > md · ticket none
 
 ## Idea
@@ -148,3 +148,4 @@ No schema change (established 2026-11-05).
 | F12 | The cached `AppState` of a tester still signed in can show rows from before a reset. | Settled by D15. `build-time risk`: the Reset task checks that sign-out and sign-in shows the fresh world. |
 | F13 | Both apps register the `makeready` URL scheme, so with both installed a `makeready://` link may open either. OAuth's callback is tied to its session and is unaffected. | Accepted for a test app. |
 | F14 | `iphone/scripts/capture-targets.rb` copies settings per configuration name and creates Debug and Release on new targets, and the agent walk harness runs it against a project that now has a third configuration. | `build-time risk`: the build-configuration task runs the script once and confirms the Debug capture targets still build, then restores the project. |
+| L1 | lesson for §Standing traps: The verifier's iPhone suites build Debug only, so a change to Xcode configurations or schemes needs `cd iphone && node ../scripts/builder-verify.mjs staging-build` on the branch before it merges; after the merge its diff is empty and it passes without building. | proposed |
