@@ -16,6 +16,7 @@ Nobody has waived this gate. Leaving the config alone was the build agent's ruli
 - Task 5 as planned edits `.claude/builder.md`. Ruled out before dispatch, for three reasons: agent mode forbids editing the config, the verifier reads the main checkout's copy so the edit would do nothing, and the fleet parks a branch that changes the file.
 - The `staging-build` mode was committed in `scripts/builder-verify.mjs`. It has passed `node --check` and code review but has never been executed.
 - Running the mode from this agent was ruled out: `iphone/.claude/CLAUDE.md` requires an explicit yes for any `xcodebuild` outside its named carve-outs, and this mode is not one of them.
+- 2026-11-05 retry (walk lane): checked the cause against HEAD 9b475dcc. `git diff --stat 0c8b58cd..HEAD` touches only this file and MANIFEST.md, so the owner's green `staging-build` run at 0c8b58cd still covers the code, and `.claude/builder.md` was left alone as History says. No park; on to the walk step.
 
 ## Evidence
 
@@ -62,3 +63,4 @@ Alternatives:
 - 2026-11-05 parked — the Staging build gate needs a config line only the owner can add
 - 2026-11-05 owner chose one build over the config line. `cd iphone && node ../scripts/builder-verify.mjs staging-build` ran at 0c8b58cd in a throwaway worktree and exited 0: MakeReady Staging (Staging), MakeReady (Release) and MakeReadyCapture (Debug) all BUILD SUCCEEDED, and the built Info.plist values passed. The gate is discharged: do not edit .claude/builder.md and do not park on it again; a later code change to the build files needs this run again. Owner also said nothing in the staging database needs keeping, so F3's data question is closed.
 - 2026-11-06 unparked by a person — named to /builder:agent or /builder:fleet
+- 2026-11-05 walk lane: cause no longer stands (owner's staging-build run covers HEAD); walk readiness passed; signed off by agent with no walk (tests: walk=none)

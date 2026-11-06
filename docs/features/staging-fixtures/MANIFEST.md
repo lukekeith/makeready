@@ -1,7 +1,7 @@
 size: md
-state: building
-next: /builder:resume --path docs/features/staging-fixtures
-head: f23d62d8
+state: built
+next: /builder:agent-walk --path docs/features/staging-fixtures
+head: 9b475dcc
 ticket: none
 branch: builder/staging-fixtures
 pr: none
@@ -13,7 +13,7 @@ tests: walk=none review=app
 target: main
 walk: none
 verify: none
-ready: pending "dev env (fleet walk lane)"
+ready: yes 2026-11-05 9b475dcc
 auto: on 2026-11-05
 blocked: none
 agent-walk: on 2026-11-05
