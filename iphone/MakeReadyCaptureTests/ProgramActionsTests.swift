@@ -177,6 +177,40 @@ final class ProgramActionsTests: XCTestCase {
         }
     }
 
+    // MARK: - Delete lesson (program-lesson-add-activity D15)
+
+    private func seedTwoLessons() {
+        for (id, day) in [("l1", 1), ("l2", 2)] {
+            let json = #"{"id":"\#(id)","programId":"p1","dayNumber":\#(day),"title":"Day \#(day)","activities":[],"createdAt":"2026-10-28T00:00:00Z","updatedAt":"2026-10-28T00:00:00Z"}"#
+            state.lessons.upsert(try! JSONDecoder.apiDecoder.decode(Lesson.self, from: Data(json.utf8)))
+            state.programLessonIndex.add(parentId: "p1", childId: id)
+        }
+        let activity = #"{"id":"a1","lessonId":"l1","type":"READ","orderNumber":1}"#
+        state.activities.upsert(try! JSONDecoder.apiDecoder.decode(StudyActivity.self, from: Data(activity.utf8)))
+        state.lessonActivityIndex.add(parentId: "l1", childId: "a1")
+    }
+
+    func testDeleteLessonRemovesItAndSendsNoRefresh() async throws {
+        seedTwoLessons()
+        api.stub("DELETE", "/api/programs/p1/lessons/l1", json: #"{"success":true}"#)
+        try await actions.deleteLesson(programId: "p1", lessonId: "l1")
+        XCTAssertEqual(state.lessonsFor(programId: "p1").map(\.id), ["l2"])
+        XCTAssertNil(state.activities["a1"])
+        XCTAssertTrue(state.programActivitiesFor(lessonId: "l1").isEmpty)
+        XCTAssertEqual(api.calls.filter { $0.method == "GET" }.count, 0)
+    }
+
+    func testDeleteLessonFailureThrowsAndKeepsTheStores() async {
+        seedTwoLessons()
+        api.errorToThrow = APIError.serverError("nope")
+        do {
+            try await actions.deleteLesson(programId: "p1", lessonId: "l1")
+            XCTFail("expected a throw")
+        } catch {}
+        XCTAssertEqual(state.lessonsFor(programId: "p1").map(\.id), ["l1", "l2"])
+        XCTAssertNotNil(state.activities["a1"])
+    }
+
     // MARK: - List (D15)
 
     func testTheListKeepsTheNewFields() async throws {
