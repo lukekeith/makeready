@@ -1,0 +1,20 @@
+// Staging.xcconfig
+// Configuration for the staging TestFlight app (com.makeready.app.staging)
+
+API_BASE_URL = https:/$()/staging.api.makeready.org
+
+PRODUCT_BUNDLE_IDENTIFIER = com.makeready.app.staging
+PRODUCT_NAME = MakeReady
+APP_DISPLAY_NAME = MakeReady-Staging
+
+MARKETING_VERSION = 1.1.3
+
+// Enables the environment switcher, limited to Staging and Production in this build
+DEV_MODE = YES
+
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = STAGING
+ENABLE_USER_SCRIPT_SANDBOXING = NO
+
+// Empty unless iphone/Staging.local.xcconfig (git-ignored) sets it. Alphanumeric only.
+FIXTURE_ACCESS_KEY =
+#include? "Staging.local.xcconfig"

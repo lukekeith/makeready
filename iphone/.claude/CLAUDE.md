@@ -1360,7 +1360,7 @@ The app automatically switches between local development and production environm
 |------------|----------|----------|-------------|
 | **Debug (Xcode Run)** | YES (environment switcher in user menu) | http://127.0.0.1:3010 (Local), https://staging.api.makeready.org (Staging), https://api.makeready.org (Production — default) | Enabled when Local selected |
 | **Development** | NO | http://127.0.0.1:3010 | Disabled |
-| **Staging** | NO | https://staging.api.makeready.org | Disabled |
+| **Staging** (`MakeReady Staging` scheme) | YES (switcher lists Staging and Production only) | https://staging.api.makeready.org | Disabled |
 | **Release (Archive)** | NO | https://api.makeready.org | Disabled |
 
 Defined in `MakeReady/Configuration/*.xcconfig` and resolved at runtime by `MakeReady/Configuration.swift`. With DEV_MODE on, the selected environment persists in UserDefaults and defaults to Production until changed. On a physical device, Local uses the IP/port configured on the Profile screen (default `192.168.1.65:3010`).
