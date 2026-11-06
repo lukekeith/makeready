@@ -34,8 +34,13 @@ final class EnvironmentIdentitySwitchTests: XCTestCase {
     private var savedIdentity: String?
     private var savedEnvironment: String?
     private var credential: String?
-    private var responses: [String: (Int, String)] = [:]
+    private var savedFixture: String?
+    private var fixtureKey = ""
+    private var responses: [String: Result<(Int, String), Error>] = [:]
     private var devLoginEmails: [String] = []
+    private var sentPaths: [String] = []
+    private var sentBodies: [String: [Data]] = [:]
+    private let c1Body = #"{"success":true,"user":{"id":"u1","email":"fixtures-new@makeready.local","name":"New","avatarURL":null},"sessionCookie":"s:abc"}"#
     private var api: StubAPIClient!
 
     override func setUpWithError() throws {
@@ -43,6 +48,7 @@ final class EnvironmentIdentitySwitchTests: XCTestCase {
         savedUser = UserDefaults.standard.data(forKey: userKey)
         savedIdentity = UserDefaults.standard.string(forKey: "devLoginIdentity")
         savedEnvironment = UserDefaults.standard.string(forKey: "selectedEnvironment")
+        savedFixture = UserDefaults.standard.string(forKey: "stagingFixture")
         try XCTSkipUnless(AppConfiguration.devMode, "needs the DEV_MODE=YES host build")
         AppConfiguration.selectedEnvironment = .local
         DevLoginIdentity.current = .you
@@ -52,12 +58,16 @@ final class EnvironmentIdentitySwitchTests: XCTestCase {
         credential = nil
         responses = [:]
         devLoginEmails = []
+        sentPaths = []
+        sentBodies = [:]
+        fixtureKey = ""
     }
 
     override func tearDown() {
         if let savedUser { UserDefaults.standard.set(savedUser, forKey: userKey) } else { UserDefaults.standard.removeObject(forKey: userKey) }
         restore(savedIdentity, forKey: "devLoginIdentity")
         restore(savedEnvironment, forKey: "selectedEnvironment")
+        restore(savedFixture, forKey: "stagingFixture")
         AppState.shared.clearAllData()
         super.tearDown()
     }
@@ -70,28 +80,46 @@ final class EnvironmentIdentitySwitchTests: XCTestCase {
         AuthIO(
             send: { [unowned self] request in
                 let path = request.url?.path ?? ""
+                self.sentPaths.append(path)
+                if let body = request.httpBody { self.sentBodies[path, default: []].append(body) }
                 if path == "/auth/dev-login", let body = request.httpBody,
                    let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
                    let email = json["email"] as? String {
                     self.devLoginEmails.append(email)
                 }
-                let (status, text) = self.responses[path] ?? (404, "{}")
-                let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!
-                return (Data(text.utf8), response)
+                switch self.responses[path] ?? .success((404, "{}")) {
+                case .failure(let error): throw error
+                case .success(let (status, text)):
+                    let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!
+                    return (Data(text.utf8), response)
+                }
             },
             api: api,
             credential: { [unowned self] in self.credential },
             storeCredential: { [unowned self] in self.credential = $0 },
             clearCredential: { [unowned self] in self.credential = nil },
-            heal: { .healthy(3010) }
+            heal: { .healthy(3010) },
+            fixtureKey: { [unowned self] in self.fixtureKey }
         )
+    }
+
+    /// Signed in on Staging as the Fully populated account, with a leader-access stub that passes.
+    private func signedInAuth() -> AuthManager {
+        AppConfiguration.selectedEnvironment = .staging
+        credential = "fx-cookie"
+        api.stub("GET", "/auth/leader-access", json: #"{"canAccess":true}"#)
+        responses["/auth/logout"] = .success((200, #"{"success":true}"#))
+        let auth = AuthManager(io: io())
+        auth.currentUser = User(id: "u0", name: "Fixture Leader", email: "fixtures@makeready.local", picture: nil)
+        auth.isAuthenticated = true
+        return auth
     }
 
     /// Signed in on Local as You, as before the owner picks Fixtures.
     private func signedInAsYou() async -> AuthManager {
         credential = "you-cookie"
-        responses["/auth/me"] = (200, #"{"user":{"id":"u-you","name":"You","email":"luke@lukekeith.com"}}"#)
-        responses["/auth/logout"] = (200, #"{"success":true}"#)
+        responses["/auth/me"] = .success((200, #"{"user":{"id":"u-you","name":"You","email":"luke@lukekeith.com"}}"#))
+        responses["/auth/logout"] = .success((200, #"{"success":true}"#))
         let auth = AuthManager(io: io())
         await auth.launchValidation?.value
         return auth
@@ -100,7 +128,7 @@ final class EnvironmentIdentitySwitchTests: XCTestCase {
     func testSwitchIdentitySignsInAsTheChosenIdentity() async throws {
         let auth = await signedInAsYou()
         XCTAssertTrue(auth.isAuthenticated)
-        responses["/auth/dev-login"] = (200, #"{"success":true,"sessionCookie":"fx-cookie","user":{"id":"u-fx","email":"fixtures@makeready.local","name":"Fixture Leader"}}"#)
+        responses["/auth/dev-login"] = .success((200, #"{"success":true,"sessionCookie":"fx-cookie","user":{"id":"u-fx","email":"fixtures@makeready.local","name":"Fixture Leader"}}"#))
         api.stub("GET", "/auth/leader-access", json: #"{"canAccess":true}"#)
 
         try await EnvironmentActions().switchIdentity(.fixtures, auth: auth)
@@ -115,7 +143,7 @@ final class EnvironmentIdentitySwitchTests: XCTestCase {
 
     func testSwitchIdentityRevertsToYouOnFailureAndWritesNoSnapshot() async throws {
         let auth = await signedInAsYou()
-        responses["/auth/dev-login"] = (404, #"{"success":false,"error":"User not found"}"#)
+        responses["/auth/dev-login"] = .success((404, #"{"success":false,"error":"User not found"}"#))
         AppState.shared.organizationId = "org-you"
         AppState.shared.persist()   // F17: a debounced save is pending when the switch starts
 
@@ -147,7 +175,7 @@ final class EnvironmentIdentitySwitchTests: XCTestCase {
     func testSwitchToLocalLetsFixturesNotSeededThrough() async {
         AppConfiguration.selectedEnvironment = .production
         DevLoginIdentity.current = .fixtures
-        responses["/auth/dev-login"] = (404, #"{"success":false,"error":"User not found"}"#)
+        responses["/auth/dev-login"] = .success((404, #"{"success":false,"error":"User not found"}"#))
         let auth = AuthManager(io: io())
 
         do {
@@ -173,5 +201,56 @@ final class EnvironmentIdentitySwitchTests: XCTestCase {
             XCTFail("unexpected \(error)")
         }
         XCTAssertEqual(AppConfiguration.selectedEnvironment, .production)
+    }
+
+    // MARK: - staging-fixtures: Test data on Profile
+
+    func testSwitchFixtureSignsInAsTheFixture() async throws {
+        StagingFixture.current = .full
+        fixtureKey = "k"
+        responses["/auth/fixture-login"] = .success((200, c1Body))
+        let auth = signedInAuth()
+        try await EnvironmentActions().switchFixture(.newGroup, auth: auth)
+        XCTAssertEqual(StagingFixture.current, .newGroup)
+        XCTAssertEqual(sentPaths.filter { $0.hasPrefix("/auth/") }.suffix(2), ["/auth/logout", "/auth/fixture-login"])
+        XCTAssertTrue(auth.isAuthenticated)
+    }
+
+    func testSwitchFixtureKeepsTheFixtureOnFailure() async {
+        StagingFixture.current = .full
+        fixtureKey = "k"
+        responses["/auth/fixture-login"] = .success((404, #"{"success":false,"error":"fixtures_not_seeded"}"#))
+        let auth = signedInAuth()
+        do {
+            try await EnvironmentActions().switchFixture(.newGroup, auth: auth)
+            XCTFail("expected a failure")
+        } catch {}
+        XCTAssertEqual(StagingFixture.current, .newGroup)
+        XCTAssertEqual(auth.loginNotice, "This test data is being reset. Try again in a few minutes.")
+        XCTAssertFalse(auth.isAuthenticated)
+    }
+
+    func testResetFixturePostsTheCurrentFixtureAndKeepsTheSession() async throws {
+        StagingFixture.current = .newGroup
+        fixtureKey = "k"
+        responses["/auth/fixture-reset"] = .success((202, #"{"success":true}"#))
+        let auth = signedInAuth()
+        try await EnvironmentActions().resetFixture(.newGroup, auth: auth)
+        let body = try XCTUnwrap(sentBodies["/auth/fixture-reset"]?.first)
+        XCTAssertEqual(try JSONSerialization.jsonObject(with: body) as? [String: String], ["fixture": "new-group"])
+        XCTAssertTrue(auth.isAuthenticated)
+        XCTAssertFalse(sentPaths.contains("/auth/logout"))
+    }
+
+    func testSignOutThenSignInDropsTheCachedWorld() async throws {
+        fixtureKey = "k"
+        responses["/auth/fixture-login"] = .success((200, c1Body))
+        let auth = signedInAuth()
+        AppState.shared.organizationId = "world-before-the-reset"
+        try await auth.signOut()
+        XCTAssertNil(AppState.shared.organizationId)
+        try await auth.signIn()
+        XCTAssertTrue(auth.isAuthenticated)
+        XCTAssertNil(AppState.shared.organizationId)
     }
 }

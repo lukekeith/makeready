@@ -14,6 +14,22 @@ final class ProfileStopgapTests: XCTestCase {
         XCTAssertFalse(ProfileStopgapContainer.showsIdentityPicker(devMode: true, env: .production))
         XCTAssertFalse(ProfileStopgapContainer.showsIdentityPicker(devMode: false, env: .local))
     }
+
+    func testFixturePickerOnlyWithAKeyOnStaging() {
+        XCTAssertTrue(ProfileStopgapContainer.showsFixturePicker(fixtureKey: "k", env: .staging))
+        XCTAssertFalse(ProfileStopgapContainer.showsFixturePicker(fixtureKey: "", env: .staging))
+        XCTAssertFalse(ProfileStopgapContainer.showsFixturePicker(fixtureKey: "k", env: .production))
+        XCTAssertFalse(ProfileStopgapContainer.showsFixturePicker(fixtureKey: "k", env: .local))
+    }
+
+    func testResetCopy() {
+        XCTAssertEqual(FixtureResetCopy.confirmTitle, "Reset this test data?")
+        XCTAssertEqual(FixtureResetCopy.confirmMessage(for: .newGroup), "Reset New group for everyone on it?")
+        XCTAssertEqual(FixtureResetCopy.action.label, "Reset")
+        XCTAssertEqual(FixtureResetCopy.cancelLabel, "Cancel")
+        XCTAssertEqual(FixtureResetCopy.startedMessage, "Reset started. This takes a few minutes and affects everyone on this fixture.")
+        XCTAssertEqual(FixtureResetCopy.failedMessage, "Couldn't start the reset. Try again.")
+    }
 }
 
 final class StagingBuildConfigTests: XCTestCase {
