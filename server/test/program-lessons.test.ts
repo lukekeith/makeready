@@ -9,7 +9,7 @@ import { randomUUID } from 'node:crypto'
 import { app } from '../src/index.js'
 import { prisma } from '../src/lib/prisma.js'
 import { bearer } from './helpers/api-auth.js'
-import { createContentWorld, destroyContentWorld, seedPublishedLesson, type ContentWorld } from './helpers/content-world.js'
+import { createContentWorld, destroyContentWorld, seedEnrolledProgram, seedPublishedLesson, type ContentWorld } from './helpers/content-world.js'
 import { copyLessonActivities } from '../src/services/lesson-copy.js'
 import { sumEstimatedSeconds } from '../src/services/lesson-estimate.service.js'
 
@@ -36,6 +36,37 @@ describe('the program read and lesson writes', () => {
     await request(app).patch(lessonUrl(lessonId)).set('Authorization', bearer(w.leader.token)).send({ title: 'Renamed' })
     const d = await prisma.lessonVersion.findFirst({ where: { lessonId, status: 'DRAFT' } })
     expect(d!.title).toBe('Renamed')
+  })
+
+  it('create puts the requested title in the draft', async () => {
+    const c = await request(app).post(`/api/programs/${w.programId}/lessons`).set('Authorization', bearer(w.leader.token)).send({ title: 'Day 2' })
+    const d = await prisma.lessonVersion.findFirst({ where: { lessonId: c.body.lesson.id, status: 'DRAFT' } })
+    expect(d!.title).toBe('Day 2')
+  })
+
+  it('a title edit on a published-only lesson creates the draft from the published activities', async () => {
+    const pub = await seedPublishedLesson(w, [{ activityKey: 'p1' }, { activityKey: 'p2' }])
+    expect(await prisma.lessonVersion.count({ where: { lessonId: pub.lessonId, status: 'DRAFT' } })).toBe(0)
+    const r = await request(app).patch(lessonUrl(pub.lessonId)).set('Authorization', bearer(w.leader.token)).send({ title: 'Fresh title' })
+    expect(r.status).toBe(200)
+    const drafts = await prisma.lessonVersion.findMany({ where: { lessonId: pub.lessonId, status: 'DRAFT' }, include: { activities: { orderBy: { position: 'asc' } } } })
+    expect(drafts).toHaveLength(1)
+    expect(drafts[0].title).toBe('Fresh title')
+    expect(drafts[0].activities.map((a) => a.activityKey)).toEqual(['p1', 'p2'])
+    expect((await prisma.lessonVersion.findUnique({ where: { id: pub.versionId } }))!.title).toBe('Published day')
+  })
+
+  it('delete keeps an enrollment-owned draft of a soft-deleted lesson', async () => {
+    const s = await seedEnrolledProgram(w, { lessons: 1 })
+    const owned = await prisma.lessonVersion.create({
+      data: { lessonId: s.lessonIds[0], number: 50, status: 'DRAFT', title: 'Group copy', enrollmentId: s.enrollmentId },
+    })
+    const own = await prisma.lessonVersion.create({ data: { lessonId: s.lessonIds[0], number: 51, status: 'DRAFT', title: 'Leader draft' } })
+    const del = await request(app).delete(lessonUrl(s.lessonIds[0])).set('Authorization', bearer(w.leader.token))
+    expect(del.status).toBe(200)
+    expect((await prisma.lesson.findUnique({ where: { id: s.lessonIds[0] } }))!.deletedAt).not.toBeNull()
+    expect(await prisma.lessonVersion.findUnique({ where: { id: owned.id } })).not.toBeNull()
+    expect(await prisma.lessonVersion.findUnique({ where: { id: own.id } })).toBeNull()
   })
 
   it('delete soft-deletes a published lesson and hard-deletes a draft-only one', async () => {
@@ -105,6 +136,51 @@ describe('the program read and lesson writes', () => {
       const got = await request(app).get(`/api/programs/${programId}`).set('Authorization', bearer(w.leader.token))
       expect(got.body.lessons.map((l: any) => [l.id, l.position])).toEqual([[ids[0], 1], [ids[1], 2]])
       expect(got.body.program.days).toBe(2)
+    })
+  })
+
+  describe('PATCH days and publish on create', () => {
+    let template: { id: string }
+    const created: string[] = []
+    beforeAll(async () => { template = await prisma.lessonTemplate.create({ data: { name: 'Resize', isSystem: false, creatorId: w.leader.userId, organizationId: w.orgId } }) })
+    afterAll(async () => {
+      await prisma.studyProgram.updateMany({ where: { id: { in: created } }, data: { currentVersionId: null } })
+      await prisma.programVersion.deleteMany({ where: { programId: { in: created } } })
+      await prisma.studyProgram.deleteMany({ where: { id: { in: created } } })
+      await prisma.lessonTemplate.delete({ where: { id: template.id } })
+    })
+
+    it('grows from the template and shrinks per D36: published lessons soft, draft-only lessons hard', async () => {
+      const p = await prisma.studyProgram.create({ data: { name: 'Resize', days: 0, templateId: template.id, creatorId: w.leader.userId, organizationId: w.orgId } })
+      created.push(p.id)
+      const patch = (days: number) => request(app).patch(`/api/programs/${p.id}`).set('Authorization', bearer(w.leader.token)).send({ days })
+      expect((await patch(3)).status).toBe(200)
+      const grown = await prisma.lesson.findMany({ where: { programId: p.id }, orderBy: { position: 'asc' }, include: { versions: true } })
+      expect(grown.map((l) => l.position)).toEqual([1, 2, 3])
+      expect(grown.every((l) => l.versions.length === 1 && l.versions[0].status === 'DRAFT' && l.versions[0].title === 'Resize')).toBe(true)
+
+      await prisma.lessonVersion.update({ where: { id: grown[2].versions[0].id }, data: { status: 'PUBLISHED', publishedAt: new Date() } })
+      await prisma.lessonVersion.create({ data: { lessonId: grown[2].id, number: 2, status: 'DRAFT', title: 'Edit' } })
+      expect((await patch(1)).status).toBe(200)
+
+      expect(await prisma.lesson.findUnique({ where: { id: grown[1].id } })).toBeNull()
+      const soft = await prisma.lesson.findUnique({ where: { id: grown[2].id } })
+      expect(soft!.deletedAt).not.toBeNull()
+      expect(await prisma.lessonVersion.count({ where: { lessonId: grown[2].id, status: 'PUBLISHED' } })).toBe(1)
+      expect(await prisma.lessonVersion.count({ where: { lessonId: grown[2].id, status: 'DRAFT' } })).toBe(0)
+      expect((await prisma.lesson.findUnique({ where: { id: grown[0].id } }))!.deletedAt).toBeNull()
+      expect((await prisma.studyProgram.findUnique({ where: { id: p.id } }))!.days).toBe(1)
+    })
+
+    it('create-from-template with isPublished publishes the program', async () => {
+      const r = await request(app).post('/api/programs').set('Authorization', bearer(w.leader.token)).send({ name: 'Pub on create', templateId: template.id, days: 2, isPublished: true })
+      expect(r.status).toBe(200)
+      created.push(r.body.program.id)
+      const p = await prisma.studyProgram.findUnique({ where: { id: r.body.program.id } })
+      expect(p!.currentVersionId).not.toBeNull()
+      const versions = await prisma.lessonVersion.findMany({ where: { lesson: { programId: p!.id } } })
+      expect(versions.every((v) => v.status === 'PUBLISHED')).toBe(true)
+      expect(versions).toHaveLength(2)
     })
   })
 

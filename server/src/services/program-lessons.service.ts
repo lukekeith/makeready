@@ -226,13 +226,13 @@ async function removeLessons(tx: Tx, lessonIds: string[]) {
   const soft = lessonIds.filter((id) => published.has(id))
   const hard = lessonIds.filter((id) => !published.has(id))
   const keys = (await tx.contentActivity.findMany({
-    where: { lessonVersion: { OR: [{ lessonId: { in: hard } }, { lessonId: { in: soft }, status: 'DRAFT' }] } },
+    where: { lessonVersion: { OR: [{ lessonId: { in: hard } }, { lessonId: { in: soft }, status: 'DRAFT', enrollmentId: null }] } },
     select: { activityKey: true },
     distinct: ['activityKey'],
   })).map((a) => a.activityKey)
 
   if (soft.length) {
-    await tx.lessonVersion.deleteMany({ where: { lessonId: { in: soft }, status: 'DRAFT' } })
+    await tx.lessonVersion.deleteMany({ where: { lessonId: { in: soft }, status: 'DRAFT', enrollmentId: null } })
     await tx.lesson.updateMany({ where: { id: { in: soft } }, data: { deletedAt: new Date() } })
   }
   if (hard.length) await tx.lesson.deleteMany({ where: { id: { in: hard } } })
