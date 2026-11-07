@@ -155,20 +155,20 @@ never stripped. iPhone reads are lenient (D11).
 
 | # | ADD/EDIT/RENAME/REMOVE | Model.field | Wire | Reason | Status |
 |---|---|---|---|---|---|
-| 1 | ADD | `LessonVersion`, `Activity`, `ProgramVersion`, `ProgramVersionLesson`, `ScheduledLesson`, `LessonProgress`, `ActivityProgress` | §Contract | `05` §2 | todo |
-| 2 | EDIT | `Lesson`: `studyProgramId` → `programId`, `dayNumber` → `position`, drop `title`, `estimatedMinutes` | `GET /api/programs/:id` | Content moves to versions | todo |
-| 3 | EDIT | `Enrollment.syncedProgramVersionNumber` → `programVersionId` | sync endpoints | Pointer | todo |
-| 4 | EDIT | `StudyProgram.currentVersionNumber` → `currentVersionId` | `GET /api/programs/:id` | Pointer | todo |
-| 5 | EDIT | `Event`, `AiLessonSummary`: FK to `ScheduledLesson` | none | Renamed parent | todo |
-| 6 | EDIT | `LessonTemplateActivity`: add `kind`, `document` | templates routes | Starter documents | todo |
-| 7 | EDIT | `MediaUsage.usageType` gains `ACTIVITY`, derived on save | none | JSON can't hold an FK; protects media from delete | todo |
-| 8 | REMOVE | `LessonActivity`, `ScheduledLessonActivity`, `ActivityReadBlock`, `ContentHighlight`, `ActivitySourceReference`, `TextTheme`, `LessonSchedule`, `LessonScheduleVersion`, `MemberActivityProgress`, `MemberVideoProgress`, `MemberLessonProgress`, `StudyProgramVersion`, `EnrollmentSyncRun` | The 34 mirrored endpoints, theme routes, member-lesson routes | Replaced | todo |
-| 9 | REMOVE | `TemplateActivityType` | `kind` is validated text | A new kind needs no migration | todo |
+| SC1 | ADD | `LessonVersion`, `Activity`, `ProgramVersion`, `ProgramVersionLesson`, `ScheduledLesson`, `LessonProgress`, `ActivityProgress` | §Contract | `05` §2 | todo |
+| SC2 | EDIT | `Lesson`: `studyProgramId` → `programId`, `dayNumber` → `position`, drop `title`, `estimatedMinutes` | `GET /api/programs/:id` | Content moves to versions | todo |
+| SC3 | EDIT | `Enrollment.syncedProgramVersionNumber` → `programVersionId` | sync endpoints | Pointer | todo |
+| SC4 | EDIT | `StudyProgram.currentVersionNumber` → `currentVersionId` | `GET /api/programs/:id` | Pointer | todo |
+| SC5 | EDIT | `Event`, `AiLessonSummary`: FK to `ScheduledLesson` | none | Renamed parent | todo |
+| SC6 | EDIT | `LessonTemplateActivity`: add `kind`, `document` | templates routes | Starter documents | todo |
+| SC7 | EDIT | `MediaUsage.usageType` gains `ACTIVITY`, derived on save | none | JSON can't hold an FK; protects media from delete | todo |
+| SC8 | REMOVE | `LessonActivity`, `ScheduledLessonActivity`, `ActivityReadBlock`, `ContentHighlight`, `ActivitySourceReference`, `TextTheme`, `LessonSchedule`, `LessonScheduleVersion`, `MemberActivityProgress`, `MemberVideoProgress`, `MemberLessonProgress`, `StudyProgramVersion`, `EnrollmentSyncRun` | The 34 mirrored endpoints, theme routes, member-lesson routes | Replaced | todo |
+| SC9 | REMOVE | `TemplateActivityType` | `kind` is validated text | A new kind needs no migration | todo |
 
 **Data plan:** Old rows are read once by the export (§server) and imported into the new tables. New
 tables use TEXT ids and FKs on the id-type pattern that dev and production need. REMOVE rows run as one
 final migration after import verification (D27), with a `pg_dump` taken first, which is the only undo.
-Rows in 2–5 are created by new tables, with old columns dropped in that same final migration. Dropped
+SC2–SC5 are created by new tables, with old columns dropped in that same final migration. Dropped
 without carry-over: enrollment and member rows (D13), `StudyNote` links to removed activities stay as
 inert text references.
 
