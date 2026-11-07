@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const prismaMock = vi.hoisted(() => ({
   enrollment: { findMany: vi.fn() },
-  memberLessonProgress: { findMany: vi.fn() },
+  lessonProgress: { findMany: vi.fn() },
   group: { findMany: vi.fn() },
 }))
 const preferencesMock = vi.hoisted(() => ({ getPreference: vi.fn() }))
@@ -36,7 +36,7 @@ const rowFor = (r: Row) => ({
   syncMode: 'OFF',
   group: { name: r.name, coverImageUrl: null, members: [] },
   studyProgram: { id: `p-${r.id}`, name: `Program ${r.name}`, createdAt: new Date('2026-08-01T00:00:00Z'), creator: null },
-  lessonSchedules: [],
+  scheduledLessons: [],
 })
 
 function app() {
@@ -55,7 +55,7 @@ beforeEach(() => {
   permissionMock.getManageableOrgIds.mockResolvedValue(['org-1'])
   permissionMock.enrollmentManageFilter.mockResolvedValue({})
   prismaMock.group.findMany.mockResolvedValue([])
-  prismaMock.memberLessonProgress.findMany.mockResolvedValue([])
+  prismaMock.lessonProgress.findMany.mockResolvedValue([])
   prismaMock.enrollment.findMany.mockImplementation(async ({ where }: any) => {
     const wanted: string[] = where.AND[0].id.in
     const orgs: string[] = where.AND[3].group.OR[0].organizationId.in

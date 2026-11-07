@@ -7,6 +7,8 @@
 
 import { prisma } from './prisma.js';
 import { normalizeGroupCode } from './group-code.js';
+import { documentPassages, documentText } from '../services/activity-document.js';
+import { getBookByNumber } from '../utils/bible-id-map.js';
 
 const DEFAULT_CLIENT_URL = 'https://app.makeready.org';
 
@@ -86,6 +88,68 @@ async function fetchGroupContent(code: string, clientUrl: string): Promise<OgCon
   };
 }
 
+/** A scheduled lesson with what its share preview reads: the lesson, its program, the group and the current version's activities. */
+const scheduledLessonInclude = {
+  lesson: { include: { program: true } },
+  enrollment: { include: { group: true } },
+  currentVersion: { include: { activities: { orderBy: { position: 'asc' as const } } } },
+};
+
+type ShareableScheduledLesson = NonNullable<
+  Awaited<ReturnType<typeof prisma.scheduledLesson.findFirst<{ include: typeof scheduledLessonInclude }>>>
+>;
+
+/** "John 3:16" or "John 3:16-18" from a document passage; a stored reference string wins when the document has one. */
+function passageReference(passage: any): string | null {
+  const named = passage?.reference ?? passage?.passageReference;
+  if (typeof named === 'string' && named) return named;
+  try {
+    const book = getBookByNumber(passage.bookNumber).name;
+    const { chapterStart, verseStart, chapterEnd, verseEnd } = passage;
+    if (chapterStart === chapterEnd) {
+      return verseStart === verseEnd
+        ? `${book} ${chapterStart}:${verseStart}`
+        : `${book} ${chapterStart}:${verseStart}-${verseEnd}`;
+    }
+    return `${book} ${chapterStart}:${verseStart}-${chapterEnd}:${verseEnd}`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The share content of a scheduled lesson: "Day N of M • scripture • first text with Group". Scripture comes from the
+ * current version's document passages and the text from its documents (text-activity §server).
+ */
+function lessonShareContent(
+  schedule: ShareableScheduledLesson,
+  clientUrl: string,
+  url: string
+): OgContent {
+  const group = schedule.enrollment.group;
+  const program = schedule.lesson!.program;
+  const dayNumber = schedule.lesson!.position;
+  const activities = schedule.currentVersion.activities;
+
+  const reference = activities.flatMap((a) => documentPassages(a.document)).map(passageReference).find(Boolean);
+  const text = activities.map((a) => documentText(a.document).trim()).find(Boolean);
+
+  const parts = [`Day ${dayNumber} of ${program?.days ?? '?'}`];
+  if (reference) parts.push(reference);
+  if (text) parts.push(truncateText(text.replace(/\s+/g, ' '), 120));
+
+  // Cover image priority: program > group > default
+  const imageUrl = program?.coverImageUrl || group.coverImageUrl || `${clientUrl}/og-default.png`;
+
+  return {
+    title: `${program?.name ?? group.name} - Day ${dayNumber}`,
+    description: `${parts.join(' • ')} with ${group.name}`,
+    imageUrl,
+    url,
+    isValid: true,
+  };
+}
+
 /**
  * Fetch lesson data for OG meta tags
  * Falls back to program cover image, then group cover image
@@ -113,26 +177,10 @@ async function fetchLessonContent(
     };
   }
 
-  // Find the lesson schedule by code
-  const schedule = await prisma.lessonSchedule.findFirst({
-    where: {
-      code: normalizedLessonCode,
-      enrollment: {
-        groupId: group.id,
-      },
-    },
-    include: {
-      lesson: {
-        include: {
-          studyProgram: true,
-        },
-      },
-      scheduledActivities: {
-        orderBy: { orderNumber: 'asc' },
-        take: 1,
-        include: { sourceReferences: true },
-      },
-    },
+  // Find the scheduled lesson by code
+  const schedule = await prisma.scheduledLesson.findFirst({
+    where: { code: normalizedLessonCode, enrollment: { groupId: group.id } },
+    include: scheduledLessonInclude,
   });
 
   if (!schedule || !schedule.lesson) {
@@ -145,35 +193,12 @@ async function fetchLessonContent(
     };
   }
 
-  const program = schedule.lesson.studyProgram;
-  const dayNumber = schedule.lesson.dayNumber;
-  const totalDays = program!.days;
-  const firstActivity = schedule.scheduledActivities[0];
-  const passageReference = firstActivity?.sourceReferences?.[0]?.passageReference;
-
-  // Cover image priority: program > group > default
-  const coverImage =
-    program!.coverImageUrl || group.coverImageUrl || `${clientUrl}/og-default.png`;
-
-  // Build description
-  let description = `Day ${dayNumber} of ${totalDays}`;
-  if (passageReference) {
-    description += ` • ${passageReference}`;
-  }
-  description += ` with ${group.name}`;
-
-  return {
-    title: `${program!.name} - Day ${dayNumber}`,
-    description,
-    imageUrl: coverImage,
-    url: `${clientUrl}/join/group/${groupCode}/study/${lessonCode}`,
-    isValid: true,
-  };
+  return lessonShareContent(schedule, clientUrl, `${clientUrl}/join/group/${groupCode}/study/${lessonCode}`);
 }
 
 /**
  * Fetch lesson data for OG meta tags by ID or code (without requiring group code)
- * Supports both UUID (lesson schedule ID) and 6-char alphanumeric codes
+ * Supports both UUID (scheduled lesson ID) and 6-char alphanumeric codes
  */
 async function fetchLessonContentByIdOrCode(
   idOrCode: string,
@@ -182,40 +207,12 @@ async function fetchLessonContentByIdOrCode(
   // Determine if this looks like a UUID or a short code
   const isUuid = idOrCode.length > 10 && idOrCode.includes('-');
 
-  let schedule;
-
-  const lessonScheduleInclude = {
-    lesson: {
-      include: {
-        studyProgram: true,
-      },
-    },
-    scheduledActivities: {
-      orderBy: { orderNumber: 'asc' as const },
-      take: 1,
-      include: { sourceReferences: true },
-    },
-    enrollment: {
-      include: {
-        group: true,
-      },
-    },
-  };
-
-  if (isUuid) {
-    // Look up by ID
-    schedule = await prisma.lessonSchedule.findUnique({
-      where: { id: idOrCode },
-      include: lessonScheduleInclude,
-    });
-  } else {
-    // Look up by 6-char code
-    const normalizedCode = idOrCode.toUpperCase().trim();
-    schedule = await prisma.lessonSchedule.findFirst({
-      where: { code: normalizedCode },
-      include: lessonScheduleInclude,
-    });
-  }
+  const schedule = isUuid
+    ? await prisma.scheduledLesson.findUnique({ where: { id: idOrCode }, include: scheduledLessonInclude })
+    : await prisma.scheduledLesson.findFirst({
+        where: { code: idOrCode.toUpperCase().trim() },
+        include: scheduledLessonInclude,
+      });
 
   if (!schedule || !schedule.lesson) {
     return {
@@ -227,32 +224,8 @@ async function fetchLessonContentByIdOrCode(
     };
   }
 
-  const group = schedule.enrollment.group;
-  const program = schedule.lesson.studyProgram;
-  const dayNumber = schedule.lesson.dayNumber;
-  const totalDays = program!.days;
-  const firstActivity = schedule.scheduledActivities[0];
-  const passageReference = firstActivity?.sourceReferences?.[0]?.passageReference;
-
-  // Cover image priority: program > group > default
-  const coverImage =
-    program!.coverImageUrl || group.coverImageUrl || `${clientUrl}/og-default.png`;
-
-  // Build description
-  let description = `Day ${dayNumber} of ${totalDays}`;
-  if (passageReference) {
-    description += ` • ${passageReference}`;
-  }
-  description += ` with ${group.name}`;
-
-  return {
-    title: `${program!.name} - Day ${dayNumber}`,
-    description,
-    imageUrl: coverImage,
-    // Always use the schedule ID in the URL for consistency
-    url: `${clientUrl}/join/study/${schedule.id}`,
-    isValid: true,
-  };
+  // Always use the scheduled lesson ID in the URL for consistency
+  return lessonShareContent(schedule, clientUrl, `${clientUrl}/join/study/${schedule.id}`);
 }
 
 /**
@@ -540,7 +513,7 @@ export async function generateLessonOgMeta(
 
 /**
  * Generate OG meta HTML for a study page by ID or code
- * Supports both UUID (lesson schedule ID) and 6-char alphanumeric codes
+ * Supports both UUID (scheduled lesson ID) and 6-char alphanumeric codes
  */
 export async function generateStudyOgMeta(
   idOrCode: string,

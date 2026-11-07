@@ -313,7 +313,7 @@ export async function getHomeEngagement(
       id: true,
       members: { where: { isActive: true, memberId: { not: null } }, select: { memberId: true } },
       enrollments: {
-        select: { lessonSchedules: { where: { removedAt: null }, select: { id: true, scheduledDate: true } } },
+        select: { scheduledLessons: { where: { removedAt: null }, select: { id: true, scheduledDate: true } } },
       },
     },
   })
@@ -321,19 +321,19 @@ export async function getHomeEngagement(
     id: g.id,
     memberIds: g.members.flatMap((m) => (m.memberId ? [m.memberId] : [])),
     schedules: g.enrollments.flatMap((e) =>
-      e.lessonSchedules.map((s) => ({ id: s.id, date: storedDate(s.scheduledDate) }))
+      e.scheduledLessons.map((s) => ({ id: s.id, date: storedDate(s.scheduledDate) }))
     ),
   }))
   const dueIds = [...new Set(groups.flatMap((g) => g.schedules.filter((s) => s.date < today).map((s) => s.id)))]
   const memberIds = [...new Set(groups.flatMap((g) => g.memberIds))]
   const progress =
     dueIds.length > 0 && memberIds.length > 0
-      ? await prisma.memberLessonProgress.findMany({
-          where: { completedAt: { not: null }, lessonScheduleId: { in: dueIds }, memberId: { in: memberIds } },
-          select: { memberId: true, lessonScheduleId: true },
+      ? await prisma.lessonProgress.findMany({
+          where: { completedAt: { not: null }, scheduledLessonId: { in: dueIds }, memberId: { in: memberIds } },
+          select: { memberId: true, scheduledLessonId: true },
         })
       : []
-  const completed = new Set(progress.map((p) => pairKey(p.memberId, p.lessonScheduleId)))
+  const completed = new Set(progress.map((p) => pairKey(p.memberId, p.scheduledLessonId)))
   const window = activeWindow(now, tz)
   const active = activeMembers(await loadSessions(scope, window), window)
   return computeEngagement(groups, completed, active, today)

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const prismaMock = vi.hoisted(() => ({
   enrollment: { findMany: vi.fn() },
-  memberLessonProgress: { findMany: vi.fn() },
+  lessonProgress: { findMany: vi.fn() },
 }))
 const preferencesMock = vi.hoisted(() => ({ getPreference: vi.fn() }))
 const permissionMock = vi.hoisted(() => ({ enrollmentManageFilter: vi.fn() }))
@@ -23,7 +23,7 @@ const row = (over: Partial<FollowedEnrollmentRow> & { id: string }): FollowedEnr
   syncMode: 'OFF',
   group: { name: 'Group', coverImageUrl: null, members: [] },
   studyProgram: { id: 'p', name: 'Program', createdAt: at('2026-08-01T10:00:00.123Z'), creator: null },
-  lessonSchedules: [],
+  scheduledLessons: [],
   ...over,
 })
 
@@ -32,7 +32,7 @@ const r1 = row({
   syncMode: 'AUTO',
   group: { name: 'Young Adults', coverImageUrl: 'https://img/ya.jpg', members: [{ memberId: 'm1' }, { memberId: 'm2' }] },
   studyProgram: { id: 'p2', name: 'Walking Through John', createdAt: at('2026-08-01T10:00:00.123Z'), creator: { name: 'Fixture Leader' } },
-  lessonSchedules: [
+  scheduledLessons: [
     { id: 's1', scheduledDate: at('2026-10-20T17:00:00Z') },
     { id: 's2', scheduledDate: at('2026-10-24T17:00:00Z') },
     { id: 's3', scheduledDate: at('2026-10-30T17:00:00Z') }, // not yet due
@@ -42,14 +42,14 @@ const r2 = row({
   id: 'e2',
   group: { name: "Women's Bible Study", coverImageUrl: null, members: [{ memberId: 'm3' }] },
   studyProgram: { id: 'p1', name: 'Foundations of Faith', createdAt: at('2026-07-01T00:00:00Z'), creator: null },
-  lessonSchedules: [{ id: 's4', scheduledDate: at('2026-10-22T17:00:00Z') }],
+  scheduledLessons: [{ id: 's4', scheduledDate: at('2026-10-22T17:00:00Z') }],
 })
 const r3 = row({
   id: 'e3',
   syncMode: 'APPROVAL',
   group: { name: "Tuesday Men's Group", coverImageUrl: null, members: [{ memberId: 'm4' }, { memberId: 'm5' }, { memberId: null }] },
   studyProgram: { id: 'p1', name: 'Foundations of Faith', createdAt: at('2026-07-01T00:00:00Z'), creator: null },
-  lessonSchedules: [{ id: 's5', scheduledDate: at('2026-10-23T17:00:00Z') }],
+  scheduledLessons: [{ id: 's5', scheduledDate: at('2026-10-23T17:00:00Z') }],
 })
 const completed = new Set(['m1|s1', 'm1|s2', 'm2|s1', 'm3|s4', 'm4|s5'])
 
@@ -116,10 +116,10 @@ describe('getHomeFollowing', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     permissionMock.enrollmentManageFilter.mockResolvedValue(manage)
-    prismaMock.memberLessonProgress.findMany.mockResolvedValue([
-      { memberId: 'm1', lessonScheduleId: 's1' },
-      { memberId: 'm1', lessonScheduleId: 's2' },
-      { memberId: 'm2', lessonScheduleId: 's1' },
+    prismaMock.lessonProgress.findMany.mockResolvedValue([
+      { memberId: 'm1', scheduledLessonId: 's1' },
+      { memberId: 'm1', scheduledLessonId: 's2' },
+      { memberId: 'm2', scheduledLessonId: 's1' },
     ])
   })
 
@@ -148,9 +148,9 @@ describe('getHomeFollowing', () => {
         },
       })
     )
-    expect(prismaMock.memberLessonProgress.findMany).toHaveBeenCalledWith({
-      where: { completedAt: { not: null }, lessonScheduleId: { in: ['s1', 's2'] }, memberId: { in: ['m1', 'm2'] } },
-      select: { memberId: true, lessonScheduleId: true },
+    expect(prismaMock.lessonProgress.findMany).toHaveBeenCalledWith({
+      where: { completedAt: { not: null }, scheduledLessonId: { in: ['s1', 's2'] }, memberId: { in: ['m1', 'm2'] } },
+      select: { memberId: true, scheduledLessonId: true },
     })
     expect(out.programs[0].groups[0].percent).toBe(75)
   })

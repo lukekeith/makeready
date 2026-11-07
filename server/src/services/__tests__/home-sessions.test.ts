@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const prismaMock = vi.hoisted(() => ({
   clientEvent: { findMany: vi.fn() },
-  memberLessonProgress: { findMany: vi.fn() },
-  memberVideoProgress: { findMany: vi.fn() },
+  lessonProgress: { findMany: vi.fn() },
+  activityProgress: { findMany: vi.fn() },
   member: { findMany: vi.fn() },
   groupMember: { findMany: vi.fn() },
 }))
@@ -72,12 +72,12 @@ describe('loadSessions (D2 sources)', () => {
       { memberId: 'ghost', occurredAt: at('2026-10-20T10:10:00Z') }, // deleted member: erased
     ])
     prismaMock.member.findMany.mockResolvedValue([{ id: 'm1' }])
-    prismaMock.memberLessonProgress.findMany.mockResolvedValue([
+    prismaMock.lessonProgress.findMany.mockResolvedValue([
       { memberId: 'm1', completedAt: at('2026-10-20T10:20:00Z') },
       { memberId: 'm2', completedAt: at('2026-10-20T09:00:00Z') }, // starts before the window → dropped
     ])
-    prismaMock.memberVideoProgress.findMany.mockResolvedValue([
-      { memberId: 'm1', startedAt: at('2026-10-20T10:06:00Z'), lastWatchedAt: at('2026-10-20T10:15:00Z') },
+    prismaMock.activityProgress.findMany.mockResolvedValue([
+      { memberId: 'm1', startedAt: at('2026-10-20T10:06:00Z'), completedAt: at('2026-10-20T10:15:00Z') },
     ])
   })
 
@@ -99,13 +99,13 @@ describe('loadSessions (D2 sources)', () => {
       select: { memberId: true, occurredAt: true },
     })
     const scheduleWhere = { enrollment: { group: { OR: [{ organizationId: { in: ['o1'] } }, { id: { in: [] } }] } } }
-    expect(prismaMock.memberLessonProgress.findMany).toHaveBeenCalledWith({
-      where: { completedAt: padded, lessonSchedule: scheduleWhere },
+    expect(prismaMock.lessonProgress.findMany).toHaveBeenCalledWith({
+      where: { completedAt: padded, scheduledLesson: scheduleWhere },
       select: { memberId: true, completedAt: true },
     })
-    expect(prismaMock.memberVideoProgress.findMany).toHaveBeenCalledWith({
-      where: { OR: [{ startedAt: padded }, { lastWatchedAt: padded }], lessonSchedule: scheduleWhere },
-      select: { memberId: true, startedAt: true, lastWatchedAt: true },
+    expect(prismaMock.activityProgress.findMany).toHaveBeenCalledWith({
+      where: { OR: [{ startedAt: padded }, { completedAt: padded }], scheduledLesson: scheduleWhere },
+      select: { memberId: true, startedAt: true, completedAt: true },
     })
     expect(prismaMock.member.findMany).toHaveBeenCalledWith({
       where: { id: { in: ['m1', 'ghost'] } },
@@ -121,13 +121,13 @@ describe('loadSessions (D2 sources)', () => {
       where: { memberId: 'm1', occurredAt: padded, OR: [{ organizationId: { in: ['o1'] } }, { groupId: { in: [] } }] },
       select: { memberId: true, occurredAt: true },
     })
-    expect(prismaMock.memberLessonProgress.findMany).toHaveBeenCalledWith({
-      where: { completedAt: padded, lessonSchedule: scheduleWhere, memberId: 'm1' },
+    expect(prismaMock.lessonProgress.findMany).toHaveBeenCalledWith({
+      where: { completedAt: padded, scheduledLesson: scheduleWhere, memberId: 'm1' },
       select: { memberId: true, completedAt: true },
     })
-    expect(prismaMock.memberVideoProgress.findMany).toHaveBeenCalledWith({
-      where: { OR: [{ startedAt: padded }, { lastWatchedAt: padded }], lessonSchedule: scheduleWhere, memberId: 'm1' },
-      select: { memberId: true, startedAt: true, lastWatchedAt: true },
+    expect(prismaMock.activityProgress.findMany).toHaveBeenCalledWith({
+      where: { OR: [{ startedAt: padded }, { completedAt: padded }], scheduledLesson: scheduleWhere, memberId: 'm1' },
+      select: { memberId: true, startedAt: true, completedAt: true },
     })
   })
 
@@ -140,8 +140,8 @@ describe('loadSessions (D2 sources)', () => {
     })
     const inGroup = { in: ['m1', 'm3'] }
     expect(prismaMock.clientEvent.findMany.mock.calls[0][0].where.memberId).toEqual(inGroup)
-    expect(prismaMock.memberLessonProgress.findMany.mock.calls[0][0].where.memberId).toEqual(inGroup)
-    expect(prismaMock.memberVideoProgress.findMany.mock.calls[0][0].where.memberId).toEqual(inGroup)
+    expect(prismaMock.lessonProgress.findMany.mock.calls[0][0].where.memberId).toEqual(inGroup)
+    expect(prismaMock.activityProgress.findMany.mock.calls[0][0].where.memberId).toEqual(inGroup)
   })
 
   it('counts a member of two groups in both (D14)', async () => {
@@ -155,8 +155,8 @@ describe('loadSessions (D2 sources)', () => {
       ].filter((e) => where.memberId.in.includes(e.memberId))
     )
     prismaMock.member.findMany.mockResolvedValue([{ id: 'm1' }, { id: 'm2' }])
-    prismaMock.memberLessonProgress.findMany.mockResolvedValue([])
-    prismaMock.memberVideoProgress.findMany.mockResolvedValue([])
+    prismaMock.lessonProgress.findMany.mockResolvedValue([])
+    prismaMock.activityProgress.findMany.mockResolvedValue([])
     expect((await loadSessions(scope, window, { groupId: 'g1' })).map((s) => s.memberId)).toEqual(['m1'])
     expect((await loadSessions(scope, window, { groupId: 'g2' })).map((s) => s.memberId)).toEqual(['m1', 'm2'])
   })

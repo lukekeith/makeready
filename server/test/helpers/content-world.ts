@@ -162,13 +162,13 @@ export interface PublishedProgram {
  */
 export async function seedPublishedProgram(
   w: ContentWorld,
-  opts: { lessons: number; mediaId?: string },
+  opts: { lessons: number; mediaId?: string; text?: string },
 ): Promise<PublishedProgram> {
   const stamp = randomBytes(4).toString('hex')
   const lessonIds: string[] = []
   const versionIds: string[] = []
   for (let i = 0; i < opts.lessons; i++) {
-    const pub = await seedPublishedLesson(w, [{ activityKey: `a-${stamp}-${i}`, mediaId: opts.mediaId }])
+    const pub = await seedPublishedLesson(w, [{ activityKey: `a-${stamp}-${i}`, mediaId: opts.mediaId, text: opts.text }])
     lessonIds.push(pub.lessonId)
     versionIds.push(pub.versionId)
   }
@@ -213,13 +213,13 @@ export interface EnrolledProgram {
   programVersionNumber: number
 }
 
-/** The world's program published as version 1 over `opts.lessons` new lessons, one enrollment on it, one ScheduledLesson per lesson (a day apart, from tomorrow), and a member. Rows are written directly, not through the publish service. `syncMode` defaults to the column's own default; `mediaId` is the image in every lesson's document. */
+/** The world's program published as version 1 over `opts.lessons` new lessons, one enrollment on it, one ScheduledLesson per lesson (a day apart, from tomorrow), and a member. Rows are written directly, not through the publish service. `syncMode` defaults to the column's own default; `mediaId` is the image in every lesson's document; `text` is the text of its one object. */
 export async function seedEnrolledProgram(
   w: ContentWorld,
-  opts: { lessons: number; syncMode?: 'AUTO' | 'APPROVAL' | 'OFF'; mediaId?: string },
+  opts: { lessons: number; syncMode?: 'AUTO' | 'APPROVAL' | 'OFF'; mediaId?: string; text?: string },
 ): Promise<EnrolledProgram> {
   const stamp = randomBytes(4).toString('hex')
-  const published = await seedPublishedProgram(w, { lessons: opts.lessons, mediaId: opts.mediaId })
+  const published = await seedPublishedProgram(w, { lessons: opts.lessons, mediaId: opts.mediaId, text: opts.text })
   const { lessonIds, versionIds, programVersionId } = published
   const programVersion = { id: programVersionId, number: published.programVersionNumber }
   const group = await prisma.group.create({

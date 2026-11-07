@@ -35,7 +35,7 @@ export interface FollowedEnrollmentRow {
   syncMode: 'OFF' | 'AUTO' | 'APPROVAL'
   group: { name: string; coverImageUrl: string | null; members: { memberId: string | null }[] }
   studyProgram: { id: string; name: string; createdAt: Date; creator: { name: string } | null }
-  lessonSchedules: { id: string; scheduledDate: Date }[]
+  scheduledLessons: { id: string; scheduledDate: Date }[]
 }
 
 export function parseFollowedEnrollments(value: string | null | undefined): string[] {
@@ -61,7 +61,7 @@ export function parseFollowedEnrollments(value: string | null | undefined): stri
 const memberIdsOf = (row: FollowedEnrollmentRow) =>
   [...new Set(row.group.members.flatMap((m) => (m.memberId ? [m.memberId] : [])))]
 const dueSchedulesOf = (row: FollowedEnrollmentRow, today: string) =>
-  row.lessonSchedules.filter((s) => storedDate(s.scheduledDate) <= today)
+  row.scheduledLessons.filter((s) => storedDate(s.scheduledDate) <= today)
 
 export function assembleFollowing(
   rows: FollowedEnrollmentRow[],
@@ -146,7 +146,7 @@ export async function getHomeFollowing(
         },
       },
       studyProgram: { select: { id: true, name: true, createdAt: true, creator: { select: { name: true } } } },
-      lessonSchedules: { where: { removedAt: null }, select: { id: true, scheduledDate: true } },
+      scheduledLessons: { where: { removedAt: null }, select: { id: true, scheduledDate: true } },
     },
   })
 
@@ -155,11 +155,11 @@ export async function getHomeFollowing(
   const memberIds = [...new Set(rows.flatMap(memberIdsOf))]
   const progress =
     dueIds.length > 0 && memberIds.length > 0
-      ? await prisma.memberLessonProgress.findMany({
-          where: { completedAt: { not: null }, lessonScheduleId: { in: dueIds }, memberId: { in: memberIds } },
-          select: { memberId: true, lessonScheduleId: true },
+      ? await prisma.lessonProgress.findMany({
+          where: { completedAt: { not: null }, scheduledLessonId: { in: dueIds }, memberId: { in: memberIds } },
+          select: { memberId: true, scheduledLessonId: true },
         })
       : []
-  const completed = new Set(progress.map((p) => pairKey(p.memberId, p.lessonScheduleId)))
+  const completed = new Set(progress.map((p) => pairKey(p.memberId, p.scheduledLessonId)))
   return assembleFollowing(rows, completed, ids, today)
 }

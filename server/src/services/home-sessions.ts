@@ -83,22 +83,22 @@ export async function loadSessions(
   const to = new Date(window.to.getTime() + LOAD_PAD_MS)
   const range = { gte: from, lt: to }
   const inRange = (d: Date) => d >= from && d < to
-  const scheduleWhere = { enrollment: { group: scopeGroupWhere(scope) } }
+  const scheduledLessonWhere = { enrollment: { group: scopeGroupWhere(scope) } }
   // ui2-members-browse D12 (member page rail) / ui2-groups-browse D14 (group page rail).
   const member = await memberFilter(opts)
 
-  const [events, lessons, videos] = await Promise.all([
+  const [events, lessons, activities] = await Promise.all([
     prisma.clientEvent.findMany({
       where: { memberId: { not: null }, occurredAt: range, ...clientEventScope(scope), ...member },
       select: { memberId: true, occurredAt: true },
     }),
-    prisma.memberLessonProgress.findMany({
-      where: { completedAt: range, lessonSchedule: scheduleWhere, ...member },
+    prisma.lessonProgress.findMany({
+      where: { completedAt: range, scheduledLesson: scheduledLessonWhere, ...member },
       select: { memberId: true, completedAt: true },
     }),
-    prisma.memberVideoProgress.findMany({
-      where: { OR: [{ startedAt: range }, { lastWatchedAt: range }], lessonSchedule: scheduleWhere, ...member },
-      select: { memberId: true, startedAt: true, lastWatchedAt: true },
+    prisma.activityProgress.findMany({
+      where: { OR: [{ startedAt: range }, { completedAt: range }], scheduledLesson: scheduledLessonWhere, ...member },
+      select: { memberId: true, startedAt: true, completedAt: true },
     }),
   ])
 
@@ -114,9 +114,9 @@ export async function loadSessions(
   const moments: Moment[] = []
   for (const e of events) if (e.memberId && existing.has(e.memberId)) moments.push({ memberId: e.memberId, at: e.occurredAt })
   for (const l of lessons) if (l.completedAt) moments.push({ memberId: l.memberId, at: l.completedAt })
-  for (const v of videos) {
-    if (inRange(v.startedAt)) moments.push({ memberId: v.memberId, at: v.startedAt })
-    if (inRange(v.lastWatchedAt)) moments.push({ memberId: v.memberId, at: v.lastWatchedAt })
+  for (const a of activities) {
+    if (inRange(a.startedAt)) moments.push({ memberId: a.memberId, at: a.startedAt })
+    if (a.completedAt && inRange(a.completedAt)) moments.push({ memberId: a.memberId, at: a.completedAt })
   }
   return sessionize(moments).filter((s) => s.start >= window.from && s.start < window.to)
 }

@@ -18,16 +18,16 @@ export function generateStudyCode(): string {
 /**
  * Generate a unique study code that doesn't exist in the database
  * Retries if collision occurs (extremely unlikely with 30^6 = 729M possibilities)
- * Note: Study codes are unique within lesson_schedules only
+ * Note: Study codes are unique within scheduled_lessons only
  */
 export async function generateUniqueStudyCode(): Promise<string> {
   let code = generateStudyCode()
-  let exists = await prisma.lessonSchedule.findUnique({ where: { code } })
+  let exists = await prisma.scheduledLesson.findUnique({ where: { code } })
 
   // Retry until we find a unique code (collision is extremely rare)
   while (exists) {
     code = generateStudyCode()
-    exists = await prisma.lessonSchedule.findUnique({ where: { code } })
+    exists = await prisma.scheduledLesson.findUnique({ where: { code } })
   }
 
   return code

@@ -324,6 +324,7 @@ router.post(
         return res.status(400).json({
           success: false,
           error: result.error,
+          ...(result.code ? { code: result.code } : {}),
         })
       }
 
@@ -595,6 +596,7 @@ router.get(
         return res.status(400).json({
           success: false,
           error: result.error,
+          ...(result.code ? { code: result.code } : {}),
         })
       }
 
@@ -682,13 +684,9 @@ router.get(
  *                             type: object
  *                           lesson:
  *                             type: object
- *                           activity:
- *                             type: object
  *                           verse:
  *                             type: object
  *                           group:
- *                             type: object
- *                           lessonSchedule:
  *                             type: object
  *                           enrollment:
  *                             type: object
@@ -1222,6 +1220,7 @@ router.post('/notes', requireAuth, async (req: Request, res: Response) => {
       return res.status(400).json({
         success: false,
         error: result.error,
+        ...(result.code ? { code: result.code } : {}),
       })
     }
 

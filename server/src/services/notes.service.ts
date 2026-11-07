@@ -2,7 +2,6 @@ import { prisma } from '../lib/prisma.js'
 import type {
   StudyNote,
   NoteLink,
-  MemberActivityProgress,
   Prisma,
 } from '../generated/prisma/index.js'
 
@@ -21,12 +20,13 @@ import type {
  *
  * Link Types (extensible - just add new string values):
  * - LESSON: Link to a Lesson
- * - LESSON_ACTIVITY: Link to a LessonActivity
- * - LESSON_SCHEDULE: Link to a LessonSchedule
  * - ENROLLMENT: Link to an Enrollment
  * - GROUP: Link to a Group
  * - VERSE: Link to a Verse (with metadata)
  * - PROGRAM: Link to a StudyProgram
+ *
+ * Removed link types (text-activity D42): LESSON_ACTIVITY, SCHEDULED_ACTIVITY and LESSON_SCHEDULE name rows of the
+ * 1.0 lesson models. New notes cannot carry them; existing note bodies keep working.
  */
 
 // ============================================================================
@@ -45,13 +45,16 @@ export const NOTE_TYPES = {
 
 export const LINK_TYPES = {
   LESSON: 'LESSON',
-  LESSON_ACTIVITY: 'LESSON_ACTIVITY',
-  LESSON_SCHEDULE: 'LESSON_SCHEDULE',
   ENROLLMENT: 'ENROLLMENT',
   GROUP: 'GROUP',
   VERSE: 'VERSE',
   PROGRAM: 'PROGRAM',
 } as const
+
+/** Link types no write or read accepts any more (D42). */
+export const REMOVED_LINK_TYPES: readonly string[] = ['LESSON_ACTIVITY', 'SCHEDULED_ACTIVITY', 'LESSON_SCHEDULE']
+
+export const REMOVED_LINK_ERROR = (refType: string) => `Link type ${refType} is no longer supported`
 
 export type NoteType = (typeof NOTE_TYPES)[keyof typeof NOTE_TYPES] | string
 export type LinkType = (typeof LINK_TYPES)[keyof typeof LINK_TYPES] | string
@@ -68,6 +71,8 @@ export interface NoteResult {
   success: boolean
   data?: StudyNoteWithLinks
   error?: string
+  /** `VALIDATION` when the request itself is refused (a removed link type). */
+  code?: 'VALIDATION'
 }
 
 export interface NotesResult {
@@ -75,12 +80,7 @@ export interface NotesResult {
   data?: StudyNoteWithLinks[]
   total?: number
   error?: string
-}
-
-export interface ProgressResult {
-  success: boolean
-  data?: MemberActivityProgress
-  error?: string
+  code?: 'VALIDATION'
 }
 
 export interface NoteLinkData {
@@ -95,17 +95,6 @@ export interface CreateNoteData {
   type: NoteType
   content: string
   links?: NoteLinkData[]
-}
-
-export interface UpdateProgressData {
-  memberId: string
-  lessonScheduleId: string
-  lessonActivityId: string
-  currentStep?: string // Legacy: mapped to completed if 'COMPLETE'
-  notes?: Array<{
-    type: NoteType
-    content: string
-  }>
 }
 
 export interface GetNotesOptions {
@@ -133,11 +122,6 @@ export interface GetNotesWithContextOptions {
 export interface NoteContext {
   program?: { id: string; name: string; description: string | null }
   lesson?: { id: string; dayNumber: number }
-  activity?: {
-    id: string
-    type: string
-    title: string | null
-  }
   verse?: {
     passageReference: string | null
     bookName: string | null
@@ -148,7 +132,6 @@ export interface NoteContext {
     scriptureText: string | null
   }
   group?: { id: string; name: string }
-  lessonSchedule?: { id: string; scheduledDate: Date }
   enrollment?: { id: string; groupId: string }
 }
 
@@ -209,6 +192,12 @@ export function noteTypeToStep(noteType: string): string | null {
   return mapping[noteType] || null
 }
 
+/** The first removed link type among `links`, as a refusal (D42); null when every link is allowed. */
+function removedLinkRefusal(links: { refType: string }[] | undefined): { success: false; code: 'VALIDATION'; error: string } | null {
+  const removed = links?.find((link) => REMOVED_LINK_TYPES.includes(link.refType))
+  return removed ? { success: false, code: 'VALIDATION', error: REMOVED_LINK_ERROR(removed.refType) } : null
+}
+
 // ============================================================================
 // Note CRUD Operations
 // ============================================================================
@@ -217,6 +206,8 @@ export function noteTypeToStep(noteType: string): string | null {
  * Create a new note with polymorphic links
  */
 export async function createNote(data: CreateNoteData): Promise<NoteResult> {
+  const refusal = removedLinkRefusal(data.links)
+  if (refusal) return refusal
   try {
     // Validate owner - must have either memberId or userId
     if (!data.memberId && !data.userId) {
@@ -333,6 +324,9 @@ export async function getNotes(options: GetNotesOptions): Promise<NotesResult> {
 export async function getNotesForEntity(
   options: GetNotesForEntityOptions
 ): Promise<NotesResult> {
+  if (REMOVED_LINK_TYPES.includes(options.refType)) {
+    return { success: false, code: 'VALIDATION', error: REMOVED_LINK_ERROR(options.refType) }
+  }
   try {
     const { refType, refId, type, limit = 100 } = options
 
@@ -411,7 +405,7 @@ export async function getNotesWithContext(
     }
 
     // Batch-resolve linked entities
-    const [programs, lessons, activities, schedules, enrollments, groups] =
+    const [programs, lessons, enrollments, groups] =
       await Promise.all([
         refIdsByType.has(LINK_TYPES.PROGRAM)
           ? prisma.studyProgram.findMany({
@@ -422,29 +416,7 @@ export async function getNotesWithContext(
         refIdsByType.has(LINK_TYPES.LESSON)
           ? prisma.lesson.findMany({
               where: { id: { in: [...refIdsByType.get(LINK_TYPES.LESSON)!] } },
-              select: { id: true, dayNumber: true },
-            })
-          : [],
-        refIdsByType.has(LINK_TYPES.LESSON_ACTIVITY)
-          ? prisma.lessonActivity.findMany({
-              where: {
-                id: { in: [...refIdsByType.get(LINK_TYPES.LESSON_ACTIVITY)!] },
-              },
-              select: {
-                id: true,
-                activityType: true,
-                title: true,
-              },
-            })
-          : [],
-        refIdsByType.has(LINK_TYPES.LESSON_SCHEDULE)
-          ? prisma.lessonSchedule.findMany({
-              where: {
-                id: {
-                  in: [...refIdsByType.get(LINK_TYPES.LESSON_SCHEDULE)!],
-                },
-              },
-              select: { id: true, scheduledDate: true },
+              select: { id: true, position: true, dayNumber: true },
             })
           : [],
         refIdsByType.has(LINK_TYPES.ENROLLMENT)
@@ -466,8 +438,6 @@ export async function getNotesWithContext(
     // Build lookup maps
     const programMap = new Map(programs.map((p) => [p.id, p]))
     const lessonMap = new Map(lessons.map((l) => [l.id, l]))
-    const activityMap = new Map(activities.map((a) => [a.id, a]))
-    const scheduleMap = new Map(schedules.map((s) => [s.id, s]))
     const enrollmentMap = new Map(enrollments.map((e) => [e.id, e]))
     const groupMap = new Map(groups.map((g) => [g.id, g]))
 
@@ -485,12 +455,7 @@ export async function getNotesWithContext(
           }
           case LINK_TYPES.LESSON: {
             const l = lessonMap.get(link.refId)
-            if (l) context.lesson = { ...l, dayNumber: l.dayNumber! }
-            break
-          }
-          case LINK_TYPES.LESSON_ACTIVITY: {
-            const a = activityMap.get(link.refId)
-            if (a) context.activity = { id: a.id, type: a.activityType, title: a.title }
+            if (l) context.lesson = { id: l.id, dayNumber: l.position ?? l.dayNumber ?? 0 }
             break
           }
           case LINK_TYPES.VERSE: {
@@ -512,11 +477,6 @@ export async function getNotesWithContext(
           case LINK_TYPES.GROUP: {
             const g = groupMap.get(link.refId)
             if (g) context.group = g
-            break
-          }
-          case LINK_TYPES.LESSON_SCHEDULE: {
-            const s = scheduleMap.get(link.refId)
-            if (s) context.lessonSchedule = s
             break
           }
           case LINK_TYPES.ENROLLMENT: {
@@ -598,6 +558,8 @@ export async function addNoteLink(
   noteId: string,
   link: NoteLinkData
 ): Promise<NoteResult> {
+  const refusal = removedLinkRefusal([link])
+  if (refusal) return refusal
   try {
     await prisma.noteLink.create({
       data: {
