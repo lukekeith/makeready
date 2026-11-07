@@ -8,6 +8,9 @@
  */
 
 import { prisma } from '../lib/prisma.js'
+import type { Prisma } from '../generated/prisma/index.js'
+
+type Db = Prisma.TransactionClient | typeof prisma
 
 export type PendingLessonChangeType = 'new' | 'updated' | 'removed'
 
@@ -62,9 +65,9 @@ const VERSION_LESSONS = {
   },
 } as const
 
-async function versionLessons(programVersionId: string | null): Promise<Map<string, VersionedLesson>> {
+async function versionLessons(db: Db, programVersionId: string | null): Promise<Map<string, VersionedLesson>> {
   if (!programVersionId) return new Map()
-  const rows = await prisma.programVersionLesson.findMany({ where: { programVersionId }, ...VERSION_LESSONS })
+  const rows = await db.programVersionLesson.findMany({ where: { programVersionId }, ...VERSION_LESSONS })
   return new Map(rows.map((r) => [r.lessonId, r]))
 }
 
@@ -81,7 +84,8 @@ function activityCounts(before: VersionedLesson, after: VersionedLesson) {
   }
 }
 
-export async function computePendingChanges(enrollmentId: string): Promise<PendingChanges> {
+/** `db` is the caller's transaction when the diff must see its uncommitted pointer moves. */
+export async function computePendingChanges(enrollmentId: string, db: Db = prisma): Promise<PendingChanges> {
   const empty: PendingChanges = {
     targetVersionNumber: null,
     hasPending: false,
@@ -96,7 +100,7 @@ export async function computePendingChanges(enrollmentId: string): Promise<Pendi
     },
   }
 
-  const enrollment = await prisma.enrollment.findUniqueOrThrow({
+  const enrollment = await db.enrollment.findUniqueOrThrow({
     where: { id: enrollmentId },
     select: {
       programVersionId: true,
@@ -107,9 +111,9 @@ export async function computePendingChanges(enrollmentId: string): Promise<Pendi
   if (!target) return empty
 
   const [targetLessons, baseLessons, schedules] = await Promise.all([
-    versionLessons(target.id),
-    versionLessons(enrollment.programVersionId),
-    prisma.scheduledLesson.findMany({
+    versionLessons(db, target.id),
+    versionLessons(db, enrollment.programVersionId),
+    db.scheduledLesson.findMany({
       where: { enrollmentId, removedAt: null },
       select: {
         id: true,
@@ -181,4 +185,66 @@ export async function computePendingChanges(enrollmentId: string): Promise<Pendi
   )
 
   return { targetVersionNumber: target.number, hasPending: changes.length > 0, changes, counts }
+}
+
+export interface EnrollmentSyncStatus {
+  syncMode: string
+  syncedProgramVersionNumber: number | null
+  currentVersionNumber: number | null
+  hasDrift: boolean
+  /** Program versions newer than the enrollment's, newest first. */
+  pendingVersions: { versionNumber: number; publishedAt: Date; changeSummary: string | null; changedLessonIds: string[] }[]
+  /** Sync runs are no longer recorded (D37). */
+  recentRuns: never[]
+}
+
+/**
+ * Where an enrollment stands against its program: `ProgramVersion.number` for both ends, and the versions in
+ * between with the lessons each one changed (a lesson whose version differs from the one before it).
+ */
+export async function getEnrollmentSyncStatus(enrollmentId: string): Promise<EnrollmentSyncStatus> {
+  const enrollment = await prisma.enrollment.findUniqueOrThrow({
+    where: { id: enrollmentId },
+    select: {
+      syncMode: true,
+      programVersion: { select: { number: true } },
+      studyProgram: { select: { id: true, currentVersion: { select: { number: true } } } },
+    },
+  })
+  const synced = enrollment.programVersion?.number ?? null
+  const current = enrollment.studyProgram.currentVersion?.number ?? null
+  const hasDrift = current !== null && current > (synced ?? 0)
+
+  const pendingVersions: EnrollmentSyncStatus['pendingVersions'] = []
+  if (hasDrift) {
+    // The version just before the oldest pending one is the base the first pending change is measured against.
+    const versions = await prisma.programVersion.findMany({
+      where: { programId: enrollment.studyProgram.id, number: { gte: synced ?? 0 } },
+      orderBy: { number: 'asc' },
+      select: {
+        number: true, publishedAt: true, changeSummary: true,
+        lessons: { select: { lessonId: true, lessonVersionId: true } },
+      },
+    })
+    let previous = synced === null ? undefined : versions.find((v) => v.number === synced)
+    for (const version of versions.filter((v) => v.number > (synced ?? 0))) {
+      const before = new Map((previous?.lessons ?? []).map((l) => [l.lessonId, l.lessonVersionId]))
+      pendingVersions.push({
+        versionNumber: version.number,
+        publishedAt: version.publishedAt,
+        changeSummary: version.changeSummary,
+        changedLessonIds: version.lessons.filter((l) => before.get(l.lessonId) !== l.lessonVersionId).map((l) => l.lessonId),
+      })
+      previous = version
+    }
+    pendingVersions.reverse()
+  }
+  return {
+    syncMode: enrollment.syncMode,
+    syncedProgramVersionNumber: synced,
+    currentVersionNumber: current,
+    hasDrift,
+    pendingVersions,
+    recentRuns: [],
+  }
 }

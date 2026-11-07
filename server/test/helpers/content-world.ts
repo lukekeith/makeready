@@ -195,6 +195,7 @@ export async function createGroupWithMember(w: ContentWorld): Promise<{ groupId:
 
 export interface EnrolledProgram {
   w: ContentWorld
+  programId: string
   enrollmentId: string
   groupId: string
   memberId: string
@@ -241,7 +242,7 @@ export async function seedEnrolledProgram(
     scheduledLessonIds.push(sl.id)
   }
   return {
-    w, enrollmentId: enrollment.id, groupId: group.id, memberId: member.id, lessonIds, versionIds, scheduledLessonIds,
+    w, programId: w.programId, enrollmentId: enrollment.id, groupId: group.id, memberId: member.id, lessonIds, versionIds, scheduledLessonIds,
     programVersionId: programVersion.id, programVersionNumber: programVersion.number,
   }
 }

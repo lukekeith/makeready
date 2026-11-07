@@ -29,6 +29,7 @@ import { extractYouTubeVideoId, fetchYouTubeMetadata } from '../services/youtube
 import { isSuperAdmin, programManageFilter } from '../services/permission.js'
 import { AGE_RANGE_INVERTED_MESSAGE, isAgeRangeInverted } from '../services/group-fields.js'
 import { CoverUploadError, coverFramingSchema, saveCover } from '../services/group-cover.js'
+import { deleteProgramPermanently } from '../services/program-permanent-delete.service.js'
 import {
   PROGRAM_NAME_INCLUDE,
   buildProgramListWhere,
@@ -1027,7 +1028,7 @@ router.delete('/programs/:id/permanent', requireAuth, async (req, res) => {
       }
     }
 
-    await prisma.studyProgram.delete({ where: { id } })
+    await deleteProgramPermanently(id)
 
     res.json({ success: true })
   } catch (error) {

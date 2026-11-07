@@ -9,8 +9,8 @@ import { ActivityTypes } from '../lib/activity-types.js'
 import { trackActivity } from '../services/activity.js'
 import { getUserOrgId } from '../services/media-library.js'
 import { getEnrollmentCompletionStats } from '../services/enrollment-analytics.service.js'
-import { createScheduledLessons, syncEnrollmentToLatest, SyncNotPossibleError } from '../services/enrollment-sync.js'
-import { computePendingChanges } from '../services/enrollment-sync-changes.js'
+import { createScheduledLessons, syncEnrollmentToCurrent, SyncNotPossibleError } from '../services/enrollment-sync.js'
+import { computePendingChanges, getEnrollmentSyncStatus } from '../services/enrollment-sync-changes.js'
 import { resolveNotificationsByDedupeKey } from '../services/notification.js'
 import {
   mediaForScheduledLessons,
@@ -1400,8 +1400,8 @@ router.patch('/enrollments/:id', requireAuth, async (req, res) => {
  *     description: |
  *       Reports the enrollment's sync mode, the program version its lessons
  *       reflect, whether the program has published newer versions (drift),
- *       and the pending versions' AI change summaries so a leader can decide
- *       whether to apply them. Also returns recent sync runs.
+ *       and the pending versions' change summaries so a leader can decide
+ *       whether to apply them. Version numbers are ProgramVersion.number.
  *     security:
  *       - userSession: []
  *     parameters:
@@ -1422,64 +1422,17 @@ router.get('/enrollments/:id/sync', requireAuth, async (req, res) => {
     const userId = (req.user as any).id
 
     const enrollment = await prisma.enrollment.findFirst({
-      where: { id, ...(await enrollmentManageFilter(userId)) },
-      select: {
-        id: true,
-        syncMode: true,
-        syncedProgramVersionNumber: true,
-        studyProgram: { select: { id: true, name: true, currentVersionNumber: true } },
-      },
+      where: { id, studyProgram: { isActive: true }, ...(await enrollmentManageFilter(userId)) },
+      select: { id: true },
     })
 
     if (!enrollment) {
       return res.status(404).json({ success: false, error: 'Enrollment not found' })
     }
 
-    const syncedVersion = enrollment.syncedProgramVersionNumber ?? 0
-    const currentVersion = enrollment.studyProgram.currentVersionNumber ?? null
-    const hasDrift = currentVersion !== null && currentVersion > syncedVersion
-
-    const [pendingVersions, recentRuns] = await Promise.all([
-      hasDrift
-        ? prisma.studyProgramVersion.findMany({
-            where: {
-              studyProgramId: enrollment.studyProgram.id,
-              versionNumber: { gt: syncedVersion },
-            },
-            orderBy: { versionNumber: 'desc' },
-            select: {
-              versionNumber: true,
-              publishedAt: true,
-              changeSummary: true,
-              changedLessonIds: true,
-            },
-          })
-        : Promise.resolve([]),
-      prisma.enrollmentSyncRun.findMany({
-        where: { enrollmentId: id },
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-        select: {
-          targetProgramVersionNumber: true,
-          status: true,
-          error: true,
-          startedAt: true,
-          completedAt: true,
-        },
-      }),
-    ])
-
-    res.json({
-      success: true,
-      sync: {
-        syncMode: enrollment.syncMode,
-        syncedProgramVersionNumber: enrollment.syncedProgramVersionNumber,
-        currentVersionNumber: currentVersion,
-        hasDrift,
-        pendingVersions,
-        recentRuns,
-      },
-    })
+    const sync = await getEnrollmentSyncStatus(id)
+    // `sync` is the nested object the iPhone decodes; the same fields are also at the top level.
+    res.json({ success: true, ...sync, sync })
   } catch (error) {
     console.error('Error fetching enrollment sync status:', error)
     res.status(500).json({ success: false, error: 'Failed to fetch sync status' })
@@ -1517,8 +1470,8 @@ router.get('/enrollments/:id/sync/changes', requireAuth, async (req, res) => {
     const userId = (req.user as any).id
 
     const enrollment = await prisma.enrollment.findFirst({
-      where: { id, ...(await enrollmentManageFilter(userId)) },
-      select: { id: true, syncMode: true },
+      where: { id, studyProgram: { isActive: true }, ...(await enrollmentManageFilter(userId)) },
+      select: { id: true },
     })
 
     if (!enrollment) {
@@ -1541,10 +1494,10 @@ router.get('/enrollments/:id/sync/changes', requireAuth, async (req, res) => {
  *     summary: Apply the latest published program version to this enrollment
  *     description: |
  *       Brings the enrollment's lessons up to the program's latest published
- *       version (all-or-nothing). Used by APPROVAL-mode acceptance and manual
- *       catch-up for OFF-mode enrollments with drift. Members who completed a
- *       lesson stay pinned to the version they completed; everyone else sees
- *       the new content. Idempotent — reapplying is a no-op.
+ *       version, in one transaction, by moving pointers. Used by APPROVAL-mode
+ *       acceptance and manual catch-up for OFF-mode enrollments with drift.
+ *       Lessons the group customized are skipped and listed in
+ *       skippedCustomizedLessonIds. Idempotent — reapplying is a no-op.
  *     security:
  *       - userSession: []
  *     parameters:
@@ -1575,7 +1528,7 @@ router.post('/enrollments/:id/sync/apply', requireAuth, async (req, res) => {
       .parse(req.body ?? {})
 
     const enrollment = await prisma.enrollment.findFirst({
-      where: { id, ...(await enrollmentManageFilter(userId)) },
+      where: { id, studyProgram: { isActive: true }, ...(await enrollmentManageFilter(userId)) },
       select: {
         id: true,
         groupId: true,
@@ -1588,9 +1541,8 @@ router.post('/enrollments/:id/sync/apply', requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Enrollment not found' })
     }
 
-    const outcome = await syncEnrollmentToLatest({
+    const outcome = await syncEnrollmentToCurrent({
       enrollmentId: id,
-      triggeredById: userId,
       lessonKeys: body.lessonKeys ?? null,
     })
 

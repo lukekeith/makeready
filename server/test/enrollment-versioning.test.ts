@@ -12,9 +12,9 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import request from 'supertest'
-import { app } from '../../index'
-import { prisma } from '../../lib/prisma'
-import { generateApiKey, hashApiKey, getKeyPrefix } from '../../lib/api-key'
+import { app } from '../src/index.js'
+import { prisma } from '../src/lib/prisma.js'
+import { generateApiKey, hashApiKey, getKeyPrefix } from '../src/lib/api-key.js'
 
 describe('Enrollment versioning (study-sync)', () => {
   let userId: string

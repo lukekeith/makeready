@@ -264,12 +264,12 @@ export interface SyncOutcome {
 }
 
 /**
- * Bring one enrollment to its program's current version, fully or restricted to the leader-approved
- * `lessonKeys`. The route calls this until Task 12 switches it to `applyProgramVersion` directly.
+ * Bring one enrollment to its program's current version, fully or restricted to the leader-approved `lessonKeys`,
+ * in one transaction. Pushes go out after it commits (D32): a full sync clears the "updates available" notice, and
+ * an AUTO enrollment's leader is told the update was applied.
  */
-export async function syncEnrollmentToLatest(params: {
+export async function syncEnrollmentToCurrent(params: {
   enrollmentId: string
-  triggeredById?: string | null
   lessonKeys?: string[] | null
 }): Promise<SyncOutcome> {
   const { enrollmentId, lessonKeys = null } = params
@@ -277,8 +277,9 @@ export async function syncEnrollmentToLatest(params: {
     where: { id: enrollmentId },
     select: {
       createdById: true,
+      syncMode: true,
       programVersionId: true,
-      studyProgram: { select: { currentVersion: { select: { id: true, number: true } } } },
+      studyProgram: { select: { currentVersion: { select: { id: true, programId: true, number: true, changeSummary: true } } } },
     },
   })
   const target = enrollment.studyProgram.currentVersion
@@ -292,15 +293,20 @@ export async function syncEnrollmentToLatest(params: {
   if (lessonKeys && lessonKeys.length === 0) return { ...noOp, alreadySynced: false, fullySynced: false }
 
   const only = lessonKeys ? new Set(lessonKeys) : undefined
-  const result = await prisma.$transaction((tx) => applyProgramVersion(tx, enrollmentId, target.id, { only }))
-  const fullySynced = !only || !(await computePendingChanges(enrollmentId)).hasPending
-  if (only && fullySynced) {
-    await prisma.enrollment.update({ where: { id: enrollmentId }, data: { programVersionId: target.id } })
-  }
+  const { result, fullySynced } = await prisma.$transaction(async (tx) => {
+    const result = await applyProgramVersion(tx, enrollmentId, target.id, { only })
+    const fullySynced = !only || !(await computePendingChanges(enrollmentId, tx)).hasPending
+    if (only && fullySynced) {
+      await tx.enrollment.update({ where: { id: enrollmentId }, data: { programVersionId: target.id } })
+    }
+    return { result, fullySynced }
+  })
+
   if (fullySynced && enrollment.createdById) {
     await resolveNotificationsByDedupeKey(enrollment.createdById, `study-sync-updates:${enrollmentId}`)
       .catch(() => undefined)
   }
+  if (fullySynced && enrollment.syncMode === 'AUTO') await sendSyncPushes([enrollmentId], target).catch((err) => console.error('Sync apply pushes failed:', err))
   return {
     alreadySynced: false,
     targetVersionNumber: target.number,
