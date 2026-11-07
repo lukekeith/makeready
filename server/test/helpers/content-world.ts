@@ -5,6 +5,7 @@
  */
 import { randomBytes, randomUUID } from 'node:crypto'
 import { prisma } from '../../src/lib/prisma.js'
+import { hashLessonContent } from '../../src/services/activity-document.js'
 import { ensureMakeReadyOrg, MAKEREADY_ORG_ID } from '../../src/services/makeready-library.js'
 import { createUserWithApiKey, type TestUserWithToken } from './api-auth.js'
 
@@ -124,13 +125,19 @@ export async function seedPublishedLesson(
     data: { lessonId: lesson.id, number: 1, status: 'PUBLISHED', title: 'Published day', publishedAt: new Date() },
   })
   let position = 0
+  const created = []
   for (const a of activities) {
     const doc = textDocument(a.mediaId ?? '')
     if (!a.mediaId) delete (doc.background as any).image
-    await prisma.contentActivity.create({
+    created.push(await prisma.contentActivity.create({
       data: { lessonVersionId: version.id, activityKey: a.activityKey, position: ++position, kind: 'text', title: 'Text', document: doc },
-    })
+    }))
   }
+  // A published version carries the hash publish compares drafts against (D20).
+  await prisma.lessonVersion.update({
+    where: { id: version.id },
+    data: { contentHash: hashLessonContent({ title: 'Published day', activities: created }) },
+  })
   return { lessonId: lesson.id, versionId: version.id }
 }
 
@@ -146,8 +153,11 @@ export interface EnrolledProgram {
   programVersionNumber: number
 }
 
-/** The world's program published as version 1 over `opts.lessons` new lessons, one enrollment on it, one ScheduledLesson per lesson (a day apart, from tomorrow), and a member. Rows are written directly: the publish service is a later task. */
-export async function seedEnrolledProgram(w: ContentWorld, opts: { lessons: number }): Promise<EnrolledProgram> {
+/** The world's program published as version 1 over `opts.lessons` new lessons, one enrollment on it, one ScheduledLesson per lesson (a day apart, from tomorrow), and a member. Rows are written directly, not through the publish service. `syncMode` defaults to the column's own default. */
+export async function seedEnrolledProgram(
+  w: ContentWorld,
+  opts: { lessons: number; syncMode?: 'AUTO' | 'APPROVAL' | 'OFF' },
+): Promise<EnrolledProgram> {
   const stamp = randomBytes(4).toString('hex')
   const lessonIds: string[] = []
   const versionIds: string[] = []
@@ -176,6 +186,7 @@ export async function seedEnrolledProgram(w: ContentWorld, opts: { lessons: numb
     data: {
       groupId: group.id, studyProgramId: w.programId, startDate: start, endDate: new Date(start.getTime() + opts.lessons * day),
       enabledDays: JSON.stringify(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']), programVersionId: programVersion.id,
+      ...(opts.syncMode ? { syncMode: opts.syncMode } : {}),
     },
   })
   const scheduledLessonIds: string[] = []
