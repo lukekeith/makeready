@@ -416,38 +416,65 @@ router.get('/', requireAuth, async (req, res) => {
         let videoLinksMap: Map<string, SearchResultLink[]> | undefined
         if (wantVideoLinks && rows.length > 0) {
           const videoIds = rows.map((r) => r.id)
-          const activities = await prisma.lessonActivity.findMany({
-            where: {
-              videoId: { in: videoIds },
-              lesson: { studyProgram: { isActive: true } },
-            },
-            select: {
-              videoId: true,
-              lesson: {
+          // D34: a document's videoId is tracked through Media.videoId and
+          // MediaUsage rows (usageType ACTIVITY, resourceId = activityKey).
+          const mediaRows = await prisma.media.findMany({
+            where: { videoId: { in: videoIds } },
+            select: { id: true, videoId: true },
+          })
+          const videoIdByMediaId = new Map(mediaRows.map((m) => [m.id, m.videoId as string]))
+          const usages = mediaRows.length
+            ? await prisma.mediaUsage.findMany({
+                where: { mediaId: { in: mediaRows.map((m) => m.id) }, usageType: 'ACTIVITY' },
+                select: { mediaId: true, resourceId: true },
+              })
+            : []
+          const videoIdsByActivityKey = new Map<string, Set<string>>()
+          for (const u of usages) {
+            const set = videoIdsByActivityKey.get(u.resourceId) || new Set<string>()
+            set.add(videoIdByMediaId.get(u.mediaId)!)
+            videoIdsByActivityKey.set(u.resourceId, set)
+          }
+          const activities = usages.length
+            ? await prisma.contentActivity.findMany({
+                where: {
+                  activityKey: { in: [...videoIdsByActivityKey.keys()] },
+                  lessonVersion: { lesson: { deletedAt: null, program: { isActive: true } } },
+                },
                 select: {
-                  id: true,
-                  title: true,
-                  studyProgram: {
-                    select: { id: true, name: true, coverImageUrl: true },
+                  activityKey: true,
+                  lessonVersion: {
+                    select: {
+                      title: true,
+                      lesson: {
+                        select: {
+                          id: true,
+                          program: { select: { id: true, name: true, coverImageUrl: true } },
+                        },
+                      },
+                    },
                   },
                 },
-              },
-            },
-          })
+              })
+            : []
           videoLinksMap = new Map<string, SearchResultLink[]>()
           for (const act of activities) {
-            if (!act.videoId) continue
-            const existing = videoLinksMap.get(act.videoId) || []
-            const lessonKey = `LESSON:${act.lesson.id}`
-            const programKey = `PROGRAM:${act.lesson.studyProgram!.id}`
-            const seen = new Set(existing.map((l) => `${l.type}:${l.id}`))
-            if (!seen.has(lessonKey)) {
-              existing.push({ type: 'LESSON', id: act.lesson.id, name: act.lesson.title || 'Untitled', imageUrl: null })
+            const lesson = act.lessonVersion.lesson
+            const program = lesson.program
+            if (!program) continue
+            for (const videoId of videoIdsByActivityKey.get(act.activityKey) ?? []) {
+              const existing = videoLinksMap.get(videoId) || []
+              const lessonKey = `LESSON:${lesson.id}`
+              const programKey = `PROGRAM:${program.id}`
+              const seen = new Set(existing.map((l) => `${l.type}:${l.id}`))
+              if (!seen.has(lessonKey)) {
+                existing.push({ type: 'LESSON', id: lesson.id, name: act.lessonVersion.title || 'Untitled', imageUrl: null })
+              }
+              if (!seen.has(programKey)) {
+                existing.push({ type: 'PROGRAM', id: program.id, name: program.name, imageUrl: program.coverImageUrl })
+              }
+              videoLinksMap.set(videoId, existing)
             }
-            if (!seen.has(programKey)) {
-              existing.push({ type: 'PROGRAM', id: act.lesson.studyProgram!.id, name: act.lesson.studyProgram!.name, imageUrl: act.lesson.studyProgram!.coverImageUrl })
-            }
-            videoLinksMap.set(act.videoId, existing)
           }
         }
 

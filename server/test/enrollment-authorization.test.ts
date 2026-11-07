@@ -59,8 +59,9 @@ describe('Enrollment authorization (org-scoped management)', () => {
       data: { name: `Program ${stamp}`, days: 7, creatorId: owner.userId, organizationId: orgId },
     })
     programId = program.id
-    const lesson = await prisma.lesson.create({
-      data: { studyProgramId: program.id, dayNumber: 1 },
+    const lesson = await prisma.lesson.create({ data: { programId: program.id, position: 1 } })
+    const lessonVersion = await prisma.lessonVersion.create({
+      data: { lessonId: lesson.id, number: 1, status: 'PUBLISHED', title: 'Day 1', publishedAt: new Date() },
     })
 
     const start = new Date('2026-01-01T00:00:00.000Z')
@@ -77,8 +78,8 @@ describe('Enrollment authorization (org-scoped management)', () => {
     })
     enrollmentId = enrollment.id
 
-    await prisma.lessonSchedule.create({
-      data: { enrollmentId: enrollment.id, lessonId: lesson.id, scheduledDate: start },
+    await prisma.scheduledLesson.create({
+      data: { enrollmentId: enrollment.id, lessonId: lesson.id, scheduledDate: start, currentVersionId: lessonVersion.id },
     })
 
     // ui2-enrollment-create T12: the group has an active member (D5) so a POST reaches the program
@@ -96,23 +97,15 @@ describe('Enrollment authorization (org-scoped management)', () => {
         isPublished: true, publishedAt: new Date(),
       },
     })).id
-    await prisma.lesson.create({ data: { studyProgramId: foreignProgramId, dayNumber: 1 } })
+    await prisma.lesson.create({ data: { programId: foreignProgramId, position: 1 } })
   })
 
   afterAll(async () => {
-    const schedules = await prisma.lessonSchedule.findMany({
-      where: { enrollment: { groupId } },
-      select: { id: true },
-    })
-    await prisma.scheduledLessonActivity.deleteMany({
-      where: { lessonScheduleId: { in: schedules.map((s) => s.id) } },
-    })
-    await prisma.lessonSchedule.deleteMany({ where: { enrollment: { groupId } } })
     await prisma.enrollment.deleteMany({ where: { groupId } })
     await prisma.groupMember.deleteMany({ where: { memberId } })
     await prisma.member.deleteMany({ where: { id: memberId } })
     const orgIds = [orgId, foreignOrgId]
-    await prisma.lesson.deleteMany({ where: { studyProgram: { organizationId: { in: orgIds } } } })
+    await prisma.lesson.deleteMany({ where: { program: { organizationId: { in: orgIds } } } })
     await prisma.studyProgram.deleteMany({ where: { organizationId: { in: orgIds } } })
     await prisma.group.deleteMany({ where: { organizationId: orgId } })
     await prisma.userRole.deleteMany({ where: { organizationId: orgId } })

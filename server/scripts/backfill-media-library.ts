@@ -249,66 +249,6 @@ async function backfillMediaLibrary() {
   skipped = 0
 
   // ========================================================================
-  // 4. Link existing video activities to media
-  // ========================================================================
-  console.log('🔗 Linking video activities to media entries...')
-
-  const videoActivities = await prisma.lessonActivity.findMany({
-    where: {
-      videoId: { not: null },
-    },
-    select: {
-      id: true,
-      title: true,
-      videoId: true,
-      lesson: {
-        select: {
-          studyProgram: {
-            select: { name: true },
-          },
-        },
-      },
-    },
-  })
-
-  for (const activity of videoActivities) {
-    if (!activity.videoId) continue
-
-    const mediaEntry = await prisma.media.findFirst({
-      where: { videoId: activity.videoId },
-    })
-
-    if (!mediaEntry) {
-      skipped++
-      continue
-    }
-
-    try {
-      await prisma.mediaUsage.upsert({
-        where: {
-          mediaId_usageType_resourceId: {
-            mediaId: mediaEntry.id,
-            usageType: 'LESSON_ACTIVITY',
-            resourceId: activity.id,
-          },
-        },
-        update: {},
-        create: {
-          mediaId: mediaEntry.id,
-          usageType: 'LESSON_ACTIVITY',
-          resourceId: activity.id,
-          resourceName: activity.title || activity.lesson?.studyProgram?.name || undefined,
-        },
-      })
-      usagesCreated++
-    } catch {
-      skipped++
-    }
-  }
-
-  console.log(`  ✅ Created ${usagesCreated} usage links (${skipped} skipped)\n`)
-
-  // ========================================================================
   // Summary
   // ========================================================================
   console.log('═══════════════════════════════════════')

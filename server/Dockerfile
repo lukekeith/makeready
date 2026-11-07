@@ -68,9 +68,8 @@ ENV NODE_ENV=production
 # Expose port
 EXPOSE 3001
 
-# Apply pending Atlas migrations, load themes, run the study-sync data
-# backfill (idempotent — near-instant no-op once data is upgraded), then
-# start the server.
+# Apply pending Atlas migrations, then start the server (text-activity D30:
+# nothing else runs at boot).
 # Strip Prisma-specific query params (connection_limit, pool_timeout) from
 # DATABASE_URL before passing to Atlas, which sends them to PostgreSQL raw.
-CMD ["sh", "-c", "ATLAS_DB_URL=$(echo \"$DATABASE_URL\" | sed 's/[&?]connection_limit=[^&]*//g; s/[&?]pool_timeout=[^&]*//g') && cd atlas && ../bin/atlas migrate apply --env production --url \"$ATLAS_DB_URL\" && cd .. && node dist/scripts/load-themes.js && (node dist/scripts/backfill-study-sync.js || echo '⚠️ study-sync backfill failed — server starting anyway; investigate') && node dist/index.js"]
+CMD ["sh", "-c", "ATLAS_DB_URL=$(echo \"$DATABASE_URL\" | sed 's/[&?]connection_limit=[^&]*//g; s/[&?]pool_timeout=[^&]*//g') && cd atlas && ../bin/atlas migrate apply --env production --url \"$ATLAS_DB_URL\" && cd .. && node dist/index.js"]

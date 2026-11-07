@@ -1,6 +1,6 @@
 /**
  * text-activity D5, D37, 05 s3 "Sync": applyProgramVersion moves an enrollment's scheduled lessons onto a program
- * version by pointer, copies nothing, and writes no sync run.
+ * version by pointer, copies nothing (the EnrollmentSyncRun model is gone, SC8).
  */
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -199,13 +199,6 @@ describe('sync core', () => {
     })
     expect(revived.removedAt).toBeNull()
     expect(revived.currentVersionId).toBe(target.lessonVersionId)
-  })
-
-  it('writes no sync run', async () => {
-    const s = await seedEnrolledProgram(w, { lessons: 2 })
-    const v2 = await publishNewVersion(s, { changeLesson: 0, dropLessons: [1] })
-    await prisma.$transaction(tx => applyProgramVersion(tx, s.enrollmentId, v2.id))
-    expect(await prisma.enrollmentSyncRun.count({ where: { enrollmentId: s.enrollmentId } })).toBe(0)
   })
 
   it('createScheduledLessons writes the lesson and its LESSON event, and rejects a lesson not in the version', async () => {
