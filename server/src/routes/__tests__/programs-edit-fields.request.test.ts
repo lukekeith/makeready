@@ -11,8 +11,10 @@ const prismaMock = vi.hoisted(() => ({
   organization: { findUnique: vi.fn(), findFirst: vi.fn() },
   userRole: { findFirst: vi.fn() },
   user: { findUnique: vi.fn() },
+  lesson: { count: vi.fn(), findMany: vi.fn() },
   $transaction: vi.fn(),
 }))
+const loadProgramPayload = vi.hoisted(() => vi.fn())
 const permission = vi.hoisted(() => ({
   isSuperAdmin: vi.fn(),
   getManageableOrgIds: vi.fn(),
@@ -25,6 +27,11 @@ vi.mock('../../services/permission.js', async (importOriginal) => ({
   ...permission,
 }))
 vi.mock('../../services/activity.js', () => ({ trackActivity: vi.fn() }))
+// PATCH answers with the program re-read through the service (text-activity Task 9); GET runs the real service.
+vi.mock('../../services/program-lessons.service.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../services/program-lessons.service.js')>()),
+  loadProgramPayload,
+}))
 
 import programsRoutes from '../programs.js'
 
@@ -59,11 +66,9 @@ beforeEach(() => {
   prismaMock.user.findUnique.mockResolvedValue({ organizationId: 'o1' })
   prismaMock.studyProgram.findFirst.mockResolvedValue(stored)
   prismaMock.studyProgram.update.mockResolvedValue(stored)
-  prismaMock.studyProgram.findUnique.mockResolvedValue({
-    ...stored,
-    creator: { name: 'Luke Keith' },
-    leader: { name: 'Nathan Reed' },
-  })
+  prismaMock.lesson.count.mockResolvedValue(0)
+  prismaMock.lesson.findMany.mockResolvedValue([])
+  loadProgramPayload.mockResolvedValue({ program: { ...stored, creatorName: 'Luke Keith', leaderName: 'Nathan Reed' } })
   prismaMock.organization.findFirst.mockResolvedValue(null)
   prismaMock.userRole.findFirst.mockResolvedValue({ id: 'r1' })
 })

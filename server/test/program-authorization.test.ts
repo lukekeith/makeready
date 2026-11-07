@@ -55,14 +55,14 @@ describe('Program-level mutation authorization', () => {
     programId = program.id
     for (let day = 1; day <= 2; day++) {
       const lesson = await prisma.lesson.create({
-        data: { studyProgramId: program.id, dayNumber: day },
+        data: { programId: program.id, position: day },
       })
       lessonIds.push(lesson.id)
     }
   })
 
   afterAll(async () => {
-    await prisma.lesson.deleteMany({ where: { studyProgramId: programId } })
+    await prisma.lesson.deleteMany({ where: { programId } })
     await prisma.studyProgram.deleteMany({ where: { organizationId: orgId } })
     await prisma.userRole.deleteMany({ where: { organizationId: orgId } })
     await prisma.role.deleteMany({ where: { organizationId: orgId } })

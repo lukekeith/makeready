@@ -13,6 +13,18 @@ import { extractImageMetadata } from '../services/media-metadata.js'
 import { suggestProgramTags } from '../services/claude.js'
 import { publishProgram } from '../services/program-publish.service.js'
 import { parseContentBody, sendContentError } from '../services/content-errors.js'
+import {
+  createLesson,
+  createProgramFromTemplate,
+  deleteLesson,
+  getProgramForUser,
+  loadProgramPayload,
+  loadTemplate,
+  programContentForAi,
+  reorderLessons,
+  resizeProgramLessons,
+  updateLesson,
+} from '../services/program-lessons.service.js'
 import { extractYouTubeVideoId, fetchYouTubeMetadata } from '../services/youtube.js'
 import { isSuperAdmin, programManageFilter } from '../services/permission.js'
 import { AGE_RANGE_INVERTED_MESSAGE, isAgeRangeInverted } from '../services/group-fields.js'
@@ -23,7 +35,6 @@ import {
   createBlankProgram,
   isEligibleProgramLeader,
   privateProgramVisibility,
-  programReadFilter,
   programListScope,
   toProgramPayload,
 } from '../services/study-program.service.js'
@@ -186,123 +197,30 @@ router.post('/programs', requireAuth, async (req, res) => {
     }
     const templateId = body.templateId
 
-    // Verify template exists and is accessible
-    const template = await prisma.lessonTemplate.findFirst({
-      where: {
-        id: templateId,
-        isActive: true,
-        OR: [
-          { isSystem: true },
-          { creatorId: userId },
-          ...(userOrgId ? [{ organizationId: userOrgId }] : []),
-        ],
-      },
-      include: {
-        activities: {
-          orderBy: { orderNumber: 'asc' },
-        },
-      },
+    // One program, its lessons and their drafts in one transaction (the service owns the template access check).
+    const programId = await createProgramFromTemplate({
+      userId,
+      organizationId: userOrgId ?? null,
+      name: body.name,
+      description: body.description,
+      templateId,
+      days: body.days,
+      coverImageUrl: body.coverImageUrl,
+      isPublished: body.isPublished,
     })
-
-    if (!template) {
+    if (!programId) {
       return res.status(404).json({ success: false, error: 'Template not found' })
     }
 
-    // Create program with lessons in a transaction
-    const program = await prisma.$transaction(async (tx) => {
-      // Create the program
-      const newProgram = await tx.studyProgram.create({
-        data: {
-          name: body.name,
-          description: body.description,
-          templateId,
-          days: body.days,
-          coverImageUrl: body.coverImageUrl,
-          isPublished: body.isPublished,
-          publishedAt: body.isPublished ? new Date() : null,
-          creatorId: userId,
-          leaderId: userId, // ui2-programs D12: led by its creator
-          // userOrgId resolves owners, members, and role-holders (group
-          // leaders) — not just org owners — so leader-created programs are
-          // visible org-wide.
-          organizationId: userOrgId ?? null,
-        },
-      })
-
-      // Create lessons for each day
-      const lessonsData = Array.from({ length: body.days }, (_, i) => ({
-        studyProgramId: newProgram.id,
-        dayNumber: i + 1,
-        title: template.name,
-      }))
-
-      await tx.lesson.createMany({ data: lessonsData })
-
-      // Get created lessons to create activities
-      const lessons = await tx.lesson.findMany({
-        where: { studyProgramId: newProgram.id },
-        orderBy: { dayNumber: 'asc' },
-      })
-
-      // Copy template activities into each lesson
-      const activityData = lessons.flatMap((lesson) =>
-        template.activities.map((ta) => ({
-          lessonId: lesson.id,
-          activityType: ta.type!,
-          orderNumber: ta.orderNumber,
-          title: ta.title,
-          referenceTitle: ta.referenceTitle,
-          helpTitle: ta.helpTitle,
-          helpDescription: ta.helpDescription,
-          helpAlwaysVisible: ta.helpAlwaysVisible,
-          helpIcon: ta.helpIcon,
-        }))
-      )
-
-      await tx.lessonActivity.createMany({ data: activityData })
-
-      // Create default unlocked read block for every READ activity
-      const readActivities = await tx.lessonActivity.findMany({
-        where: {
-          lessonId: { in: lessons.map((l) => l.id) },
-          activityType: 'READ',
-        },
-        select: { id: true },
-      })
-      if (readActivities.length > 0) {
-        await tx.activityReadBlock.createMany({
-          data: readActivities.map((a) => ({
-            lessonActivityId: a.id,
-            orderNumber: 1,
-            isLocked: false,
-          })),
-        })
+    // A program created published needs its baseline version to be enrollable (as the PATCH toggle does).
+    if (body.isPublished) {
+      try {
+        await publishProgram(userId, programId)
+      } catch (versionError) {
+        console.error('Failed to cut baseline program version:', versionError)
       }
-
-      // Return full program with lessons and activities
-      return tx.studyProgram.findUnique({
-        where: { id: newProgram.id },
-        include: {
-          ...PROGRAM_NAME_INCLUDE,
-          template: {
-            select: { id: true, name: true },
-          },
-          lessons: {
-            orderBy: { dayNumber: 'asc' },
-            include: {
-              activities: {
-                orderBy: { orderNumber: 'asc' },
-                include: {
-                  video: true,
-                  sourceReferences: true,
-                  readBlocks: { orderBy: { orderNumber: 'asc' as const }, include: { theme: { select: { id: true, slug: true, name: true } } } },
-                },
-              },
-            },
-          },
-        },
-      })
-    })
+    }
+    const program = (await loadProgramPayload(programId))?.program ?? null
 
     if (program) {
       trackActivity({
@@ -315,7 +233,7 @@ router.post('/programs', requireAuth, async (req, res) => {
       })
     }
 
-    res.json({ success: true, program: program ? toProgramPayload(program) : program })
+    res.json({ success: true, program })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ success: false, error: error.errors })
@@ -661,129 +579,15 @@ router.get('/group-leaders', requireAuth, async (req, res) => {
 
 router.get('/programs/:id', requireAuth, async (req, res) => {
   try {
-    const { id } = req.params
     const userId = (req.user as any).id
-
-    const lessonPage = Math.max(1, parseInt(req.query.lessonPage as string) || 1)
-    const lessonLimit = Math.min(60, Math.max(1, parseInt(req.query.lessonLimit as string) || 30))
-    const lessonSkip = (lessonPage - 1) * lessonLimit
-
-    const program = await prisma.studyProgram.findFirst({
-      where: {
-        id,
-        // ui2-programs D14: the same orgs the list returns.
-        ...(await programReadFilter(userId)),
-        isActive: true,
-      },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        templateId: true,
-        days: true,
-        coverImageUrl: true,
-        creatorId: true,
-        isActive: true,
-        isPublished: true,
-        createdAt: true,
-        updatedAt: true,
-        // ui2-programs D15: the settings, leader and cover framing the program page renders.
-        organizationId: true,
-        leaderId: true,
-        isPrivate: true,
-        ageRangeMin: true,
-        ageRangeMax: true,
-        maxMembers: true,
-        memberDirectoryAccess: true,
-        coverOriginalUrl: true,
-        coverFraming: true,
-        ...PROGRAM_NAME_INCLUDE,
-        template: {
-          select: { id: true, name: true, description: true },
-        },
-        lessons: {
-          orderBy: { dayNumber: 'asc' },
-          skip: lessonSkip,
-          take: lessonLimit,
-          select: {
-            id: true,
-            dayNumber: true,
-            title: true,
-            estimatedMinutes: true,
-            createdAt: true,
-            updatedAt: true,
-            activities: {
-              orderBy: { orderNumber: 'asc' },
-              select: {
-                id: true,
-                activityType: true,
-                orderNumber: true,
-                title: true,
-                isHelpEnabled: true,
-                helpTitle: true,
-                helpDescription: true,
-                helpAlwaysVisible: true,
-                helpIcon: true,
-                readContent: true,
-                themeId: true,
-                videoId: true,
-                videoUrl: true,
-                youtubeUrl: true,
-                youtubeVideoId: true,
-                youtubeStartSeconds: true,
-                youtubeEndSeconds: true,
-                youtubeThumbnailUrl: true,
-                estimatedSeconds: true,
-                video: {
-                  select: {
-                    id: true,
-                    title: true,
-                    playbackUrl: true,
-                    thumbnailUrl: true,
-                    duration: true,
-                    status: true,
-                  },
-                },
-                sourceReferences: true,
-                readBlocks: { orderBy: { orderNumber: 'asc' as const }, include: { theme: { select: { id: true, slug: true, name: true } } } },
-              },
-            },
-          },
-        },
-        tags: {
-          select: { tag: true },
-          orderBy: { createdAt: 'asc' as const },
-        },
-        _count: {
-          select: {
-            lessons: true,
-            enrollments: true,
-          },
-        },
-      },
+    const result = await getProgramForUser(userId, req.params.id, {
+      page: parseInt(req.query.lessonPage as string),
+      limit: parseInt(req.query.lessonLimit as string),
     })
-
-    if (!program) {
+    if (!result) {
       return res.status(404).json({ success: false, error: 'Program not found' })
     }
-
-    const totalLessons = program._count.lessons
-    const totalPages = Math.ceil(totalLessons / lessonLimit)
-
-    res.json({
-      success: true,
-      program: {
-        ...toProgramPayload(program),
-        tags: program.tags.map((t) => t.tag),
-      },
-      pagination: {
-        page: lessonPage,
-        limit: lessonLimit,
-        totalLessons,
-        totalPages,
-        hasMore: lessonPage < totalPages,
-      },
-    })
+    res.json({ success: true, ...result })
   } catch (error) {
     console.error('Error fetching program:', error)
     res.status(500).json({ success: false, error: 'Failed to fetch program' })
@@ -949,66 +753,11 @@ router.patch('/programs/:id', requireAuth, async (req, res) => {
       ? new Date()
       : (body.isPublished === false ? null : undefined)
 
-    // If days changed, handle lesson creation/deletion
+    // If days changed, handle lesson creation/deletion (new lessons come from the new or existing template; D36 removal)
     if (body.days !== undefined && body.days !== existingProgram.days) {
       await prisma.$transaction(async (tx) => {
-        const currentDays = existingProgram.days
-        const newDays = body.days!
-
-        if (newDays > currentDays) {
-          // Resolve template (new or existing) before creating lessons
-          const templateToUse = newTemplate || (existingProgram.templateId ? await tx.lessonTemplate.findUnique({
-            where: { id: existingProgram.templateId },
-            include: { activities: { orderBy: { orderNumber: 'asc' } } },
-          }) : null)
-
-          // Add new lessons with template name as title
-          const newLessonsData = Array.from(
-            { length: newDays - currentDays },
-            (_, i) => ({
-              studyProgramId: id,
-              dayNumber: currentDays + i + 1,
-              title: templateToUse?.name ?? null,
-            })
-          )
-
-          await tx.lesson.createMany({ data: newLessonsData })
-
-          // Copy template activities into new lessons
-          if (templateToUse) {
-            const newLessons = await tx.lesson.findMany({
-              where: {
-                studyProgramId: id,
-                dayNumber: { gt: currentDays },
-              },
-            })
-
-            const activityData = newLessons.flatMap((lesson) =>
-              templateToUse.activities.map((ta) => ({
-                lessonId: lesson.id,
-                activityType: ta.type!,
-                orderNumber: ta.orderNumber,
-                title: ta.title,
-                referenceTitle: ta.referenceTitle,
-                helpTitle: ta.helpTitle,
-                helpDescription: ta.helpDescription,
-                helpAlwaysVisible: ta.helpAlwaysVisible,
-                helpIcon: ta.helpIcon,
-              }))
-            )
-
-            await tx.lessonActivity.createMany({ data: activityData })
-          }
-        } else if (newDays < currentDays) {
-          await tx.lesson.deleteMany({
-            where: {
-              studyProgramId: id,
-              dayNumber: { gt: newDays },
-            },
-          })
-        }
-
-        // Update program
+        const template = newTemplate ?? (await loadTemplate(tx, existingProgram.templateId))
+        await resizeProgramLessons(tx, id, body.days!, template)
         await tx.studyProgram.update({
           where: { id },
           data: {
@@ -1034,31 +783,6 @@ router.patch('/programs/:id', requireAuth, async (req, res) => {
       })
     }
 
-    // Fetch updated program
-    const program = await prisma.studyProgram.findUnique({
-      where: { id },
-      include: {
-        ...PROGRAM_NAME_INCLUDE,
-        template: { select: { id: true, name: true } },
-        lessons: {
-          orderBy: { dayNumber: 'asc' },
-          include: {
-            activities: {
-              orderBy: { orderNumber: 'asc' },
-              include: {
-                video: true,
-                sourceReferences: true,
-                readBlocks: { orderBy: { orderNumber: 'asc' as const }, include: { theme: { select: { id: true, slug: true, name: true } } } },
-              },
-            },
-          },
-        },
-        _count: {
-          select: { enrollments: true },
-        },
-      },
-    })
-
     // Transitioning to published freezes the drafts into the baseline ProgramVersion so
     // enrollments created from here on have a version to sync against (an unchanged program is a no-op).
     if (body.isPublished === true && !existingProgram.isPublished) {
@@ -1069,6 +793,9 @@ router.patch('/programs/:id', requireAuth, async (req, res) => {
         console.error('Failed to cut baseline program version:', versionError)
       }
     }
+
+    // Fetch updated program (after the publish above so its lessons show their published versions)
+    const program = (await loadProgramPayload(id))?.program ?? null
 
     // Track activity: PUBLISHED if toggling to published, otherwise UPDATED
     const action = body.isPublished && !existingProgram.isPublished ? 'PUBLISHED' : 'UPDATED'
@@ -1081,7 +808,7 @@ router.patch('/programs/:id', requireAuth, async (req, res) => {
       organizationId: existingProgram.organizationId,
     })
 
-    res.json({ success: true, program: program ? toProgramPayload(program) : program })
+    res.json({ success: true, program })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ success: false, error: error.errors })
@@ -1171,75 +898,9 @@ router.post('/programs/:id/reorder-lessons', requireAuth, async (req, res) => {
   try {
     const { id } = req.params
     const userId = (req.user as any).id
+    const { lessonOrder } = parseContentBody(z.object({ lessonOrder: z.array(z.string().uuid()).min(1) }), req.body)
 
-    const schema = z.object({
-      lessonOrder: z.array(z.string().uuid()).min(1),
-    })
-
-    const { lessonOrder } = schema.parse(req.body)
-
-    // Verify ownership
-    const program = await prisma.studyProgram.findFirst({
-      where: { id, ...(await mutationFilter(userId)), isActive: true },
-      include: { lessons: true },
-    })
-
-    if (!program) {
-      return res.status(404).json({ success: false, error: 'Program not found' })
-    }
-
-    // Verify all lesson IDs belong to this program
-    const programLessonIds = new Set(program.lessons.map(l => l.id))
-    for (const lessonId of lessonOrder) {
-      if (!programLessonIds.has(lessonId)) {
-        return res.status(400).json({
-          success: false,
-          error: `Lesson ${lessonId} does not belong to this program`,
-        })
-      }
-    }
-
-    if (lessonOrder.length !== program.lessons.length) {
-      return res.status(400).json({
-        success: false,
-        error: `Expected ${program.lessons.length} lessons, got ${lessonOrder.length}`,
-      })
-    }
-
-    // Use transaction with temporary high values to avoid unique constraint conflicts
-    await prisma.$transaction(async (tx) => {
-      // First, set all to high numbers to avoid unique constraint on [studyProgramId, dayNumber]
-      for (let i = 0; i < lessonOrder.length; i++) {
-        await tx.lesson.update({
-          where: { id: lessonOrder[i] },
-          data: { dayNumber: 1000 + i },
-        })
-      }
-      // Then set the correct order
-      for (let i = 0; i < lessonOrder.length; i++) {
-        await tx.lesson.update({
-          where: { id: lessonOrder[i] },
-          data: { dayNumber: i + 1 },
-        })
-      }
-    })
-
-    const updatedProgram = await prisma.studyProgram.findUnique({
-      where: { id },
-      include: {
-        template: { select: { id: true, name: true } },
-        lessons: {
-          orderBy: { dayNumber: 'asc' },
-          include: {
-            activities: {
-              orderBy: { orderNumber: 'asc' },
-              include: { video: true, sourceReferences: true, readBlocks: { orderBy: { orderNumber: 'asc' as const }, include: { theme: { select: { id: true, slug: true, name: true } } } } },
-            },
-          },
-        },
-        _count: { select: { enrollments: true } },
-      },
-    })
+    const program = await reorderLessons(userId, id, lessonOrder)
 
     trackActivity({
       actorId: userId,
@@ -1251,13 +912,9 @@ router.post('/programs/:id/reorder-lessons', requireAuth, async (req, res) => {
       metadata: { reordered: 'lessons' },
     })
 
-    res.json({ success: true, program: updatedProgram })
+    res.json({ success: true, program })
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ success: false, error: error.errors })
-    }
-    console.error('Error reordering lessons:', error)
-    res.status(500).json({ success: false, error: 'Failed to reorder lessons' })
+    sendContentError(res, error)
   }
 })
 
@@ -1410,66 +1067,15 @@ router.delete('/programs/:id/permanent', requireAuth, async (req, res) => {
  *       404:
  *         description: Not found
  */
-router.delete(
-  '/programs/:programId/lessons/:lessonId',
-  requireAuth,
-  async (req, res) => {
-    try {
-      const { programId, lessonId } = req.params
-      const userId = (req.user as any).id
-
-      const program = await prisma.studyProgram.findFirst({
-        where: { id: programId, ...(await mutationFilter(userId)), isActive: true },
-      })
-
-      if (!program) {
-        return res.status(404).json({ success: false, error: 'Program not found' })
-      }
-
-      if (program.days <= 1) {
-        return res.status(400).json({
-          success: false,
-          error: 'Cannot delete the last lesson',
-        })
-      }
-
-      await prisma.$transaction(async (tx) => {
-        const lessonToDelete = await tx.lesson.findUnique({
-          where: { id: lessonId },
-        })
-
-        if (!lessonToDelete || lessonToDelete.studyProgramId !== programId) {
-          throw new Error('Lesson not found')
-        }
-
-        await tx.lesson.delete({ where: { id: lessonId } })
-
-        await tx.lesson.updateMany({
-          where: {
-            studyProgramId: programId,
-            dayNumber: { gt: lessonToDelete.dayNumber! },
-          },
-          data: {
-            dayNumber: { decrement: 1 },
-          },
-        })
-
-        await tx.studyProgram.update({
-          where: { id: programId },
-          data: { days: { decrement: 1 } },
-        })
-      })
-
-      res.json({ success: true })
-    } catch (error) {
-      if ((error as Error).message === 'Lesson not found') {
-        return res.status(404).json({ success: false, error: 'Lesson not found' })
-      }
-      console.error('Error deleting lesson:', error)
-      res.status(500).json({ success: false, error: 'Failed to delete lesson' })
-    }
+router.delete('/programs/:programId/lessons/:lessonId', requireAuth, async (req, res) => {
+  try {
+    const { programId, lessonId } = req.params
+    await deleteLesson((req.user as any).id, lessonId, programId)
+    res.json({ success: true })
+  } catch (error) {
+    sendContentError(res, error)
   }
-)
+})
 // ============================================================================
 // YouTube Metadata
 // ============================================================================
@@ -1604,19 +1210,7 @@ router.post('/programs/:id/cover-image', requireAuth, async (req, res) => {
       { imageData: body.imageData, framing: body.framing, originalData: body.originalData },
     )
 
-    const updatedProgram = await prisma.studyProgram.findUnique({
-      where: { id },
-      include: {
-        ...PROGRAM_NAME_INCLUDE,
-        template: { select: { id: true, name: true } },
-        lessons: {
-          orderBy: { dayNumber: 'asc' },
-          include: {
-            activities: { orderBy: { orderNumber: 'asc' } },
-          },
-        },
-      },
-    })
+    const updatedProgram = (await loadProgramPayload(id))?.program ?? null
 
     // Auto-capture a new image to the program org's media library; a re-edit captures nothing.
     if (body.sourceMediaId) {
@@ -1651,7 +1245,7 @@ router.post('/programs/:id/cover-image', requireAuth, async (req, res) => {
       coverImageUrl: saved.coverImageUrl,
       coverOriginalUrl: saved.coverOriginalUrl,
       coverFraming: saved.coverFraming,
-      program: updatedProgram ? toProgramPayload(updatedProgram) : updatedProgram,
+      program: updatedProgram,
     })
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -1710,122 +1304,23 @@ router.post('/programs/:id/lessons', requireAuth, async (req, res) => {
   try {
     const { id } = req.params
     const userId = (req.user as any).id
+    const body = parseContentBody(z.object({ title: z.string().max(200).nullable().optional() }), req.body ?? {})
 
-    const bodySchema = z.object({
-      title: z.string().max(200).nullable().optional(),
-    })
-    const body = bodySchema.parse(req.body ?? {})
+    const { lesson, media, program } = await createLesson(userId, id, body)
 
-    // Verify program exists and caller has access
-    const program = await prisma.studyProgram.findFirst({
-      where: {
-        id,
-        ...(await mutationFilter(userId)),
-        isActive: true,
-      },
-      include: {
-        template: {
-          include: {
-            activities: {
-              orderBy: { orderNumber: 'asc' },
-            },
-          },
-        },
-      },
+    trackActivity({
+      actorId: userId,
+      action: 'CREATED',
+      resourceType: 'LESSON',
+      resourceId: lesson.id,
+      resourceName: lesson.title || `Day ${lesson.position}`,
+      organizationId: program.organizationId,
+      metadata: { programId: id, programName: program.name },
     })
 
-    if (!program) {
-      return res.status(404).json({ success: false, error: 'Program not found' })
-    }
-
-    const lesson = await prisma.$transaction(async (tx) => {
-      // Find current max dayNumber
-      const maxDay = await tx.lesson.aggregate({
-        where: { studyProgramId: id },
-        _max: { dayNumber: true },
-      })
-      const newDayNumber = (maxDay._max.dayNumber ?? 0) + 1
-
-      // Create the new lesson
-      const newLesson = await tx.lesson.create({
-        data: {
-          studyProgramId: id,
-          dayNumber: newDayNumber,
-          title: body.title ?? program.template?.name ?? null,
-        },
-      })
-
-      // Copy template activities into the lesson
-      if (program.template?.activities.length) {
-        const activityData = program.template.activities.map((ta) => ({
-          lessonId: newLesson.id,
-          activityType: ta.type!,
-          orderNumber: ta.orderNumber,
-          title: ta.title,
-          referenceTitle: ta.referenceTitle,
-          helpTitle: ta.helpTitle,
-          helpDescription: ta.helpDescription,
-          helpAlwaysVisible: ta.helpAlwaysVisible,
-          helpIcon: ta.helpIcon,
-        }))
-
-        await tx.lessonActivity.createMany({ data: activityData })
-
-        // Create default unlocked read block for every READ activity
-        const readActivities = await tx.lessonActivity.findMany({
-          where: { lessonId: newLesson.id, activityType: 'READ' },
-          select: { id: true },
-        })
-        if (readActivities.length > 0) {
-          await tx.activityReadBlock.createMany({
-            data: readActivities.map((a) => ({
-              lessonActivityId: a.id,
-              orderNumber: 1,
-              isLocked: false,
-            })),
-          })
-        }
-      }
-
-      // Sync days count with actual lesson count
-      const lessonCount = await tx.lesson.count({ where: { studyProgramId: id } })
-      await tx.studyProgram.update({
-        where: { id },
-        data: { days: lessonCount },
-      })
-
-      // Return the new lesson with activities
-      return tx.lesson.findUnique({
-        where: { id: newLesson.id },
-        include: {
-          activities: {
-            orderBy: { orderNumber: 'asc' },
-            include: {
-              video: true,
-              sourceReferences: true,
-              readBlocks: { orderBy: { orderNumber: 'asc' as const }, include: { theme: { select: { id: true, slug: true, name: true } } } },
-            },
-          },
-        },
-      })
-    })
-
-    if (lesson) {
-      trackActivity({
-        actorId: userId,
-        action: 'CREATED',
-        resourceType: 'LESSON',
-        resourceId: lesson.id,
-        resourceName: lesson.title || `Day ${lesson.dayNumber}`,
-        organizationId: program.organizationId,
-        metadata: { programId: id, programName: program.name },
-      })
-    }
-
-    res.json({ success: true, lesson })
+    res.json({ success: true, lesson, media })
   } catch (error) {
-    console.error('Error adding lesson to program:', error)
-    res.status(500).json({ success: false, error: 'Failed to add lesson' })
+    sendContentError(res, error)
   }
 })
 
@@ -1876,60 +1371,23 @@ router.patch('/programs/:id/lessons/:lessonId', requireAuth, async (req, res) =>
   try {
     const { id, lessonId } = req.params
     const userId = (req.user as any).id
+    const data = parseContentBody(z.object({ title: z.string().max(200).nullable() }), req.body)
 
-    const updateSchema = z.object({
-      title: z.string().max(200).nullable(),
-    })
-    const data = updateSchema.parse(req.body)
-
-    const program = await prisma.studyProgram.findFirst({
-      where: { id, ...(await mutationFilter(userId)), isActive: true },
-    })
-
-    if (!program) {
-      return res.status(404).json({ success: false, error: 'Program not found' })
-    }
-
-    const lesson = await prisma.lesson.findFirst({
-      where: { id: lessonId, studyProgramId: id },
-    })
-
-    if (!lesson) {
-      return res.status(404).json({ success: false, error: 'Lesson not found' })
-    }
-
-    const updated = await prisma.lesson.update({
-      where: { id: lessonId },
-      data: { title: data.title },
-      include: {
-        activities: {
-          orderBy: { orderNumber: 'asc' },
-          include: {
-            video: true,
-            sourceReferences: true,
-            readBlocks: { orderBy: { orderNumber: 'asc' }, include: { theme: { select: { id: true, slug: true, name: true } } } },
-          },
-        },
-      },
-    })
+    const { lesson, media, program } = await updateLesson(userId, lessonId, data, id)
 
     trackActivity({
       actorId: userId,
       action: 'UPDATED',
       resourceType: 'LESSON',
       resourceId: lessonId,
-      resourceName: updated.title || `Day ${updated.dayNumber}`,
+      resourceName: lesson.title || `Day ${lesson.position}`,
       organizationId: program.organizationId,
       metadata: { programId: id, programName: program.name },
     })
 
-    res.json({ success: true, lesson: updated })
+    res.json({ success: true, lesson, media })
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ success: false, error: error.errors })
-    }
-    console.error('Error updating lesson:', error)
-    res.status(500).json({ success: false, error: 'Failed to update lesson' })
+    sendContentError(res, error)
   }
 })
 
@@ -2395,24 +1853,6 @@ router.post('/programs/:id/suggest-tags', requireAuth, async (req, res) => {
 
     const program = await prisma.studyProgram.findFirst({
       where: { id, ...accessFilter(userOrgId, userId), isActive: true },
-      include: {
-        lessons: {
-          orderBy: { dayNumber: 'asc' },
-          include: {
-            activities: {
-              orderBy: { orderNumber: 'asc' },
-              select: {
-                activityType: true,
-                title: true,
-                referenceTitle: true,
-                readContent: true,
-                helpTitle: true,
-                helpDescription: true,
-              },
-            },
-          },
-        },
-      },
     })
 
     if (!program) {
@@ -2423,11 +1863,7 @@ router.post('/programs/:id/suggest-tags', requireAuth, async (req, res) => {
       name: program.name,
       description: program.description,
       days: program.days,
-      lessons: program.lessons.map((l) => ({
-        dayNumber: l.dayNumber!,
-        title: l.title,
-        activities: l.activities,
-      })),
+      lessons: await programContentForAi(program.id),
     })
 
     res.json({ success: true, tags: result.tags })
@@ -2465,24 +1901,6 @@ router.post('/programs/:id/suggest-and-apply-tags', requireAuth, async (req, res
 
     const program = await prisma.studyProgram.findFirst({
       where: { id, ...(await mutationFilter(userId)), isActive: true },
-      include: {
-        lessons: {
-          orderBy: { dayNumber: 'asc' },
-          include: {
-            activities: {
-              orderBy: { orderNumber: 'asc' },
-              select: {
-                activityType: true,
-                title: true,
-                referenceTitle: true,
-                readContent: true,
-                helpTitle: true,
-                helpDescription: true,
-              },
-            },
-          },
-        },
-      },
     })
 
     if (!program) {
@@ -2493,11 +1911,7 @@ router.post('/programs/:id/suggest-and-apply-tags', requireAuth, async (req, res
       name: program.name,
       description: program.description,
       days: program.days,
-      lessons: program.lessons.map((l) => ({
-        dayNumber: l.dayNumber!,
-        title: l.title,
-        activities: l.activities,
-      })),
+      lessons: await programContentForAi(program.id),
     })
 
     // Apply suggested tags

@@ -5,6 +5,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk'
+import { documentPassages, documentText } from './activity-document.js'
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -26,6 +27,21 @@ export interface TagSuggestion {
   tags: string[]
 }
 
+/** An activity as the prompts read it: its kind and title, and the document the text and scripture come from. */
+export interface ActivityContent {
+  kind: string
+  title: string
+  document: unknown
+}
+
+/** A bible passage's display text: a stored reference when the document has one, else its numeric range. */
+function passageLabel(passage: any): string {
+  const named = passage?.reference ?? passage?.passageReference
+  if (typeof named === 'string' && named) return named
+  const { bookNumber, chapterStart, verseStart, chapterEnd, verseEnd } = passage ?? {}
+  return `book ${bookNumber} ${chapterStart}:${verseStart}-${chapterEnd}:${verseEnd}`
+}
+
 /**
  * Suggest tags for a study program based on its full content.
  * Sends all lessons and activities to Claude and requests 5-10 descriptive tags.
@@ -35,16 +51,9 @@ export async function suggestProgramTags(program: {
   description?: string | null
   days: number
   lessons: {
-    dayNumber: number
+    position: number
     title?: string | null
-    activities: {
-      activityType: string
-      title: string
-      referenceTitle?: string | null
-      readContent?: string | null
-      helpTitle?: string | null
-      helpDescription?: string | null
-    }[]
+    activities: ActivityContent[]
   }[]
 }, model: ClaudeModel = 'sonnet'): Promise<TagSuggestion> {
   // Skip API call if there isn't enough content to analyze
@@ -177,21 +186,16 @@ function buildProgramSummary(program: Parameters<typeof suggestProgramTags>[0]):
   ]
 
   for (const lesson of program.lessons) {
-    lines.push(`--- Day ${lesson.dayNumber}${lesson.title ? `: ${lesson.title}` : ''} ---`)
+    lines.push(`--- Day ${lesson.position}${lesson.title ? `: ${lesson.title}` : ''} ---`)
     for (const activity of lesson.activities) {
-      lines.push(`  [${activity.activityType}] ${activity.title}`)
-      if (activity.referenceTitle) {
-        lines.push(`    Reference: ${activity.referenceTitle}`)
+      lines.push(`  [${activity.kind}] ${activity.title}`)
+      for (const passage of documentPassages(activity.document)) {
+        lines.push(`    Reference: ${passageLabel(passage)}`)
       }
-      if (activity.readContent) {
+      const text = documentText(activity.document)
+      if (text) {
         // Truncate long content to avoid token bloat
-        const content = activity.readContent.length > 500
-          ? activity.readContent.slice(0, 500) + '...'
-          : activity.readContent
-        lines.push(`    Content: ${content}`)
-      }
-      if (activity.helpTitle) {
-        lines.push(`    Help: ${activity.helpTitle}`)
+        lines.push(`    Content: ${text.length > 500 ? text.slice(0, 500) + '...' : text}`)
       }
     }
   }
@@ -205,18 +209,10 @@ function buildProgramSummary(program: Parameters<typeof suggestProgramTags>[0]):
 
 export interface LessonCompletionInput {
   studyProgramName: string
-  dayNumber: number
+  position: number
   lessonTitle: string | null
   // Full lesson content, in the order the member experienced it
-  activities: Array<{
-    type: string
-    title: string
-    helpTitle: string | null
-    helpDescription: string | null
-    readContent: string | null
-    videoTitle: string | null
-    sourceReferences: Array<{ passageReference: string | null }>
-    readBlocks: Array<{ title: string | null; content: string | null }>
+  activities: Array<ActivityContent & {
     // The member's own responses for this activity
     memberNotes: Array<{ type: string; content: string }>
   }>
@@ -235,7 +231,7 @@ function trimmedText(text: string, maxChars = 3000): string {
 function buildLessonCompletionPrompt(input: LessonCompletionInput): string {
   const lines: string[] = [
     `Study program: ${input.studyProgramName}`,
-    `Lesson: Day ${input.dayNumber}${input.lessonTitle ? ` — ${input.lessonTitle}` : ''}`,
+    `Lesson: Day ${input.position}${input.lessonTitle ? ` — ${input.lessonTitle}` : ''}`,
     '',
     '=== LESSON CONTENT (in order) ===',
   ]
@@ -243,19 +239,10 @@ function buildLessonCompletionPrompt(input: LessonCompletionInput): string {
   const memberInputLines: string[] = []
 
   for (const activity of input.activities) {
-    lines.push(`--- [${activity.type}] ${activity.title} ---`)
-    for (const ref of activity.sourceReferences) {
-      if (ref.passageReference) lines.push(`Scripture: ${ref.passageReference}`)
-    }
-    if (activity.videoTitle) lines.push(`Video: ${activity.videoTitle}`)
-    if (activity.readContent) lines.push(trimmedText(activity.readContent))
-    for (const block of activity.readBlocks) {
-      if (block.title) lines.push(`# ${block.title}`)
-      if (block.content) lines.push(trimmedText(block.content))
-    }
-    if (activity.helpTitle || activity.helpDescription) {
-      lines.push(`Prompt: ${[activity.helpTitle, activity.helpDescription].filter(Boolean).join(' — ')}`)
-    }
+    lines.push(`--- [${activity.kind}] ${activity.title} ---`)
+    for (const passage of documentPassages(activity.document)) lines.push(`Scripture: ${passageLabel(passage)}`)
+    const text = documentText(activity.document)
+    if (text) lines.push(trimmedText(text))
 
     for (const note of activity.memberNotes) {
       memberInputLines.push(`[${activity.title} / ${note.type}] ${trimmedText(note.content, 2000)}`)

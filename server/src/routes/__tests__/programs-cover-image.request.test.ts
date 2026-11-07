@@ -10,11 +10,16 @@ const prismaMock = vi.hoisted(() => ({
   studyProgram: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
 }))
 const saveCover = vi.hoisted(() => vi.fn())
+const loadProgramPayload = vi.hoisted(() => vi.fn())
 const captureToLibrary = vi.hoisted(() => vi.fn())
 vi.mock('../../lib/prisma.js', () => ({ prisma: prismaMock, Prisma: {} }))
 vi.mock('../../services/permission.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../services/permission.js')>()),
   programManageFilter: vi.fn().mockResolvedValue({ organizationId: 'o1' }),
+}))
+vi.mock('../../services/program-lessons.service.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../services/program-lessons.service.js')>()),
+  loadProgramPayload,
 }))
 vi.mock('../../services/group-cover.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../services/group-cover.js')>()),
@@ -54,7 +59,7 @@ beforeEach(() => {
     organizationId: 'o1',
     coverOriginalUrl: 'https://img.test/programs/old-original.jpeg',
   })
-  prismaMock.studyProgram.findUnique.mockResolvedValue({ id: 'p1', creator: { name: 'L' }, leader: null })
+  loadProgramPayload.mockResolvedValue({ program: { id: 'p1', creatorName: 'L', leaderName: null } })
   saveCover.mockResolvedValue({
     coverImageUrl: 'https://img.test/programs/program-p1-1.jpeg',
     coverOriginalUrl: 'https://img.test/programs/program-p1-1-original.jpeg',
