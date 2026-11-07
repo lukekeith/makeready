@@ -29,6 +29,9 @@ struct ActivityNewScreen: View {
         /// C-086 `pendingType` as its raw case name (`bibleVerse` … `poll`); "" = interactive.
         /// §3 Creating sets it; §3 Pressed tile renders through it too (see `pendingType` below).
         var pendingType: String
+        /// C-086 `unavailableTypes` as raw case names, for the container to set. Defaults to
+        /// every tile available.
+        var unavailableTypes: [String] = []
         /// §3 Error: the create failed and the "Couldn't add activity" alert is up.
         var createFailed: Bool
     }
@@ -88,7 +91,7 @@ struct ActivityNewScreen: View {
             // all four sides → C-086.
             // §2.4: the space left inside the region below the grid stays empty.
             ScrollView(.vertical) {
-                ActivityTypeGrid(pendingType: pendingType, onSelect: onSelect)
+                ActivityTypeGrid(pendingType: pendingType, unavailableTypes: unavailableTypes, onSelect: onSelect)
                     .ui2Element("C-086 ActivityTypeGrid")
                     .padding(Token.Space.pageMargin)
             }
@@ -116,6 +119,12 @@ struct ActivityNewScreen: View {
     /// not hit-testing. "" (or an unknown name) = interactive.
     private var pendingType: ActivityTypeGrid.ActivityType? {
         ActivityTypeGrid.ActivityType(rawValue: state.pendingType)
+    }
+
+    /// C-086 `unavailableTypes`: the state's raw case names as the grid's set; an unknown name
+    /// is dropped.
+    private var unavailableTypes: Set<ActivityTypeGrid.ActivityType> {
+        Set(state.unavailableTypes.compactMap(ActivityTypeGrid.ActivityType.init(rawValue:)))
     }
 
     /// C-081 `slides`: every slide is a C-061 chip — `image` nil (deviation 8, D52).

@@ -65,13 +65,17 @@ struct ActivityTypeGrid: View {
         }
     }
 
-    // C-086 §4's two rows, one parameter each, in the contract's order (R-05).
+    // C-086 §4's three rows, one parameter each, in the contract's order (R-05).
 
     /// C-086 §4: `pendingType` — the type whose create is in flight; `nil` = interactive.
     /// Required (R-07: the design shows no default).
     let pendingType: ActivityType?
+    /// C-086 §4: `unavailableTypes` — the types that are not available yet. Each stays visible
+    /// in its place, dimmed and inert. The default `[]` leaves every tile available.
+    var unavailableTypes: Set<ActivityType> = []
     /// C-086 §4: `onSelect` — a tile was tapped; the caller creates the activity and sets
-    /// `pendingType` (R-03 / R-04). No render effect; a defaulted no-op.
+    /// `pendingType` (R-03 / R-04). Never called for a type in `unavailableTypes`. No render
+    /// effect; a defaulted no-op.
     var onSelect: (ActivityType) -> Void = { _ in }
 
     var body: some View {
@@ -97,16 +101,22 @@ struct ActivityTypeGrid: View {
 
     /// One C-080 cell at column width; `onTap` → `onSelect(case)` (§5).
     private func tile(_ type: ActivityType) -> some View {
-        ActivityTypeCard(
+        let unavailable = unavailableTypes.contains(type)
+        return ActivityTypeCard(
             glyph: type.glyph,
             title: type.title,
             description: type.description,
             onTap: { onSelect(type) }
         )
         .frame(maxWidth: .infinity)
+        // §2 Unavailable tiles: inert — "the grid disables the C-080 button for that tile, so
+        // C-080's pressed feedback never shows"; not enabled (dimmed trait) for VoiceOver.
+        .disabled(unavailable)
+        // §2 Accessibility: "its accessibility value reads \"Not available yet\"".
+        .accessibilityValue(unavailable ? Self.unavailableValue : "")
         // §2 Pending tile: "renders at 0.6 opacity … applied by the grid around that tile.
-        // No geometry change."
-        .opacity(type == pendingType ? Self.pendingOpacity : 1)
+        // No geometry change." §2 Unavailable tiles: the same value, the same way.
+        .opacity(type == pendingType ? Self.pendingOpacity : unavailable ? Self.unavailableOpacity : 1)
         .ui2Element("Tile \(Self.order[type] ?? 0)")
     }
 
@@ -123,4 +133,11 @@ struct ActivityTypeGrid: View {
     /// OQ-C-080-001 / OQ-C-086-001: the ratified pressed look, "0.6 opacity" — a ruling value
     /// multiplying the tile's own paint, not a colour token.
     private static let pendingOpacity: Double = 0.6
+
+    // FLAGGED LITERAL — C-086 §2 Unavailable tiles: 0.6, no opacity token in 2.0; the same value
+    // as C-080's pressed look and the pending look.
+    private static let unavailableOpacity: Double = 0.6
+
+    /// §2 Accessibility: the unavailable tile's VoiceOver value.
+    private static let unavailableValue = "Not available yet"
 }

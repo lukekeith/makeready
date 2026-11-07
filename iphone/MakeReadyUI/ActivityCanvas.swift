@@ -21,6 +21,9 @@ import SwiftUI
 /// viewport scrolls inside the canvas. Disclosed R-16 exception (§2): it paints its own ground —
 /// `background` is the leader's page property, not chrome.
 ///
+/// §2 Viewer mode (D69): `viewer` keeps the same ground and placement but holds no scroll position
+/// — a viewport-tall clipped window onto the page, moved by the engine's `scrollOffset`.
+///
 /// Controlled (R-01): it holds no value of its own; every gesture leaves through a closure.
 struct ActivityCanvas<Content: View>: View {
     /// §4 `background` — the document's background layer (§2 layer 1, D4; 02 §5).
@@ -53,7 +56,7 @@ struct ActivityCanvas<Content: View>: View {
 
     /// §4 `mode` — which gestures the canvas takes and which overlays it draws.
     enum Mode {
-        case idle, editing, highlighting, manipulating
+        case idle, editing, highlighting, manipulating, viewer
     }
 
     /// §4 `deleteTarget` — OQ-C-091-002 (owner, ratified): armed = 1.15×.
@@ -111,6 +114,8 @@ struct ActivityCanvas<Content: View>: View {
     /// §4 — how far an autoscroll step moved the page (wu), so the caller can re-express the
     /// dragged object's page position and it stays under the finger.
     let onAutoscroll: (CGFloat) -> Void
+    /// §4 — the page's scroll position (wu), supplied each frame by the viewer's engine; `viewer` only.
+    let scrollOffset: CGFloat
 
     /// R-02: how far the page has scrolled (wu), so the viewport-fixed layers stay put.
     @State private var scrolled: CGFloat = 0
@@ -119,13 +124,17 @@ struct ActivityCanvas<Content: View>: View {
 
     /// §2 Units (D1): the reference space. 02 §4.
     private let referenceWidth: CGFloat = 440
-    private let referenceHeight: CGFloat = 956
+    /// Static so `placement(...)` reads them too (a generic type holds no static stored property).
+    private static var referenceHeight: CGFloat { 956 }
+    private var referenceHeight: CGFloat { Self.referenceHeight }
     /// FLAGGED LITERAL — C-091 §2 Sizing: T 107 (clear of the top chrome) / B 85 (end space).
-    private let topInset: CGFloat = 107
-    private let endSpace: CGFloat = 85
+    private static var topInset: CGFloat { 107 }
+    private static var endSpace: CGFloat { 85 }
+    private var topInset: CGFloat { Self.topInset }
+    private var endSpace: CGFloat { Self.endSpace }
     /// GAP — C-091 §2 Sizing: "the pinned action's height", no value stated. 46 = 846 (§2 layer 6,
     /// pill top) to 892 (01 §10: ≈30 above the 34 safe bottom of 956).
-    private let pinnedHeight: CGFloat = 46
+    private static var pinnedHeight: CGFloat { 46 }
     /// FLAGGED LITERAL — C-091 §2 layer 5 (OQ-C-091-002): the delete disc is 44 wu, centred at
     /// 88 % of the viewport height, 1.15× when armed.
     private let deleteDisc: CGFloat = 44
@@ -176,7 +185,8 @@ struct ActivityCanvas<Content: View>: View {
         onResizeWidth: @escaping (CGFloat) -> Void = { _ in },
         scrollInsets: ScrollInsets = .init(),
         dragPoint: CGPoint? = nil,
-        onAutoscroll: @escaping (CGFloat) -> Void = { _ in }
+        onAutoscroll: @escaping (CGFloat) -> Void = { _ in },
+        scrollOffset: CGFloat = 0
     ) {
         self.background = background
         self.mode = mode
@@ -193,6 +203,7 @@ struct ActivityCanvas<Content: View>: View {
         self.scrollInsets = scrollInsets
         self.dragPoint = dragPoint
         self.onAutoscroll = onAutoscroll
+        self.scrollOffset = scrollOffset
     }
 
     var body: some View {
@@ -200,47 +211,66 @@ struct ActivityCanvas<Content: View>: View {
             let unit = proxy.size.width / referenceWidth
             let viewport = proxy.size.height / unit
             let layout = pageLayout(viewport: viewport)
-            // The column is the page plus the insets' empty ends, which the caller's bars cover.
-            let column = layout.height + scrollInsets.top + scrollInsets.bottom
-            let range = column - viewport
-            ScrollViewReader { reader in
-                ScrollView(.vertical) {
-                    VStack(spacing: 0) {
-                        Color.clear.frame(height: scrollInsets.top * unit)
-                        page(viewport: viewport, layout: layout)
-                            .frame(width: referenceWidth, height: layout.height, alignment: .topLeading)
-                            .scaleEffect(unit, anchor: .topLeading)
-                            .frame(width: proxy.size.width, height: layout.height * unit, alignment: .topLeading)
-                            .background {
-                                GeometryReader { scroll in
-                                    Color.clear.onChange(of: scroll.frame(in: .named(scrollSpace)).minY) { _, minY in
-                                        scrolled = -minY / unit
+            if mode == .viewer {
+                viewerWindow(viewport: viewport, layout: layout, unit: unit, width: proxy.size.width)
+            } else {
+                // The column is the page plus the insets' empty ends, which the caller's bars cover.
+                let column = layout.height + scrollInsets.top + scrollInsets.bottom
+                let range = column - viewport
+                ScrollViewReader { reader in
+                    ScrollView(.vertical) {
+                        VStack(spacing: 0) {
+                            Color.clear.frame(height: scrollInsets.top * unit)
+                            page(viewport: viewport, layout: layout)
+                                .frame(width: referenceWidth, height: layout.height, alignment: .topLeading)
+                                .scaleEffect(unit, anchor: .topLeading)
+                                .frame(width: proxy.size.width, height: layout.height * unit, alignment: .topLeading)
+                                .background {
+                                    GeometryReader { scroll in
+                                        Color.clear.onChange(of: scroll.frame(in: .named(scrollSpace)).minY) { _, minY in
+                                            scrolled = -minY / unit
+                                        }
                                     }
                                 }
-                            }
-                        Color.clear.frame(height: scrollInsets.bottom * unit)
+                            Color.clear.frame(height: scrollInsets.bottom * unit)
+                        }
+                        .id(columnID)
                     }
-                    .id(columnID)
-                }
-                .coordinateSpace(.named(scrollSpace))
-                .scrollIndicators(.hidden)
-                .scrollBounceBehavior(.basedOnSize)
-                // §2 Scrolling insets: at rest page y 0 sits at viewport y 0, the top inset above it.
-                .defaultScrollAnchor(columnAnchor(scrolled: 0, range: range))
-                // While an object follows the finger the drag is the object's, not the page's.
-                .scrollDisabled(range <= 0 || mode == .manipulating)
-                // A bar changing height resizes the column; the page stays where it was scrolled.
-                .onChange(of: column) {
-                    if range > 0 { reader.scrollTo(columnID, anchor: columnAnchor(scrolled: scrolled, range: range)) }
-                }
-                .background {
-                    autoscrollClock(viewport: viewport, pageHeight: layout.height) { target in
-                        reader.scrollTo(columnID, anchor: columnAnchor(scrolled: target, range: range))
+                    .coordinateSpace(.named(scrollSpace))
+                    .scrollIndicators(.hidden)
+                    .scrollBounceBehavior(.basedOnSize)
+                    // §2 Scrolling insets: at rest page y 0 sits at viewport y 0, the top inset above it.
+                    .defaultScrollAnchor(columnAnchor(scrolled: 0, range: range))
+                    // While an object follows the finger the drag is the object's, not the page's.
+                    .scrollDisabled(range <= 0 || mode == .manipulating)
+                    // A bar changing height resizes the column; the page stays where it was scrolled.
+                    .onChange(of: column) {
+                        if range > 0 { reader.scrollTo(columnID, anchor: columnAnchor(scrolled: scrolled, range: range)) }
+                    }
+                    .background {
+                        autoscrollClock(viewport: viewport, pageHeight: layout.height) { target in
+                            reader.scrollTo(columnID, anchor: columnAnchor(scrolled: target, range: range))
+                        }
                     }
                 }
             }
         }
         .ui2Element("ActivityCanvas")
+    }
+
+    // MARK: - §2 Viewer mode (D69; OQ-activities-player-001)
+
+    /// A viewport-tall window onto the page, translated up by `scrollOffset` and clipped: no
+    /// ScrollView, and no clamp, animation or memory — the range is the engine's (01 §4).
+    private func viewerWindow(viewport: CGFloat, layout: (offset: CGFloat, height: CGFloat),
+                              unit: CGFloat, width: CGFloat) -> some View {
+        page(viewport: viewport, layout: layout)
+            .frame(width: referenceWidth, height: layout.height, alignment: .topLeading)
+            .scaleEffect(unit, anchor: .topLeading)
+            .frame(width: width, height: layout.height * unit, alignment: .topLeading)
+            .offset(y: -scrollOffset * unit)
+            .frame(width: width, height: viewport * unit, alignment: .topLeading)
+            .clipped()
     }
 
     // MARK: - §2 Scrolling insets and autoscroll
@@ -283,6 +313,23 @@ struct ActivityCanvas<Content: View>: View {
     // MARK: - §2 Sizing (D2; 02 §4)
 
     private func pageLayout(viewport: CGFloat) -> (offset: CGFloat, height: CGFloat) {
+        let placed = Self.placement(viewportHeight: viewport, contentExtent: contentExtent,
+                                    verticalAnchor: verticalAnchor, pinnedAction: pinnedAction, unit: 1)
+        return (placed.offset, placed.pageHeight)
+    }
+
+    /// §2 Placement function (OQ-C-091-006): 02 §4's three steps as a pure function of its
+    /// arguments, so the canvas and the host (the viewer's engine) call the same code.
+    /// `viewportHeight` is in points and `unit` is points per wu (`V = viewportHeight / unit`);
+    /// `contentExtent`, `offset` and `pageHeight` are in wu.
+    static func placement(
+        viewportHeight: CGFloat,
+        contentExtent: ClosedRange<CGFloat>?,
+        verticalAnchor: VerticalAnchor = .center,
+        pinnedAction: Bool = false,
+        unit: CGFloat
+    ) -> (offset: CGFloat, pageHeight: CGFloat) {
+        let viewport = viewportHeight / unit
         var offset = verticalAnchor == .center ? (viewport - referenceHeight) / 2 : 0
         guard let extent = contentExtent else { return (offset, viewport) }
         let bottomInset = endSpace + (pinnedAction ? pinnedHeight : 0)
@@ -301,15 +348,16 @@ struct ActivityCanvas<Content: View>: View {
     private func page(viewport: CGFloat, layout: (offset: CGFloat, height: CGFloat)) -> some View {
         ZStack(alignment: .topLeading) {
             ground(height: layout.height)
-            if reservedZones {
+            if reservedZones && mode != .viewer {
                 reservedZoneGuides(viewport: viewport, layout: layout)
             }
             content()
                 .frame(width: referenceWidth, height: layout.height, alignment: .topLeading)
                 .offset(y: layout.offset)
-                .environment(\.activityCanvasFixedShift, scrolled - layout.offset)
+                // §2 Viewer mode: furniture stays fixed against `V` as it does when the page scrolls.
+                .environment(\.activityCanvasFixedShift, (mode == .viewer ? scrollOffset : scrolled) - layout.offset)
                 .ui2Element("Content")
-            if let widthHandles {
+            if let widthHandles, mode != .viewer {
                 widthHandleLayer(widthHandles)
             }
             if mode == .manipulating {
@@ -342,6 +390,10 @@ struct ActivityCanvas<Content: View>: View {
         .accessibilityAction {
             if mode == .idle { onTapEmpty(CGPoint(x: referenceWidth / 2, y: height / 2)) }
         }
+        // §2 Viewer mode: no touch (01 §12, the stage's one recognizer owns it) and none of the
+        // editor's accessibility (the screen announces the page).
+        .accessibilityHidden(mode == .viewer)
+        .allowsHitTesting(mode != .viewer)
         .ui2Element("Ground")
     }
 

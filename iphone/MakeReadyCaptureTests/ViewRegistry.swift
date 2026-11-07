@@ -128,6 +128,7 @@ private func buildCaptureViewInline(for fixture: CaptureFixture) throws -> AnyVi
     if let view = try buildCaptureViewPart8(fixture, authManager: authManager) { return view }
     if let view = try buildCaptureViewPart9(fixture, authManager: authManager) { return view }
     if let view = try buildCaptureViewPart10(fixture, authManager: authManager) { return view }
+    if let view = try buildCaptureViewPart11(fixture, authManager: authManager) { return view }
     throw ViewRegistryError.unknownView(fixture.view)
 }
 
@@ -3263,14 +3264,330 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
             // C-132 §2: "At the designed 408pt width" — the frozen snapshot's width.
             PreviewFrame(width: 408)
         )
+    case "component.ui2.C-133":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-133: missing state.component")
+        }
+        // C-133 §4 (R-07): every prop is required — a nil is a fixture bug. `thumbFraction` is
+        // `Double?` by contract, where nil is its designed solid-capsule value.
+        guard let ui2C133PageCount = c.pageCount else {
+            throw ViewRegistryError.unknownView("component.ui2.C-133: props.pageCount is required")
+        }
+        guard let ui2C133ActivePage = c.activePage else {
+            throw ViewRegistryError.unknownView("component.ui2.C-133: props.activePage is required")
+        }
+        guard let ui2C133MorphProgress = c.morphProgress else {
+            throw ViewRegistryError.unknownView("component.ui2.C-133: props.morphProgress is required")
+        }
+        guard let ui2C133Visible = c.visible else {
+            throw ViewRegistryError.unknownView("component.ui2.C-133: props.visible is required")
+        }
+        return declareCase(
+            MakeReadyUI.ActivityRail(
+                pageCount: ui2C133PageCount,
+                activePage: ui2C133ActivePage,
+                morphProgress: ui2C133MorphProgress,
+                thumbFraction: c.thumbFraction,
+                visible: ui2C133Visible
+            ),
+            // C-133 §2: a fixed 23 × 88 pill with no master width.
+            PreviewFrame(alignment: .leading, intrinsic: true)
+        )
     case "screen.2.0.library-home":
         // §3 names one state with static copy, so the screen's State has no field and the
         // fixture's props are `{}` — nothing to decode. The canvas is the harness's
         // (CaptureRunner's `screen.*` branch) — the bare screen here.
         return AnyView(MakeReadyUI.LibraryHomeScreen(state: MakeReadyUI.LibraryHomeScreen.State.comingSoon))
+    case "component.ui2.C-134":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-134: missing state.component")
+        }
+        // C-134 §4 (R-07): both are required, so a nil is a fixture bug.
+        guard let ui2C134TopAction = c.topAction.flatMap(MakeReadyUI.ViewerChrome.TopAction.init(rawValue:)) else {
+            throw ViewRegistryError.unknownView("component.ui2.C-134: props.topAction must be share | menu | none")
+        }
+        guard let ui2C134TopInset = c.topInset else {
+            throw ViewRegistryError.unknownView("component.ui2.C-134: props.topInset is required")
+        }
+        return declareCase(
+            MakeReadyUI.ViewerChrome(topAction: ui2C134TopAction, topInset: ui2C134TopInset)
+                // C-134 §3: the component paints no page, so the preview supplies a page-coloured
+                // backdrop — the flat page colour sampled from the frozen crop (#064648), no token.
+                .background(Color(red: 6 / 255, green: 70 / 255, blue: 72 / 255)),
+            // C-134 §2: full width on the recording's 440 pt screen, no outer padding.
+            PreviewFrame(width: 440, margin: 0, alignment: .top)
+        )
     default:
         return nil
     }
+}
+
+/// Part 11 of `buildCaptureView` — nil when `fixture.view` is not one of its cases.
+@MainActor @inline(never)
+private func buildCaptureViewPart11(_ fixture: CaptureFixture, authManager: AuthManager) throws -> AnyView? {
+    switch fixture.view {
+    case "component.ui2.C-135":
+        return try buildUI2C135(fixture)
+    case "component.ui2.C-136":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-136: missing state.component")
+        }
+        // C-136 §4 (R-07): `title` and `bottomInset` are required, so a nil is a fixture bug.
+        guard let ui2C136Title = c.title else {
+            throw ViewRegistryError.unknownView("component.ui2.C-136: props.title is required")
+        }
+        guard let ui2C136BottomInset = c.bottomInset else {
+            throw ViewRegistryError.unknownView("component.ui2.C-136: props.bottomInset is required")
+        }
+        return declareCase(
+            MakeReadyUI.ViewerEndPage(title: ui2C136Title, bottomInset: ui2C136BottomInset),
+            // C-136 §2, OQ-C-136-002: the page fills what it is given, here the recording's
+            // 440 × 956 screen, with no outer padding.
+            PreviewFrame(width: 440, height: 956, margin: 0, alignment: .top)
+        )
+    case "component.ui2.C-137":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-137: missing state.component")
+        }
+        // C-137 §4 (R-07): all five are required, so a nil is a fixture bug.
+        guard let ui2C137Kind = c.kind.flatMap(MakeReadyUI.ActionSheetPreview.Kind.init(rawValue:)) else {
+            throw ViewRegistryError.unknownView("component.ui2.C-137: props.kind must be addToPrayerList | write")
+        }
+        guard let ui2C137Title = c.title else {
+            throw ViewRegistryError.unknownView("component.ui2.C-137: props.title is required")
+        }
+        guard let ui2C137BodyText = c.bodyText else {
+            throw ViewRegistryError.unknownView("component.ui2.C-137: props.bodyText is required")
+        }
+        guard let ui2C137Prompt = c.prompt else {
+            throw ViewRegistryError.unknownView("component.ui2.C-137: props.prompt is required")
+        }
+        guard let ui2C137BottomInset = c.bottomInset else {
+            throw ViewRegistryError.unknownView("component.ui2.C-137: props.bottomInset is required")
+        }
+        return declareCase(
+            MakeReadyUI.ActionSheetPreview(
+                kind: ui2C137Kind,
+                title: ui2C137Title,
+                bodyText: ui2C137BodyText,
+                prompt: ui2C137Prompt,
+                bottomInset: ui2C137BottomInset
+            ),
+            // C-137 §2: the panel fills what the host gives it; on the recording's 440 × 956 screen
+            // its top edge rests 75 pt down, leaving 881. The host places it, so the capture shows
+            // the panel alone at the top of the frame.
+            PreviewFrame(width: 440, height: 881, margin: 0, alignment: .top)
+        )
+    case "component.ui2.C-138":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-138: missing state.component")
+        }
+        // C-138 §4 (R-07): `label` is required, so a nil is a fixture bug.
+        guard let ui2C138Label = c.label else {
+            throw ViewRegistryError.unknownView("component.ui2.C-138: props.label is required")
+        }
+        // C-138 §3: `label-only` needs a nil glyph, and a JSON null cannot be told from an absent
+        // key, so a fixture names `plus-circle` where §3 draws it. An unknown name is a fixture bug.
+        var ui2C138Glyph: MakeReadyUI.GlyphName?
+        if let raw = c.glyph {
+            guard let parsed = MakeReadyUI.GlyphName(rawValue: raw) else {
+                throw ViewRegistryError.unknownView("component.ui2.C-138: unknown glyph \(raw)")
+            }
+            ui2C138Glyph = parsed
+        }
+        return declareCase(
+            MakeReadyUI.InlineActionRow(label: ui2C138Label, glyph: ui2C138Glyph),
+            // C-138 §1: the frozen crop's 336 wide row; no contract height beyond the view's own 44.
+            PreviewFrame(width: 336)
+        )
+    case "component.ui2.C-139":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-139: missing state.component")
+        }
+        // C-139 §4 (R-07): `label` and `unit` are required, so a nil is a fixture bug.
+        guard let ui2C139Label = c.label else {
+            throw ViewRegistryError.unknownView("component.ui2.C-139: props.label is required")
+        }
+        guard let ui2C139Unit = c.unit else {
+            throw ViewRegistryError.unknownView("component.ui2.C-139: props.unit is required")
+        }
+        return declareCase(
+            MakeReadyUI.PinnedActionPill(label: ui2C139Label, unit: ui2C139Unit),
+            // C-139 §2: the host supplies the width, 408 wu (408 × 46 at `unit` 1).
+            PreviewFrame(width: 408 * ui2C139Unit)
+        )
+    case "screen.2.0.activities-player":
+        // Out of line for the same stack-frame reason as C-083.
+        return try buildScreenActivitiesPlayer(fixture)
+    default:
+        return nil
+    }
+}
+
+/// `screen.2.0.activities-player` — the Activity viewer screen preview. See the case in
+/// `buildCaptureViewPart11`.
+@MainActor @inline(never)
+private func buildScreenActivitiesPlayer(_ fixture: CaptureFixture) throws -> AnyView {
+    guard let c = fixture.state?.component else {
+        throw ViewRegistryError.unknownView("screen.2.0.activities-player: missing state.component")
+    }
+    // A missing scalar takes this build's `canvas-short` sample (§3's first state), single-sourced on
+    // the screen's State; a missing list is empty and a missing sheet field "" (no sheet), as State's
+    // own short-array rule reads them. The insets are the fixture device's, so every device renders
+    // correctly.
+    let sample = MakeReadyUI.ActivitiesPlayerScreen.State.canvasShort
+    let device = (fixture.devices.first.flatMap(CaptureDevice.init(rawValue:)) ?? .iphone16ProMax).config
+    let screenSize = device.size ?? CGSize(width: 440, height: 956)
+    // C-135's presenter photos and C-091's page images: the harness resolves the bytes into the
+    // preview module's cache, as the C-135 and C-091 cases do — the view performs no I/O.
+    for string in (c.pagePresenterImageURLs ?? []) + (c.pageImageURLs ?? []) {
+        if let url = URL(string: string), url.scheme?.hasPrefix("http") == true,
+           MakeReadyUI.Ui2ImageCache.shared.image(for: url) == nil,
+           let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
+            MakeReadyUI.Ui2ImageCache.shared.seed(image, for: url)
+        }
+    }
+    return AnyView(MakeReadyUI.ActivitiesPlayerScreen(
+        state: .init(
+            pageCount: c.pageCount ?? sample.pageCount,
+            anchor: c.anchor ?? sample.anchor,
+            drag: c.drag ?? sample.drag,
+            activePage: c.activePage ?? sample.activePage,
+            morphProgress: c.morphProgress ?? sample.morphProgress,
+            thumbFraction: c.thumbFraction,
+            railVisible: c.railVisible ?? sample.railVisible,
+            topAction: c.topAction ?? sample.topAction,
+            topInset: device.safeArea.top,
+            bottomInset: device.safeArea.bottom,
+            pageIndexes: c.pageIndexes ?? [],
+            pageKinds: c.pageKinds ?? [],
+            inner: c.inner ?? [],
+            pageColorHexes: c.pageColorHexes ?? [],
+            pageImageURLs: c.pageImageURLs ?? [],
+            pageImageFocalXs: c.pageImageFocalXs ?? [],
+            pageImageFocalYs: c.pageImageFocalYs ?? [],
+            pageWashHexes: c.pageWashHexes ?? [],
+            pageWashOpacities: c.pageWashOpacities ?? [],
+            pageVerticalAnchors: c.pageVerticalAnchors ?? [],
+            pageTitles: c.pageTitles ?? [],
+            pageBodies: c.pageBodies ?? [],
+            pagePlaceholders: c.pagePlaceholders ?? [],
+            pageCaptionLines: c.pageCaptionLines ?? [],
+            pagePresenterNames: c.pagePresenterNames ?? [],
+            pagePresenterImageURLs: c.pagePresenterImageURLs ?? [],
+            pagePresenterInitials: c.pagePresenterInitials ?? [],
+            pageReferences: c.pageReferences ?? [],
+            pageRemainingTimes: c.pageRemainingTimes ?? [],
+            pageProgresses: c.pageProgresses ?? [],
+            pagePlaying: c.pagePlaying ?? [],
+            pageBuffering: c.pageBuffering ?? [],
+            objectPages: c.objectPages ?? [],
+            objectTexts: c.objectTexts ?? [],
+            objectFonts: c.objectFonts ?? [],
+            objectColors: c.objectColors ?? [],
+            objectWeights: c.objectWeights ?? [],
+            objectSizes: c.objectSizes ?? [],
+            objectAlignments: c.objectAlignments ?? [],
+            objectLabels: c.objectLabels ?? [],
+            objectListStyles: c.objectListStyles ?? [],
+            objectStartNumbers: c.objectStartNumbers ?? [],
+            objectAnimations: c.objectAnimations ?? [],
+            objectAnimationLoops: c.objectAnimationLoops ?? [],
+            objectEffects: c.objectEffects ?? [],
+            objectXs: c.objectXs ?? [],
+            objectYs: c.objectYs ?? [],
+            objectScales: c.objectScales ?? [],
+            objectRotations: c.objectRotations ?? [],
+            objectWidths: c.objectWidths ?? [],
+            objectHeights: c.objectHeights ?? [],
+            markObjects: c.markObjects ?? [],
+            markStarts: c.markStarts ?? [],
+            markEnds: c.markEnds ?? [],
+            markKinds: c.markKinds ?? [],
+            markHrefs: c.markHrefs ?? [],
+            highlightObjects: c.highlightObjects ?? [],
+            highlightStarts: c.highlightStarts ?? [],
+            highlightEnds: c.highlightEnds ?? [],
+            actionPages: c.actionPages ?? [],
+            actionIDs: c.actionIDs ?? [],
+            actionKinds: c.actionKinds ?? [],
+            actionLabels: c.actionLabels ?? [],
+            actionPlacements: c.actionPlacements ?? [],
+            actionValues: c.actionValues ?? [],
+            sheetKind: c.sheetKind ?? "",
+            sheetTitle: c.sheetTitle ?? "",
+            sheetBodyText: c.sheetBodyText ?? "",
+            sheetPrompt: c.sheetPrompt ?? "",
+            animationStart: nil                       // §3: Reduce Motion's rest pose — a still
+        )
+    )
+    // The canvas is the harness's (CaptureRunner's `screen.*` branch), but `.sizeThatFits` proposes
+    // a zero height and this full-screen stack starts at the screen's top (§2): it fills the whole
+    // fixture device under the runner's status bar, and the runner's top padding is undone — the
+    // activities-editor case's mechanism.
+    .frame(width: screenSize.width, height: screenSize.height)
+    .padding(.top, -device.safeArea.top))
+}
+
+/// `component.ui2.C-135` — C-135 VideoPage (out of line for the same stack-frame reason as C-083).
+@MainActor @inline(never)
+private func buildUI2C135(_ fixture: CaptureFixture) throws -> AnyView {
+    guard let c = fixture.state?.component else {
+        throw ViewRegistryError.unknownView("component.ui2.C-135: missing state.component")
+    }
+    // C-135 §4 (R-07): all are required, so a nil is a fixture bug. `presenterImageURL` and
+    // `presenterInitials` are optional by type, where nil follows C-038's fallback chain.
+    guard let captionLines = c.captionLines else {
+        throw ViewRegistryError.unknownView("component.ui2.C-135: props.captionLines is required")
+    }
+    guard let presenterName = c.presenterName else {
+        throw ViewRegistryError.unknownView("component.ui2.C-135: props.presenterName is required")
+    }
+    guard let reference = c.reference?.text else {
+        throw ViewRegistryError.unknownView("component.ui2.C-135: props.reference must be a string")
+    }
+    guard let remainingTime = c.remainingTime else {
+        throw ViewRegistryError.unknownView("component.ui2.C-135: props.remainingTime is required")
+    }
+    guard let progress = c.progress else {
+        throw ViewRegistryError.unknownView("component.ui2.C-135: props.progress is required")
+    }
+    guard let playing = c.playing else {
+        throw ViewRegistryError.unknownView("component.ui2.C-135: props.playing is required")
+    }
+    guard let buffering = c.buffering else {
+        throw ViewRegistryError.unknownView("component.ui2.C-135: props.buffering is required")
+    }
+    guard let bottomInset = c.bottomInset else {
+        throw ViewRegistryError.unknownView("component.ui2.C-135: props.bottomInset is required")
+    }
+    let imageURL = c.presenterImageURL.flatMap(URL.init(string:))
+    // Seed the photo synchronously so the snapshot's single layout pass can render it — same
+    // mechanism and same reason as the C-033 case.
+    if let photoURL = imageURL, photoURL.scheme?.hasPrefix("http") == true,
+       let data = try? Data(contentsOf: photoURL), let image = UIImage(data: data) {
+        MakeReadyUI.Ui2ImageCache.shared.seed(image, for: photoURL)
+    }
+    return declareCase(
+        MakeReadyUI.VideoPage(
+            // C-135 §1 deviation 3: the slot is the host's, so the capture shows a flat mid-grey
+            // stand-in, no token. The gradient and caption box read against it.
+            video: { Color(red: 110 / 255, green: 112 / 255, blue: 114 / 255) },
+            captionLines: captionLines,
+            presenterName: presenterName,
+            presenterImageURL: imageURL,
+            presenterInitials: c.presenterInitials,
+            reference: reference,
+            remainingTime: remainingTime,
+            progress: progress,
+            playing: playing,
+            buffering: buffering,
+            bottomInset: bottomInset
+        ),
+        // C-135 §2, OQ-C-135-004: the page fills what it is given, here the recording's 440 × 956
+        // screen, with no outer padding.
+        PreviewFrame(width: 440, height: 956, margin: 0, alignment: .top)
+    )
 }
 
 /// `screen.2.0.calendar-home` — the calendar-home screen preview. See the case in
@@ -4130,6 +4447,7 @@ private func buildScreenActivityNew(_ fixture: CaptureFixture) throws -> AnyView
             slideLabels: c.slideLabels ?? sample.slideLabels,
             activeID: c.activeID ?? sample.activeID,
             pendingType: c.pendingType ?? sample.pendingType,
+            unavailableTypes: c.unavailableTypes ?? sample.unavailableTypes,
             createFailed: c.createFailed ?? sample.createFailed
         )
     ))
@@ -4233,8 +4551,16 @@ private func buildUI2C086(_ fixture: CaptureFixture) throws -> AnyView {
     } else {
         ui2C086Pending = nil
     }
+    // C-086 §4: `unavailableTypes` defaults to `[]`; every name must be an ActivityType case.
+    let ui2C086Unavailable = try (c.unavailableTypes ?? []).map { raw -> MakeReadyUI.ActivityTypeGrid.ActivityType in
+        guard let type = MakeReadyUI.ActivityTypeGrid.ActivityType(rawValue: raw) else {
+            throw ViewRegistryError.unknownView(
+                "component.ui2.C-086: props.unavailableTypes entries must be bibleVerse|text|video|youtube|write|poll")
+        }
+        return type
+    }
     return declareCase(
-        MakeReadyUI.ActivityTypeGrid(pendingType: ui2C086Pending),
+        MakeReadyUI.ActivityTypeGrid(pendingType: ui2C086Pending, unavailableTypes: Set(ui2C086Unavailable)),
         // C-086 §2: "Designed at 408 wide" — the master width; the height (556) follows from
         // it. Margin and ground live here (R-16).
         PreviewFrame(width: 408)
@@ -4827,8 +5153,9 @@ private func buildUI2C091(_ fixture: CaptureFixture) throws -> AnyView {
     case "editing": ui2C091Mode = .editing
     case "highlighting": ui2C091Mode = .highlighting
     case "manipulating": ui2C091Mode = .manipulating
+    case "viewer": ui2C091Mode = .viewer
     default:
-        throw ViewRegistryError.unknownView("component.ui2.C-091: props.mode must be idle|editing|highlighting|manipulating")
+        throw ViewRegistryError.unknownView("component.ui2.C-091: props.mode must be idle|editing|highlighting|manipulating|viewer")
     }
     let ui2C091DeleteTarget: MakeReadyUI.ActivityCanvas<AnyView>.DeleteTarget?
     switch c.deleteTarget {
@@ -4883,7 +5210,8 @@ private func buildUI2C091(_ fixture: CaptureFixture) throws -> AnyView {
             contentExtent: ui2C091Extent,
             reservedZones: c.reservedZones ?? false,
             pinnedAction: c.pinnedAction ?? false,
-            widthHandles: ui2C091Handles
+            widthHandles: ui2C091Handles,
+            scrollOffset: CGFloat(c.scrollOffset ?? 0)
         ),
         // C-091 §2: 440 wide on the edit frames — the device width, so no page margin (the
         // C-084 precedent); the ground is the canvas's own.
@@ -4937,8 +5265,16 @@ private func ui2C091Child(_ child: CaptureUI2CanvasChild, index: Int) throws -> 
         let highlights: [MakeReadyUI.CanvasTextObject.TextRange] = (child.highlights ?? []).map {
             .init(start: $0.start, end: $0.end, note: nil)
         }
+        let objectMode: MakeReadyUI.CanvasTextObject.Mode
+        switch child.mode {
+        case nil, "editor": objectMode = .editor
+        case "viewer": objectMode = .viewer
+        case let other?:
+            throw ViewRegistryError.unknownView("component.ui2.C-091: content[\(index)] C-092 mode \"\(other)\" must be editor|viewer")
+        }
         let object = MakeReadyUI.CanvasTextObject(
             text: text,
+            mode: objectMode,
             font: font,
             size: CGFloat(size),
             alignment: alignment,
@@ -5572,6 +5908,7 @@ enum ViewRegistry {
         "screen.2.0.enrollments-home",
         "screen.2.0.search-home",
         "screen.2.0.activities-editor",
+        "screen.2.0.activities-player",
         "screen.2.0.edit-cover",
         "component.ui2.C-102",
         "component.ui2.C-105",

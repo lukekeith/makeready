@@ -73,6 +73,7 @@ enum GlyphName: String, CaseIterable {
     case closeOutlineCarbon = "close-outline-carbon"
     case code = "code"
     case colorPicker = "color-picker"
+    case colorSphere = "color-sphere"
     case columns = "columns"
     case columns3 = "columns-3"
     case contact2 = "contact-2"
@@ -155,6 +156,7 @@ enum GlyphName: String, CaseIterable {
     case panelRightClose = "panel-right-close"
     case panelRightOpen = "panel-right-open"
     case partyPopper = "party-popper"
+    case pauseFilled = "pause-filled"
     case pencil = "pencil"
     case percent = "percent"
     case phone = "phone"
@@ -197,7 +199,11 @@ enum GlyphName: String, CaseIterable {
     case tag = "tag"
     case tags = "tags"
     case target = "target"
+    case textAlign = "text-align"
+    case textAnimation = "text-animation"
     case textContent = "text-content"
+    case textFont = "text-font"
+    case textHighlight = "text-highlight"
     case timeCarbon = "time-carbon"
     case trash2 = "trash-2"
     case trendingDown = "trending-down"
@@ -236,7 +242,7 @@ enum GlyphName: String, CaseIterable {
     /// false for a full-colour glyph (a logo, a flag): it keeps its own colours and ignores tint.
     var isTemplate: Bool {
         switch self {
-        case .google: return false
+        case .colorSphere, .google: return false
         default: return true
         }
     }

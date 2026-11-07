@@ -888,6 +888,7 @@ struct CaptureComponent: Codable {
     // ── preview props ──
     // C-086 ActivityTypeGrid build 2026-10-02. `pendingType` is additive.
     let pendingType: String?                   // C-086 — bibleVerse|text|video|youtube|write|poll; nil = interactive
+    let unavailableTypes: [String]?            // C-086 — raw case names of the dimmed, inert tiles; nil = none
     // ── screen activity-new ──
     // Reused as-is: `activeID`, `pendingType` (same names, same types; "" = interactive).
     let slideIDs: [String]?
@@ -1339,6 +1340,73 @@ struct CaptureComponent: Codable {
     let resultImageURLs: [String?]?
     // ── preview props ──
     let isEmpty: Bool?                         // C-052 DayChip — §3d, a day with no content
+    // ── preview props ──
+    // C-133 ActivityRail. Reused as-is: `pageCount` (`Int?`, C-097's). Additive:
+    let activePage: Int?                       // C-133 — zero-based page on the viewport's midline
+    let morphProgress: Double?                 // C-133 — capsule offset from activePage, −1...1
+    let thumbFraction: Double?                 // C-133 — 0...1; nil is a solid capsule
+    let visible: Bool?                         // C-133 — whether the rail shows
+    // ── preview props ──
+    let topAction: String?                     // C-134 ViewerChrome — share | menu | none
+    let topInset: CGFloat?                     // C-134 — the host's top safe-area inset
+    // ── preview props ──
+    // C-135 VideoPage. Reused as-is: `progress` (`Double?`). `reference` is C-135's string here,
+    // read as `.text` (see `CaptureUI2BibleReference`). Additive:
+    let captionLines: [String]?                // C-135 — the current cue's lines, 0 to 2
+    let presenterName: String?                 // C-135
+    let presenterImageURL: String?             // C-135 — passed to C-038 `imageURL`
+    let presenterInitials: String?             // C-135 — passed to C-038 `initials`
+    let remainingTime: String?                 // C-135 — already formatted
+    let playing: Bool?                         // C-135
+    let buffering: Bool?                       // C-135
+    let bottomInset: CGFloat?                  // C-135 — the host's bottom safe-area inset
+    // ── preview props ──
+    let bodyText: String?                      // C-137 ActionSheetPreview — the body's value
+    // ── preview props ──
+    let unit: CGFloat?                         // C-139 PinnedActionPill — the page's width unit
+    // ── screen activities-player ──
+    // Reused as-is: pageCount, activePage, morphProgress, thumbFraction, topAction, the object*,
+    // highlight* and action* arrays (activities-editor's names and types).
+    let anchor: Int?
+    let drag: Double?
+    let inner: [Double]?
+    let railVisible: Bool?
+    let pageIndexes: [Int]?
+    let pageKinds: [String]?
+    let pageColorHexes: [String]?
+    let pageImageURLs: [String]?
+    let pageImageFocalXs: [Double]?
+    let pageImageFocalYs: [Double]?
+    let pageWashHexes: [String]?
+    let pageWashOpacities: [Double]?
+    let pageVerticalAnchors: [String]?
+    let pageTitles: [String]?
+    let pageBodies: [String]?
+    let pagePlaceholders: [String]?
+    let pageCaptionLines: [[String]]?
+    let pagePresenterNames: [String]?
+    let pagePresenterImageURLs: [String]?
+    let pagePresenterInitials: [String]?
+    let pageReferences: [String]?
+    let pageRemainingTimes: [String]?
+    let pageProgresses: [Double]?
+    let pagePlaying: [Bool]?
+    let pageBuffering: [Bool]?
+    let objectPages: [Int]?
+    let objectLabels: [String]?
+    let objectAnimations: [String]?
+    let objectAnimationLoops: [Bool]?
+    let objectEffects: [String]?
+    let markObjects: [Int]?
+    let markStarts: [Int]?
+    let markEnds: [Int]?
+    let markKinds: [String]?
+    let markHrefs: [String]?
+    let actionPages: [Int]?
+    let sheetKind: String?
+    let sheetTitle: String?
+    let sheetBodyText: String?
+    let sheetPrompt: String?
 }
 
 /// C-123 §4 `look` — "Fixtures encode `look` as an object: `{\"kind\": \"<case>\", …associated
@@ -1482,6 +1550,7 @@ struct CaptureUI2CanvasChild: Codable {
     let accessibilityLabel: String?            // C-102
     let label: String?                         // C-105
     let leadingGlyph: String?                  // C-105
+    let mode: String?                          // C-092 — editor | viewer (C-091 `viewer`, D69)
 }
 
 /// C-092 §4 `marks` element — `kind` is bold | italic | link, `href` the link's target.
@@ -1493,6 +1562,10 @@ struct CaptureUI2TextMark: Codable {
 }
 
 /// C-092 §4 `reference: CanvasTextObject.Reference?` — field names are the contract's.
+///
+/// C-135 §4's `reference` is ALSO named `reference` and is a plain string. A contract's prop is
+/// never renamed to dodge a collision and the existing field is never retyped, so this value decodes
+/// both shapes, as `days` does: C-092 reads `start` / `end`, C-135 reads `text`.
 struct CaptureUI2BibleReference: Codable {
     struct Point: Codable {
         let book: String
@@ -1501,6 +1574,20 @@ struct CaptureUI2BibleReference: Codable {
     }
     let start: Point
     let end: Point?
+    let text: String?
+
+    init(from decoder: Decoder) throws {
+        if let plain = try? decoder.singleValueContainer().decode(String.self) {
+            start = Point(book: "", chapter: 0, verse: nil)
+            end = nil
+            text = plain
+            return
+        }
+        let keyed = try decoder.container(keyedBy: CodingKeys.self)
+        start = try keyed.decode(Point.self, forKey: .start)
+        end = try keyed.decodeIfPresent(Point.self, forKey: .end)
+        text = nil
+    }
 }
 
 /// C-092 §4 `transform: CanvasTextObject.Transform` — `rotation` in degrees, `position` as {x, y}.
