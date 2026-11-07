@@ -1,9 +1,9 @@
 size: lg
-state: spec
+state: audited
 next: /builder:resume --path docs/features/text-activity
-head: 75947100
+head: 9a59d8f6
 ticket: none
-branch: docs/activity-viewer
+branch: builder/text-activity
 pr: none
 apps: server+iphone
 contract: open
