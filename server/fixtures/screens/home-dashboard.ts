@@ -98,6 +98,7 @@ export const LATE_DAYS = { min: 1, max: 4 } as const
 
 const HISTORY_ID_BASE = 1_000_000
 const RESUME_ID_BASE = 2_000_000
+const DASHBOARD_VERSION_ID_BASE = 5_000_000
 const RESUME_EVERY_MINUTES = 20
 const RESUME_AFTER_MINUTES = 25
 const TODAY_MARGIN_MS = 5 * 60_000
@@ -378,6 +379,13 @@ export async function full(ctx: FixtureContext): Promise<void> {
     completedAt: along(s, 1),
     lastUpdatedAt: along(s, 1),
   })
+  // The rows the readers now use (text-activity SC5): one lesson-progress row per sitting, on its scheduled lesson.
+  const newProgressRow = (s: Sitting) => ({
+    memberId: s.ml.memberId,
+    scheduledLessonId: s.ml.scheduleId,
+    startedAt: s.openedAt,
+    completedAt: along(s, 1),
+  })
   const openRow = (s: Sitting, n: number, at: Date) => ({
     id: fixtureId('clientEvent', n),
     eventType: 'LESSON_OPENED',
@@ -394,7 +402,16 @@ export async function full(ctx: FixtureContext): Promise<void> {
     scheduledDate: zonedTime(s.ml.date, 12),
   })
 
+  await seedScheduledLessons(ctx, lessons)
   await prisma.memberLessonProgress.createMany({ data: baseSittings.map((s, i) => progressRow(s, i + 1)) })
+  await prisma.lessonProgress.createMany({ data: baseSittings.map(newProgressRow) })
+  await prisma.activityProgress.createMany({
+    data: baseSittings.map((s) => {
+      const activityKey = videoActivityByLesson.get(s.ml.lessonId)
+      if (!activityKey) throw new FixtureError(`schedule ${s.ml.scheduleId} has no VIDEO activity`)
+      return { memberId: s.ml.memberId, scheduledLessonId: s.ml.scheduleId, activityKey, startedAt: along(s, 0.1), completedAt: along(s, 0.6) }
+    }),
+  })
   await prisma.memberVideoProgress.createMany({
     data: baseSittings.map((s, i) => {
       const lessonActivityId = videoActivityByLesson.get(s.ml.lessonId)
@@ -419,6 +436,7 @@ export async function full(ctx: FixtureContext): Promise<void> {
   for (let i = 0; i < historySittings.length; i += CHUNK) {
     const part = historySittings.slice(i, i + CHUNK)
     await prisma.memberLessonProgress.createMany({ data: part.map((s, j) => progressRow(s, HISTORY_ID_BASE + i + j + 1)) })
+    await prisma.lessonProgress.createMany({ data: part.map(newProgressRow) })
     await prisma.clientEvent.createMany({ data: part.map((s, j) => openRow(s, HISTORY_ID_BASE + i + j + 1, s.openedAt)) })
   }
 
@@ -462,6 +480,48 @@ export async function full(ctx: FixtureContext): Promise<void> {
       createdAt: ctx.now,
     },
   })
+}
+
+/**
+ * The scheduled lessons the readers see (text-activity SC5), one per schedule the layer reads — same ids as the
+ * LessonSchedule rows the analytics view still reads — each on a published lesson version, reusing a lesson's
+ * program-level version when an earlier layer already published one.
+ */
+async function seedScheduledLessons(ctx: FixtureContext, lessons: MemberLesson[]): Promise<void> {
+  const { prisma } = ctx
+  const schedules = new Map<string, MemberLesson>()
+  for (const ml of lessons) if (!schedules.has(ml.scheduleId)) schedules.set(ml.scheduleId, ml)
+  const lessonIds = [...new Set([...schedules.values()].map((ml) => ml.lessonId))]
+  const existing = await prisma.lessonVersion.findMany({
+    where: { lessonId: { in: lessonIds }, enrollmentId: null, status: 'PUBLISHED' },
+    orderBy: { number: 'desc' },
+    select: { id: true, lessonId: true },
+  })
+  const versionOf = new Map<string, string>()
+  for (const v of existing) if (!versionOf.has(v.lessonId)) versionOf.set(v.lessonId, v.id)
+  const missing = lessonIds.filter((id) => !versionOf.has(id))
+  const publishedAt = ctx.daysAgo(HISTORY_DAYS + 30)
+  missing.forEach((lessonId, i) => versionOf.set(lessonId, fixtureId('lessonVersion', DASHBOARD_VERSION_ID_BASE + i + 1)))
+  await prisma.lessonVersion.createMany({
+    data: missing.map((lessonId) => ({
+      id: versionOf.get(lessonId)!,
+      lessonId,
+      number: 1,
+      status: 'PUBLISHED' as const,
+      title: 'Lesson',
+      estimatedSeconds: 1500,
+      publishedAt,
+    })),
+  })
+  const rows = [...schedules.values()].map((ml) => ({
+    id: ml.scheduleId,
+    enrollmentId: ml.enrollmentId,
+    lessonId: ml.lessonId,
+    currentVersionId: versionOf.get(ml.lessonId)!,
+    scheduledDate: ctx.at(ml.offset, 12),
+  }))
+  const CHUNK = 5000
+  for (let i = 0; i < rows.length; i += CHUNK) await prisma.scheduledLesson.createMany({ data: rows.slice(i, i + CHUNK) })
 }
 
 type HistoryLesson = Omit<MemberLesson, 'memberId' | 'memberIndex' | 'base'>
