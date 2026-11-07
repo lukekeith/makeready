@@ -50,7 +50,7 @@ tables and needs no progress copy-forward. Rejected: a `document` column on `Les
 (recommended, but the owner chose one spec and accepted one long build and walk).
 
 [^1]: `iphone/MakeReadyUI/Screens/Activities/ActivitiesEditorScreen.swift`
-[^2]: `iphone/MakeReadyUI/Screens/Activities/ActivityNewScreen.swift`, `docs/features/program-lesson-add-activity/SPEC.md`
+[^2]: `iphone/MakeReadyUI/Screens/Activities/ActivityNewScreen.swift`, `docs/features/_archive/program-lesson-add-activity/SPEC.md`
 [^3]: `server/src/routes/programs.ts:2168-3802`, `server/src/routes/enrollments.ts:3163-4709`
 
 ## Apps
