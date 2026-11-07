@@ -377,3 +377,35 @@ group's enrollment home on the iPhone shows the new version.
 | F17 | stale: viewer views, C-086 unavailable tiles and the program-lesson-add-activity merge were described as future work | Corrected in place (§Idea, D15, D21, D28, §iphone) |
 | F18 | The analytics view and search indexes are hand SQL outside the YAML; their rewrite is the largest unscoped server item | SC12; build-time risk: the server task that rewrites them diffs the old and new view column lists and runs `analytics-metrics` tests |
 | F19 | Pass 2 (scoped to the contracts this pass changed) was not run | build-time risk: the server phase's contract tests and the iPhone phase's decoder tests settle the new rows |
+
+## Plan
+
+The plan, task by task: `docs/features/text-activity/PLAN.md` (§PLAN.md).
+
+- Phase 1 · Task 1 · The new model's tables, columns and the one-draft index
+- Phase 1 · Task 2 · The activity document — validation, size, refs, text and hash
+- Phase 1 · Task 3 · Media in documents — access, usage rows, the media map and the delete guards
+- Phase 1 · Task 4 · Reading a draft and a version — access, draft creation, routes
+- Phase 1 · Task 5 · Writing a draft — create, replace, delete, reorder
+- Phase 2 · Task 6 · Remove the old activity surface
+- Phase 2 · Task 7 · The sync core — moving an enrollment onto a program version
+- Phase 2 · Task 8 · Publish
+- Phase 2 · Task 9 · The program read and lesson writes
+- Phase 2 · Task 10 · Templates and the program export file
+- Phase 3 · Task 11 · Enrollment create, home, schedule and next study
+- Phase 3 · Task 12 · The sync routes
+- Phase 3 · Task 13 · Search on versions and documents
+- Phase 3 · Task 14 · The other readers — notes, home, status, share previews, logging
+- Phase 3 · Task 15 · Analytics — the materialized view and its readers
+- Phase 4 · Task 16 · Boot chain, scripts and seeds — and the residual sweep
+- Phase 4 · Task 17 · Fixtures on the new model, and the editor and player screens
+- Phase 4 · Task 18 · Content export and import
+- Phase 4 · Task 19 · The cutover migration, the runbook — and the contract freeze
+- Phase 5 · Task 20 · The d2m request for the editor and player changes
+- Phase 5 · Task 21 · Models and the lenient document decoder
+- Phase 5 · Task 22 · Program-side state and Actions on the new model
+- Phase 5 · Task 23 · Enrollment-side state, Actions and the disk cache
+- Phase 6 · Task 24 · Destinations, the Text tile, entry points and the background pick
+- Phase 6 · Task 25 · The editor container — load, edit buffer, Done, conflicts, back-out
+- Phase 7 · Task 26 · The viewer engine and the shared vectors
+- Phase 7 · Task 27 · The viewer container — load, drive, video and YouTube slots
