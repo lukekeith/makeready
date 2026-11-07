@@ -3,11 +3,11 @@ import { prisma } from '../lib/prisma.js'
 /**
  * Enrollment completion analytics.
  *
- * Reads are computed on-demand from the existing per-member completion records
- * (`member_activity_progress`, `member_video_progress`, `member_lesson_progress`,
- * each carrying a `completedAt`). All queries are scoped to a single enrollment,
- * so the row set is bounded by one group's data and the new composite index
- * `(lessonScheduleId, scheduledActivityId, completedAt)` keeps them fast.
+ * Reads are computed on-demand from the per-member completion records
+ * (`activity_progress` and `lesson_progress`, each carrying a `completedAt`).
+ * All queries are scoped to a single enrollment, so the row set is bounded by
+ * one group's data. Response keys keep their 1.0 names: `lessonScheduleId` is the
+ * ScheduledLesson id and `scheduledActivityId` the activity's `activityKey`.
  *
  * This is the shared join path for enrollment analytics. Future per-member
  * "who completed what & when" detail should be added here as
@@ -52,34 +52,24 @@ export async function getEnrollmentCompletionStats(
   )
   const memberCount = memberRows[0]?.count ?? 0
 
-  // Per-activity distinct-member completion counts. Progress rows are scoped to
-  // this enrollment's lesson schedules so the composite index is used; a LEFT
-  // JOIN keeps activities with zero completions (COUNT DISTINCT NULL = 0).
+  // Per-activity distinct-member completion counts over the activities of each
+  // scheduled lesson's current version. A LEFT JOIN keeps activities with zero
+  // completions (COUNT DISTINCT NULL = 0).
   const activityRows = await prisma.$queryRawUnsafe<
     { lessonScheduleId: string; scheduledActivityId: string; completedCount: number }[]
   >(
-    `SELECT sla."lessonScheduleId" AS "lessonScheduleId",
-            sla.id                 AS "scheduledActivityId",
-            COUNT(DISTINCT comp."memberId")::int AS "completedCount"
-       FROM scheduled_lesson_activities sla
-       JOIN lesson_schedules ls ON ls.id = sla."lessonScheduleId"
-       LEFT JOIN (
-         SELECT map."lessonScheduleId", map."scheduledActivityId", map."memberId"
-           FROM member_activity_progress map
-           JOIN lesson_schedules ls2 ON ls2.id = map."lessonScheduleId"
-          WHERE ls2."enrollmentId" = $1::uuid AND map."completedAt" IS NOT NULL
-         UNION
-         SELECT mvp."lessonScheduleId", mvp."scheduledActivityId", mvp."memberId"
-           FROM member_video_progress mvp
-           JOIN lesson_schedules ls3 ON ls3.id = mvp."lessonScheduleId"
-          WHERE ls3."enrollmentId" = $1::uuid AND mvp."completedAt" IS NOT NULL
-       ) comp
-         ON comp."scheduledActivityId" = sla.id
-        AND comp."lessonScheduleId" = sla."lessonScheduleId"
-      WHERE ls."enrollmentId" = $1::uuid
-        AND ls."removedAt" IS NULL
-        AND (sla."versionId" = ls."currentVersionId" OR sla."versionId" IS NULL)
-      GROUP BY sla."lessonScheduleId", sla.id`,
+    `SELECT sl.id AS "lessonScheduleId",
+            ca."activityKey" AS "scheduledActivityId",
+            COUNT(DISTINCT ap."memberId")::int AS "completedCount"
+       FROM scheduled_lessons sl
+       JOIN content_activities ca ON ca."lessonVersionId" = sl."currentVersionId"
+       LEFT JOIN activity_progress ap
+         ON ap."scheduledLessonId" = sl.id
+        AND ap."activityKey" = ca."activityKey"
+        AND ap."completedAt" IS NOT NULL
+      WHERE sl."enrollmentId" = $1::uuid
+        AND sl."removedAt" IS NULL
+      GROUP BY sl.id, ca."activityKey"`,
     enrollmentId
   )
 
@@ -87,14 +77,14 @@ export async function getEnrollmentCompletionStats(
   const lessonRows = await prisma.$queryRawUnsafe<
     { lessonScheduleId: string; completedCount: number }[]
   >(
-    `SELECT ls.id AS "lessonScheduleId",
-            COUNT(DISTINCT mlp."memberId")::int AS "completedCount"
-       FROM lesson_schedules ls
-       LEFT JOIN member_lesson_progress mlp
-         ON mlp."lessonScheduleId" = ls.id AND mlp."completedAt" IS NOT NULL
-      WHERE ls."enrollmentId" = $1::uuid
-        AND ls."removedAt" IS NULL
-      GROUP BY ls.id`,
+    `SELECT sl.id AS "lessonScheduleId",
+            COUNT(DISTINCT lp."memberId")::int AS "completedCount"
+       FROM scheduled_lessons sl
+       LEFT JOIN lesson_progress lp
+         ON lp."scheduledLessonId" = sl.id AND lp."completedAt" IS NOT NULL
+      WHERE sl."enrollmentId" = $1::uuid
+        AND sl."removedAt" IS NULL
+      GROUP BY sl.id`,
     enrollmentId
   )
 

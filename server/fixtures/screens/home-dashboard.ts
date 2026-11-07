@@ -99,6 +99,7 @@ export const LATE_DAYS = { min: 1, max: 4 } as const
 const HISTORY_ID_BASE = 1_000_000
 const RESUME_ID_BASE = 2_000_000
 const DASHBOARD_VERSION_ID_BASE = 5_000_000
+const DASHBOARD_ACTIVITY_ID_BASE = 5_000_000
 const RESUME_EVERY_MINUTES = 20
 const RESUME_AFTER_MINUTES = 25
 const TODAY_MARGIN_MS = 5 * 60_000
@@ -396,20 +397,24 @@ export async function full(ctx: FixtureContext): Promise<void> {
     groupId: s.ml.groupId,
     enrollmentId: s.ml.enrollmentId,
     studyProgramId: s.ml.studyProgramId,
-    lessonScheduleId: s.ml.scheduleId,
+    scheduledLessonId: s.ml.scheduleId,
     lessonId: s.ml.lessonId,
     dayNumber: s.ml.dayNumber,
     scheduledDate: zonedTime(s.ml.date, 12),
   })
 
-  await seedScheduledLessons(ctx, lessons)
+  await seedScheduledLessons(ctx, lessons, videoActivityByLesson)
   await prisma.memberLessonProgress.createMany({ data: baseSittings.map((s, i) => progressRow(s, i + 1)) })
   await prisma.lessonProgress.createMany({ data: baseSittings.map(newProgressRow) })
   await prisma.activityProgress.createMany({
-    data: baseSittings.map((s) => {
+    data: baseSittings.map((s, i) => {
       const activityKey = videoActivityByLesson.get(s.ml.lessonId)
       if (!activityKey) throw new FixtureError(`schedule ${s.ml.scheduleId} has no VIDEO activity`)
-      return { memberId: s.ml.memberId, scheduledLessonId: s.ml.scheduleId, activityKey, startedAt: along(s, 0.1), completedAt: along(s, 0.6) }
+      // The analytics view's VIDEO_WATCH arm reads the watch snapshot from `state` (SC12); completedAt closes the sitting's moment for sessions.
+      return {
+        memberId: s.ml.memberId, scheduledLessonId: s.ml.scheduleId, activityKey, startedAt: along(s, 0.1), completedAt: along(s, 0.6),
+        state: { watchedSeconds: watched[i], watchPercentage: Math.round((watched[i] / VIDEO_SECONDS) * 1000) / 10, lastWatchedAt: along(s, 0.6).toISOString() },
+      }
     }),
   })
   await prisma.memberVideoProgress.createMany({
@@ -484,33 +489,46 @@ export async function full(ctx: FixtureContext): Promise<void> {
 
 /**
  * The scheduled lessons the readers see (text-activity SC5), one per schedule the layer reads — same ids as the
- * LessonSchedule rows the analytics view still reads — each on a published lesson version, reusing a lesson's
- * program-level version when an earlier layer already published one.
+ * LessonSchedule rows the old tables still hold — each on this layer's own published version of its lesson.
  */
-async function seedScheduledLessons(ctx: FixtureContext, lessons: MemberLesson[]): Promise<void> {
+async function seedScheduledLessons(
+  ctx: FixtureContext,
+  lessons: MemberLesson[],
+  videoActivityByLesson: Map<string, string>,
+): Promise<void> {
   const { prisma } = ctx
   const schedules = new Map<string, MemberLesson>()
   for (const ml of lessons) if (!schedules.has(ml.scheduleId)) schedules.set(ml.scheduleId, ml)
   const lessonIds = [...new Set([...schedules.values()].map((ml) => ml.lessonId))]
-  const existing = await prisma.lessonVersion.findMany({
-    where: { lessonId: { in: lessonIds }, enrollmentId: null, status: 'PUBLISHED' },
-    orderBy: { number: 'desc' },
-    select: { id: true, lessonId: true },
+  // Its own version per lesson, numbered after the lesson's latest: this layer's video activity must not appear in the
+  // program-level version an earlier layer's enrollment reads.
+  const latest = await prisma.lessonVersion.groupBy({
+    by: ['lessonId'], where: { lessonId: { in: lessonIds }, enrollmentId: null }, _max: { number: true },
   })
-  const versionOf = new Map<string, string>()
-  for (const v of existing) if (!versionOf.has(v.lessonId)) versionOf.set(v.lessonId, v.id)
-  const missing = lessonIds.filter((id) => !versionOf.has(id))
+  const nextNumber = new Map(latest.map((v) => [v.lessonId, (v._max.number ?? 0) + 1]))
   const publishedAt = ctx.daysAgo(HISTORY_DAYS + 30)
-  missing.forEach((lessonId, i) => versionOf.set(lessonId, fixtureId('lessonVersion', DASHBOARD_VERSION_ID_BASE + i + 1)))
+  const versionOf = new Map(lessonIds.map((lessonId, i) => [lessonId, fixtureId('lessonVersion', DASHBOARD_VERSION_ID_BASE + i + 1)]))
   await prisma.lessonVersion.createMany({
-    data: missing.map((lessonId) => ({
+    data: lessonIds.map((lessonId) => ({
       id: versionOf.get(lessonId)!,
       lessonId,
-      number: 1,
+      number: nextNumber.get(lessonId) ?? 1,
       status: 'PUBLISHED' as const,
       title: 'Lesson',
       estimatedSeconds: 1500,
       publishedAt,
+    })),
+  })
+  // The view recognises a video through the version's content activity of that key (kind 'video').
+  await prisma.contentActivity.createMany({
+    data: lessonIds.filter((id) => videoActivityByLesson.has(id)).map((lessonId, i) => ({
+      id: fixtureId('contentActivity', DASHBOARD_ACTIVITY_ID_BASE + i + 1),
+      lessonVersionId: versionOf.get(lessonId)!,
+      activityKey: videoActivityByLesson.get(lessonId)!,
+      position: 1,
+      kind: 'video',
+      title: 'Video',
+      document: { schemaVersion: 1, kind: 'video' },
     })),
   })
   const rows = [...schedules.values()].map((ml) => ({

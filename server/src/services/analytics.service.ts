@@ -208,39 +208,41 @@ async function runQualityChecks(client: pg.PoolClient): Promise<void> {
       {
         prefix: 'ap',
         sourceSql: `SELECT COUNT(*)::int AS n
-          FROM member_activity_progress map
-          JOIN lesson_schedules ls ON ls.id = map."lessonScheduleId"
-          JOIN enrollments e ON e.id = ls."enrollmentId"
+          FROM activity_progress ap
+          JOIN scheduled_lessons sl ON sl.id = ap."scheduledLessonId"
+          JOIN enrollments e ON e.id = sl."enrollmentId"
           JOIN groups g ON g.id = e."groupId"
-          LEFT JOIN scheduled_lesson_activities sa ON sa.id = map."scheduledActivityId"
-          WHERE map."completedAt" IS NOT NULL AND (sa.type IS NULL OR sa.type <> 'VIDEO')`,
+          LEFT JOIN content_activities ca ON ca."lessonVersionId" = sl."currentVersionId" AND ca."activityKey" = ap."activityKey"
+          WHERE ap."completedAt" IS NOT NULL AND (ca.kind IS NULL OR ca.kind <> 'video')`,
       },
       {
         prefix: 'vc',
         sourceSql: `SELECT COUNT(*)::int AS n
-          FROM member_video_progress mvp
-          JOIN lesson_schedules ls ON ls.id = mvp."lessonScheduleId"
-          JOIN enrollments e ON e.id = ls."enrollmentId"
+          FROM activity_progress ap
+          JOIN scheduled_lessons sl ON sl.id = ap."scheduledLessonId"
+          JOIN enrollments e ON e.id = sl."enrollmentId"
           JOIN groups g ON g.id = e."groupId"
-          WHERE mvp."completedAt" IS NOT NULL`,
+          JOIN content_activities ca ON ca."lessonVersionId" = sl."currentVersionId" AND ca."activityKey" = ap."activityKey" AND ca.kind = 'video'
+          WHERE ap."completedAt" IS NOT NULL`,
       },
       {
         prefix: 'vw',
         sourceSql: `SELECT COUNT(*)::int AS n
-          FROM member_video_progress mvp
-          JOIN lesson_schedules ls ON ls.id = mvp."lessonScheduleId"
-          JOIN enrollments e ON e.id = ls."enrollmentId"
+          FROM activity_progress ap
+          JOIN scheduled_lessons sl ON sl.id = ap."scheduledLessonId"
+          JOIN enrollments e ON e.id = sl."enrollmentId"
           JOIN groups g ON g.id = e."groupId"
-          WHERE mvp."watchedSeconds" > 0`,
+          JOIN content_activities ca ON ca."lessonVersionId" = sl."currentVersionId" AND ca."activityKey" = ap."activityKey" AND ca.kind = 'video'
+          WHERE CASE WHEN jsonb_typeof(ap.state->'watchedSeconds') = 'number' THEN (ap.state->>'watchedSeconds')::numeric > 0 ELSE FALSE END`,
       },
       {
         prefix: 'lc',
         sourceSql: `SELECT COUNT(*)::int AS n
-          FROM member_lesson_progress mlp
-          JOIN lesson_schedules ls ON ls.id = mlp."lessonScheduleId"
-          JOIN enrollments e ON e.id = ls."enrollmentId"
+          FROM lesson_progress lp
+          JOIN scheduled_lessons sl ON sl.id = lp."scheduledLessonId"
+          JOIN enrollments e ON e.id = sl."enrollmentId"
           JOIN groups g ON g.id = e."groupId"
-          WHERE mlp."completedAt" IS NOT NULL`,
+          WHERE lp."completedAt" IS NOT NULL`,
       },
       {
         prefix: 'nt',
@@ -276,10 +278,10 @@ async function runQualityChecks(client: pg.PoolClient): Promise<void> {
       },
       {
         prefix: 'ls',
-        // One row per schedule × active member of its group (migration 20261025200000, D10 corrected).
+        // One row per scheduled lesson × active member of its group (migration 20261107224949).
         sourceSql: `SELECT COUNT(*)::int AS n
-          FROM lesson_schedules ls
-          JOIN enrollments e ON e.id = ls."enrollmentId"
+          FROM scheduled_lessons sl
+          JOIN enrollments e ON e.id = sl."enrollmentId"
           JOIN groups g ON g.id = e."groupId"
           JOIN group_members gm ON gm."groupId" = e."groupId" AND gm."isActive" AND gm."memberId" IS NOT NULL`,
       },
@@ -909,8 +911,8 @@ async function expectedLessonCompletions(
       SELECT
         (SELECT COUNT(*) FROM group_members gm
           WHERE gm."groupId" = e."groupId" AND gm."isActive" = true) AS member_count,
-        (SELECT COUNT(*) FROM lesson_schedules ls
-          WHERE ls."enrollmentId" = e.id AND ls."removedAt" IS NULL) AS schedule_count
+        (SELECT COUNT(*) FROM scheduled_lessons sl
+          WHERE sl."enrollmentId" = e.id AND sl."removedAt" IS NULL) AS schedule_count
       FROM enrollments e
       JOIN groups g ON g.id = e."groupId"
       ${where.length > 0 ? `WHERE ${where.join(' AND ')}` : ''}

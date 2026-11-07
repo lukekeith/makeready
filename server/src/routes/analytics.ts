@@ -108,7 +108,7 @@ const querySchema = z.object({
       enrollmentId: z.string().min(1).max(64).optional(),
       memberId: z.string().min(1).max(64).optional(),
       lessonScheduleId: z.string().min(1).max(64).optional(),
-      activityType: z.enum(['USER_INPUT', 'READ', 'VIDEO', 'YOUTUBE', 'EXEGESIS']).optional(),
+      activityType: z.string().min(1).max(64).optional(),
       eventType: z.string().min(1).max(64).optional(),
       from: z.string().max(10).optional(),
       to: z.string().max(10).optional(),
@@ -271,8 +271,9 @@ const ingestEventSchema = z.object({
   eventType: z.string().min(1).max(64),
   occurredAt: z.coerce.date(),
   enrollmentId: z.string().min(1).max(64).optional(),
-  lessonScheduleId: z.string().min(1).max(64).optional(),
-  scheduledActivityId: z.string().min(1).max(64).optional(),
+  scheduledLessonId: z.string().min(1).max(64).optional(),
+  activityKey: z.string().min(1).max(64).optional(),
+  kind: z.string().min(1).max(64).optional(),
   value: z.number().finite().min(0).max(1e9).optional(),
   metadata: z.record(z.unknown()).optional(),
 })
@@ -312,8 +313,9 @@ const ingestSchema = z.object({
  *                     eventType: { type: string, example: LESSON_OPENED }
  *                     occurredAt: { type: string, format: date-time }
  *                     enrollmentId: { type: string }
- *                     lessonScheduleId: { type: string }
- *                     scheduledActivityId: { type: string }
+ *                     scheduledLessonId: { type: string }
+ *                     activityKey: { type: string }
+ *                     kind: { type: string, description: "Activity kind; the server overrides it with the kind the activity has in the scheduled lesson's current version" }
  *                     value: { type: number }
  *                     metadata: { type: object }
  *     responses:
@@ -362,46 +364,41 @@ router.post('/events', requireAnySession, ingestLimiter, async (req, res) => {
 
     // Batch-resolve enrichment context from the narrow ids the client sent —
     // the client can never mislabel org/group/program dimensions.
-    const saIds = [...new Set(events.map((e) => e.scheduledActivityId).filter(Boolean))] as string[]
-    const activities =
-      saIds.length > 0
-        ? await prisma.scheduledLessonActivity.findMany({
-            where: { id: { in: saIds } },
-            select: { id: true, type: true, lessonScheduleId: true },
-          })
-        : []
-    const activityById = new Map(activities.map((a) => [a.id, a]))
-
-    const lsIds = [
-      ...new Set(
-        events
-          .map((e) => e.lessonScheduleId ?? activityById.get(e.scheduledActivityId ?? '')?.lessonScheduleId)
-          .filter(Boolean)
-      ),
-    ] as string[]
+    const slIds = [...new Set(events.map((e) => e.scheduledLessonId).filter(Boolean))] as string[]
     const schedules =
-      lsIds.length > 0
-        ? await prisma.lessonSchedule.findMany({
-            where: { id: { in: lsIds } },
+      slIds.length > 0
+        ? await prisma.scheduledLesson.findMany({
+            where: { id: { in: slIds } },
             select: {
               id: true,
               enrollmentId: true,
               lessonId: true,
               scheduledDate: true,
-              lesson: { select: { dayNumber: true } },
+              currentVersionId: true,
+              lesson: { select: { position: true } },
             },
           })
         : []
     const scheduleById = new Map(schedules.map((s) => [s.id, s]))
 
+    // The kind an activity really has in its scheduled lesson's current version, by activityKey.
+    const keyedEvents = events.filter((e) => e.scheduledLessonId && e.activityKey)
+    const currentActivities =
+      keyedEvents.length > 0
+        ? await prisma.contentActivity.findMany({
+            where: {
+              lessonVersionId: { in: [...new Set(schedules.map((s) => s.currentVersionId))] },
+              activityKey: { in: [...new Set(keyedEvents.map((e) => e.activityKey as string))] },
+            },
+            select: { lessonVersionId: true, activityKey: true, kind: true },
+          })
+        : []
+    const kindByVersionKey = new Map(currentActivities.map((a) => [`${a.lessonVersionId}:${a.activityKey}`, a.kind]))
+
     const enrollmentIds = [
       ...new Set(
         events
-          .map((e) => {
-            const lsId =
-              e.lessonScheduleId ?? activityById.get(e.scheduledActivityId ?? '')?.lessonScheduleId
-            return e.enrollmentId ?? (lsId ? scheduleById.get(lsId)?.enrollmentId : undefined)
-          })
+          .map((e) => e.enrollmentId ?? (e.scheduledLessonId ? scheduleById.get(e.scheduledLessonId)?.enrollmentId : undefined))
           .filter(Boolean)
       ),
     ] as string[]
@@ -451,11 +448,11 @@ router.post('/events', requireAnySession, ingestLimiter, async (req, res) => {
       groupId: string | null
       enrollmentId: string | null
       studyProgramId: string | null
-      lessonScheduleId: string | null
+      scheduledLessonId: string | null
       lessonId: string | null
       dayNumber: number | null
-      scheduledActivityId: string | null
-      activityType: string | null
+      activityKey: string | null
+      kind: string | null
       scheduledDate: Date | null
       value: number
       metadata?: object
@@ -470,22 +467,14 @@ router.post('/events', requireAnySession, ingestLimiter, async (req, res) => {
         continue
       }
 
-      const activity = event.scheduledActivityId
-        ? activityById.get(event.scheduledActivityId)
-        : undefined
-      if (event.scheduledActivityId && !activity) {
+      const scheduledLessonId = event.scheduledLessonId ?? null
+      const schedule = scheduledLessonId ? scheduleById.get(scheduledLessonId) : undefined
+      if (scheduledLessonId && !schedule) {
         rejected++
         continue
       }
-
-      const lessonScheduleId = event.lessonScheduleId ?? activity?.lessonScheduleId ?? null
-      const schedule = lessonScheduleId ? scheduleById.get(lessonScheduleId) : undefined
-      if (lessonScheduleId && !schedule) {
-        rejected++
-        continue
-      }
-      // The narrow ids must agree with each other.
-      if (activity && event.lessonScheduleId && activity.lessonScheduleId !== event.lessonScheduleId) {
+      // An activity key only means something inside a scheduled lesson.
+      if (event.activityKey && !schedule) {
         rejected++
         continue
       }
@@ -521,11 +510,14 @@ router.post('/events', requireAnySession, ingestLimiter, async (req, res) => {
         groupId: enrollment?.groupId ?? null,
         enrollmentId,
         studyProgramId: enrollment?.studyProgramId ?? null,
-        lessonScheduleId,
+        scheduledLessonId,
         lessonId: schedule?.lessonId ?? null,
-        dayNumber: schedule?.lesson?.dayNumber ?? null,
-        scheduledActivityId: event.scheduledActivityId ?? null,
-        activityType: activity?.type ?? null,
+        dayNumber: schedule?.lesson?.position ?? null,
+        activityKey: event.activityKey ?? null,
+        kind:
+          (schedule && event.activityKey ? kindByVersionKey.get(`${schedule.currentVersionId}:${event.activityKey}`) : undefined) ??
+          event.kind ??
+          null,
         scheduledDate: schedule?.scheduledDate ?? null,
         value: event.value ?? 1,
         ...(event.metadata ? { metadata: event.metadata as object } : {}),

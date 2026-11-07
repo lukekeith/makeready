@@ -5,12 +5,11 @@
  *
  * Unlike `/api/activity-logs/stats*` (which aggregates the request/audit log),
  * these endpoints aggregate REAL study engagement from member progress:
- *   - activity completions  (member_activity_progress.completedAt)
- *   - video completions      (member_video_progress.completedAt)
+ *   - activity completions  (activity_progress.completedAt)
  *   - study notes created    (study_notes.createdAt)
  *
  * All events are scoped to the groups the requesting leader owns
- * (group.creatorId === userId), via lesson_schedules → enrollments → group.
+ * (group.creatorId === userId), via scheduled_lessons → enrollments → group.
  * API-key callers (server-to-server) see every active group.
  *
  * Response shapes intentionally mirror the iPhone decode models
@@ -79,22 +78,12 @@ function engagementEventsSQL(scopeAll: boolean): string {
     : `AND e."groupId" = ANY($3::uuid[])`
 
   return `
-    SELECT map."completedAt" AS ts
-    FROM member_activity_progress map
-    JOIN lesson_schedules ls ON ls.id = map."lessonScheduleId"
-    JOIN enrollments e ON e.id = ls."enrollmentId"
-    WHERE map."completedAt" IS NOT NULL
-      AND map."completedAt" >= $2
-      ${groupFilter}
-
-    UNION ALL
-
-    SELECT mvp."completedAt" AS ts
-    FROM member_video_progress mvp
-    JOIN lesson_schedules ls2 ON ls2.id = mvp."lessonScheduleId"
-    JOIN enrollments e ON e.id = ls2."enrollmentId"
-    WHERE mvp."completedAt" IS NOT NULL
-      AND mvp."completedAt" >= $2
+    SELECT ap."completedAt" AS ts
+    FROM activity_progress ap
+    JOIN scheduled_lessons sl ON sl.id = ap."scheduledLessonId"
+    JOIN enrollments e ON e.id = sl."enrollmentId"
+    WHERE ap."completedAt" IS NOT NULL
+      AND ap."completedAt" >= $2
       ${groupFilter}
 
     UNION ALL
