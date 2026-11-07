@@ -1,20 +1,27 @@
 /**
  * text-activity Task 18 (D38, SPEC "Export and import"): the export reads old-model rows, the import loads
  * them into the new tables, is idempotent, and keeps a draft edited since the last import.
+ * Runs on an atlas-migrated scratch database (Task 19): the old tables exist there as raw tables only.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { randomBytes } from 'node:crypto'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { prisma } from '../src/lib/prisma.js'
+import { PrismaClient } from '../src/generated/prisma/index.js'
 import { runExport } from '../scripts/content-export.js'
 import { runImport } from '../scripts/content-import.js'
+import { withMigratedScratchDb } from './helpers/master-search-db.js'
+import { seedOldModelDump as seedOld, seedOwner, seedSnapshotScripture as seedSnapshot, type Owner } from './helpers/old-model-dump.js'
 
-const url = process.env.DATABASE_URL!
 const stamp = randomBytes(4).toString('hex')
 const IMAGE = `https://images.test/import-${stamp}.jpg`
-const created = { userId: '', orgId: '', programIds: [] as string[] }
+let url = ''
+let prisma: PrismaClient
+let pg: import('pg').Client
+let owner: Owner
+let release: () => void = () => {}
+let held: Promise<unknown> = Promise.resolve()
 
 const EDITED = {
   schemaVersion: 1, kind: 'text', background: { color: '#123456' },
@@ -22,68 +29,7 @@ const EDITED = {
   actions: [], chrome: { topAction: 'none' }, fallback: { title: 'Edited', body: 'Edited' },
 }
 
-/** Old-model rows for one program: a lesson with a styled READ (splits in two), a USER_INPUT and an EXEGESIS. */
-async function seedOldModelDump(opts: { unpublishedEdit?: boolean } = {}) {
-  const program = await prisma.studyProgram.create({
-    data: {
-      name: `Old program ${stamp}`, days: 1, creatorId: created.userId, organizationId: created.orgId,
-      isPublished: !opts.unpublishedEdit,
-    },
-  })
-  created.programIds.push(program.id)
-  const lesson = await prisma.lesson.create({ data: { studyProgramId: program.id, dayNumber: 1, title: 'Day one' } })
-  const readContent = opts.unpublishedEdit ? 'Edited after publish' : 'Original text'
-  const read = await prisma.lessonActivity.create({
-    data: {
-      lessonId: lesson.id, activityType: 'READ', orderNumber: 1, title: 'Read',
-      readBlocks: {
-        create: [
-          { orderNumber: 1, content: readContent },
-          { orderNumber: 2, content: 'On a picture', backgroundImageUrl: IMAGE },
-        ],
-      },
-    },
-  })
-  const write = await prisma.lessonActivity.create({
-    data: { lessonId: lesson.id, activityType: 'USER_INPUT', orderNumber: 2, title: 'Respond', helpDescription: 'What now?' },
-  })
-  const exegesis = await prisma.lessonActivity.create({
-    data: {
-      lessonId: lesson.id, activityType: 'EXEGESIS', orderNumber: 3, title: 'Romans 1',
-      readBlocks: {
-        create: [{
-          orderNumber: 1, isLocked: true, title: 'Romans 1:1', content: '1 Paul, a servant of Christ Jesus.',
-          contentHighlights: { create: [{ orderNumber: 1, start: 2, end: 6, noteMarkdown: 'Paul' }] },
-        }],
-      },
-    },
-  })
-  if (opts.unpublishedEdit) {
-    // The published snapshot still holds the original text; the live rows above hold the edit.
-    const snapshotLesson = {
-      id: lesson.id, dayNumber: 1, title: 'Day one', contentHash: 'x',
-      activityIds: [read.id, write.id, exegesis.id],
-      content: {
-        title: 'Day one',
-        activities: [
-          { type: 'READ', orderNumber: 1, title: 'Read', readBlocks: [
-            { orderNumber: 1, content: 'Original text', isLocked: false, contentFormat: 'markdown', exegesisHighlights: [] },
-            { orderNumber: 2, content: 'On a picture', isLocked: false, contentFormat: 'markdown', backgroundImageUrl: IMAGE, exegesisHighlights: [] },
-          ], sourceReferences: [] },
-          { type: 'USER_INPUT', orderNumber: 2, title: 'Respond', helpDescription: 'What now?', readBlocks: [], sourceReferences: [] },
-          { type: 'EXEGESIS', orderNumber: 3, title: 'Romans 1', sourceReferences: [], readBlocks: [
-            { orderNumber: 1, isLocked: true, title: 'Romans 1:1', content: '1 Paul, a servant of Christ Jesus.', contentFormat: 'markdown',
-              exegesisHighlights: [{ orderNumber: 1, start: 2, end: 6, noteMarkdown: 'Paul' }] },
-          ] },
-        ],
-      },
-    }
-    await prisma.studyProgramVersion.create({
-      data: { studyProgramId: program.id, versionNumber: 1, snapshot: { lessons: [snapshotLesson] }, lessonHashes: {} },
-    })
-  }
-  return { programId: program.id, lessonId: lesson.id, url }
-}
+const seedOldModelDump = async (opts: { unpublishedEdit?: boolean } = {}) => ({ ...(await seedOld(pg, owner, stamp, IMAGE, opts)), url })
 
 async function exportFrom(dump: { url: string }) {
   const out = mkdtempSync(join(tmpdir(), 'content-bundle-'))
@@ -96,25 +42,26 @@ const importedKeys = (programId: string) =>
 
 describe('content export and import', () => {
   beforeAll(async () => {
-    const user = await prisma.user.create({ data: { email: `import-${stamp}@content.test`, name: `Import ${stamp}` } })
-    const org = await prisma.organization.create({ data: { name: `Import Org ${stamp}`, ownerId: user.id } })
-    created.userId = user.id
-    created.orgId = org.id
-  })
+    await new Promise<void>((ready, fail) => {
+      held = withMigratedScratchDb(async (scratch) => {
+        url = scratch
+        prisma = new PrismaClient({ datasourceUrl: url })
+        const { Client } = await import('pg')
+        pg = new Client({ connectionString: url })
+        await pg.connect()
+        owner = await seedOwner(pg, stamp)
+        ready()
+        await new Promise<void>((r) => { release = r })
+      }).catch(fail)
+    })
+  }, 240_000)
 
   afterAll(async () => {
-    const lessons = await prisma.lesson.findMany({ where: { studyProgramId: { in: created.programIds } }, select: { id: true } })
-    const keys = await prisma.contentActivity.findMany({
-      where: { lessonVersion: { lessonId: { in: lessons.map((l) => l.id) } } }, select: { activityKey: true },
-    })
-    await prisma.studyProgram.updateMany({ where: { id: { in: created.programIds } }, data: { currentVersionId: null } })
-    await prisma.programVersionLesson.deleteMany({ where: { lessonId: { in: lessons.map((l) => l.id) } } })
-    await prisma.studyProgram.deleteMany({ where: { id: { in: created.programIds } } })
-    await prisma.mediaUsage.deleteMany({ where: { resourceId: { in: keys.map((k) => k.activityKey) } } })
-    await prisma.media.deleteMany({ where: { organizationId: created.orgId } })
-    await prisma.organization.deleteMany({ where: { id: created.orgId } })
-    await prisma.user.deleteMany({ where: { id: created.userId } })
-  })
+    await prisma?.$disconnect()
+    await pg?.end()
+    release()
+    await held
+  }, 60_000)
 
   it('imports a published program as version 1 with its lessons, activities and media', async () => {
     const dump = await seedOldModelDump()
@@ -139,7 +86,7 @@ describe('content export and import', () => {
     expect(keys).toEqual([['OLD', 'text'], ['OLD:1', 'text'], ['OLD', 'write'], ['OLD', 'bible']])
 
     const media = await prisma.media.findFirstOrThrow({ where: { url: IMAGE } })
-    expect(media.organizationId).toBe(created.orgId)
+    expect(media.organizationId).toBe(owner.orgId)
     expect(await prisma.mediaUsage.count({ where: { mediaId: media.id, usageType: 'ACTIVITY' } })).toBe(1)
   })
 
@@ -175,48 +122,7 @@ describe('content export and import', () => {
     expect((await prisma.contentActivity.findUniqueOrThrow({ where: { id: draft.id } })).document).toEqual(EDITED)
   })
 
-  /** A published program whose live rows equal its snapshot, in the real snapshot shape (no ref ids, `ref:<n>`, no highlight style). */
-  async function seedSnapshotScripture() {
-    const program = await prisma.studyProgram.create({
-      data: { name: `Snap program ${stamp}`, days: 1, creatorId: created.userId, organizationId: created.orgId, isPublished: true },
-    })
-    created.programIds.push(program.id)
-    const lesson = await prisma.lesson.create({ data: { studyProgramId: program.id, dayNumber: 1, title: 'Day one' } })
-    const ref = { sourceType: 'SCRIPTURE', passageReference: 'Romans 1:1', bookNumber: 45, bookName: 'Romans', chapterStart: 1, chapterEnd: 1, verseStart: 1, verseEnd: 1 }
-    const text = '1 Paul, a servant of Christ Jesus.'
-    const activity = await prisma.lessonActivity.create({
-      data: { lessonId: lesson.id, activityType: 'EXEGESIS', orderNumber: 1, title: 'Romans 1', sourceReferences: { create: [ref] } },
-      include: { sourceReferences: true },
-    })
-    await prisma.activityReadBlock.create({
-      data: {
-        lessonActivityId: activity.id, orderNumber: 1, isLocked: true, content: text, sourceReferenceId: activity.sourceReferences[0].id,
-        contentHighlights: { create: [
-          { orderNumber: 1, start: 2, end: 6, noteMarkdown: 'Paul' },
-          { orderNumber: 2, start: 8, end: 17, noteMarkdown: '', style: 'bold' },
-        ] },
-      },
-    })
-    await prisma.studyProgramVersion.create({
-      data: {
-        studyProgramId: program.id, versionNumber: 1, lessonHashes: {},
-        snapshot: { lessons: [{
-          id: lesson.id, dayNumber: 1, title: 'Day one', contentHash: 'x', activityIds: [activity.id],
-          content: { title: 'Day one', activities: [{
-            type: 'EXEGESIS', orderNumber: 1, title: 'Romans 1', sourceReferences: [ref],
-            readBlocks: [{
-              orderNumber: 1, isLocked: true, title: null, content: text, contentFormat: 'markdown', sourceReferenceId: 'ref:0',
-              exegesisHighlights: [
-                { orderNumber: 1, start: 2, end: 6, noteMarkdown: 'Paul' },
-                { orderNumber: 2, start: 8, end: 17, noteMarkdown: '' },
-              ],
-            }],
-          }] },
-        }] },
-      },
-    })
-    return { programId: program.id, lessonId: lesson.id, url }
-  }
+  const seedSnapshotScripture = async () => ({ ...(await seedSnapshot(pg, owner, stamp)), url })
 
   it('a snapshot scripture block keeps its passages and does not spawn a spurious draft', async () => {
     const dump = await seedSnapshotScripture()

@@ -117,6 +117,68 @@ export async function exportProgram(programId: string, userId: string): Promise<
   return { success: true, buffer, filename: `program-export-${slug}.zip` }
 }
 
+export interface ExportPreview {
+  id: string
+  name: string
+  description: string | null
+  days: number
+  coverImageUrl: string | null
+  isPublished: boolean
+  template: { id: string; name: string } | null
+  createdAt: Date
+  updatedAt: Date
+  counts: {
+    lessons: number
+    activities: number
+    activityTypes: { READ: number; VIDEO: number; USER_INPUT: number }
+    videos: number
+    scriptureReferences: number
+    readBlocks: number
+  }
+}
+
+/** The confirmation summary for an export: counts over the same versions `exportProgram` would write. */
+export async function previewProgramExport(programId: string, userId: string): Promise<ExportPreview | null> {
+  const program = await prisma.studyProgram.findFirst({
+    where: { id: programId, isActive: true },
+    include: { template: { select: { id: true, name: true } } },
+  })
+  if (!program || !(await canManageOrgContent(userId, program.organizationId, program.creatorId))) return null
+
+  const lessons = await prisma.lesson.findMany({ where: { programId, deletedAt: null }, select: { id: true } })
+  const activities: { kind: string; document: Prisma.JsonValue }[] = []
+  for (const lesson of lessons) {
+    const version = await exportedVersion(lesson.id)
+    for (const a of version?.activities ?? []) activities.push({ kind: a.kind, document: a.document })
+  }
+  const documentOf = (a: { document: Prisma.JsonValue }) => (a.document && typeof a.document === 'object' && !Array.isArray(a.document) ? a.document : {}) as Record<string, any>
+  const arrayLength = (value: unknown) => (Array.isArray(value) ? value.length : 0)
+  return {
+    id: program.id,
+    name: program.name,
+    description: program.description,
+    days: program.days,
+    coverImageUrl: program.coverImageUrl,
+    isPublished: program.isPublished,
+    template: program.template,
+    createdAt: program.createdAt,
+    updatedAt: program.updatedAt,
+    counts: {
+      lessons: lessons.length,
+      activities: activities.length,
+      // The preview keeps its 1.0 keys: text and bible read, video and youtube watch, write responds.
+      activityTypes: {
+        READ: activities.filter((a) => a.kind === 'text' || a.kind === 'bible').length,
+        VIDEO: activities.filter((a) => a.kind === 'video' || a.kind === 'youtube').length,
+        USER_INPUT: activities.filter((a) => a.kind === 'write').length,
+      },
+      videos: activities.filter((a) => a.kind === 'video' || a.kind === 'youtube').length,
+      scriptureReferences: activities.reduce((sum, a) => sum + arrayLength(documentOf(a).passages), 0),
+      readBlocks: activities.reduce((sum, a) => sum + arrayLength(documentOf(a).content?.objects), 0),
+    },
+  }
+}
+
 async function createZipBuffer(file: ProgramExportV2): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = []

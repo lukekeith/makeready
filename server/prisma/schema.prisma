@@ -44,14 +44,6 @@ enum HighlightColor {
   PINK
 }
 
-enum TemplateActivityType {
-  USER_INPUT
-  READ
-  VIDEO
-  YOUTUBE
-  EXEGESIS
-}
-
 enum EventType {
   LESSON
   MEETING
@@ -226,11 +218,8 @@ model User {
   preferences          UserPreference[]
   searchHistory        SearchHistory[]
   searchRecentResults  SearchRecentResult[]
-  createdThemes        TextTheme[] @relation("ThemeCreator")
   betaApplications     BetaApplication[]
   sentSmsLogs          SmsLog[] @relation("SmsSender")
-  publishedProgramVersions StudyProgramVersion[] @relation("StudyProgramVersionPublisher")
-  triggeredSyncRuns    EnrollmentSyncRun[] @relation("SyncRunTrigger")
   @@index([organizationId])
   @@index([isSuperAdmin])
   @@index([isActive])
@@ -374,7 +363,6 @@ model Organization {
   roles                Role[]
   userRoles            UserRole[]
   media                Media[]
-  themes               TextTheme[]
   betaApplications     BetaApplication[]
   previewTokens        PreviewToken[]
   @@index([ownerId])
@@ -417,9 +405,6 @@ model Member {
   organizations        MemberOrganization[]
   invitations          Invitation[]
   studyNotes           StudyNote[]
-  activityProgress     MemberActivityProgress[]
-  videoProgress        MemberVideoProgress[]
-  lessonProgress       MemberLessonProgress[]
   aiLessonSummaries    AiLessonSummary[]
   linkedUser           User? @relation("UserMemberLink", fields: [userId], references: [id], onDelete: SetNull)
   preferences          UserPreference[]
@@ -634,8 +619,6 @@ model Video {
   updatedAt            DateTime @updatedAt
 
   user                 User @relation("VideoUploader", fields: [userId], references: [id], onDelete: Cascade)
-  activities           LessonActivity[]
-  scheduledActivities  ScheduledLessonActivity[]
   mediaEntries         Media[]
   @@index([userId])
   @@index([status])
@@ -919,7 +902,6 @@ model LessonTemplate {
   duplicates           LessonTemplate[] @relation("TemplateDuplicate")
   activities           LessonTemplateActivity[]
   programs             StudyProgram[]
-  lessonSchedules      LessonSchedule[]
   @@index([creatorId])
   @@index([isSystem])
   @@index([organizationId])
@@ -929,7 +911,6 @@ model LessonTemplate {
 model LessonTemplateActivity {
   id                   String @id @default(uuid())
   templateId           String
-  type                 TemplateActivityType?
   orderNumber          Int // 1-based position
   title                String // e.g., 'Scripture', 'Observation'
   displayName          String? // Human-readable name for the activity type, e.g., 'Read', 'Study', 'Video'
@@ -961,7 +942,6 @@ model StudyProgram {
   requireResponse      Boolean @default(true) // Frontend flag: require user input before step completion
   isPublished          Boolean @default(false) // Only published programs can be enrolled
   publishedAt          DateTime? // When the program was first published
-  currentVersionNumber Int? // Latest published StudyProgramVersion number; null until first 'Publish updates'. Denormalized for cheap enrollment drift checks.
   creatorId            String
   updatedById          String? // User who last updated this program
   organizationId       String? // Direct org association for efficient filtering
@@ -985,37 +965,15 @@ model StudyProgram {
   creator              User @relation("StudyProgramCreator", fields: [creatorId], references: [id], onDelete: Cascade)
   updatedBy            User? @relation("StudyProgramUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
   leader               User? @relation("StudyProgramLeader", fields: [leaderId], references: [id], onDelete: SetNull)
-  lessons              Lesson[] @relation("LessonStudyProgram")
   enrollments          Enrollment[]
   enrollmentDrafts     EnrollmentDraft[]
   tags                 StudyProgramTag[]
-  versions             StudyProgramVersion[]
   @@index([creatorId])
   @@index([isActive])
   @@index([templateId])
   @@index([leaderId])
   @@index([organizationId])
   @@map("study_programs")
-}
-
-model StudyProgramVersion {
-  id                   String @id @default(uuid())
-  studyProgramId       String
-  versionNumber        Int // 1-based, monotonically increasing per program
-  publishedAt          DateTime @default(now())
-  publishedById        String?
-  changeSummary        String? @db.Text // Claude-generated summary of changes vs previous version; shown in leader notifications
-  snapshot             Json // Full canonical JSON of the program's lessons/activities at publish time (audit + diff source)
-  lessonHashes         Json // Map of lessonId -> canonical content hash at publish time; drives per-lesson sync
-  changedLessonIds     Json? // Lesson IDs added/changed/removed vs previous version; null on baseline (first) publish
-
-  studyProgram         StudyProgram @relation(fields: [studyProgramId], references: [id], onDelete: Cascade)
-  publishedBy          User? @relation("StudyProgramVersionPublisher", fields: [publishedById], references: [id], onDelete: SetNull)
-
-  @@unique([studyProgramId, versionNumber])
-  @@index([studyProgramId])
-  @@index([publishedById])
-  @@map("study_program_versions")
 }
 
 model StudyProgramTag {
@@ -1034,70 +992,18 @@ model StudyProgramTag {
 
 model Lesson {
   id                   String @id @default(uuid())
-  studyProgramId       String? // Old model; becomes programId at the cutover (text-activity D27)
-  dayNumber            Int? // 1-based day number
-  title                String? // Optional display title for lesson card
-  estimatedMinutes     Int? // Calculated time estimate in minutes for all activities
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
-  programId            String? // text-activity SC2: owning program; NOT NULL after the import backfill (Data plan step 3)
-  position             Int? // text-activity SC2: 1-based order within the program (replaces dayNumber)
+  programId            String // text-activity SC2: owning program
+  position             Int // text-activity SC2: 1-based order within the program
   deletedAt            DateTime? // text-activity D36: set instead of a hard delete once any published version exists
 
-  studyProgram         StudyProgram? @relation("LessonStudyProgram", fields: [studyProgramId], references: [id], onDelete: Cascade)
-  program              StudyProgram? @relation("ProgramLessons", fields: [programId], references: [id], onDelete: Cascade)
+  program              StudyProgram @relation("ProgramLessons", fields: [programId], references: [id], onDelete: Cascade)
   versions             LessonVersion[]
   programVersionLessons ProgramVersionLesson[]
   scheduledLessons     ScheduledLesson[]
-  activities           LessonActivity[]
-  schedules            LessonSchedule[]
-
-  @@unique([studyProgramId, dayNumber])
-  @@index([studyProgramId])
   @@index([programId, position])
   @@map("lessons")
-}
-
-model LessonActivity {
-  id                   String @id @default(uuid())
-  lessonId             String
-  activityType         TemplateActivityType // USER_INPUT, READ, VIDEO
-  orderNumber          Int @default(1) // For multiple activities per day
-  title                String // Activity title
-  helpTitle            String?
-  helpDescription      String? @db.Text
-  helpAlwaysVisible    Boolean @default(false)
-  helpIcon             String?
-  placeholder          String? // Custom placeholder text for USER_INPUT activities
-  isHelpEnabled        Boolean @default(true)
-  referenceTitle       String? // Display reference for READ activities, e.g., 'Romans 1:1-5'
-  readContent          String? @db.Text // Markdown for READ activities
-  videoId              String?
-  videoUrl             String? // Cloudflare Stream playback URL
-  themeId              String? // Optional theme for animated rendering
-  youtubeUrl           String? // YouTube video URL for YOUTUBE activities
-  youtubeVideoId       String? // Extracted YouTube video ID
-  youtubeStartSeconds  Int? // Start time in seconds for YouTube clip
-  youtubeEndSeconds    Int? // End time in seconds for YouTube clip
-  youtubeThumbnailUrl  String? // YouTube video thumbnail URL from oEmbed
-  estimatedSeconds     Int? // Calculated time estimate in seconds for this activity
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-
-  lesson               Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  video                Video? @relation(fields: [videoId], references: [id], onDelete: SetNull)
-  theme                TextTheme? @relation(fields: [themeId], references: [id], onDelete: SetNull)
-  sourceReferences     ActivitySourceReference[]
-  readBlocks           ActivityReadBlock[]
-  scheduledCopies      ScheduledLessonActivity[]
-  memberProgress       MemberActivityProgress[]
-  videoProgress        MemberVideoProgress[]
-
-  @@unique([lessonId, orderNumber])
-  @@index([lessonId])
-  @@index([videoId])
-  @@index([themeId])
-  @@map("lesson_activities")
 }
 
 model Enrollment {
@@ -1112,7 +1018,6 @@ model Enrollment {
   requireResponse      Boolean @default(true) // Require user input before step completion
   syncMode             EnrollmentSyncMode @default(OFF) // How this enrollment tracks curriculum updates published to its study program
   lessonAccess         LessonAccess @default(ALL_AT_ONCE) // When lessons open to members: ONE_AT_A_TIME on each lesson's day, ALL_AT_ONCE from the start (ui2-enrollment-create D4)
-  syncedProgramVersionNumber Int? // StudyProgramVersion.versionNumber this enrollment's lessons reflect; null = pre-versioning baseline. Drift = program.currentVersionNumber > this.
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
   createdById          String?
@@ -1126,10 +1031,8 @@ model Enrollment {
   studyProgram         StudyProgram @relation(fields: [studyProgramId], references: [id], onDelete: Cascade)
   createdBy            User? @relation("EnrollmentCreator", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy            User? @relation("EnrollmentUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
-  lessonSchedules      LessonSchedule[]
   events               Event[]
   welcomePost          Post?
-  syncRuns             EnrollmentSyncRun[]
   @@index([groupId])
   @@index([studyProgramId])
   @@index([createdById])
@@ -1162,27 +1065,6 @@ model EnrollmentDraft {
 
   @@unique([groupId, studyProgramId])
   @@map("enrollment_drafts")
-}
-
-model EnrollmentSyncRun {
-  id                   String @id @default(uuid())
-  enrollmentId         String
-  targetProgramVersionNumber Int // StudyProgramVersion.versionNumber this run applies
-  status               SyncRunStatus @default(PENDING)
-  error                String? @db.Text // Last failure message when status = FAILED
-  triggeredById        String? // User who triggered the run (approval-mode apply / manual catch-up); null for automatic fan-out
-  startedAt            DateTime?
-  completedAt          DateTime?
-  createdAt            DateTime @default(now())
-
-  enrollment           Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
-  triggeredBy          User? @relation("SyncRunTrigger", fields: [triggeredById], references: [id], onDelete: SetNull)
-
-  @@unique([enrollmentId, targetProgramVersionNumber])
-  @@index([enrollmentId])
-  @@index([status])
-  @@index([triggeredById])
-  @@map("enrollment_sync_runs")
 }
 
 model LessonVersion {
@@ -1324,60 +1206,6 @@ model ActivityProgress {
   @@map("activity_progress")
 }
 
-model LessonSchedule {
-  id                   String @id @default(uuid())
-  code                 String? @unique // 6-char alphanumeric for deep linking
-  enrollmentId         String
-  lessonId             String? // Source curriculum lesson; null after that lesson is deleted from the curriculum (the schedule owns its content — deletion reaches enrollments only via publish+sync, never by cascade)
-  scheduledDate        DateTime
-  smsSentAt            DateTime?
-  templateId           String? // FK to LessonTemplate for display
-  templateName         String? // Denormalized for fast card rendering
-  title                String? // Display title for lesson card (copied from Lesson)
-  estimatedMinutes     Int? // Snapshot of time estimate at enrollment time
-  currentVersionId     String? // LessonScheduleVersion members without a pin see; null only for pre-backfill legacy rows
-  removedAt            DateTime? // Set when sync removes this lesson from the curriculum but member progress exists (soft-hide: kept for history, excluded from upcoming lists). Schedules with no progress are hard-deleted instead.
-
-  enrollment           Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
-  lesson               Lesson? @relation(fields: [lessonId], references: [id], onDelete: SetNull)
-  template             LessonTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  currentVersion       LessonScheduleVersion? @relation("LessonScheduleCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
-  versions             LessonScheduleVersion[] @relation("LessonScheduleVersions")
-  scheduledActivities  ScheduledLessonActivity[]
-  event                Event?
-  memberProgress       MemberActivityProgress[]
-  videoProgress        MemberVideoProgress[]
-  lessonProgress       MemberLessonProgress[]
-  aiLessonSummaries    AiLessonSummary[]
-
-  @@unique([enrollmentId, lessonId])
-  @@index([enrollmentId])
-  @@index([lessonId])
-  @@index([scheduledDate])
-  @@index([smsSentAt])
-  @@index([code])
-  @@index([currentVersionId])
-  @@map("lesson_schedules")
-}
-
-model LessonScheduleVersion {
-  id                   String @id @default(uuid())
-  lessonScheduleId     String
-  versionNumber        Int // 1-based, monotonically increasing per lesson schedule
-  programVersionNumber Int? // StudyProgramVersion.versionNumber this version was synced from; null for enrollment-time copies and backfilled baselines
-  sourceContentHash    String? // Canonical content hash of the curriculum lesson this version was copied from; compared against StudyProgramVersion.lessonHashes for per-lesson drift
-  publishedAt          DateTime @default(now())
-
-  lessonSchedule       LessonSchedule @relation("LessonScheduleVersions", fields: [lessonScheduleId], references: [id], onDelete: Cascade)
-  currentFor           LessonSchedule[] @relation("LessonScheduleCurrentVersion")
-  activities           ScheduledLessonActivity[]
-  pinnedProgress       MemberLessonProgress[]
-
-  @@unique([lessonScheduleId, versionNumber])
-  @@index([lessonScheduleId])
-  @@map("lesson_schedule_versions")
-}
-
 model Event {
   id                   String @id @default(uuid())
   code                 String? @unique // 6-char alphanumeric
@@ -1404,7 +1232,6 @@ model Event {
   recurrenceGroupId    String? // UUID linking recurring instances
   isRecurrenceParent   Boolean @default(false)
   alertMinutesBefore   Int? // 5, 10, 30, 60, 120, 1440, 2880, 10080
-  lessonScheduleId     String? @unique
   enrollmentId         String? // Quick reference to enrollment
   dayNumber            Int? // Day number in study program (1-based)
   createdById          String?
@@ -1418,7 +1245,6 @@ model Event {
   group                Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
   createdBy            User? @relation("EventCreator", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy            User? @relation("EventUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
-  lessonSchedule       LessonSchedule? @relation(fields: [lessonScheduleId], references: [id], onDelete: SetNull)
   enrollment           Enrollment? @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
   attendees            EventAttendee[]
   attachments          EventAttachment[]
@@ -1547,83 +1373,9 @@ model NoteLink {
   @@map("note_links")
 }
 
-model MemberActivityProgress {
-  id                   String @id @default(uuid())
-  memberId             String
-  lessonScheduleId     String
-  lessonActivityId     String? // Legacy FK, nullable for new records
-  scheduledActivityId  String? // FK to ScheduledLessonActivity
-  startedAt            DateTime @default(now())
-  completedAt          DateTime? // When fully completed
-  lastUpdatedAt        DateTime @updatedAt
-  exegesisVisitedHighlightIds Json? // JSON array of visited ExegesisHighlight IDs for EXEGESIS activities
-
-  member               Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  lessonSchedule       LessonSchedule @relation(fields: [lessonScheduleId], references: [id], onDelete: Cascade)
-  lessonActivity       LessonActivity? @relation(fields: [lessonActivityId], references: [id], onDelete: Cascade)
-  scheduledActivity    ScheduledLessonActivity? @relation(fields: [scheduledActivityId], references: [id], onDelete: Cascade)
-
-  @@unique([memberId, lessonScheduleId, scheduledActivityId])
-  @@index([memberId])
-  @@index([lessonScheduleId])
-  @@index([scheduledActivityId])
-  @@index([memberId, completedAt])
-  @@index([lessonScheduleId, scheduledActivityId, completedAt])
-  @@map("member_activity_progress")
-}
-
-model MemberVideoProgress {
-  id                   String @id @default(uuid())
-  memberId             String
-  lessonScheduleId     String
-  lessonActivityId     String? // Legacy FK, nullable for new records
-  scheduledActivityId  String? // FK to ScheduledLessonActivity
-  watchedSeconds       Int @default(0)
-  totalDuration        Int? // Total video duration in seconds
-  watchPercentage      Float @default(0)
-  startedAt            DateTime @default(now())
-  lastWatchedAt        DateTime @updatedAt
-  completedAt          DateTime? // Set when >= 90% watched
-
-  member               Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  lessonSchedule       LessonSchedule @relation(fields: [lessonScheduleId], references: [id], onDelete: Cascade)
-  lessonActivity       LessonActivity? @relation(fields: [lessonActivityId], references: [id], onDelete: Cascade)
-  scheduledActivity    ScheduledLessonActivity? @relation(fields: [scheduledActivityId], references: [id], onDelete: Cascade)
-
-  @@unique([memberId, lessonScheduleId, scheduledActivityId])
-  @@index([memberId])
-  @@index([lessonScheduleId])
-  @@index([scheduledActivityId])
-  @@index([memberId, completedAt])
-  @@index([lessonScheduleId, scheduledActivityId, completedAt])
-  @@map("member_video_progress")
-}
-
-model MemberLessonProgress {
-  id                   String @id @default(uuid())
-  memberId             String
-  lessonScheduleId     String
-  startedAt            DateTime @default(now())
-  completedAt          DateTime? // Set when all activities in the lesson are complete
-  pinnedVersionId      String? // LessonScheduleVersion stamped at completion; pinned members render this version forever. Null = member floats to the schedule's currentVersion.
-  lastUpdatedAt        DateTime @updatedAt
-
-  member               Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  lessonSchedule       LessonSchedule @relation(fields: [lessonScheduleId], references: [id], onDelete: Cascade)
-  pinnedVersion        LessonScheduleVersion? @relation(fields: [pinnedVersionId], references: [id], onDelete: SetNull)
-
-  @@unique([memberId, lessonScheduleId])
-  @@index([memberId])
-  @@index([lessonScheduleId])
-  @@index([memberId, completedAt])
-  @@index([pinnedVersionId])
-  @@map("member_lesson_progress")
-}
-
 model AiLessonSummary {
   id                   String @id @default(uuid())
   memberId             String
-  lessonScheduleId     String?
   lessonSummary        String @db.Text // AI-generated summary of the lesson and its contents
   memberSummary        String? @db.Text // AI-generated summary of what the member learned from their input; null when the member entered nothing substantive (kept null for analytics)
   model                String // Claude model ID that generated the summaries
@@ -1632,156 +1384,10 @@ model AiLessonSummary {
   scheduledLessonId    String? // text-activity SC5: the ScheduledLesson summarised (replaces lessonScheduleId)
 
   member               Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  lessonSchedule       LessonSchedule? @relation(fields: [lessonScheduleId], references: [id], onDelete: Cascade)
   scheduledLesson      ScheduledLesson? @relation(fields: [scheduledLessonId], references: [id], onDelete: Cascade)
-
-  @@unique([memberId, lessonScheduleId])
   @@index([memberId])
-  @@index([lessonScheduleId])
   @@index([createdAt])
   @@map("ai_lesson_summaries")
-}
-
-model ScheduledLessonActivity {
-  id                   String @id @default(uuid())
-  lessonScheduleId     String
-  type                 TemplateActivityType
-  orderNumber          Int
-  title                String
-  helpTitle            String?
-  helpDescription      String? @db.Text
-  helpAlwaysVisible    Boolean @default(false)
-  helpIcon             String?
-  placeholder          String? // Custom placeholder text for USER_INPUT activities
-  isHelpEnabled        Boolean @default(true) // Whether help info (helpTitle/helpDescription) is shown to members
-  referenceTitle       String? // Display reference for READ activities, e.g., 'Romans 1:1-5'
-  readContent          String? @db.Text // Markdown for READ activities
-  videoId              String?
-  videoUrl             String?
-  youtubeUrl           String? // YouTube video URL for YOUTUBE activities
-  youtubeVideoId       String? // Extracted YouTube video ID
-  youtubeStartSeconds  Int? // Start time in seconds for YouTube clip
-  youtubeEndSeconds    Int? // End time in seconds for YouTube clip
-  youtubeThumbnailUrl  String? // YouTube video thumbnail URL from oEmbed
-  estimatedSeconds     Int? // Calculated time estimate in seconds for this activity
-  sourceLessonActivityId String? // Link back to source LessonActivity for reload
-  versionId            String? // LessonScheduleVersion this activity belongs to; null only for pre-backfill legacy rows
-  lineageKey           String? // Stable identity across versions = source LessonActivity.id at copy time (plain value, no FK, so curriculum deletes can't sever it). Drives member progress carry-forward. Null for leader-added custom activities.
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-
-  lessonSchedule       LessonSchedule @relation(fields: [lessonScheduleId], references: [id], onDelete: Cascade)
-  version              LessonScheduleVersion? @relation(fields: [versionId], references: [id], onDelete: Cascade)
-  video                Video? @relation(fields: [videoId], references: [id], onDelete: SetNull)
-  sourceLessonActivity LessonActivity? @relation(fields: [sourceLessonActivityId], references: [id], onDelete: SetNull)
-  sourceReferences     ActivitySourceReference[]
-  readBlocks           ActivityReadBlock[]
-  activityProgress     MemberActivityProgress[]
-  videoProgress        MemberVideoProgress[]
-
-  @@unique([versionId, orderNumber])
-  @@index([lessonScheduleId])
-  @@index([sourceLessonActivityId])
-  @@index([versionId])
-  @@index([lessonScheduleId, lineageKey])
-  @@map("scheduled_lesson_activities")
-}
-
-model ActivitySourceReference {
-  id                   String @id @default(uuid())
-  lessonActivityId     String? // For program lesson activities
-  scheduledActivityId  String? // For enrolled lesson activities
-  sourceType           String // SCRIPTURE (future: URL, BOOK)
-  passageReference     String? // Romans 1:1-5
-  bookNumber           Int? // 1-66
-  bookName             String?
-  chapterStart         Int?
-  chapterEnd           Int?
-  verseStart           Int?
-  verseEnd             Int?
-  createdAt            DateTime @default(now())
-
-  lessonActivity       LessonActivity? @relation(fields: [lessonActivityId], references: [id], onDelete: Cascade)
-  scheduledActivity    ScheduledLessonActivity? @relation(fields: [scheduledActivityId], references: [id], onDelete: Cascade)
-  readBlocks           ActivityReadBlock[]
-  @@index([lessonActivityId])
-  @@index([scheduledActivityId])
-  @@index([sourceType])
-  @@map("activity_source_references")
-}
-
-model TextTheme {
-  id                   String @id @default(uuid())
-  name                 String
-  slug                 String @unique
-  description          String?
-  definition           Json // Theme definition (colors, animations, styles)
-  fontScale            Float? // Font size as a fraction of container width (e.g. 0.06 = 6cqw). Drives width-scaled type so a block wraps identically on every screen.
-  maxCharacters        Int? // Max content characters a read block may contain to use this theme. Editors mute the theme when block.content length exceeds this. Null = unlimited.
-  isSystem             Boolean @default(false)
-  isActive             Boolean @default(true)
-  creatorId            String?
-  organizationId       String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-
-  creator              User? @relation("ThemeCreator", fields: [creatorId], references: [id], onDelete: SetNull)
-  organization         Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  lessonActivities     LessonActivity[]
-  readBlocks           ActivityReadBlock[]
-  @@index([slug])
-  @@index([organizationId])
-  @@map("text_themes")
-}
-
-model ActivityReadBlock {
-  id                   String @id @default(uuid())
-  lessonActivityId     String? // For program lesson activities
-  scheduledActivityId  String? // For enrolled lesson activities
-  orderNumber          Int @default(1) // Sort order within the activity
-  title                String? // Block title, e.g., 'Romans 1:1-5' for Bible verse blocks
-  content              String? @db.Text // Text/markdown content of this block
-  isLocked             Boolean @default(false) // Locked blocks cannot be edited (e.g., Bible verses)
-  sourceReferenceId    String? // Links to ActivitySourceReference for Bible verse blocks
-  themeId              String? // Optional theme for animated rendering
-  contentFormat        String @default("markdown") // Content format: html or markdown
-  backgroundImageUrl   String?
-  backgroundColor      String? // Hex color for block background
-  backgroundOverlayOpacity Float? // 0-1 opacity for background overlay
-  fontSize             String? // Font size: xs, s, m, lg, xl
-  selections           Json? // DERIVED / READ-ONLY. Array of styled text spans {start, end, style}, regenerated from the ContentHighlight rows for this block by syncSelectionsForBlock — which is the ONLY writer. Do not write it from a route, a service or a client; write ContentHighlight rows instead. Retained because shipped iPhone builds and the web lesson player still read it, and because lesson-content-hash.ts hashes it (changing its serialisation restales every enrolled group's lessons). See docs/features/highlighting/03-data-and-api.md §3.
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-
-  lessonActivity       LessonActivity? @relation(fields: [lessonActivityId], references: [id], onDelete: Cascade)
-  scheduledActivity    ScheduledLessonActivity? @relation(fields: [scheduledActivityId], references: [id], onDelete: Cascade)
-  sourceReference      ActivitySourceReference? @relation(fields: [sourceReferenceId], references: [id], onDelete: SetNull)
-  theme                TextTheme? @relation(fields: [themeId], references: [id], onDelete: SetNull)
-  contentHighlights    ContentHighlight[]
-  @@index([lessonActivityId])
-  @@index([scheduledActivityId])
-  @@index([themeId])
-  @@map("activity_read_blocks")
-}
-
-model ContentHighlight {
-  id                   String @id @default(uuid())
-  readBlockId          String // FK to ActivityReadBlock (locked scripture block) that this highlight applies to
-  orderNumber          Int // Stable ordering for highlight navigation
-  start                Int // Start character offset (plain-text) into the block content
-  end                  Int // End character offset (exclusive)
-  noteMarkdown         String @db.Text // Leader-authored markdown shown to members when they open the highlight
-  style                String @default("highlight") // How the span renders: 'highlight' (background wash) or 'bold' (font weight only, no wash). Defaults to 'highlight' so every pre-existing row keeps today's appearance.
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-
-  readBlock            ActivityReadBlock @relation(fields: [readBlockId], references: [id], onDelete: Cascade)
-
-  @@unique([readBlockId, orderNumber])
-  @@unique([readBlockId, start, end])
-  @@index([readBlockId])
-  @@index([readBlockId, orderNumber])
-  @@map("content_highlights")
 }
 
 model FaqItem {
@@ -1998,11 +1604,8 @@ model ClientEvent {
   groupId              String? // Enriched server-side at ingest
   enrollmentId         String?
   studyProgramId       String? // Enriched server-side from the enrollment at ingest
-  lessonScheduleId     String?
   lessonId             String? // Enriched server-side from the lesson schedule at ingest
   dayNumber            Int? // Enriched server-side from the source curriculum lesson at ingest
-  scheduledActivityId  String?
-  activityType         String? // Enriched server-side from the scheduled activity at ingest (USER_INPUT/READ/VIDEO/YOUTUBE/EXEGESIS)
   scheduledDate        DateTime? // Enriched server-side from the lesson schedule's planned date at ingest
   value                Float @default(1)
   metadata             Json? // Event-specific attributes; anything queried regularly gets promoted to a real column (additive)

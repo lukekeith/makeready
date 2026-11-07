@@ -7,7 +7,7 @@ import { prisma } from '../lib/prisma.js'
 import { requireAuth } from '../middleware/auth.js'
 import { deleteFromR2, extractKeyFromUrl } from '../services/storage.js'
 import { trackActivity } from '../services/activity.js'
-import { exportProgram, importProgram } from '../services/program-export.js'
+import { exportProgram, importProgram, previewProgramExport } from '../services/program-export.js'
 import { captureToLibrary, getUserOrgId, checkLibraryPick, LibraryPickError, recordLibraryPick } from '../services/media-library.js'
 import { extractImageMetadata } from '../services/media-metadata.js'
 import { suggestProgramTags } from '../services/claude.js'
@@ -1424,78 +1424,11 @@ router.patch('/programs/:id/lessons/:lessonId', requireAuth, async (req, res) =>
 router.get('/programs/:id/export-preview', requireAuth, async (req, res) => {
   try {
     const userId = (req.user as any).id
-    const userOrgId = await getUserOrgId(userId)
-
-    const program = await prisma.studyProgram.findFirst({
-      where: { id: req.params.id, ...accessFilter(userOrgId, userId), isActive: true },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        days: true,
-        coverImageUrl: true,
-        isPublished: true,
-        createdAt: true,
-        updatedAt: true,
-        template: {
-          select: { id: true, name: true },
-        },
-        lessons: {
-          select: {
-            activities: {
-              select: {
-                activityType: true,
-                videoId: true,
-                videoUrl: true,
-                _count: {
-                  select: {
-                    sourceReferences: true,
-                    readBlocks: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    })
-
-    if (!program) {
+    const preview = await previewProgramExport(req.params.id, userId)
+    if (!preview) {
       return res.status(404).json({ success: false, error: 'Program not found' })
     }
-
-    const allActivities = program.lessons.flatMap((l) => l.activities)
-    const activityCounts = {
-      READ: allActivities.filter((a) => a.activityType === 'READ').length,
-      VIDEO: allActivities.filter((a) => a.activityType === 'VIDEO').length,
-      USER_INPUT: allActivities.filter((a) => a.activityType === 'USER_INPUT').length,
-    }
-    const videoCount = allActivities.filter((a) => a.videoId || a.videoUrl).length
-    const scriptureCount = allActivities.reduce((sum, a) => sum + a._count.sourceReferences, 0)
-    const readBlockCount = allActivities.reduce((sum, a) => sum + a._count.readBlocks, 0)
-
-    res.json({
-      success: true,
-      preview: {
-        id: program.id,
-        name: program.name,
-        description: program.description,
-        days: program.days,
-        coverImageUrl: program.coverImageUrl,
-        isPublished: program.isPublished,
-        template: program.template,
-        createdAt: program.createdAt,
-        updatedAt: program.updatedAt,
-        counts: {
-          lessons: program.lessons.length,
-          activities: allActivities.length,
-          activityTypes: activityCounts,
-          videos: videoCount,
-          scriptureReferences: scriptureCount,
-          readBlocks: readBlockCount,
-        },
-      },
-    })
+    res.json({ success: true, preview })
   } catch (error) {
     console.error('Error generating export preview:', error)
     res.status(500).json({ success: false, error: 'Failed to generate export preview' })

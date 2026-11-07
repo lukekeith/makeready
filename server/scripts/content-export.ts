@@ -43,10 +43,37 @@ export interface Bundle {
 
 export interface ExportResult { bundlePath: string; reportPath: string; bundle: Bundle; report: string }
 
-const ACTIVITY_INCLUDE = {
-  sourceReferences: true,
-  readBlocks: { orderBy: { orderNumber: 'asc' as const }, include: { contentHighlights: { orderBy: { orderNumber: 'asc' as const } } } },
-} as const
+/**
+ * The old model is gone from the Prisma schema (the cutover YAML removed it), but the dump this reads still holds
+ * its tables, so they are read with raw SQL by their real names and grouped here into the shape the Prisma
+ * includes used to return.
+ */
+async function loadOldPrograms(prisma: PrismaClient): Promise<any[]> {
+  const [programs, lessons, activities, blocks, highlights, refs, versions] = await Promise.all([
+    prisma.$queryRaw<any[]>`SELECT * FROM "study_programs" ORDER BY "createdAt" ASC`,
+    prisma.$queryRaw<any[]>`SELECT * FROM "lessons" WHERE "studyProgramId" IS NOT NULL ORDER BY "dayNumber" ASC`,
+    prisma.$queryRaw<any[]>`SELECT * FROM "lesson_activities" ORDER BY "orderNumber" ASC`,
+    prisma.$queryRaw<any[]>`SELECT * FROM "activity_read_blocks" WHERE "lessonActivityId" IS NOT NULL ORDER BY "orderNumber" ASC`,
+    prisma.$queryRaw<any[]>`SELECT * FROM "content_highlights" ORDER BY "orderNumber" ASC`,
+    prisma.$queryRaw<any[]>`SELECT * FROM "activity_source_references" WHERE "lessonActivityId" IS NOT NULL`,
+    prisma.$queryRaw<any[]>`SELECT * FROM "study_program_versions" ORDER BY "versionNumber" DESC`,
+  ])
+  const group = <T extends Record<string, any>>(items: T[], key: string) => {
+    const m = new Map<string, T[]>()
+    for (const i of items) m.set(i[key], [...(m.get(i[key]) ?? []), i])
+    return m
+  }
+  const highlightsByBlock = group(highlights, 'readBlockId')
+  const blocksByActivity = group(blocks.map((b) => ({ ...b, contentHighlights: highlightsByBlock.get(b.id) ?? [] })), 'lessonActivityId')
+  const refsByActivity = group(refs, 'lessonActivityId')
+  const activitiesByLesson = group(
+    activities.map((a) => ({ ...a, readBlocks: blocksByActivity.get(a.id) ?? [], sourceReferences: refsByActivity.get(a.id) ?? [] })),
+    'lessonId',
+  )
+  const lessonsByProgram = group(lessons.map((l) => ({ ...l, activities: activitiesByLesson.get(l.id) ?? [] })), 'studyProgramId')
+  const versionsByProgram = group(versions, 'studyProgramId')
+  return programs.map((p) => ({ ...p, lessons: lessonsByProgram.get(p.id) ?? [], versions: (versionsByProgram.get(p.id) ?? []).slice(0, 1) }))
+}
 
 function oldFromRow(a: any): OldActivity {
   return {
@@ -119,13 +146,7 @@ export async function runExport(
   assertDatabaseAllowed(databaseUrl, opts)
   const prisma = new PrismaClient({ datasourceUrl: databaseUrl })
   try {
-    const programs = await prisma.studyProgram.findMany({
-      orderBy: { createdAt: 'asc' },
-      include: {
-        lessons: { orderBy: { dayNumber: 'asc' }, include: { activities: { orderBy: { orderNumber: 'asc' }, include: ACTIVITY_INCLUDE } } },
-        versions: { orderBy: { versionNumber: 'desc' }, take: 1 },
-      },
-    })
+    const programs = await loadOldPrograms(prisma)
 
     const urls = new Set<string>()
     for (const p of programs) for (const l of p.lessons) for (const a of l.activities) for (const b of a.readBlocks) {
@@ -203,7 +224,7 @@ export async function runExport(
         if (draft && published) report.note.push(`lesson ${lesson.id}: unpublished edits become its draft`)
       }
       for (const id of snapshotLessons.keys()) {
-        if (!program.lessons.some((l) => l.id === id)) report.note.push(`lesson ${id}: in the published snapshot but deleted since; not imported`)
+        if (!program.lessons.some((l: any) => l.id === id)) report.note.push(`lesson ${id}: in the published snapshot but deleted since; not imported`)
       }
       const hasPublished = bundleLessons.some((l) => l.published)
       bundlePrograms.push({
@@ -227,12 +248,12 @@ export async function runExport(
       }
     }
 
-    const templates = await prisma.lessonTemplateActivity.findMany({ where: { type: { not: null } }, orderBy: { id: 'asc' } })
+    const templates = await prisma.$queryRaw<any[]>`SELECT * FROM "lesson_template_activities" WHERE "type" IS NOT NULL ORDER BY "id" ASC`
     const templateActivities: BundleTemplateActivity[] = []
     const templateLosses: string[] = []
     for (const t of templates) {
       const r = convertActivity({
-        id: t.id, activityType: t.type!, orderNumber: t.orderNumber, title: t.title, helpTitle: t.helpTitle,
+        id: t.id, activityType: t.type, orderNumber: t.orderNumber, title: t.title, helpTitle: t.helpTitle,
         helpDescription: t.helpDescription, placeholder: t.placeholder, referenceTitle: t.referenceTitle,
         readBlocks: [], sourceReferences: [],
       })

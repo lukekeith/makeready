@@ -18,14 +18,6 @@ enums:
       - PURPLE
       - PINK
 
-  TemplateActivityType:
-    values:
-      - USER_INPUT
-      - READ
-      - VIDEO
-      - YOUTUBE
-      - EXEGESIS
-
   EventType:
     values:
       - LESSON     # Daily study lesson from enrollment

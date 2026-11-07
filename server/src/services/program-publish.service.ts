@@ -132,7 +132,7 @@ export async function publishProgram(
     }
 
     const positionOf = new Map(lessons.map((l, i) => [l.id, l.position ?? i + 1]))
-    const titleOf = new Map(lessons.map((l) => [l.id, l.title]))
+    const titleOf = new Map(lessons.map((l) => [l.id, after[l.id]?.title ?? latestOf.get(l.id)?.title ?? null]))
     const previousPositions = new Map(currentRows.map((r) => [r.lessonId, r.position]))
     return {
       programVersion,

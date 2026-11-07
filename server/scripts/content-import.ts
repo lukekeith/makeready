@@ -115,13 +115,15 @@ async function refreshVersion(tx: Tx, versionId: string, title: string): Promise
 async function importLesson(
   tx: Tx, program: BundleProgram, lesson: BundleLesson, ledger: Ledger, result: ImportResult,
 ): Promise<{ publishedVersionId: string | null }> {
-  const row = await tx.lesson.findUnique({ where: { id: lesson.id }, select: { id: true, programId: true } })
-  if (!row) {
+  // Raw SQL: `Lesson.programId` is required in the final model, but a lesson not yet imported still holds NULL here.
+  // The id columns are uuid or text by database, so values are matched or assigned through a subselect, never a typed parameter.
+  const rows = await tx.$queryRaw<{ programId: string | null }[]>`SELECT "programId"::text AS "programId" FROM "lessons" WHERE "id"::text = ${lesson.id}`
+  if (!rows.length) {
     result.skipped.push(`lesson ${lesson.id}: not in the target database`)
     return { publishedVersionId: null }
   }
-  if (row.programId === null) {
-    await tx.lesson.update({ where: { id: lesson.id }, data: { programId: program.id, position: lesson.position } })
+  if (rows[0].programId === null) {
+    await tx.$executeRaw`UPDATE "lessons" SET "programId" = (SELECT "id" FROM "study_programs" WHERE "id"::text = ${program.id}), "position" = ${lesson.position} WHERE "id"::text = ${lesson.id}`
   }
 
   let publishedVersionId: string | null = null

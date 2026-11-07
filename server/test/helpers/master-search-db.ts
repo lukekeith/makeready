@@ -46,6 +46,19 @@ export function withTextIdSearchDb<T>(run: (url: string) => Promise<T>): Promise
   }, run)
 }
 
+/**
+ * A scratch database built by `atlas migrate apply` of every committed migration, so it holds the old tables beside
+ * the new ones and the hand-written indexes (text-activity D27). Ids are uuid, as a fresh atlas build makes them.
+ */
+export function withMigratedScratchDb<T>(run: (url: string) => Promise<T>): Promise<T> {
+  return withScratchDatabase('cutover', url => {
+    const server = fileURLToPath(new URL('../../', import.meta.url))
+    execFileSync(`${server}scripts/atlas.sh`, ['migrate', 'apply', '--url', `${url}?sslmode=disable`, '--dir', 'file://migrations'], {
+      cwd: `${server}atlas`, stdio: 'pipe', timeout: 180_000,
+    })
+  }, run)
+}
+
 /** An empty scratch database, for tests that build their own tables. */
 export function withEmptySearchDb<T>(run: (url: string) => Promise<T>): Promise<T> {
   return withScratchDatabase('searchempty', () => {}, run)

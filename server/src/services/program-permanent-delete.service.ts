@@ -10,7 +10,7 @@ import { ACTIVITY_USAGE_TYPE } from './content-media.service.js'
 export async function deleteProgramPermanently(programId: string): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const lessonIds = (await tx.lesson.findMany({
-      where: { OR: [{ programId }, { studyProgramId: programId }] },
+      where: { programId },
       select: { id: true },
     })).map((l) => l.id)
     const activityKeys = (await tx.contentActivity.findMany({

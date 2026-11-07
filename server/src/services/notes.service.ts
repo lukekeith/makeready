@@ -416,7 +416,7 @@ export async function getNotesWithContext(
         refIdsByType.has(LINK_TYPES.LESSON)
           ? prisma.lesson.findMany({
               where: { id: { in: [...refIdsByType.get(LINK_TYPES.LESSON)!] } },
-              select: { id: true, position: true, dayNumber: true },
+              select: { id: true, position: true },
             })
           : [],
         refIdsByType.has(LINK_TYPES.ENROLLMENT)
@@ -455,7 +455,7 @@ export async function getNotesWithContext(
           }
           case LINK_TYPES.LESSON: {
             const l = lessonMap.get(link.refId)
-            if (l) context.lesson = { id: l.id, dayNumber: l.position ?? l.dayNumber ?? 0 }
+            if (l) context.lesson = { id: l.id, dayNumber: l.position }
             break
           }
           case LINK_TYPES.VERSE: {
