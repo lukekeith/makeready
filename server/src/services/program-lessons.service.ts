@@ -15,7 +15,7 @@ import { buildMediaMap, syncActivityMediaUsage, type MediaMap } from './content-
 import { getOrCreateDraft, resolveLessonAccess, withDraftLock } from './lesson-version.service.js'
 import { sumEstimatedSeconds } from './lesson-estimate.service.js'
 import { canManageOrgContent } from './permission.js'
-import { PROGRAM_NAME_INCLUDE, programReadFilter, toProgramPayload } from './study-program.service.js'
+import { PROGRAM_NAME_INCLUDE, toProgramPayload } from './study-program.service.js'
 
 type Tx = Prisma.TransactionClient
 
@@ -125,13 +125,14 @@ export async function loadProgramPayload(programId: string, page: { skip?: numbe
   }
 }
 
-/** `GET /api/programs/:id`: the program for a reader in its orgs (the list's scope, D14), or null. */
+/** `GET /api/programs/:id`: the program for someone who manages its org's content (creator, org owner or role-holder, super admin), or null. */
 export async function getProgramForUser(userId: string, programId: string, opts: { page?: number; limit?: number } = {}) {
+  // Draft documents ride on this read, so it takes the manage check, not the list's reader scope (a plain org member would pass that).
   const readable = await prisma.studyProgram.findFirst({
-    where: { id: programId, isActive: true, ...(await programReadFilter(userId)) },
-    select: { id: true },
+    where: { id: programId, isActive: true },
+    select: { id: true, organizationId: true, creatorId: true },
   })
-  if (!readable) return null
+  if (!readable || !(await canManageOrgContent(userId, readable.organizationId, readable.creatorId))) return null
   const limit = Math.min(60, Math.max(1, opts.limit || 30))
   const page = Math.max(1, opts.page || 1)
   const loaded = await loadProgramPayload(programId, { skip: (page - 1) * limit, take: limit })

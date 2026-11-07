@@ -8,7 +8,7 @@ import request from 'supertest'
 import { randomUUID } from 'node:crypto'
 import { app } from '../src/index.js'
 import { prisma } from '../src/lib/prisma.js'
-import { bearer } from './helpers/api-auth.js'
+import { bearer, createUserWithApiKey } from './helpers/api-auth.js'
 import { createContentWorld, destroyContentWorld, seedEnrolledProgram, seedPublishedLesson, type ContentWorld } from './helpers/content-world.js'
 import { copyLessonActivities } from '../src/services/lesson-copy.js'
 import { sumEstimatedSeconds } from '../src/services/lesson-estimate.service.js'
@@ -28,6 +28,26 @@ describe('the program read and lesson writes', () => {
     expect(l2).toMatchObject({ id: pub.lessonId, draftVersionId: null, publishedVersionId: pub.versionId })
     expect(l2.activities[0]).toEqual(expect.objectContaining({ activityKey: 'k1', kind: 'text', document: expect.any(Object) }))
     expect(r.body.media).toEqual({})
+  })
+
+  it('the program read is 404 for a plain org member and 200 for a role-holder who is not the creator', async () => {
+    const stamp = randomUUID().slice(0, 8)
+    const member = await createUserWithApiKey({ email: `plain-${stamp}@content.test`, name: 'Plain' })
+    const holder = await createUserWithApiKey({ email: `holder-${stamp}@content.test`, name: 'Holder' })
+    await prisma.user.update({ where: { id: member.userId }, data: { organizationId: w.orgId } })
+    const role = await prisma.role.create({ data: { name: `Reader ${stamp}`, organizationId: w.orgId, isSystem: false } })
+    await prisma.userRole.create({ data: { userId: holder.userId, roleId: role.id, organizationId: w.orgId } })
+    try {
+      const plain = await request(app).get(`/api/programs/${w.programId}`).set('Authorization', bearer(member.token))
+      const held = await request(app).get(`/api/programs/${w.programId}`).set('Authorization', bearer(holder.token))
+      expect([plain.status, held.status]).toEqual([404, 200])
+      expect(plain.body).toMatchObject({ success: false, error: 'Program not found' })
+    } finally {
+      await prisma.userRole.deleteMany({ where: { roleId: role.id } })
+      await prisma.role.delete({ where: { id: role.id } })
+      await prisma.apiKey.deleteMany({ where: { userId: { in: [member.userId, holder.userId] } } })
+      await prisma.user.deleteMany({ where: { id: { in: [member.userId, holder.userId] } } })
+    }
   })
 
   it('create makes a lesson and its draft; a title edit lands in the draft', async () => {

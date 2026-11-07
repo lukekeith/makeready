@@ -104,14 +104,14 @@ describe('GET /api/programs/:id (D15)', () => {
     expect(res.body.pagination).toMatchObject({ totalLessons: 0, hasMore: false })
   })
 
-  it('reads across every org the caller manages', async () => {
-    permission.getManageableOrgIds.mockResolvedValue(['o1', 'o2'])
-    prismaMock.studyProgram.findFirst.mockResolvedValue(null)
-    await request(app()).get('/api/programs/p1')
-    expect(prismaMock.studyProgram.findFirst.mock.calls[0][0].where).toMatchObject({
-      id: 'p1',
-      OR: [{ organizationId: { in: ['o1', 'o2'] } }, { creatorId: 'u1' }],
-    })
+  it('404s a caller who holds no role in the program org (drafts ride on this read)', async () => {
+    prismaMock.studyProgram.findFirst.mockResolvedValue({ id: 'p1', organizationId: 'o1', creatorId: 'someone-else' })
+    prismaMock.organization.findFirst.mockResolvedValue(null)
+    prismaMock.userRole.findFirst.mockResolvedValue(null)
+    const res = await request(app()).get('/api/programs/p1')
+    expect(res.status).toBe(404)
+    expect(prismaMock.studyProgram.findFirst.mock.calls[0][0].where).toEqual({ id: 'p1', isActive: true })
+    expect(loadProgramPayload).not.toHaveBeenCalled()
   })
 })
 
