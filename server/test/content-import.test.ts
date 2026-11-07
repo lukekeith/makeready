@@ -4,7 +4,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { randomBytes } from 'node:crypto'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { prisma } from '../src/lib/prisma.js'
@@ -234,9 +234,17 @@ describe('content export and import', () => {
     const dump = await seedOldModelDump()
     const first = mkdtempSync(join(tmpdir(), 'content-first-'))
     const firstBundle = (await runExport(dump.url, first, {})).bundlePath
+    // The test DB holds every other test's programs too; keep only this dump's so the warning counts this run's bundle.
+    const narrow = (path: string) => {
+      const b = JSON.parse(readFileSync(path, 'utf8'))
+      b.programs = b.programs.filter((p: { id: string }) => p.id === dump.programId)
+      writeFileSync(path, JSON.stringify(b))
+      return path
+    }
+    narrow(firstBundle)
     const a = await runImport(url, firstBundle, {})
     expect(a.warnings).toEqual([])
-    const second = await exportFrom(dump) // different directory, so no ledger beside it
+    const second = narrow(await exportFrom(dump)) // different directory, so no ledger beside it
     const b = await runImport(url, second, {})
     expect(b.warnings.join(' ')).toMatch(/no ledger/)
     const c = await runImport(url, second, { ledgerPath: join(first, 'import-ledger.json') })
