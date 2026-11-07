@@ -38,6 +38,9 @@ struct TextColorPalette: View {
     var onPageChange: (Int) -> Void = { _ in }
     /// C-094 §4 `onWellTap` — the well was tapped (R-03). No render effect.
     var onWellTap: () -> Void = {}
+    /// C-094 §4 `showsWell` — false: the C-095 well is not drawn at all and the swatches lay out
+    /// without it, centred in the row.
+    var showsWell: Bool = true
 
     /// R-02: the swipe's finger-tracked offset is an animation phase, never a prop. It settles
     /// back on release with the ruled slide (OQ-C-094-002).
@@ -55,8 +58,12 @@ struct TextColorPalette: View {
         static let rowHeight: CGFloat = 34
         /// C-094 §2: one page holds up to nine swatches.
         static let slots = 9
-        /// The presets frame — nine 24pt swatches at a 40pt pitch (§2: 344×24).
-        static let pageWidth = CGFloat(slots) * swatch + CGFloat(slots - 1) * rowGap
+        /// FLAGGED LITERAL — C-094 §2: the row's 23pt inset on each side.
+        static let rowInset: CGFloat = 23
+        /// The presets frame — nine 24pt swatches and their gaps (§2 at 16: 344×24).
+        static func pageWidth(gap: CGFloat) -> CGFloat {
+            CGFloat(slots) * swatch + CGFloat(slots - 1) * gap
+        }
         /// OQ-C-094-002 ruling: ≈ 250 ms ease-out slide, no motion token.
         static let slide: Double = 0.25
     }
@@ -68,12 +75,21 @@ struct TextColorPalette: View {
         min(max(page, 0), max(pageCount - 1, 0))
     }
 
-    /// One page's pitch in the sliding strip: the page plus the gap that separates pages.
-    private var pagePitch: CGFloat { Geometry.pageWidth + Geometry.rowGap }
+    /// C-094 §2: on a width too narrow for §2's 16pt gaps they shrink evenly so the row fits
+    /// between its 23pt insets; the swatches, the well and the gap beside the well keep their sizes.
+    private func swatchGap(forWidth width: CGFloat) -> CGFloat {
+        let well = showsWell ? Geometry.rowHeight + Geometry.rowGap : 0
+        let space = width - 2 * Geometry.rowInset - well - CGFloat(Geometry.slots) * Geometry.swatch
+        return min(max(space / CGFloat(Geometry.slots - 1), 0), Geometry.rowGap)
+    }
 
     var body: some View {
         VStack(spacing: Token.Space.elementGap) {                  // §2: row → dots gap 8
-            colourRow
+            GeometryReader { proxy in
+                colourRow(swatchGap: swatchGap(forWidth: proxy.size.width))
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+            }
+            .frame(height: Geometry.rowHeight)
             PageIndicator(pageCount: pageCount, page: shownPage)    // C-097, §5
                 .ui2Element("Page dots")
         }
@@ -83,29 +99,32 @@ struct TextColorPalette: View {
     }
 
     /// §2 Colour row: the well, a 16pt gap, then the swatch pager; shadow on the whole row.
-    private var colourRow: some View {
+    private func colourRow(swatchGap: CGFloat) -> some View {
         HStack(spacing: Geometry.rowGap) {
-            ColorPickerWell(color: currentColor, onTap: onWellTap)  // C-095, §5
-                .ui2Element("Well")
-            presets
+            if showsWell {
+                ColorPickerWell(color: currentColor, onTap: onWellTap)  // C-095, §5
+                    .ui2Element("Well")
+            }
+            presets(swatchGap: swatchGap)
         }
-        .frame(height: Geometry.rowHeight)
         .designShadow(Token.Elevation.thumb)                       // §2: `elevation-thumb`
         .ui2Element("Colour row")
     }
 
     /// §2 Paging (OQ-C-094-002 ruling): every page sits in one strip, offset to the shown page
-    /// and clipped to the 344pt presets frame; a horizontal swipe tracks the finger and, on
+    /// and clipped to the presets frame (344pt at §2's gap); a horizontal swipe tracks the finger and, on
     /// release, `onPageChange` fires with the nearer page. The caller writes `page` (R-01).
-    private var presets: some View {
-        HStack(spacing: Geometry.rowGap) {
+    private func presets(swatchGap: CGFloat) -> some View {
+        let pageWidth = Geometry.pageWidth(gap: swatchGap)
+        return HStack(spacing: Geometry.rowGap) {
             ForEach(swatches.indices, id: \.self) { pageIndex in
-                pageView(swatches[pageIndex], pageIndex: pageIndex)
+                pageView(swatches[pageIndex], pageIndex: pageIndex, swatchGap: swatchGap)
             }
         }
-        .offset(x: -CGFloat(shownPage) * pagePitch + dragOffset)
+        // One page's pitch in the sliding strip: the page plus the gap that separates pages.
+        .offset(x: -CGFloat(shownPage) * (pageWidth + Geometry.rowGap) + dragOffset)
         .animation(.easeOut(duration: Geometry.slide), value: shownPage)
-        .frame(width: Geometry.pageWidth, alignment: .leading)
+        .frame(width: pageWidth, alignment: .leading)
         .clipped()
         .contentShape(Rectangle())
         // Sideways only, so a vertical drag on the palette scrolls the page (HorizontalScrolling.swift).
@@ -113,7 +132,7 @@ struct TextColorPalette: View {
             onChanged: { dragOffset = $0.translation },
             onEnded: { value in
                 withAnimation(.easeOut(duration: Geometry.slide)) { dragOffset = 0 }
-                release(value.predictedEndTranslation)
+                release(value.predictedEndTranslation, pageWidth: pageWidth)
             }
         )
         // §2 Accessibility (R-17): the row pages as an adjustable element; the well and the
@@ -132,8 +151,8 @@ struct TextColorPalette: View {
 
     /// One page: up to nine swatches; a short page leaves its trailing slots empty
     /// (OQ-C-094-001 ruling).
-    private func pageView(_ colours: [NamedColor], pageIndex: Int) -> some View {
-        HStack(spacing: Geometry.rowGap) {
+    private func pageView(_ colours: [NamedColor], pageIndex: Int, swatchGap: CGFloat) -> some View {
+        HStack(spacing: swatchGap) {
             ForEach(0..<Geometry.slots, id: \.self) { slot in
                 if slot < colours.count {
                     let swatch = colours[slot]
@@ -150,7 +169,7 @@ struct TextColorPalette: View {
                 }
             }
         }
-        .frame(width: Geometry.pageWidth)
+        .frame(width: Geometry.pageWidth(gap: swatchGap))
         // An off-page page is mounted only so the slide has something to bring in: `.clipped()`
         // hides it but neither hit-tests nor the accessibility tree nor the element map are
         // clipped, so it would sit over the well (taps, VoiceOver, comment highlights).
@@ -162,8 +181,8 @@ struct TextColorPalette: View {
     }
 
     /// Settles a swipe on the nearer page: past half a page (or a fling past it) pages once.
-    private func release(_ predicted: CGFloat) {
-        let threshold = Geometry.pageWidth / 2
+    private func release(_ predicted: CGFloat, pageWidth: CGFloat) {
+        let threshold = pageWidth / 2
         var target = shownPage
         if predicted <= -threshold { target += 1 }
         if predicted >= threshold { target -= 1 }

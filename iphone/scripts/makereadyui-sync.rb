@@ -84,6 +84,19 @@ catalogs_relative.each do |rel_path|
   end
 end
 
+# Bundled fonts (C-092 §2 Typeface) are RESOURCES too, of both targets: CanvasTextObject registers
+# them at runtime with CTFontManager, so no Info.plist `UIAppFonts` entry is involved.
+fonts = Dir.glob(preview_dir.join('**/*.ttf')).sort
+fonts.map { |path| Pathname.new(path).relative_path_from(preview_dir).to_s }.each do |rel_path|
+  ref = existing[rel_path] || group.new_reference(rel_path)
+  [[target, ' (resource)'], [app, ' (MakeReady resource)']].each do |owner, tag|
+    next if owner.resources_build_phase.files_references.include?(ref)
+
+    owner.resources_build_phase.add_file_reference(ref)
+    added << "#{rel_path}#{tag}"
+  end
+end
+
 # Drop references to files that no longer exist on disk, so a deleted preview
 # does not break the build with a missing-file error.
 removed = group.files.reject { |f| File.exist?(preview_dir.join(f.path)) }  # a .xcassets is a directory — File.exist? is true for it

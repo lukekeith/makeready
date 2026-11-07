@@ -202,19 +202,19 @@ struct FilterChip: View {
             .ui2Element("Label")
     }
 
-    /// OQ-C-035-004 (owner, 2026-10-13): "As the sheet draws each face — Poppins Bold, SF Pro
-    /// Text Medium, Georgia Regular, American Typewriter Regular; the chip samples the face, not
-    /// the canvas weight." (C-092 renders every face Bold on the canvas; this row does not.)
+    /// OQ-C-035-004 (owner, 2026-10-13): each face at the weight the sheet draws it, carried onto
+    /// the D6 keys — `display` Poppins Bold, `sans` Inter Medium, `serif` Source Serif 4 Regular,
+    /// `mono` Courier Prime Regular. The chip samples the face, not the canvas weight, and C-092
+    /// owns the key → face mapping.
     private var fontFace: SwiftUI.Font {
         let points = Geometry.fontLabelSize
         switch font {
-        case .poppins: return .custom("Poppins-Bold", fixedSize: points)
-        case .georgia: return .custom("Georgia", fixedSize: points)
-        case .typewriter: return .custom("AmericanTypewriter", fixedSize: points)
-        // `.sfPro`, and a nil `font` the capture case refuses before it gets here (§4: required
+        case .display: return CanvasTextObject.Font.display.face(weight: .bold, size: points)
+        case .serif: return CanvasTextObject.Font.serif.face(weight: .regular, size: points)
+        case .mono: return CanvasTextObject.Font.mono.face(weight: .regular, size: points)
+        // `.sans`, and a nil `font` the capture case refuses before it gets here (§4: required
         // in `type=Font`).
-        case .sfPro, .none:
-            return DesignTextStyle(weight: .medium, size: points, lineHeight: nil, tracking: 0).font
+        case .sans, .none: return CanvasTextObject.Font.sans.face(weight: .medium, size: points)
         }
     }
 }

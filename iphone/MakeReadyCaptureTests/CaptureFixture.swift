@@ -1015,9 +1015,9 @@ struct CaptureComponent: Codable {
     // C-092 CanvasTextObject build 2026-10-12. Reused as-is under the contract's own names:
     // `text` (`String?`), `color` (`String?` — a token row name or a hex), `label` (`String?`),
     // `size` (`CaptureDoubleOrString?` — its number) and `highlights` (`[CaptureHighlight]?` —
-    // start/end character offsets into `text`; C-092's optional `note` is not carried, it is not
+    // start/end UTF-16 offsets into `text`; C-092's optional `note` is not carried, it is not
     // drawn). The rest are additive:
-    let font: String?                          // C-092 — poppins | sfPro | georgia | typewriter
+    let font: String?                          // C-092 — display | sans | serif | mono
     let alignment: String?                     // C-092 — center | left | right
     let listStyle: String?                     // C-092 — none | bullet | numbered | bibleVerse
     let startNumber: Int?                      // C-092 — OQ-C-092-003, first verse number
@@ -1026,16 +1026,18 @@ struct CaptureComponent: Codable {
     let effect: String?                        // C-092 — none | sparkle | neon | shimmer | pixel
     let transform: CaptureUI2CanvasTransform?  // C-092 — `CanvasTextObject.Transform`
     let editing: Bool?                         // C-092 — first responder with the caret
+    // C-092 re-spec 2026-11-06. `mode` (`String?`) is reused as-is; `animation` stays the kind:
+    let weight: String?                        // C-092 — regular | medium | bold
+    let marks: [CaptureUI2TextMark]?           // C-092 — UTF-16 offsets into `text`
+    let animationLoop: Bool?                   // C-092 — `animation.loop`
+    let animationElapsed: Double?              // C-092 harness — seconds the clock has run; absent = stopped
     // ── preview props ──
     // C-105 Button build 2026-10-13. Reused as-is under the contract's own names: `label`
     // (`String?`) and `leadingGlyph` (`String?` — a library glyph name, C-040's). Additive:
     let trailingGlyph: String?                 // C-105 — the glyph after the label
     // ── preview props ──
     // C-091 ActivityCanvas build 2026-10-13. Reused as-is under the contract's own names: `mode`
-    // (`String?` — idle | editing | highlighting | manipulating, CardLesson's field). `passage`
-    // exists as `String?` (the 1.0 cards' reference text) and may not be retyped, so the fixture
-    // carries C-091's structured passage as a JSON string under the contract's key, decoded by
-    // the registry case into `CaptureUI2CanvasPassage` (the C-093 numeric-string precedent).
+    // (`String?` — idle | editing | highlighting | manipulating, CardLesson's field).
     // The canvas height the screen gives it rides in `__frameHeight` (the screens' field).
     // Additive:
     let background: CaptureUI2CanvasBackground?    // C-091 — `ActivityCanvas.Background`
@@ -1048,6 +1050,11 @@ struct CaptureComponent: Codable {
     let content: CaptureContentOrChildren?     // C-091 — the slot's children; C-052 — `DayChip.Content`
     let centerGuide: Bool?                     // C-091 — the 1px centre guide (manipulating)
     let deleteTarget: String?                  // C-091 — visible | armed (manipulating)
+    let verticalAnchor: String?                // C-091 — center | top
+    let contentExtent: [Double]?               // C-091 — [top, bottom] in wu
+    let reservedZones: Bool?                   // C-091 — the viewer's reserved-zone guides
+    let pinnedAction: Bool?                    // C-091 — B grows, the pinned band is drawn
+    let widthHandles: CaptureUI2CanvasWidthHandles?  // C-091 — the active object's layout frame
     // ── preview props ──
     // C-095 ColorPickerWell build 2026-10-13. Reused as-is under the contract's own name:
     // `color` (`String?` — a #rrggbb hex, decoded by the registry case). Additive:
@@ -1097,6 +1104,28 @@ struct CaptureComponent: Codable {
     let highlightEnds: [Int]?
     let deleteTargetShown: Bool?
     let saveFailed: Bool?
+    let showsHighlightTool: Bool?
+    let showsEffectsTool: Bool?
+    let showsEyedropper: Bool?
+    let showsWell: Bool?                       // C-094 TextColorPalette
+    let objectWeights: [String]?
+    let objectAlignments: [String]?
+    let objectListStyles: [String]?
+    let objectStartNumbers: [Int]?
+    let objectWidths: [Double]?
+    let objectHeights: [Double]?
+    let draftWeight: String?
+    let draftWidth: Double?
+    let pageColorHex: String?
+    let pageImageFocalX: Double?
+    let pageImageFocalY: Double?
+    let highlightObjects: [Int]?
+    let actionIDs: [String]?
+    let actionKinds: [String]?
+    let actionLabels: [String]?
+    let actionPlacements: [String]?
+    let actionValues: [String]?
+    let actionBodies: [String]?
     // ── screen request-detail ──
     // Reused as-is: `phone`, `groupName`, `status` (`String?`), `loading` (`Bool?`),
     // `eventDates`, `eventTexts`, `eventHighlights` (same names, same types).
@@ -1348,35 +1377,36 @@ struct CaptureUI2NamedColor: Codable {
     let color: String
 }
 
-/// C-091 §4 `background: ActivityCanvas.Background` — exactly one key is present, named for the
-/// case (the C-020 `accessory` precedent); `image`'s fields are the case's own labels, `washColor`
-/// a #rrggbb swatch.
+/// C-091 §4 `background: ActivityCanvas.Background` — `color` and `wash.color` are a #rrggbb swatch
+/// or a colour token's name; `motion` is stored, never drawn, so a fixture carries none.
 struct CaptureUI2CanvasBackground: Codable {
-    struct Plain: Codable {}
+    struct Point: Codable {
+        let x: Double
+        let y: Double
+    }
     struct ImagePayload: Codable {
         let imageURL: String
-        let washColor: String
-        let washOpacity: Double
+        let focal: Point
     }
-    let plain: Plain?
+    struct Wash: Codable {
+        let color: String
+        let opacity: Double
+    }
+    let color: String
     let image: ImagePayload?
+    let wash: Wash?
 }
 
-/// C-091 §4 `passage: ActivityCanvas.Passage` — carried as a JSON string in `passage`; `range` is
-/// [lowerBound, upperBound) as character offsets into its verse's `text`.
-struct CaptureUI2CanvasPassage: Codable {
-    struct Verse: Codable {
-        let number: Int
-        let text: String
+/// C-091 §4 `widthHandles` — the frame in page-local wu, the rotation in degrees.
+struct CaptureUI2CanvasWidthHandles: Codable {
+    struct Frame: Codable {
+        let x: Double
+        let y: Double
+        let width: Double
+        let height: Double
     }
-    struct Highlight: Codable {
-        let id: String
-        let verse: Int
-        let range: [Int]
-        let note: String?
-    }
-    let verses: [Verse]
-    let highlights: [Highlight]
+    let frame: Frame
+    let rotation: Double?
 }
 
 /// Decodes a JSON value that may be either C-091's `content` slot (an array of children) or
@@ -1423,7 +1453,7 @@ struct CaptureUI2DayChipWeekday: Codable {
 }
 
 /// One child of C-091's `content` slot. `component` names the registry row; the rest are that
-/// row's own §4 props under its own names, plus where the screen places it (canvas-local:
+/// row's own §4 props under its own names, plus where the screen places it (wu:
 /// `x`/`y` top-left and `width`; a committed C-092 is placed by its own `transform.position`).
 struct CaptureUI2CanvasChild: Codable {
     let component: String                      // C-092 | C-093 | C-102 | C-105
@@ -1435,6 +1465,9 @@ struct CaptureUI2CanvasChild: Codable {
     let size: Double?                          // C-092
     let editing: Bool?                         // C-092
     let transform: CaptureUI2CanvasTransform?  // C-092
+    let alignment: String?                     // C-092 — center | left | right
+    let listStyle: String?                     // C-092 — none | bullet | numbered | bibleVerse
+    let highlights: [CaptureHighlight]?        // C-092 — UTF-16 offsets into `text`
     let value: Double?                         // C-093 — 0…1
     let glyph: String?                         // C-102
     let tone: String?                          // C-102
@@ -1443,6 +1476,14 @@ struct CaptureUI2CanvasChild: Codable {
     let accessibilityLabel: String?            // C-102
     let label: String?                         // C-105
     let leadingGlyph: String?                  // C-105
+}
+
+/// C-092 §4 `marks` element — `kind` is bold | italic | link, `href` the link's target.
+struct CaptureUI2TextMark: Codable {
+    let start: Int
+    let end: Int
+    let kind: String
+    let href: String?
 }
 
 /// C-092 §4 `reference: CanvasTextObject.Reference?` — field names are the contract's.

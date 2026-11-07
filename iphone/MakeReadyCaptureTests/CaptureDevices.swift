@@ -10,6 +10,8 @@ import UIKit
 
 enum CaptureDevice: String, CaseIterable {
     case iphoneSE = "iphone-se"
+    case iphoneSE3 = "iphone-se-3"
+    case iphone14 = "iphone-14"
     case iphone15Pro = "iphone-15-pro"
     case iphone16ProMax = "iphone-16-pro-max"
 
@@ -22,6 +24,26 @@ enum CaptureDevice: String, CaseIterable {
                 traits: UITraitCollection(traitsFrom: [
                     .init(userInterfaceStyle: .dark),
                     .init(displayScale: 2.0),
+                    .init(userInterfaceIdiom: .phone)
+                ])
+            )
+        case .iphoneSE3:
+            return ViewImageConfig(
+                safeArea: UIEdgeInsets(top: 20, left: 0, bottom: 0, right: 0),
+                size: CGSize(width: 375, height: 667),
+                traits: UITraitCollection(traitsFrom: [
+                    .init(userInterfaceStyle: .dark),
+                    .init(displayScale: 2.0),
+                    .init(userInterfaceIdiom: .phone)
+                ])
+            )
+        case .iphone14:
+            return ViewImageConfig(
+                safeArea: UIEdgeInsets(top: 47, left: 0, bottom: 34, right: 0),
+                size: CGSize(width: 390, height: 844),
+                traits: UITraitCollection(traitsFrom: [
+                    .init(userInterfaceStyle: .dark),
+                    .init(displayScale: 3.0),
                     .init(userInterfaceIdiom: .phone)
                 ])
             )

@@ -80,9 +80,9 @@ struct ChipStrip: View {
             type: .font,
             active: item.id == selectedID,
             label: item.label,
-            // OQ-C-106-004 (owner, 2026-10-13): a nil-font item renders `sfPro`, so both strips
+            // OQ-C-106-004 (owner, 2026-10-13): a nil-font item renders `sans`, so both strips
             // share one chip look and stay 52 tall.
-            font: item.font ?? .sfPro,
+            font: item.font ?? .sans,
             // C-035 names its Font-type action `onSelect`, not `onTap`.
             onSelect: { onSelect(item.id) }
         )

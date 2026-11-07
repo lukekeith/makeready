@@ -37,8 +37,8 @@ enum StatusBarStyle {
 extension CaptureDevice {
     var statusBarStyle: StatusBarStyle {
         switch self {
-        case .iphoneSE: return .classic
-        case .iphone15Pro, .iphone16ProMax: return .modern
+        case .iphoneSE, .iphoneSE3: return .classic
+        case .iphone14, .iphone15Pro, .iphone16ProMax: return .modern
         }
     }
 }

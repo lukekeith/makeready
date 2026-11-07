@@ -1,8 +1,19 @@
 # 03 — Gaps
 
 What has to change for the text activity to work in the viewer. Checked 2026-11-06 against the d2m
-`activities-editor` spec and the built code. **Nothing here has been changed yet.** Under the repo's
-rules, the d2m rows change through a d2m request, not by editing `iphone/MakeReadyUI/`.
+`activities-editor` spec and the built code. Under the repo's rules, the d2m rows change through a d2m
+request, not by editing `iphone/MakeReadyUI/`.
+
+**Status, 2026-11-06:** D1–D12, E3 and E4 are applied in d2m, with these differences. D8's Actions
+sheet is d2m's own default, with no Figma frame. D11 dropped Pixel's coarse raster. The page now
+starts at the top of the screen under opaque bars, so the editor's positions match the viewer's
+(owner ruling on OQ-activities-editor-029). E3's unresolved comment stays open: it conflicts with
+OQ-C-091-001's selected outline, and highlights aren't in the first slice. Everything under "New in
+d2m" and "Outside d2m" is still to do.
+
+**Not yet proven, needs a hand test on a device:** scrolling past the bars, autoscroll while dragging,
+no jump at drag start, the keyboard riding the bottom container, multi-line wrapping across phone
+sizes (only a one-line sample was compared), and a portrait background image.
 
 ## Must change before the editor is wired in
 

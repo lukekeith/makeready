@@ -990,13 +990,13 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         // C-092's (`CanvasTextObject.Font`), decoded exactly as C-092's own case decodes it.
         var ui2C035Font: MakeReadyUI.CanvasTextObject.Font?
         switch c.font {
-        case "poppins": ui2C035Font = .poppins
-        case "sfPro": ui2C035Font = .sfPro
-        case "georgia": ui2C035Font = .georgia
-        case "typewriter": ui2C035Font = .typewriter
+        case "display": ui2C035Font = .display
+        case "sans": ui2C035Font = .sans
+        case "serif": ui2C035Font = .serif
+        case "mono": ui2C035Font = .mono
         case nil: ui2C035Font = nil
         default:
-            throw ViewRegistryError.unknownView("component.ui2.C-035: props.font must be poppins|sfPro|georgia|typewriter")
+            throw ViewRegistryError.unknownView("component.ui2.C-035: props.font must be display|sans|serif|mono")
         }
         if ui2C035Type == .font && ui2C035Font == nil {
             throw ViewRegistryError.unknownView("component.ui2.C-035: props.font is required in type=Font")
@@ -2778,7 +2778,8 @@ private func buildCaptureViewPart9(_ fixture: CaptureFixture, authManager: AuthM
             }
         }
         return declareCase(
-            MakeReadyUI.TextColorPalette(currentColor: ui2C094Color, swatches: ui2C094Pages, page: c.page ?? 0),
+            MakeReadyUI.TextColorPalette(currentColor: ui2C094Color, swatches: ui2C094Pages, page: c.page ?? 0,
+                                         showsWell: c.showsWell ?? true),
             // §2: 440 × 66 — the panel fills the device width, so no page margin (the C-097 /
             // C-091 precedent).
             PreviewFrame(width: 440, margin: 0)
@@ -2802,13 +2803,13 @@ private func buildCaptureViewPart9(_ fixture: CaptureFixture, authManager: AuthM
             // `font` is C-092's value set, decoded exactly as C-092's and C-035's cases decode it.
             let font: MakeReadyUI.CanvasTextObject.Font?
             switch raw.font {
-            case "poppins": font = .poppins
-            case "sfPro": font = .sfPro
-            case "georgia": font = .georgia
-            case "typewriter": font = .typewriter
+            case "display": font = .display
+            case "sans": font = .sans
+            case "serif": font = .serif
+            case "mono": font = .mono
             case nil: font = nil
             default:
-                throw ViewRegistryError.unknownView("component.ui2.C-106: items[\(index)].font must be poppins|sfPro|georgia|typewriter")
+                throw ViewRegistryError.unknownView("component.ui2.C-106: items[\(index)].font must be display|sans|serif|mono")
             }
             return .init(id: id, label: label, font: font)
         }
@@ -3581,44 +3582,72 @@ private func buildScreenActivitiesEditor(_ fixture: CaptureFixture) throws -> An
        let data = try? Data(contentsOf: url), let picture = UIImage(data: data) {
         MakeReadyUI.Ui2ImageCache.shared.seed(picture, for: url)
     }
-    // The canvas is the harness's (CaptureRunner's `screen.*` branch): devices[0]'s width ×
-    // max(its height, the content's length), under the top safe area — the bare screen here.
+    // The canvas is the harness's (CaptureRunner's `screen.*` branch), but `.sizeThatFits` proposes
+    // a zero height and §2's page starts at the top of the screen: this screen fills the whole
+    // fixture device, under the runner's status bar. Its top inset is a real safe area, so the
+    // screen reads it the way it does in the app, and the runner's top padding is undone.
+    // One device per fixture, as d2m records this screen.
+    let device = (fixture.devices.first.flatMap(CaptureDevice.init(rawValue:)) ?? .iphone16ProMax).config
+    let screenHeight = device.size?.height ?? 956
     return AnyView(MakeReadyUI.ActivitiesEditorScreen(
         state: .init(
             editorMode: c.editorMode ?? sample.editorMode,
             openTool: c.openTool ?? sample.openTool,
+            showsHighlightTool: c.showsHighlightTool ?? sample.showsHighlightTool,
+            showsEffectsTool: c.showsEffectsTool ?? sample.showsEffectsTool,
+            showsEyedropper: c.showsEyedropper ?? sample.showsEyedropper,
             slideIDs: c.slideIDs ?? sample.slideIDs,
             slideLabels: c.slideLabels ?? sample.slideLabels,
             activeID: c.activeID ?? sample.activeID,
             objectTexts: c.objectTexts ?? sample.objectTexts,
             objectFonts: c.objectFonts ?? sample.objectFonts,
             objectColors: c.objectColors ?? sample.objectColors,
+            objectWeights: c.objectWeights ?? sample.objectWeights,
             objectSizes: c.objectSizes ?? sample.objectSizes,
+            objectAlignments: c.objectAlignments ?? sample.objectAlignments,
+            objectListStyles: c.objectListStyles ?? sample.objectListStyles,
+            objectStartNumbers: c.objectStartNumbers ?? sample.objectStartNumbers,
             objectXs: c.objectXs ?? sample.objectXs,
             objectYs: c.objectYs ?? sample.objectYs,
             objectScales: c.objectScales ?? sample.objectScales,
             objectRotations: c.objectRotations ?? sample.objectRotations,
+            objectWidths: c.objectWidths ?? sample.objectWidths,
+            objectHeights: c.objectHeights ?? sample.objectHeights,
             draftText: c.draftText ?? sample.draftText,
             draftFont: c.draftFont ?? sample.draftFont,
             draftColor: c.draftColor ?? sample.draftColor,
+            draftWeight: c.draftWeight ?? sample.draftWeight,
             draftSize: c.draftSize ?? sample.draftSize,
             draftAlignment: c.draftAlignment ?? sample.draftAlignment,
+            draftWidth: c.draftWidth ?? sample.draftWidth,
+            pageColorHex: c.pageColorHex ?? sample.pageColorHex,
             pageImageURL: pageImageURL,
+            pageImageFocalX: c.pageImageFocalX ?? sample.pageImageFocalX,
+            pageImageFocalY: c.pageImageFocalY ?? sample.pageImageFocalY,
             pageWashHex: c.pageWashHex ?? sample.pageWashHex,
             pageWashOpacity: c.pageWashOpacity ?? sample.pageWashOpacity,
             verseTexts: c.verseTexts ?? sample.verseTexts,
             firstVerse: c.firstVerse ?? sample.firstVerse,
             highlightIDs: c.highlightIDs ?? sample.highlightIDs,
-            highlightVerses: c.highlightVerses ?? sample.highlightVerses,
+            highlightObjects: c.highlightObjects ?? sample.highlightObjects,
             highlightStarts: c.highlightStarts ?? sample.highlightStarts,
             highlightEnds: c.highlightEnds ?? sample.highlightEnds,
             selectedHighlightID: c.selectedHighlightID ?? sample.selectedHighlightID,
+            actionIDs: c.actionIDs ?? sample.actionIDs,
+            actionKinds: c.actionKinds ?? sample.actionKinds,
+            actionLabels: c.actionLabels ?? sample.actionLabels,
+            actionPlacements: c.actionPlacements ?? sample.actionPlacements,
+            actionValues: c.actionValues ?? sample.actionValues,
+            actionBodies: c.actionBodies ?? sample.actionBodies,
             centerGuide: c.centerGuide ?? sample.centerGuide,
             deleteTargetShown: c.deleteTargetShown ?? sample.deleteTargetShown,
             saving: c.saving ?? sample.saving,
             saveFailed: c.saveFailed ?? sample.saveFailed
         )
-    ))
+    )
+    .safeAreaPadding(.top, device.safeArea.top)
+    .frame(height: screenHeight)
+    .padding(.top, -device.safeArea.top))
 }
 
 /// `screen.2.0.search-home` — the search-home screen preview. See the case in
@@ -4437,7 +4466,7 @@ private func buildUI2C092(_ fixture: CaptureFixture) throws -> AnyView {
     guard let c = fixture.state?.component else {
         throw ViewRegistryError.unknownView("component.ui2.C-092: missing state.component")
     }
-    // C-092 §4 (R-07): `text`, `font`, `size` and `editing` are required — a nil is a fixture bug,
+    // C-092 §4 (R-07): `text`, `size` and `editing` are required — a nil is a fixture bug,
     // not a value to guess. Every other prop takes the contract's default; the callbacks are the
     // view's no-ops.
     guard let ui2C092Text = c.text else {
@@ -4445,12 +4474,38 @@ private func buildUI2C092(_ fixture: CaptureFixture) throws -> AnyView {
     }
     let ui2C092Font: MakeReadyUI.CanvasTextObject.Font
     switch c.font {
-    case "poppins": ui2C092Font = .poppins
-    case "sfPro": ui2C092Font = .sfPro
-    case "georgia": ui2C092Font = .georgia
-    case "typewriter": ui2C092Font = .typewriter
+    case "display": ui2C092Font = .display
+    case nil, "sans": ui2C092Font = .sans
+    case "serif": ui2C092Font = .serif
+    case "mono": ui2C092Font = .mono
     default:
-        throw ViewRegistryError.unknownView("component.ui2.C-092: props.font must be poppins|sfPro|georgia|typewriter")
+        throw ViewRegistryError.unknownView("component.ui2.C-092: props.font must be display|sans|serif|mono")
+    }
+    let ui2C092Mode: MakeReadyUI.CanvasTextObject.Mode
+    switch c.mode {
+    case nil, "editor": ui2C092Mode = .editor
+    case "viewer": ui2C092Mode = .viewer
+    case let other?:
+        throw ViewRegistryError.unknownView("component.ui2.C-092: props.mode \"\(other)\" must be editor|viewer")
+    }
+    let ui2C092Weight: MakeReadyUI.CanvasTextObject.Weight
+    switch c.weight {
+    case nil, "bold": ui2C092Weight = .bold
+    case "medium": ui2C092Weight = .medium
+    case "regular": ui2C092Weight = .regular
+    case let other?:
+        throw ViewRegistryError.unknownView("component.ui2.C-092: props.weight \"\(other)\" must be regular|medium|bold")
+    }
+    let ui2C092Marks: [MakeReadyUI.CanvasTextObject.Mark] = try (c.marks ?? []).map { m in
+        let kind: MakeReadyUI.CanvasTextObject.Mark.Kind
+        switch (m.kind, m.href) {
+        case ("bold", _): kind = .bold
+        case ("italic", _): kind = .italic
+        case let ("link", href?): kind = .link(href: href)
+        default:
+            throw ViewRegistryError.unknownView("component.ui2.C-092: mark kind \"\(m.kind)\" must be bold|italic|link (with href)")
+        }
+        return .init(start: m.start, end: m.end, kind: kind)
     }
     guard let ui2C092Size = c.size?.doubleValue else {
         throw ViewRegistryError.unknownView("component.ui2.C-092: props.size (points) is required")
@@ -4499,12 +4554,12 @@ private func buildUI2C092(_ fixture: CaptureFixture) throws -> AnyView {
     case let other?:
         throw ViewRegistryError.unknownView("component.ui2.C-092: props.listStyle \"\(other)\" must be none|bullet|numbered|bibleVerse")
     }
-    let ui2C092Animation: MakeReadyUI.CanvasTextObject.Animation
+    let ui2C092AnimationKind: MakeReadyUI.CanvasTextObject.Animation.Kind
     switch c.animation {
-    case nil, "none": ui2C092Animation = .none
-    case "typewriter": ui2C092Animation = .typewriter
-    case "pop": ui2C092Animation = .pop
-    case "jump": ui2C092Animation = .jump
+    case nil, "none": ui2C092AnimationKind = .none
+    case "typewriter": ui2C092AnimationKind = .typewriter
+    case "pop": ui2C092AnimationKind = .pop
+    case "jump": ui2C092AnimationKind = .jump
     case let other?:
         throw ViewRegistryError.unknownView("component.ui2.C-092: props.animation \"\(other)\" must be none|typewriter|pop|jump")
     }
@@ -4531,22 +4586,21 @@ private func buildUI2C092(_ fixture: CaptureFixture) throws -> AnyView {
         if let rotation = t.rotation { ui2C092Transform.rotation = .degrees(rotation) }
         ui2C092Transform.width = t.width.map { CGFloat($0) }
     }
-    // §4 `highlights` ranges index into `text`; the fixture carries them as character offsets.
-    let ui2C092Highlights: [MakeReadyUI.CanvasTextObject.TextRange] = try (c.highlights ?? []).map { h in
-        guard h.start >= 0, h.start <= h.end, h.end <= ui2C092Text.count else {
-            throw ViewRegistryError.unknownView("component.ui2.C-092: highlight \(h.start)..<\(h.end) is outside props.text")
-        }
-        let lower = ui2C092Text.index(ui2C092Text.startIndex, offsetBy: h.start)
-        let upper = ui2C092Text.index(ui2C092Text.startIndex, offsetBy: h.end)
-        return .init(range: lower..<upper, note: nil)
+    // §4 `highlights`: UTF-16 offsets, passed straight through (the view clamps them, D7).
+    let ui2C092Highlights: [MakeReadyUI.CanvasTextObject.TextRange] = (c.highlights ?? []).map {
+        .init(start: $0.start, end: $0.end, note: nil)
     }
+    // §4 `animationStart`: the host's clock. The harness key says how long it has been running.
+    let ui2C092Start = c.animationElapsed.map { Date().addingTimeInterval(-$0) }
     // A committed object's scale and rotation draw outside its layout box (§2 Transform); the
     // call site gives the turned block room so the capture does not clip it.
     let ui2C092Turned = !ui2C092Editing && ui2C092Transform != .identity
     return declareCase(
         MakeReadyUI.CanvasTextObject(
             text: ui2C092Text,
+            mode: ui2C092Mode,
             font: ui2C092Font,
+            weight: ui2C092Weight,
             size: CGFloat(ui2C092Size),
             color: ui2C092Color,
             alignment: ui2C092Alignment,
@@ -4554,18 +4608,17 @@ private func buildUI2C092(_ fixture: CaptureFixture) throws -> AnyView {
             listStyle: ui2C092ListStyle,
             startNumber: c.startNumber ?? 1,
             reference: ui2C092Reference,
-            animation: ui2C092Animation,
+            marks: ui2C092Marks,
+            animation: .init(kind: ui2C092AnimationKind, loop: c.animationLoop ?? false),
+            animationStart: ui2C092Start,
             effect: ui2C092Effect,
             transform: ui2C092Transform,
             editing: ui2C092Editing,
             highlights: ui2C092Highlights
         )
-        .padding(.vertical, ui2C092Turned ? CGFloat(ui2C092Size) * ui2C092Transform.scale * 1.5 : 0)
-        // The looping animations rest at phase 1 (every glyph set) when animations are off.
-        .transaction { $0.disablesAnimations = true },
+        .padding(.vertical, ui2C092Turned ? CGFloat(ui2C092Size) * ui2C092Transform.scale * 1.5 : 0),
         // C-092 §2 Width & wrapping: with `transform.width` nil the block fills C-091's edit slot,
-        // canvas width − 2 × 24pt = 392 on the 440 canvas (FLAGGED LITERAL — the 24pt inset is
-        // C-091's). The master width, margin and ground live here (R-16).
+        // 392 wu on the 440 canvas (FLAGGED LITERAL — the 24 wu inset is C-091's). The master width, margin and ground live here (R-16).
         PreviewFrame(width: 392)
     )
 }
@@ -4736,24 +4789,33 @@ private func buildUI2C091(_ fixture: CaptureFixture) throws -> AnyView {
         throw ViewRegistryError.unknownView("component.ui2.C-091: missing state.component")
     }
     // C-091 §4 (R-07): `background`, `mode` and `content` are required — a nil is a fixture bug,
-    // not a value to guess. `passage` / `selectedHighlightID` / `deleteTarget` default to nil,
-    // `centerGuide` to false; the three callbacks are the view's no-ops.
-    let ui2C091Background: MakeReadyUI.ActivityCanvas<AnyView>.Background
-    if c.background?.plain != nil {
-        ui2C091Background = .plain
-    } else if let image = c.background?.image, let url = URL(string: image.imageURL),
-              let wash = ui2C091Hex(image.washColor) {
+    // not a value to guess. Every other prop takes its §4 default; the callbacks are the view's no-ops.
+    guard let ui2C091Ground = c.background else {
+        throw ViewRegistryError.unknownView("component.ui2.C-091: props.background is required ({color, image?, wash?})")
+    }
+    var ui2C091Image: MakeReadyUI.ActivityCanvas<AnyView>.Background.Image?
+    if let image = ui2C091Ground.image {
+        guard let url = URL(string: image.imageURL) else {
+            throw ViewRegistryError.unknownView("component.ui2.C-091: props.background.image.imageURL is not a URL")
+        }
         // Seed the image synchronously so the snapshot's single layout pass can render it — same
         // mechanism and same reason as the C-033 / C-037 cases. An unreachable URL leaves the
-        // canvas on its §2 placeholder base, which is the contract's own until-resolved look.
+        // canvas on `background.color`, which is the contract's own until-resolved look.
         if url.scheme?.hasPrefix("http") == true,
            let data = try? Data(contentsOf: url), let picture = UIImage(data: data) {
             MakeReadyUI.Ui2ImageCache.shared.seed(picture, for: url)
         }
-        ui2C091Background = .image(imageURL: url, washColor: wash, washOpacity: image.washOpacity)
-    } else {
-        throw ViewRegistryError.unknownView("component.ui2.C-091: props.background must be {plain:{}} or {image:{imageURL, washColor #rrggbb, washOpacity}}")
+        ui2C091Image = .init(imageURL: url, focal: CGPoint(x: image.focal.x, y: image.focal.y))
     }
+    var ui2C091Wash: MakeReadyUI.ActivityCanvas<AnyView>.Background.Wash?
+    if let wash = ui2C091Ground.wash {
+        ui2C091Wash = .init(color: try ui2C091Color(wash.color), opacity: wash.opacity)
+    }
+    let ui2C091Background = MakeReadyUI.ActivityCanvas<AnyView>.Background(
+        color: try ui2C091Color(ui2C091Ground.color),
+        image: ui2C091Image,
+        wash: ui2C091Wash
+    )
     let ui2C091Mode: MakeReadyUI.ActivityCanvas<AnyView>.Mode
     switch c.mode {
     case "idle": ui2C091Mode = .idle
@@ -4763,21 +4825,6 @@ private func buildUI2C091(_ fixture: CaptureFixture) throws -> AnyView {
     default:
         throw ViewRegistryError.unknownView("component.ui2.C-091: props.mode must be idle|editing|highlighting|manipulating")
     }
-    var ui2C091Passage: MakeReadyUI.ActivityCanvas<AnyView>.Passage?
-    if let raw = c.passage {
-        guard let decoded = try? JSONDecoder().decode(CaptureUI2CanvasPassage.self, from: Data(raw.utf8)) else {
-            throw ViewRegistryError.unknownView("component.ui2.C-091: props.passage is not a {verses, highlights} JSON string")
-        }
-        ui2C091Passage = .init(
-            verses: decoded.verses.map { .init(number: $0.number, text: $0.text) },
-            highlights: try decoded.highlights.map { h in
-                guard h.range.count == 2, h.range[0] <= h.range[1] else {
-                    throw ViewRegistryError.unknownView("component.ui2.C-091: highlight \(h.id) range must be [lower, upper]")
-                }
-                return .init(id: h.id, verse: h.verse, range: h.range[0]..<h.range[1], note: h.note)
-            }
-        )
-    }
     let ui2C091DeleteTarget: MakeReadyUI.ActivityCanvas<AnyView>.DeleteTarget?
     switch c.deleteTarget {
     case nil: ui2C091DeleteTarget = nil
@@ -4786,33 +4833,53 @@ private func buildUI2C091(_ fixture: CaptureFixture) throws -> AnyView {
     case let other?:
         throw ViewRegistryError.unknownView("component.ui2.C-091: props.deleteTarget \"\(other)\" must be visible|armed")
     }
+    let ui2C091Anchor: MakeReadyUI.ActivityCanvas<AnyView>.VerticalAnchor
+    switch c.verticalAnchor {
+    case nil, "center": ui2C091Anchor = .center
+    case "top": ui2C091Anchor = .top
+    case let other?:
+        throw ViewRegistryError.unknownView("component.ui2.C-091: props.verticalAnchor \"\(other)\" must be center|top")
+    }
+    var ui2C091Extent: ClosedRange<CGFloat>?
+    if let extent = c.contentExtent {
+        guard extent.count == 2, extent[0] <= extent[1] else {
+            throw ViewRegistryError.unknownView("component.ui2.C-091: props.contentExtent must be [top, bottom]")
+        }
+        ui2C091Extent = CGFloat(extent[0])...CGFloat(extent[1])
+    }
+    let ui2C091Handles = c.widthHandles.map { handles in
+        MakeReadyUI.ActivityCanvas<AnyView>.WidthHandles(
+            frame: CGRect(x: handles.frame.x, y: handles.frame.y, width: handles.frame.width, height: handles.frame.height),
+            rotation: .degrees(handles.rotation ?? 0)
+        )
+    }
     guard let ui2C091Children = c.content?.children else {
         throw ViewRegistryError.unknownView("component.ui2.C-091: props.content is required ([] for an empty slot)")
     }
     let ui2C091Slot = try ui2C091Children.enumerated().map { index, child in
         try ui2C091Child(child, index: index)
     }
-    // §2 Sizing: the canvas takes the height the screen gives it — 775 (Idle, Highlighting) or
-    // 709 (Editing) in the frames — carried in `__frameHeight`.
+    // §2 Sizing: V, the viewport height the screen gives the canvas, is carried in `__frameHeight`.
     guard let ui2C091Height = c.__frameHeight else {
-        throw ViewRegistryError.unknownView("component.ui2.C-091: __frameHeight (the canvas height) is required")
+        throw ViewRegistryError.unknownView("component.ui2.C-091: __frameHeight (the viewport height) is required")
     }
     return declareCase(
         MakeReadyUI.ActivityCanvas<AnyView>(
             background: ui2C091Background,
             mode: ui2C091Mode,
-            passage: ui2C091Passage,
-            selectedHighlightID: c.selectedHighlightID,
             content: {
                 AnyView(ZStack(alignment: .topLeading) {
                     ForEach(Array(ui2C091Slot.enumerated()), id: \.offset) { _, child in child }
                 })
             },
             centerGuide: c.centerGuide ?? false,
-            deleteTarget: ui2C091DeleteTarget
-        )
-        // C-092's looping animations rest at phase 1 when animations are off (its own case).
-        .transaction { $0.disablesAnimations = true },
+            deleteTarget: ui2C091DeleteTarget,
+            verticalAnchor: ui2C091Anchor,
+            contentExtent: ui2C091Extent,
+            reservedZones: c.reservedZones ?? false,
+            pinnedAction: c.pinnedAction ?? false,
+            widthHandles: ui2C091Handles
+        ),
         // C-091 §2: 440 wide on the edit frames — the device width, so no page margin (the
         // C-084 precedent); the ground is the canvas's own.
         PreviewFrame(width: 440, height: CGFloat(ui2C091Height), margin: 0)
@@ -4831,12 +4898,12 @@ private func ui2C091Child(_ child: CaptureUI2CanvasChild, index: Int) throws -> 
         }
         let font: MakeReadyUI.CanvasTextObject.Font
         switch child.font {
-        case "poppins": font = .poppins
-        case "sfPro": font = .sfPro
-        case "georgia": font = .georgia
-        case "typewriter": font = .typewriter
+        case "display": font = .display
+        case nil, "sans": font = .sans
+        case "serif": font = .serif
+        case "mono": font = .mono
         default:
-            throw ViewRegistryError.unknownView("component.ui2.C-091: content[\(index)] C-092 font must be poppins|sfPro|georgia|typewriter")
+            throw ViewRegistryError.unknownView("component.ui2.C-091: content[\(index)] C-092 font must be display|sans|serif|mono")
         }
         var transform = MakeReadyUI.CanvasTextObject.Transform.identity
         if let t = child.transform {
@@ -4845,7 +4912,36 @@ private func ui2C091Child(_ child: CaptureUI2CanvasChild, index: Int) throws -> 
             if let rotation = t.rotation { transform.rotation = .degrees(rotation) }
             transform.width = t.width.map { CGFloat($0) }
         }
-        let object = MakeReadyUI.CanvasTextObject(text: text, font: font, size: CGFloat(size), transform: transform, editing: editing)
+        let alignment: MakeReadyUI.CanvasTextObject.Alignment
+        switch child.alignment {
+        case nil, "center": alignment = .center
+        case "left": alignment = .left
+        case "right": alignment = .right
+        case let other?:
+            throw ViewRegistryError.unknownView("component.ui2.C-091: content[\(index)] C-092 alignment \"\(other)\" must be center|left|right")
+        }
+        let listStyle: MakeReadyUI.CanvasTextObject.ListStyle
+        switch child.listStyle {
+        case nil, "none": listStyle = .none
+        case "bullet": listStyle = .bullet
+        case "numbered": listStyle = .numbered
+        case "bibleVerse": listStyle = .bibleVerse
+        case let other?:
+            throw ViewRegistryError.unknownView("component.ui2.C-091: content[\(index)] C-092 listStyle \"\(other)\" must be none|bullet|numbered|bibleVerse")
+        }
+        let highlights: [MakeReadyUI.CanvasTextObject.TextRange] = (child.highlights ?? []).map {
+            .init(start: $0.start, end: $0.end, note: nil)
+        }
+        let object = MakeReadyUI.CanvasTextObject(
+            text: text,
+            font: font,
+            size: CGFloat(size),
+            alignment: alignment,
+            listStyle: listStyle,
+            transform: transform,
+            editing: editing,
+            highlights: highlights
+        )
         if editing {
             // The edit slot: the screen's x / y / width (§2 layer 4).
             return AnyView(object.frame(width: child.width.map { CGFloat($0) }).offset(x: at.x, y: at.y))
@@ -4856,7 +4952,8 @@ private func ui2C091Child(_ child: CaptureUI2CanvasChild, index: Int) throws -> 
         guard let value = child.value else {
             throw ViewRegistryError.unknownView("component.ui2.C-091: content[\(index)] C-093 needs value")
         }
-        return AnyView(MakeReadyUI.TextSizeSlider(value: CGFloat(value)).offset(x: at.x, y: at.y))
+        // §2 layer 2: fixed screen furniture — `x` / `y` are against the viewport.
+        return AnyView(MakeReadyUI.ActivityCanvasViewportFixed { MakeReadyUI.TextSizeSlider(value: CGFloat(value)).offset(x: at.x, y: at.y) })
     case "C-102":
         guard let raw = child.glyph, let glyph = MakeReadyUI.GlyphName(rawValue: raw),
               let tone = child.tone.flatMap(MakeReadyUI.IconButton.Tone.init(rawValue:)),
@@ -4865,8 +4962,10 @@ private func ui2C091Child(_ child: CaptureUI2CanvasChild, index: Int) throws -> 
             throw ViewRegistryError.unknownView("component.ui2.C-091: content[\(index)] C-102 needs glyph, tone, style, selected, accessibilityLabel")
         }
         return AnyView(
-            MakeReadyUI.IconButton(glyph: glyph, tone: tone, style: style, selected: selected, accessibilityLabel: label)
-                .offset(x: at.x, y: at.y)
+            MakeReadyUI.ActivityCanvasViewportFixed {
+                MakeReadyUI.IconButton(glyph: glyph, tone: tone, style: style, selected: selected, accessibilityLabel: label)
+                    .offset(x: at.x, y: at.y)
+            }
         )
     case "C-105":
         guard let label = child.label else {
@@ -4878,9 +4977,22 @@ private func ui2C091Child(_ child: CaptureUI2CanvasChild, index: Int) throws -> 
             }
             return name
         }
-        return AnyView(MakeReadyUI.Button(label: label, leadingGlyph: leading).offset(x: at.x, y: at.y))
+        return AnyView(MakeReadyUI.ActivityCanvasViewportFixed { MakeReadyUI.Button(label: label, leadingGlyph: leading).offset(x: at.x, y: at.y) })
     default:
         throw ViewRegistryError.unknownView("component.ui2.C-091: content[\(index)].component must be C-092|C-093|C-102|C-105")
+    }
+}
+
+/// C-091 `background` colours in a fixture: the tokens §2 names, or a #rrggbb swatch.
+private func ui2C091Color(_ raw: String) throws -> Color {
+    switch raw {
+    case "color-background-alt": return MakeReadyUI.Token.backgroundAlt
+    case "color-activity-slide-placeholder": return MakeReadyUI.Token.activitySlidePlaceholder
+    default:
+        guard let swatch = ui2C091Hex(raw) else {
+            throw ViewRegistryError.unknownView("component.ui2.C-091: colour \"\(raw)\" must be a §2 token name or #rrggbb")
+        }
+        return swatch
     }
 }
 
