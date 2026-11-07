@@ -175,6 +175,74 @@ describe('content export and import', () => {
     expect((await prisma.contentActivity.findUniqueOrThrow({ where: { id: draft.id } })).document).toEqual(EDITED)
   })
 
+  /** A published program whose live rows equal its snapshot, in the real snapshot shape (no ref ids, `ref:<n>`, no highlight style). */
+  async function seedSnapshotScripture() {
+    const program = await prisma.studyProgram.create({
+      data: { name: `Snap program ${stamp}`, days: 1, creatorId: created.userId, organizationId: created.orgId, isPublished: true },
+    })
+    created.programIds.push(program.id)
+    const lesson = await prisma.lesson.create({ data: { studyProgramId: program.id, dayNumber: 1, title: 'Day one' } })
+    const ref = { sourceType: 'SCRIPTURE', passageReference: 'Romans 1:1', bookNumber: 45, bookName: 'Romans', chapterStart: 1, chapterEnd: 1, verseStart: 1, verseEnd: 1 }
+    const text = '1 Paul, a servant of Christ Jesus.'
+    const activity = await prisma.lessonActivity.create({
+      data: { lessonId: lesson.id, activityType: 'EXEGESIS', orderNumber: 1, title: 'Romans 1', sourceReferences: { create: [ref] } },
+      include: { sourceReferences: true },
+    })
+    await prisma.activityReadBlock.create({
+      data: {
+        lessonActivityId: activity.id, orderNumber: 1, isLocked: true, content: text, sourceReferenceId: activity.sourceReferences[0].id,
+        contentHighlights: { create: [
+          { orderNumber: 1, start: 2, end: 6, noteMarkdown: 'Paul' },
+          { orderNumber: 2, start: 8, end: 17, noteMarkdown: '', style: 'bold' },
+        ] },
+      },
+    })
+    await prisma.studyProgramVersion.create({
+      data: {
+        studyProgramId: program.id, versionNumber: 1, lessonHashes: {},
+        snapshot: { lessons: [{
+          id: lesson.id, dayNumber: 1, title: 'Day one', contentHash: 'x', activityIds: [activity.id],
+          content: { title: 'Day one', activities: [{
+            type: 'EXEGESIS', orderNumber: 1, title: 'Romans 1', sourceReferences: [ref],
+            readBlocks: [{
+              orderNumber: 1, isLocked: true, title: null, content: text, contentFormat: 'markdown', sourceReferenceId: 'ref:0',
+              exegesisHighlights: [
+                { orderNumber: 1, start: 2, end: 6, noteMarkdown: 'Paul' },
+                { orderNumber: 2, start: 8, end: 17, noteMarkdown: '' },
+              ],
+            }],
+          }] },
+        }] },
+      },
+    })
+    return { programId: program.id, lessonId: lesson.id, url }
+  }
+
+  it('a snapshot scripture block keeps its passages and does not spawn a spurious draft', async () => {
+    const dump = await seedSnapshotScripture()
+    const bundle = await exportFrom(dump)
+    await runImport(url, bundle, {})
+    const versions = await prisma.lessonVersion.findMany({ where: { lessonId: dump.lessonId } })
+    expect(versions.map((v) => [v.number, v.status])).toEqual([[1, 'PUBLISHED']])
+    const bible = await prisma.contentActivity.findFirstOrThrow({ where: { lessonVersionId: versions[0].id, kind: 'bible' } })
+    expect((bible.document as any).content.passages).toEqual([
+      { bookNumber: 45, chapterStart: 1, verseStart: 1, chapterEnd: 1, verseEnd: 1 },
+    ])
+  })
+
+  it('warns when a re-run has no ledger beside the bundle, and not when --ledger points at the first one', async () => {
+    const dump = await seedOldModelDump()
+    const first = mkdtempSync(join(tmpdir(), 'content-first-'))
+    const firstBundle = (await runExport(dump.url, first, {})).bundlePath
+    const a = await runImport(url, firstBundle, {})
+    expect(a.warnings).toEqual([])
+    const second = await exportFrom(dump) // different directory, so no ledger beside it
+    const b = await runImport(url, second, {})
+    expect(b.warnings.join(' ')).toMatch(/no ledger/)
+    const c = await runImport(url, second, { ledgerPath: join(first, 'import-ledger.json') })
+    expect(c.warnings).toEqual([])
+  })
+
   it('writes a report with counts by old type and new kind', async () => {
     const dump = await seedOldModelDump()
     const out = mkdtempSync(join(tmpdir(), 'content-report-'))

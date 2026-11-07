@@ -67,6 +67,15 @@ function oldFromRow(a: any): OldActivity {
   }
 }
 
+/** `"ref:n"` (snapshot form) to the id synthesised for the n-th source reference; other values pass through. */
+function snapshotRefId(value: string | null | undefined, refs: any[], activityId: string): string | null {
+  if (value == null) return null
+  const m = /^ref:(\d+)$/.exec(value)
+  if (!m) return value
+  const ref = refs[Number(m[1])]
+  return ref ? (ref.id ?? `${activityId}:ref${m[1]}`) : null
+}
+
 /** A published `StudyProgramVersion.snapshot` lesson back into old-row shape; null when it cannot be aligned to ids. */
 function oldFromSnapshot(lesson: any): OldActivity[] | null {
   const activities: any[] = lesson?.content?.activities ?? []
@@ -74,13 +83,19 @@ function oldFromSnapshot(lesson: any): OldActivity[] | null {
   if (activities.length && ids.length !== activities.length) return null
   return activities.map((a, i) => oldFromRow({
     ...a, id: ids[i], activityType: a.type,
+    // The snapshot strips ref ids and points each block at `ref:<index>` in the (sorted) ref list.
     sourceReferences: (a.sourceReferences ?? []).map((r: any, n: number) => ({ id: r.id ?? `${ids[i]}:ref${n}`, ...r })),
     readBlocks: (a.readBlocks ?? []).map((b: any, n: number) => ({
       ...b, id: b.id ?? `${ids[i]}:b${n}`,
+      sourceReferenceId: snapshotRefId(b.sourceReferenceId, a.sourceReferences ?? [], ids[i]),
       contentHighlights: (b.exegesisHighlights ?? []).map((h: any) => ({ style: 'highlight', ...h })),
     })),
   }))
 }
+
+const withPlainHighlights = (a: OldActivity): OldActivity => ({
+  ...a, readBlocks: a.readBlocks.map((b) => ({ ...b, highlights: b.highlights.map((h) => ({ ...h, style: 'highlight' })) })),
+})
 
 const tally = (items: string[]) =>
   Object.entries(items.reduce<Record<string, number>>((m, k) => ((m[k] = (m[k] ?? 0) + 1), m), {}))
@@ -166,10 +181,15 @@ export async function runExport(
         const title = lesson.title ?? `Day ${lesson.dayNumber}`
         const live = convert(lesson.activities.map(oldFromRow), true)
         let published: ConvertedActivity[] | null = null
+        let comparable = live
         if (livePublished) published = live
         else if (latest && snapshotLessons.has(lesson.id)) {
           const snap = oldFromSnapshot(snapshotLessons.get(lesson.id))
-          if (snap) published = convert(snap, false)
+          if (snap) {
+            published = convert(snap, false)
+            // Snapshots drop highlight `style` (every highlight reads back as 'highlight'); compare like with like.
+            comparable = convert(lesson.activities.map(oldFromRow).map(withPlainHighlights), false)
+          }
           else {
             report.note.push(`lesson ${lesson.id}: snapshot has no activity ids; live content imported as published`)
             published = live
@@ -177,7 +197,7 @@ export async function runExport(
         }
         const same = published !== null &&
           hashLessonContent({ title, activities: published.map((a, position) => ({ ...a, position })) }) ===
-          hashLessonContent({ title, activities: live.map((a, position) => ({ ...a, position })) })
+          hashLessonContent({ title, activities: comparable.map((a, position) => ({ ...a, position })) })
         const draft = livePublished || same ? null : live
         bundleLessons.push({ id: lesson.id, position: lesson.dayNumber ?? bundleLessons.length + 1, title, published, draft })
         if (draft && published) report.note.push(`lesson ${lesson.id}: unpublished edits become its draft`)

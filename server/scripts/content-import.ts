@@ -21,6 +21,8 @@ export interface ImportResult {
   conflicts: string[]
   /** Things the bundle names that the target database lacks (a missing program, an invalid document). */
   skipped: string[]
+  /** Things the operator should read before trusting the run (e.g. a missing ledger on a re-run). */
+  warnings: string[]
 }
 
 interface Ledger {
@@ -184,8 +186,9 @@ export async function runImport(
   assertDatabaseAllowed(databaseUrl, opts)
   const bundle: Bundle = JSON.parse(readFileSync(bundlePath, 'utf8'))
   const ledgerPath = opts.ledgerPath ?? join(dirname(bundlePath), 'import-ledger.json')
+  const ledgerExisted = existsSync(ledgerPath)
   const ledger = readLedger(ledgerPath)
-  const result: ImportResult = { created: 0, updated: 0, conflicts: [], skipped: [] }
+  const result: ImportResult = { created: 0, updated: 0, conflicts: [], skipped: [], warnings: [] }
 
   // A document that no longer validates is a bundle problem, not something to store.
   for (const program of bundle.programs) for (const lesson of program.lessons) {
@@ -210,6 +213,14 @@ export async function runImport(
         },
       })
     }
+    if (!ledgerExisted && bundle.programs.length) {
+      const have = await prisma.studyProgram.count({ where: { id: { in: bundle.programs.map((p) => p.id) }, currentVersionId: { not: null } } })
+      if (have) {
+        result.warnings.push(
+          `no ledger at ${ledgerPath} but ${have} target program(s) are already imported: every changed activity will be reported as a conflict. ` +
+          'Re-export into the first export directory, or pass --ledger <path to the first import-ledger.json>.')
+      }
+    }
     for (const program of bundle.programs) {
       await prisma.$transaction((tx) => importProgram(tx, program, ledger, result), { timeout: 120_000, maxWait: 30_000 })
     }
@@ -228,6 +239,7 @@ export async function runImport(
   lines.push(...(result.conflicts.length
     ? ['Kept as edited in the new model; the export differs.', ...result.conflicts.map((k) => `- ${k}`)]
     : ['None.']))
+  if (result.warnings.length) lines.push('', '## Warnings', '', ...result.warnings.map((w) => `- ${w}`))
   lines.push('', '## Skipped', '', ...(result.skipped.length ? result.skipped.map((s) => `- ${s}`) : ['None.']), '')
   writeFileSync(join(dirname(ledgerPath), 'import-report.md'), lines.join('\n'))
   return result
@@ -239,14 +251,17 @@ if (process.argv[1]?.endsWith('content-import.ts')) {
   const args = process.argv.slice(2)
   const at = args.indexOf('--bundle')
   const bundle = at >= 0 ? args[at + 1] : undefined
+  const ledgerAt = args.indexOf('--ledger')
+  const ledger = ledgerAt >= 0 ? args[ledgerAt + 1] : undefined
   const url = process.env.DATABASE_URL
   if (!url || !bundle) {
-    console.error('Usage: DATABASE_URL=<target> npx tsx scripts/content-import.ts --bundle <bundle.json> [--confirm-production]')
+    console.error('Usage: DATABASE_URL=<target> npx tsx scripts/content-import.ts --bundle <bundle.json> [--ledger <import-ledger.json>] [--confirm-production]')
     process.exit(1)
   }
-  runImport(url, resolve(bundle), { confirmProduction: args.includes('--confirm-production') })
+  runImport(url, resolve(bundle), { confirmProduction: args.includes('--confirm-production'), ledgerPath: ledger ? resolve(ledger) : undefined })
     .then((r) => {
       console.log(`created ${r.created}, updated ${r.updated}, conflicts ${r.conflicts.length}, skipped ${r.skipped.length}`)
+      for (const w of r.warnings) console.warn(`WARNING: ${w}`)
       for (const k of r.conflicts) console.log(`conflict: ${k}`)
     })
     .catch((e) => { console.error(e.message); process.exit(1) })
