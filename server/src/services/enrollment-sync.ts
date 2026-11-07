@@ -7,7 +7,8 @@
  *  - A scheduled lesson whose current version belongs to the enrollment (`enrollmentId` set: the group's own
  *    edit) is skipped and reported (D5).
  *  - A lesson the enrollment never had gets a ScheduledLesson: in a slot freed by a removal in the same sync,
- *    else on the next enabled day after every date the enrollment holds (the rule the old sync used).
+ *    else on the next enabled day after every date the enrollment holds. A full sync re-lays every unlocked lesson
+ *    over the slot pool in program order, as the old sync did.
  *  - A lesson absent from the target is deleted when no member started it, else soft-removed (`removedAt`).
  *  - Past-dated or already-sent lessons count as locked: their dates are never reused as free slots.
  */
@@ -32,6 +33,8 @@ export interface ApplyProgramVersionResult {
   addedLessonIds: string[]
   removedLessonIds: string[]
   skippedCustomizedLessonIds: string[]
+  /** Existing scheduled lessons whose date moved when the unlocked lessons were re-laid in program order. */
+  datesShifted: number
 }
 
 export interface ApplyProgramVersionOptions {
@@ -55,7 +58,7 @@ export async function applyProgramVersion(
   const { only } = options
   const enrollment = await tx.enrollment.findUniqueOrThrow({
     where: { id: enrollmentId },
-    select: { id: true, enabledDays: true, endDate: true },
+    select: { id: true, enabledDays: true, endDate: true, studyProgram: { select: { name: true } } },
   })
   const targetLessons = await tx.programVersionLesson.findMany({
     where: { programVersionId },
@@ -72,7 +75,7 @@ export async function applyProgramVersion(
 
   const now = new Date()
   const result: ApplyProgramVersionResult = {
-    movedLessonIds: [], addedLessonIds: [], removedLessonIds: [], skippedCustomizedLessonIds: [],
+    movedLessonIds: [], addedLessonIds: [], removedLessonIds: [], skippedCustomizedLessonIds: [], datesShifted: 0,
   }
 
   // Removals
@@ -102,11 +105,12 @@ export async function applyProgramVersion(
   const scheduleByLessonId = new Map(
     schedules.filter((s) => s.lessonId !== null).map((s) => [s.lessonId as string, s]),
   )
-  const toAdd: string[] = []
+  const toAdd = new Set<string>()
+  const revivedScheduleIds = new Set<string>()
   for (const target of targetLessons) {
     const schedule = scheduleByLessonId.get(target.lessonId)
     if (!schedule) {
-      if (!only || only.has(target.lessonId)) toAdd.push(target.lessonId)
+      if (!only || only.has(target.lessonId)) toAdd.add(target.lessonId)
       continue
     }
     if (removedScheduleIds.has(schedule.id) || !selected(target.lessonId, schedule.id)) continue
@@ -115,6 +119,7 @@ export async function applyProgramVersion(
       continue
     }
     // A lesson back in the program revives its soft-removed scheduled lesson.
+    if (schedule.removedAt !== null) revivedScheduleIds.add(schedule.id)
     await tx.scheduledLesson.update({
       where: { id: schedule.id },
       data: { currentVersionId: target.lessonVersionId, removedAt: null },
@@ -122,29 +127,56 @@ export async function applyProgramVersion(
     result.movedLessonIds.push(target.lessonId)
   }
 
-  // Additions
-  if (toAdd.length > 0) {
-    const survivors = schedules.filter((s) => !removedScheduleIds.has(s.id) && s.removedAt === null)
-    const slots = freedSlotDates.sort((a, b) => a.getTime() - b.getTime())
-    const enabledDays = parseEnabledDays(enrollment.enabledDays)
-    let cursor = new Date(Math.max(
-      now.getTime(), slots.at(-1)?.getTime() ?? 0, ...survivors.map((s) => s.scheduledDate.getTime()),
-    ))
-    const nextOverflowDate = (): Date => {
-      cursor = new Date(cursor)
-      do {
-        cursor.setDate(cursor.getDate() + 1)
-      } while (!enabledDays.includes(cursor.getDay()))
-      return new Date(cursor)
-    }
-    const dates = new Map<string, Date>()
-    toAdd.forEach((lessonId, i) => dates.set(lessonId, i < slots.length ? slots[i] : nextOverflowDate()))
-    result.addedLessonIds.push(...(await createScheduledLessons(tx, enrollmentId, programVersionId, dates)))
+  // Dates. Without a selection every unlocked lesson is re-laid, in program order, over the slots the
+  // unlocked schedules hold plus the slots freed by removals (overflow goes on the next enabled day after
+  // every locked date). A selection never moves an existing schedule: additions take freed slots, then overflow.
+  const isLocked = (s: { smsSentAt: Date | null; scheduledDate: Date }) => s.smsSentAt !== null || s.scheduledDate <= now
+  const survivors = schedules.filter(
+    (s) => !removedScheduleIds.has(s.id) && (s.removedAt === null || revivedScheduleIds.has(s.id)),
+  )
+  const survivorByLessonId = new Map(survivors.filter((s) => s.lessonId !== null).map((s) => [s.lessonId as string, s]))
+  const immovable = only ? survivors : survivors.filter(isLocked)
+  const lockedLessonIds = new Set(survivors.filter(isLocked).map((s) => s.lessonId))
+  const relaid = only
+    ? targetLessons.filter((t) => toAdd.has(t.lessonId))
+    : targetLessons.filter((t) => !lockedLessonIds.has(t.lessonId))
+  const slots = (only ? [...freedSlotDates] : [...survivors.filter((s) => !isLocked(s)).map((s) => s.scheduledDate), ...freedSlotDates])
+    .sort((a, b) => a.getTime() - b.getTime())
+  const enabledDays = parseEnabledDays(enrollment.enabledDays)
+  let cursor = new Date(Math.max(
+    now.getTime(), slots.at(-1)?.getTime() ?? 0, ...immovable.map((s) => s.scheduledDate.getTime()),
+  ))
+  const nextOverflowDate = (): Date => {
+    cursor = new Date(cursor)
+    do {
+      cursor.setDate(cursor.getDate() + 1)
+    } while (!enabledDays.includes(cursor.getDay()))
+    return new Date(cursor)
+  }
 
-    const latest = Math.max(...[...dates.values()].map((d) => d.getTime()))
-    if (latest > enrollment.endDate.getTime()) {
-      await tx.enrollment.update({ where: { id: enrollmentId }, data: { endDate: new Date(latest) } })
+  const addedDates = new Map<string, Date>()
+  let latest = 0
+  for (const [i, lesson] of relaid.entries()) {
+    const date = i < slots.length ? slots[i] : nextOverflowDate()
+    latest = Math.max(latest, date.getTime())
+    const existing = survivorByLessonId.get(lesson.lessonId)
+    if (!existing) {
+      addedDates.set(lesson.lessonId, date)
+      continue
     }
+    if (existing.scheduledDate.getTime() === date.getTime()) continue
+    await tx.scheduledLesson.update({ where: { id: existing.id }, data: { scheduledDate: date } })
+    await tx.event.updateMany({
+      where: { scheduledLessonId: existing.id },
+      data: { date, dayNumber: lesson.position, title: `Day ${lesson.position}: ${enrollment.studyProgram.name}` },
+    })
+    result.datesShifted++
+  }
+  if (addedDates.size > 0) {
+    result.addedLessonIds.push(...(await createScheduledLessons(tx, enrollmentId, programVersionId, addedDates)))
+  }
+  if (latest > enrollment.endDate.getTime()) {
+    await tx.enrollment.update({ where: { id: enrollmentId }, data: { endDate: new Date(latest) } })
   }
 
   if (!only) {
@@ -175,6 +207,10 @@ export async function createScheduledLessons(
     where: { programVersionId, lessonId: { in: [...dates.keys()] } },
     orderBy: { position: 'asc' },
   })
+  const missing = [...dates.keys()].filter((id) => !lessons.some((l) => l.lessonId === id))
+  if (missing.length > 0) {
+    throw new Error(`createScheduledLessons: lessons not in program version ${programVersionId}: ${missing.join(', ')}`)
+  }
   for (const lesson of lessons) {
     const scheduledDate = dates.get(lesson.lessonId) as Date
     const scheduled = await tx.scheduledLesson.create({
@@ -271,7 +307,7 @@ export async function syncEnrollmentToLatest(params: {
     lessonsUpdated: result.movedLessonIds.length,
     lessonsAdded: result.addedLessonIds.length,
     lessonsRemoved: result.removedLessonIds.length,
-    datesShifted: 0,
+    datesShifted: result.datesShifted,
     skippedCustomizedLessonIds: result.skippedCustomizedLessonIds,
     fullySynced,
   }
