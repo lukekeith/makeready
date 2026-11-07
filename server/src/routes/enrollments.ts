@@ -2744,10 +2744,10 @@ router.get('/lesson-schedules/:id/invite', requireAuth, async (req, res) => {
         passageReference,
         studyProgram: schedule.lesson
           ? {
-              id: schedule.lesson.studyProgram.id,
-              name: schedule.lesson.studyProgram.name,
-              days: schedule.lesson.studyProgram.days,
-              coverImageUrl: schedule.lesson.studyProgram.coverImageUrl,
+              id: schedule.lesson.studyProgram!.id,
+              name: schedule.lesson.studyProgram!.name,
+              days: schedule.lesson.studyProgram!.days,
+              coverImageUrl: schedule.lesson.studyProgram!.coverImageUrl,
             }
           : null,
         group: {
@@ -5281,7 +5281,7 @@ router.delete('/enrollments/:enrollmentId/schedules/:scheduleId', requireAuth, a
         : null
 
       if (lesson) {
-        const programId = lesson.studyProgramId
+        const programId = lesson.studyProgramId!
 
         await tx.lesson.delete({ where: { id: lesson.id } })
 
@@ -5289,7 +5289,7 @@ router.delete('/enrollments/:enrollmentId/schedules/:scheduleId', requireAuth, a
         await tx.lesson.updateMany({
           where: {
             studyProgramId: programId,
-            dayNumber: { gt: lesson.dayNumber },
+            dayNumber: { gt: lesson.dayNumber! },
           },
           data: { dayNumber: { decrement: 1 } },
         })

@@ -147,13 +147,13 @@ async function fetchLessonContent(
 
   const program = schedule.lesson.studyProgram;
   const dayNumber = schedule.lesson.dayNumber;
-  const totalDays = program.days;
+  const totalDays = program!.days;
   const firstActivity = schedule.scheduledActivities[0];
   const passageReference = firstActivity?.sourceReferences?.[0]?.passageReference;
 
   // Cover image priority: program > group > default
   const coverImage =
-    program.coverImageUrl || group.coverImageUrl || `${clientUrl}/og-default.png`;
+    program!.coverImageUrl || group.coverImageUrl || `${clientUrl}/og-default.png`;
 
   // Build description
   let description = `Day ${dayNumber} of ${totalDays}`;
@@ -163,7 +163,7 @@ async function fetchLessonContent(
   description += ` with ${group.name}`;
 
   return {
-    title: `${program.name} - Day ${dayNumber}`,
+    title: `${program!.name} - Day ${dayNumber}`,
     description,
     imageUrl: coverImage,
     url: `${clientUrl}/join/group/${groupCode}/study/${lessonCode}`,
@@ -230,13 +230,13 @@ async function fetchLessonContentByIdOrCode(
   const group = schedule.enrollment.group;
   const program = schedule.lesson.studyProgram;
   const dayNumber = schedule.lesson.dayNumber;
-  const totalDays = program.days;
+  const totalDays = program!.days;
   const firstActivity = schedule.scheduledActivities[0];
   const passageReference = firstActivity?.sourceReferences?.[0]?.passageReference;
 
   // Cover image priority: program > group > default
   const coverImage =
-    program.coverImageUrl || group.coverImageUrl || `${clientUrl}/og-default.png`;
+    program!.coverImageUrl || group.coverImageUrl || `${clientUrl}/og-default.png`;
 
   // Build description
   let description = `Day ${dayNumber} of ${totalDays}`;
@@ -246,7 +246,7 @@ async function fetchLessonContentByIdOrCode(
   description += ` with ${group.name}`;
 
   return {
-    title: `${program.name} - Day ${dayNumber}`,
+    title: `${program!.name} - Day ${dayNumber}`,
     description,
     imageUrl: coverImage,
     // Always use the schedule ID in the URL for consistency

@@ -87,6 +87,14 @@ models:
         default: true
         description: "Inactive users cannot authenticate or access leader/admin app surfaces"
     relations:
+      publishedLessonVersions:
+        type: one_to_many
+        target: LessonVersion
+        name: LessonVersionPublisher
+      publishedProgramVersionsV2:
+        type: one_to_many
+        target: ProgramVersion
+        name: ProgramVersionPublisher
       createdGroups:
         type: one_to_many
         target: Group
@@ -768,6 +776,12 @@ models:
         nullable: true
         description: "Emergency contact's phone, as entered"
     relations:
+      scheduledLessonProgress:
+        type: one_to_many
+        target: LessonProgress
+      contentActivityProgress:
+        type: one_to_many
+        target: ActivityProgress
       groupMemberships:
         type: one_to_many
         target: GroupMember
@@ -2049,6 +2063,9 @@ models:
         type: datetime
         updatedAt: true
     relations:
+      scheduledLessons:
+        type: one_to_many
+        target: ScheduledLesson
       creator:
         type: many_to_one
         target: User
@@ -2103,6 +2120,7 @@ models:
       type:
         type: enum
         enum: TemplateActivityType
+        nullable: true
       orderNumber:
         type: int
         description: "1-based position"
@@ -2143,6 +2161,14 @@ models:
       updatedAt:
         type: datetime
         updatedAt: true
+      kind:
+        type: string
+        nullable: true
+        description: "text-activity SC6: content kind (validated text, replaces type)"
+      document:
+        type: json
+        nullable: true
+        description: "text-activity SC6: starter document per 02-content-schema"
     relations:
       template:
         type: many_to_one
@@ -2249,7 +2275,27 @@ models:
       updatedAt:
         type: datetime
         updatedAt: true
+      currentVersionId:
+        type: string
+        nullable: true
+        description: "text-activity SC4: latest ProgramVersion (replaces currentVersionNumber)"
     relations:
+      currentVersion:
+        type: many_to_one
+        target: ProgramVersion
+        fields: [currentVersionId]
+        references: [id]
+        name: ProgramCurrentVersion
+        onDelete: SetNull
+        nullable: true
+      programVersions:
+        type: one_to_many
+        target: ProgramVersion
+        name: ProgramVersions
+      programLessons:
+        type: one_to_many
+        target: Lesson
+        name: ProgramLessons
       template:
         type: many_to_one
         target: LessonTemplate
@@ -2283,6 +2329,7 @@ models:
       lessons:
         type: one_to_many
         target: Lesson
+        name: LessonStudyProgram
       enrollments:
         type: one_to_many
         target: Enrollment
@@ -2401,8 +2448,11 @@ models:
         default: uuid()
       studyProgramId:
         type: string
+        nullable: true
+        description: "Old model; becomes programId at the cutover (text-activity D27)"
       dayNumber:
         type: int
+        nullable: true
         description: "1-based day number"
       title:
         type: string
@@ -2418,13 +2468,44 @@ models:
       updatedAt:
         type: datetime
         updatedAt: true
+      programId:
+        type: string
+        nullable: true
+        description: "text-activity SC2: owning program; NOT NULL after the import backfill (Data plan step 3)"
+      position:
+        type: int
+        nullable: true
+        description: "text-activity SC2: 1-based order within the program (replaces dayNumber)"
+      deletedAt:
+        type: datetime
+        nullable: true
+        description: "text-activity D36: set instead of a hard delete once any published version exists"
     relations:
       studyProgram:
         type: many_to_one
         target: StudyProgram
         fields: [studyProgramId]
         references: [id]
+        name: LessonStudyProgram
         onDelete: Cascade
+        nullable: true
+      program:
+        type: many_to_one
+        target: StudyProgram
+        fields: [programId]
+        references: [id]
+        name: ProgramLessons
+        onDelete: Cascade
+        nullable: true
+      versions:
+        type: one_to_many
+        target: LessonVersion
+      programVersionLessons:
+        type: one_to_many
+        target: ProgramVersionLesson
+      scheduledLessons:
+        type: one_to_many
+        target: ScheduledLesson
       activities:
         type: one_to_many
         target: LessonActivity
@@ -2433,6 +2514,7 @@ models:
         target: LessonSchedule
     indexes:
       - fields: [studyProgramId]
+      - fields: [programId, position]
     unique:
       - fields: [studyProgramId, dayNumber]
 
@@ -2628,7 +2710,24 @@ models:
         type: string
         nullable: true
         description: "User who last updated this enrollment"
+      programVersionId:
+        type: string
+        nullable: true
+        description: "text-activity SC3: the ProgramVersion the enrollment is synced to (replaces syncedProgramVersionNumber)"
     relations:
+      programVersion:
+        type: many_to_one
+        target: ProgramVersion
+        fields: [programVersionId]
+        references: [id]
+        onDelete: SetNull
+        nullable: true
+      lessonVersions:
+        type: one_to_many
+        target: LessonVersion
+      scheduledLessons:
+        type: one_to_many
+        target: ScheduledLesson
       group:
         type: many_to_one
         target: Group
@@ -2827,6 +2926,392 @@ models:
       - fields: [triggeredById]
     unique:
       - fields: [enrollmentId, targetProgramVersionNumber]
+
+  # ===========================================================================
+  # text-activity (SC1): versioned lessons holding one JSON document per activity.
+  # The one-draft partial unique index and the NULLS NOT DISTINCT number key are
+  # hand-managed in 20261107000200_text_activity_draft_index.sql (SC13, D31).
+  # ===========================================================================
+  LessonVersion:
+    table_name: lesson_versions
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      lessonId:
+        type: string
+        description: "Never null (D36 supersedes 05 s2)"
+      enrollmentId:
+        type: string
+        nullable: true
+        description: "Null for program versions; set for a group's customized version"
+      number:
+        type: int
+      status:
+        type: enum
+        enum: LessonVersionStatus
+        default: DRAFT
+      title:
+        type: string
+        nullable: true
+      contentHash:
+        type: string
+        default: ""
+      estimatedSeconds:
+        type: int
+        nullable: true
+      basedOnVersionId:
+        type: string
+        nullable: true
+      publishedAt:
+        type: datetime
+        nullable: true
+      publishedById:
+        type: string
+        nullable: true
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      lesson:
+        type: many_to_one
+        target: Lesson
+        fields: [lessonId]
+        references: [id]
+        onDelete: Cascade
+      enrollment:
+        type: many_to_one
+        target: Enrollment
+        fields: [enrollmentId]
+        references: [id]
+        onDelete: Cascade
+        nullable: true
+      basedOn:
+        type: many_to_one
+        target: LessonVersion
+        fields: [basedOnVersionId]
+        references: [id]
+        name: LessonVersionBasedOn
+        onDelete: SetNull
+        nullable: true
+      derivedVersions:
+        type: one_to_many
+        target: LessonVersion
+        name: LessonVersionBasedOn
+      publishedBy:
+        type: many_to_one
+        target: User
+        fields: [publishedById]
+        references: [id]
+        name: LessonVersionPublisher
+        onDelete: SetNull
+        nullable: true
+      activities:
+        type: one_to_many
+        target: ContentActivity
+      programVersionLessons:
+        type: one_to_many
+        target: ProgramVersionLesson
+      scheduledLessons:
+        type: one_to_many
+        target: ScheduledLesson
+        name: ScheduledLessonCurrentVersion
+      pinnedProgress:
+        type: one_to_many
+        target: LessonProgress
+        name: LessonProgressPinnedVersion
+    indexes:
+      - fields: [lessonId]
+      - fields: [enrollmentId]
+
+  ContentActivity:
+    table_name: content_activities
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      lessonVersionId:
+        type: string
+      activityKey:
+        type: string
+        description: "Stable across versions of one lesson; keeps MediaUsage and progress attached"
+      position:
+        type: int
+      kind:
+        type: string
+        description: "Validated text (SC9): a new kind needs no migration"
+      title:
+        type: string
+      document:
+        type: json
+        description: "02-content-schema s2, saved whole, max 256 KB (D3)"
+      estimatedSeconds:
+        type: int
+        nullable: true
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      lessonVersion:
+        type: many_to_one
+        target: LessonVersion
+        fields: [lessonVersionId]
+        references: [id]
+        onDelete: Cascade
+    indexes:
+      - fields: [activityKey]
+    unique:
+      - fields: [lessonVersionId, activityKey]
+      - fields: [lessonVersionId, position]
+
+  ProgramVersion:
+    table_name: program_versions
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      programId:
+        type: string
+      number:
+        type: int
+      changeSummary:
+        type: text
+        nullable: true
+      publishedAt:
+        type: datetime
+        default: now()
+      publishedById:
+        type: string
+        nullable: true
+    relations:
+      program:
+        type: many_to_one
+        target: StudyProgram
+        fields: [programId]
+        references: [id]
+        name: ProgramVersions
+        onDelete: Cascade
+      publishedBy:
+        type: many_to_one
+        target: User
+        fields: [publishedById]
+        references: [id]
+        name: ProgramVersionPublisher
+        onDelete: SetNull
+        nullable: true
+      lessons:
+        type: one_to_many
+        target: ProgramVersionLesson
+      enrollments:
+        type: one_to_many
+        target: Enrollment
+      currentFor:
+        type: one_to_many
+        target: StudyProgram
+        name: ProgramCurrentVersion
+    unique:
+      - fields: [programId, number]
+
+  ProgramVersionLesson:
+    table_name: program_version_lessons
+    fields:
+      programVersionId:
+        type: string
+        primary: true
+      lessonId:
+        type: string
+        primary: true
+      lessonVersionId:
+        type: string
+      position:
+        type: int
+    relations:
+      programVersion:
+        type: many_to_one
+        target: ProgramVersion
+        fields: [programVersionId]
+        references: [id]
+        onDelete: Cascade
+      lesson:
+        type: many_to_one
+        target: Lesson
+        fields: [lessonId]
+        references: [id]
+        onDelete: Restrict
+      lessonVersion:
+        type: many_to_one
+        target: LessonVersion
+        fields: [lessonVersionId]
+        references: [id]
+        onDelete: Restrict
+
+  ScheduledLesson:
+    table_name: scheduled_lessons
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      code:
+        type: string
+        nullable: true
+        unique: true
+        description: "6-char alphanumeric for deep linking"
+      enrollmentId:
+        type: string
+      lessonId:
+        type: string
+        nullable: true
+      scheduledDate:
+        type: datetime
+      currentVersionId:
+        type: string
+      removedAt:
+        type: datetime
+        nullable: true
+      smsSentAt:
+        type: datetime
+        nullable: true
+        description: "SC10: still locks edits once the SMS went out"
+      templateId:
+        type: string
+        nullable: true
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      enrollment:
+        type: many_to_one
+        target: Enrollment
+        fields: [enrollmentId]
+        references: [id]
+        onDelete: Cascade
+      lesson:
+        type: many_to_one
+        target: Lesson
+        fields: [lessonId]
+        references: [id]
+        onDelete: SetNull
+        nullable: true
+      currentVersion:
+        type: many_to_one
+        target: LessonVersion
+        fields: [currentVersionId]
+        references: [id]
+        name: ScheduledLessonCurrentVersion
+        onDelete: Restrict
+      template:
+        type: many_to_one
+        target: LessonTemplate
+        fields: [templateId]
+        references: [id]
+        onDelete: SetNull
+        nullable: true
+      event:
+        type: one_to_one
+        target: Event
+      aiLessonSummaries:
+        type: one_to_many
+        target: AiLessonSummary
+      lessonProgress:
+        type: one_to_many
+        target: LessonProgress
+      activityProgress:
+        type: one_to_many
+        target: ActivityProgress
+    indexes:
+      - fields: [currentVersionId]
+      - fields: [scheduledDate]
+    unique:
+      - fields: [enrollmentId, lessonId]
+
+  LessonProgress:
+    table_name: lesson_progress
+    # D8: created empty; nothing writes it until a member rebuild.
+    fields:
+      memberId:
+        type: string
+        primary: true
+      scheduledLessonId:
+        type: string
+        primary: true
+      startedAt:
+        type: datetime
+        default: now()
+      completedAt:
+        type: datetime
+        nullable: true
+      pinnedVersionId:
+        type: string
+        nullable: true
+    relations:
+      member:
+        type: many_to_one
+        target: Member
+        fields: [memberId]
+        references: [id]
+        onDelete: Cascade
+      scheduledLesson:
+        type: many_to_one
+        target: ScheduledLesson
+        fields: [scheduledLessonId]
+        references: [id]
+        onDelete: Cascade
+      pinnedVersion:
+        type: many_to_one
+        target: LessonVersion
+        fields: [pinnedVersionId]
+        references: [id]
+        name: LessonProgressPinnedVersion
+        onDelete: SetNull
+        nullable: true
+
+  ActivityProgress:
+    table_name: activity_progress
+    fields:
+      memberId:
+        type: string
+        primary: true
+      scheduledLessonId:
+        type: string
+        primary: true
+      activityKey:
+        type: string
+        primary: true
+      startedAt:
+        type: datetime
+        default: now()
+      completedAt:
+        type: datetime
+        nullable: true
+      state:
+        type: json
+        nullable: true
+    relations:
+      member:
+        type: many_to_one
+        target: Member
+        fields: [memberId]
+        references: [id]
+        onDelete: Cascade
+      scheduledLesson:
+        type: many_to_one
+        target: ScheduledLesson
+        fields: [scheduledLessonId]
+        references: [id]
+        onDelete: Cascade
 
   LessonSchedule:
     table_name: lesson_schedules
@@ -3117,7 +3602,19 @@ models:
       updatedAt:
         type: datetime
         updatedAt: true
+      scheduledLessonId:
+        type: string
+        nullable: true
+        unique: true
+        description: "text-activity SC5: the ScheduledLesson this calendar event stands for"
     relations:
+      scheduledLesson:
+        type: many_to_one
+        target: ScheduledLesson
+        fields: [scheduledLessonId]
+        references: [id]
+        onDelete: SetNull
+        nullable: true
       group:
         type: many_to_one
         target: Group
@@ -3692,6 +4189,7 @@ models:
         type: string
       lessonScheduleId:
         type: string
+        nullable: true
       lessonSummary:
         type: text
         description: "AI-generated summary of the lesson and its contents"
@@ -3708,6 +4206,10 @@ models:
       updatedAt:
         type: datetime
         updatedAt: true
+      scheduledLessonId:
+        type: string
+        nullable: true
+        description: "text-activity SC5: the ScheduledLesson summarised (replaces lessonScheduleId)"
     relations:
       member:
         type: many_to_one
@@ -3721,6 +4223,14 @@ models:
         fields: [lessonScheduleId]
         references: [id]
         onDelete: Cascade
+        nullable: true
+      scheduledLesson:
+        type: many_to_one
+        target: ScheduledLesson
+        fields: [scheduledLessonId]
+        references: [id]
+        onDelete: Cascade
+        nullable: true
     indexes:
       - fields: [memberId]
       - fields: [lessonScheduleId]
@@ -4810,6 +5320,18 @@ models:
         type: json
         nullable: true
         description: "Event-specific attributes; anything queried regularly gets promoted to a real column (additive)"
+      scheduledLessonId:
+        type: string
+        nullable: true
+        description: "text-activity SC11: replaces lessonScheduleId (no FK, analytics rows)"
+      activityKey:
+        type: string
+        nullable: true
+        description: "text-activity SC11: replaces scheduledActivityId"
+      kind:
+        type: string
+        nullable: true
+        description: "text-activity SC11: replaces activityType"
     indexes:
       - fields: [eventType, occurredAt]
       - fields: [memberId]

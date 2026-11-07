@@ -604,7 +604,7 @@ export async function getNotesWithContext(
           }
           case LINK_TYPES.LESSON: {
             const l = lessonMap.get(link.refId)
-            if (l) context.lesson = l
+            if (l) context.lesson = { ...l, dayNumber: l.dayNumber! }
             break
           }
           case LINK_TYPES.LESSON_ACTIVITY: {
@@ -904,7 +904,7 @@ export async function saveActivityProgress(
             ...(sourceLesson
               ? [
                   { noteId: note.id, refType: LINK_TYPES.LESSON, refId: sourceLesson.id },
-                  { noteId: note.id, refType: LINK_TYPES.PROGRAM, refId: sourceLesson.studyProgram.id },
+                  { noteId: note.id, refType: LINK_TYPES.PROGRAM, refId: sourceLesson.studyProgram!.id },
                 ]
               : []),
           ]
@@ -1116,7 +1116,7 @@ export async function submitActivityResponse(
           ...(sourceLesson
             ? [
                 { noteId: createdStudyNote.id, refType: LINK_TYPES.LESSON, refId: sourceLesson.id },
-                { noteId: createdStudyNote.id, refType: LINK_TYPES.PROGRAM, refId: sourceLesson.studyProgram.id },
+                { noteId: createdStudyNote.id, refType: LINK_TYPES.PROGRAM, refId: sourceLesson.studyProgram!.id },
               ]
             : []),
         ]

@@ -1407,7 +1407,7 @@ export async function getGroupStudies(
           availableLessons.push({
             lessonScheduleId: schedule.id,
             lessonId: schedule.lesson.id,
-            dayNumber: schedule.lesson.dayNumber,
+            dayNumber: schedule.lesson.dayNumber!,
             scheduledDate: schedule.scheduledDate,
             status,
             activityCount,

@@ -315,7 +315,7 @@ router.post('/programs', requireAuth, async (req, res) => {
       const activityData = lessons.flatMap((lesson) =>
         template.activities.map((ta) => ({
           lessonId: lesson.id,
-          activityType: ta.type,
+          activityType: ta.type!,
           orderNumber: ta.orderNumber,
           title: ta.title,
           referenceTitle: ta.referenceTitle,
@@ -1066,7 +1066,7 @@ router.patch('/programs/:id', requireAuth, async (req, res) => {
             const activityData = newLessons.flatMap((lesson) =>
               templateToUse.activities.map((ta) => ({
                 lessonId: lesson.id,
-                activityType: ta.type,
+                activityType: ta.type!,
                 orderNumber: ta.orderNumber,
                 title: ta.title,
                 referenceTitle: ta.referenceTitle,
@@ -1690,7 +1690,7 @@ router.delete(
         await tx.lesson.updateMany({
           where: {
             studyProgramId: programId,
-            dayNumber: { gt: lessonToDelete.dayNumber },
+            dayNumber: { gt: lessonToDelete.dayNumber! },
           },
           data: {
             dayNumber: { decrement: 1 },
@@ -1854,9 +1854,9 @@ router.get('/activities/:id/preview-data', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Activity not found' })
     }
 
-    const canAccess = await canPreview(userId, activity.lesson.studyProgram.creatorId, activity.lesson.studyProgram.organizationId ?? null, req)
+    const canAccess = await canPreview(userId, activity.lesson.studyProgram!.creatorId, activity.lesson.studyProgram!.organizationId ?? null, req)
     if (!canAccess) {
-      console.warn(`[preview-data] Access denied for activity ${req.params.id}: userId=${userId}, creatorId=${activity.lesson.studyProgram.creatorId}, programOrgId=${activity.lesson.studyProgram.organizationId}`)
+      console.warn(`[preview-data] Access denied for activity ${req.params.id}: userId=${userId}, creatorId=${activity.lesson.studyProgram!.creatorId}, programOrgId=${activity.lesson.studyProgram!.organizationId}`)
       return res.status(404).json({ success: false, error: 'Activity not found' })
     }
 
@@ -2113,7 +2113,7 @@ router.get('/lessons/:id/preview-data', async (req, res) => {
       },
     })
 
-    if (!lesson || !(await canPreview(userId, lesson.studyProgram.creatorId, lesson.studyProgram.organizationId ?? null, req))) {
+    if (!lesson || !(await canPreview(userId, lesson.studyProgram!.creatorId, lesson.studyProgram!.organizationId ?? null, req))) {
       return res.status(404).json({ success: false, error: 'Lesson not found' })
     }
 
@@ -2199,7 +2199,7 @@ router.patch('/activities/:id', requireAuth, async (req, res) => {
       },
     })
 
-    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
+    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram!.organizationId, activity.lesson.studyProgram!.creatorId))) {
       return res.status(404).json({ success: false, error: 'Activity not found' })
     }
 
@@ -2640,7 +2640,7 @@ router.delete('/activities/:id', requireAuth, async (req, res) => {
       },
     })
 
-    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
+    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram!.organizationId, activity.lesson.studyProgram!.creatorId))) {
       return res.status(404).json({ success: false, error: 'Activity not found' })
     }
 
@@ -2704,7 +2704,7 @@ router.post('/activities/:id/reset', requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Activity not found' })
     }
 
-    if (!(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
+    if (!(await canManageOrgContent(userId, activity.lesson.studyProgram!.organizationId, activity.lesson.studyProgram!.creatorId))) {
       return res.status(403).json({ success: false, error: 'Not authorized' })
     }
 
@@ -2855,7 +2855,7 @@ router.post('/activities/:id/source-references', requireAuth, async (req, res) =
       },
     })
 
-    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
+    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram!.organizationId, activity.lesson.studyProgram!.creatorId))) {
       return res.status(404).json({ success: false, error: 'Activity not found' })
     }
 
@@ -2973,7 +2973,7 @@ router.delete('/activities/:id/source-references/:refId', requireAuth, async (re
       },
     })
 
-    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
+    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram!.organizationId, activity.lesson.studyProgram!.creatorId))) {
       return res.status(404).json({ success: false, error: 'Activity not found' })
     }
 
@@ -3152,7 +3152,7 @@ function listHighlightsHandler(legacy: boolean) {
         include: { lesson: { include: { studyProgram: true } } },
       })
 
-      if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
+      if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram!.organizationId, activity.lesson.studyProgram!.creatorId))) {
         return res.status(404).json({ success: false, error: 'Activity not found' })
       }
 
@@ -3231,7 +3231,7 @@ function createHighlightHandler(legacy: boolean) {
         include: { lesson: { include: { studyProgram: true } } },
       })
 
-      if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
+      if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram!.organizationId, activity.lesson.studyProgram!.creatorId))) {
         return res.status(404).json({ success: false, error: 'Activity not found' })
       }
 
@@ -3337,7 +3337,7 @@ function updateHighlightHandler(legacy: boolean) {
         include: { lesson: { include: { studyProgram: true } } },
       })
 
-      if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
+      if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram!.organizationId, activity.lesson.studyProgram!.creatorId))) {
         return res.status(404).json({ success: false, error: 'Activity not found' })
       }
 
@@ -3398,7 +3398,7 @@ function deleteHighlightHandler(legacy: boolean) {
         include: { lesson: { include: { studyProgram: true } } },
       })
 
-      if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
+      if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram!.organizationId, activity.lesson.studyProgram!.creatorId))) {
         return res.status(404).json({ success: false, error: 'Activity not found' })
       }
 
@@ -3494,7 +3494,7 @@ router.post('/activities/:id/read-blocks', requireAuth, async (req, res) => {
       },
     })
 
-    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
+    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram!.organizationId, activity.lesson.studyProgram!.creatorId))) {
       return res.status(404).json({ success: false, error: 'Activity not found' })
     }
 
@@ -3624,7 +3624,7 @@ router.patch('/activities/:activityId/read-blocks/:blockId', requireAuth, async 
       },
     })
 
-    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
+    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram!.organizationId, activity.lesson.studyProgram!.creatorId))) {
       return res.status(404).json({ success: false, error: 'Activity not found' })
     }
 
@@ -3718,7 +3718,7 @@ router.delete('/activities/:activityId/read-blocks/:blockId', requireAuth, async
       },
     })
 
-    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
+    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram!.organizationId, activity.lesson.studyProgram!.creatorId))) {
       return res.status(404).json({ success: false, error: 'Activity not found' })
     }
 
@@ -3819,7 +3819,7 @@ router.patch('/activities/:id/read-blocks/reorder', requireAuth, async (req, res
       },
     })
 
-    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
+    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram!.organizationId, activity.lesson.studyProgram!.creatorId))) {
       return res.status(404).json({ success: false, error: 'Activity not found' })
     }
 
@@ -4095,7 +4095,7 @@ router.post('/programs/:id/lessons', requireAuth, async (req, res) => {
       if (program.template?.activities.length) {
         const activityData = program.template.activities.map((ta) => ({
           lessonId: newLesson.id,
-          activityType: ta.type,
+          activityType: ta.type!,
           orderNumber: ta.orderNumber,
           title: ta.title,
           referenceTitle: ta.referenceTitle,
@@ -4760,7 +4760,7 @@ router.post('/programs/:id/suggest-tags', requireAuth, async (req, res) => {
       description: program.description,
       days: program.days,
       lessons: program.lessons.map((l) => ({
-        dayNumber: l.dayNumber,
+        dayNumber: l.dayNumber!,
         title: l.title,
         activities: l.activities,
       })),
@@ -4830,7 +4830,7 @@ router.post('/programs/:id/suggest-and-apply-tags', requireAuth, async (req, res
       description: program.description,
       days: program.days,
       lessons: program.lessons.map((l) => ({
-        dayNumber: l.dayNumber,
+        dayNumber: l.dayNumber!,
         title: l.title,
         activities: l.activities,
       })),

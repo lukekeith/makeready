@@ -450,13 +450,13 @@ router.get('/', requireAuth, async (req, res) => {
             if (!act.videoId) continue
             const existing = videoLinksMap.get(act.videoId) || []
             const lessonKey = `LESSON:${act.lesson.id}`
-            const programKey = `PROGRAM:${act.lesson.studyProgram.id}`
+            const programKey = `PROGRAM:${act.lesson.studyProgram!.id}`
             const seen = new Set(existing.map((l) => `${l.type}:${l.id}`))
             if (!seen.has(lessonKey)) {
               existing.push({ type: 'LESSON', id: act.lesson.id, name: act.lesson.title || 'Untitled', imageUrl: null })
             }
             if (!seen.has(programKey)) {
-              existing.push({ type: 'PROGRAM', id: act.lesson.studyProgram.id, name: act.lesson.studyProgram.name, imageUrl: act.lesson.studyProgram.coverImageUrl })
+              existing.push({ type: 'PROGRAM', id: act.lesson.studyProgram!.id, name: act.lesson.studyProgram!.name, imageUrl: act.lesson.studyProgram!.coverImageUrl })
             }
             videoLinksMap.set(act.videoId, existing)
           }

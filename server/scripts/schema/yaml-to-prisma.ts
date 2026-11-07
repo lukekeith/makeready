@@ -184,7 +184,7 @@ function generateEnumPrisma(name: string, enumDef: EnumDefinition): string {
   return `enum ${name} {\n${values}\n}`
 }
 
-function generateFieldPrisma(fieldName: string, field: Field): string {
+function generateFieldPrisma(fieldName: string, field: Field, compositePrimary = false): string {
   const parts: string[] = []
 
   // Field name and type
@@ -200,8 +200,8 @@ function generateFieldPrisma(fieldName: string, field: Field): string {
   // Attributes
   const attrs: string[] = []
 
-  // Primary key
-  if (field.primary) {
+  // Primary key (a model with several `primary` fields declares @@id instead)
+  if (field.primary && !compositePrimary) {
     attrs.push('@id')
   }
 
@@ -317,8 +317,10 @@ function generateModelPrisma(
   lines.push(`model ${modelName} {`)
 
   // Fields
+  const primaryFields = Object.entries(model.fields).filter(([, f]) => f.primary).map(([n]) => n)
+  const compositePrimary = primaryFields.length > 1
   for (const [fieldName, field] of Object.entries(model.fields)) {
-    lines.push(generateFieldPrisma(fieldName, field))
+    lines.push(generateFieldPrisma(fieldName, field, compositePrimary))
   }
 
   // Add soft_delete field if enabled
@@ -336,6 +338,11 @@ function generateModelPrisma(
     for (const [relName, relation] of Object.entries(model.relations)) {
       lines.push(generateRelationPrisma(relName, relation, modelName, models))
     }
+  }
+
+  if (compositePrimary) {
+    lines.push('') // Blank line before constraints
+    lines.push(`  @@id([${primaryFields.join(', ')}])`)
   }
 
   // Unique constraints

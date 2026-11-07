@@ -243,7 +243,7 @@ export async function exportProgram(programId: string, userId: string): Promise<
           }
         : { name: 'Default', description: null, activities: [] },
       lessons: program.lessons.map((lesson) => ({
-        dayNumber: lesson.dayNumber,
+        dayNumber: lesson.dayNumber!,
         title: lesson.title,
         activities: lesson.activities.map((activity) => ({
           activityType: activity.activityType as 'USER_INPUT' | 'READ' | 'VIDEO' | 'YOUTUBE' | 'EXEGESIS',

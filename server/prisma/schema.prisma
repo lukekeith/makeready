@@ -166,6 +166,11 @@ enum DirectoryAccess {
   NOT_ALLOWED
 }
 
+enum LessonVersionStatus {
+  DRAFT
+  PUBLISHED
+}
+
 model User {
   id                   String @id @default(uuid())
   googleId             String? @unique
@@ -183,6 +188,8 @@ model User {
   isSuperAdmin         Boolean @default(false) // Platform-wide super admin
   isActive             Boolean @default(true) // Inactive users cannot authenticate or access leader/admin app surfaces
 
+  publishedLessonVersions LessonVersion[] @relation("LessonVersionPublisher")
+  publishedProgramVersionsV2 ProgramVersion[] @relation("ProgramVersionPublisher")
   createdGroups        Group[] @relation("GroupCreator")
   sentInvitations      Invitation[] @relation("InvitationInviter")
   ownedOrganization    Organization? @relation("OrganizationOwner")
@@ -404,6 +411,8 @@ model Member {
   emergencyContactName String? @db.Text // Emergency contact's name
   emergencyContactPhone String? @db.Text // Emergency contact's phone, as entered
 
+  scheduledLessonProgress LessonProgress[]
+  contentActivityProgress ActivityProgress[]
   groupMemberships     GroupMember[]
   organizations        MemberOrganization[]
   invitations          Invitation[]
@@ -903,6 +912,7 @@ model LessonTemplate {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
+  scheduledLessons     ScheduledLesson[]
   creator              User? @relation("TemplateCreator", fields: [creatorId], references: [id], onDelete: SetNull)
   updatedBy            User? @relation("TemplateUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
   sourceTemplate       LessonTemplate? @relation("TemplateDuplicate", fields: [sourceTemplateId], references: [id], onDelete: SetNull)
@@ -919,7 +929,7 @@ model LessonTemplate {
 model LessonTemplateActivity {
   id                   String @id @default(uuid())
   templateId           String
-  type                 TemplateActivityType
+  type                 TemplateActivityType?
   orderNumber          Int // 1-based position
   title                String // e.g., 'Scripture', 'Observation'
   displayName          String? // Human-readable name for the activity type, e.g., 'Read', 'Study', 'Video'
@@ -931,6 +941,8 @@ model LessonTemplateActivity {
   referenceTitle       String? // Display reference for READ activities, e.g., 'Romans 1:1-5'
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
+  kind                 String? // text-activity SC6: content kind (validated text, replaces type)
+  document             Json? // text-activity SC6: starter document per 02-content-schema
 
   template             LessonTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
@@ -964,12 +976,16 @@ model StudyProgram {
   isActive             Boolean @default(true)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
+  currentVersionId     String? // text-activity SC4: latest ProgramVersion (replaces currentVersionNumber)
 
+  currentVersion       ProgramVersion? @relation("ProgramCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+  programVersions      ProgramVersion[] @relation("ProgramVersions")
+  programLessons       Lesson[] @relation("ProgramLessons")
   template             LessonTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
   creator              User @relation("StudyProgramCreator", fields: [creatorId], references: [id], onDelete: Cascade)
   updatedBy            User? @relation("StudyProgramUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
   leader               User? @relation("StudyProgramLeader", fields: [leaderId], references: [id], onDelete: SetNull)
-  lessons              Lesson[]
+  lessons              Lesson[] @relation("LessonStudyProgram")
   enrollments          Enrollment[]
   enrollmentDrafts     EnrollmentDraft[]
   tags                 StudyProgramTag[]
@@ -1018,19 +1034,27 @@ model StudyProgramTag {
 
 model Lesson {
   id                   String @id @default(uuid())
-  studyProgramId       String
-  dayNumber            Int // 1-based day number
+  studyProgramId       String? // Old model; becomes programId at the cutover (text-activity D27)
+  dayNumber            Int? // 1-based day number
   title                String? // Optional display title for lesson card
   estimatedMinutes     Int? // Calculated time estimate in minutes for all activities
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
+  programId            String? // text-activity SC2: owning program; NOT NULL after the import backfill (Data plan step 3)
+  position             Int? // text-activity SC2: 1-based order within the program (replaces dayNumber)
+  deletedAt            DateTime? // text-activity D36: set instead of a hard delete once any published version exists
 
-  studyProgram         StudyProgram @relation(fields: [studyProgramId], references: [id], onDelete: Cascade)
+  studyProgram         StudyProgram? @relation("LessonStudyProgram", fields: [studyProgramId], references: [id], onDelete: Cascade)
+  program              StudyProgram? @relation("ProgramLessons", fields: [programId], references: [id], onDelete: Cascade)
+  versions             LessonVersion[]
+  programVersionLessons ProgramVersionLesson[]
+  scheduledLessons     ScheduledLesson[]
   activities           LessonActivity[]
   schedules            LessonSchedule[]
 
   @@unique([studyProgramId, dayNumber])
   @@index([studyProgramId])
+  @@index([programId, position])
   @@map("lessons")
 }
 
@@ -1093,7 +1117,11 @@ model Enrollment {
   updatedAt            DateTime @updatedAt
   createdById          String?
   updatedById          String? // User who last updated this enrollment
+  programVersionId     String? // text-activity SC3: the ProgramVersion the enrollment is synced to (replaces syncedProgramVersionNumber)
 
+  programVersion       ProgramVersion? @relation(fields: [programVersionId], references: [id], onDelete: SetNull)
+  lessonVersions       LessonVersion[]
+  scheduledLessons     ScheduledLesson[]
   group                Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
   studyProgram         StudyProgram @relation(fields: [studyProgramId], references: [id], onDelete: Cascade)
   createdBy            User? @relation("EnrollmentCreator", fields: [createdById], references: [id], onDelete: SetNull)
@@ -1155,6 +1183,145 @@ model EnrollmentSyncRun {
   @@index([status])
   @@index([triggeredById])
   @@map("enrollment_sync_runs")
+}
+
+model LessonVersion {
+  id                   String @id @default(uuid())
+  lessonId             String // Never null (D36 supersedes 05 s2)
+  enrollmentId         String? // Null for program versions; set for a group's customized version
+  number               Int
+  status               LessonVersionStatus @default(DRAFT)
+  title                String?
+  contentHash          String @default("")
+  estimatedSeconds     Int?
+  basedOnVersionId     String?
+  publishedAt          DateTime?
+  publishedById        String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  lesson               Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  enrollment           Enrollment? @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  basedOn              LessonVersion? @relation("LessonVersionBasedOn", fields: [basedOnVersionId], references: [id], onDelete: SetNull)
+  derivedVersions      LessonVersion[] @relation("LessonVersionBasedOn")
+  publishedBy          User? @relation("LessonVersionPublisher", fields: [publishedById], references: [id], onDelete: SetNull)
+  activities           ContentActivity[]
+  programVersionLessons ProgramVersionLesson[]
+  scheduledLessons     ScheduledLesson[] @relation("ScheduledLessonCurrentVersion")
+  pinnedProgress       LessonProgress[] @relation("LessonProgressPinnedVersion")
+  @@index([lessonId])
+  @@index([enrollmentId])
+  @@map("lesson_versions")
+}
+
+model ContentActivity {
+  id                   String @id @default(uuid())
+  lessonVersionId      String
+  activityKey          String // Stable across versions of one lesson; keeps MediaUsage and progress attached
+  position             Int
+  kind                 String // Validated text (SC9): a new kind needs no migration
+  title                String
+  document             Json // 02-content-schema s2, saved whole, max 256 KB (D3)
+  estimatedSeconds     Int?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  lessonVersion        LessonVersion @relation(fields: [lessonVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([lessonVersionId, activityKey])
+  @@unique([lessonVersionId, position])
+  @@index([activityKey])
+  @@map("content_activities")
+}
+
+model ProgramVersion {
+  id                   String @id @default(uuid())
+  programId            String
+  number               Int
+  changeSummary        String? @db.Text
+  publishedAt          DateTime @default(now())
+  publishedById        String?
+
+  program              StudyProgram @relation("ProgramVersions", fields: [programId], references: [id], onDelete: Cascade)
+  publishedBy          User? @relation("ProgramVersionPublisher", fields: [publishedById], references: [id], onDelete: SetNull)
+  lessons              ProgramVersionLesson[]
+  enrollments          Enrollment[]
+  currentFor           StudyProgram[] @relation("ProgramCurrentVersion")
+
+  @@unique([programId, number])
+  @@map("program_versions")
+}
+
+model ProgramVersionLesson {
+  programVersionId     String
+  lessonId             String
+  lessonVersionId      String
+  position             Int
+
+  programVersion       ProgramVersion @relation(fields: [programVersionId], references: [id], onDelete: Cascade)
+  lesson               Lesson @relation(fields: [lessonId], references: [id], onDelete: Restrict)
+  lessonVersion        LessonVersion @relation(fields: [lessonVersionId], references: [id], onDelete: Restrict)
+
+  @@id([programVersionId, lessonId])
+  @@map("program_version_lessons")
+}
+
+model ScheduledLesson {
+  id                   String @id @default(uuid())
+  code                 String? @unique // 6-char alphanumeric for deep linking
+  enrollmentId         String
+  lessonId             String?
+  scheduledDate        DateTime
+  currentVersionId     String
+  removedAt            DateTime?
+  smsSentAt            DateTime? // SC10: still locks edits once the SMS went out
+  templateId           String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  enrollment           Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  lesson               Lesson? @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  currentVersion       LessonVersion @relation("ScheduledLessonCurrentVersion", fields: [currentVersionId], references: [id], onDelete: Restrict)
+  template             LessonTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  event                Event?
+  aiLessonSummaries    AiLessonSummary[]
+  lessonProgress       LessonProgress[]
+  activityProgress     ActivityProgress[]
+
+  @@unique([enrollmentId, lessonId])
+  @@index([currentVersionId])
+  @@index([scheduledDate])
+  @@map("scheduled_lessons")
+}
+
+model LessonProgress {
+  memberId             String
+  scheduledLessonId    String
+  startedAt            DateTime @default(now())
+  completedAt          DateTime?
+  pinnedVersionId      String?
+
+  member               Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  scheduledLesson      ScheduledLesson @relation(fields: [scheduledLessonId], references: [id], onDelete: Cascade)
+  pinnedVersion        LessonVersion? @relation("LessonProgressPinnedVersion", fields: [pinnedVersionId], references: [id], onDelete: SetNull)
+
+  @@id([memberId, scheduledLessonId])
+  @@map("lesson_progress")
+}
+
+model ActivityProgress {
+  memberId             String
+  scheduledLessonId    String
+  activityKey          String
+  startedAt            DateTime @default(now())
+  completedAt          DateTime?
+  state                Json?
+
+  member               Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  scheduledLesson      ScheduledLesson @relation(fields: [scheduledLessonId], references: [id], onDelete: Cascade)
+
+  @@id([memberId, scheduledLessonId, activityKey])
+  @@map("activity_progress")
 }
 
 model LessonSchedule {
@@ -1245,7 +1412,9 @@ model Event {
   isActive             Boolean @default(true)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
+  scheduledLessonId    String? @unique // text-activity SC5: the ScheduledLesson this calendar event stands for
 
+  scheduledLesson      ScheduledLesson? @relation(fields: [scheduledLessonId], references: [id], onDelete: SetNull)
   group                Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
   createdBy            User? @relation("EventCreator", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy            User? @relation("EventUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
@@ -1454,15 +1623,17 @@ model MemberLessonProgress {
 model AiLessonSummary {
   id                   String @id @default(uuid())
   memberId             String
-  lessonScheduleId     String
+  lessonScheduleId     String?
   lessonSummary        String @db.Text // AI-generated summary of the lesson and its contents
   memberSummary        String? @db.Text // AI-generated summary of what the member learned from their input; null when the member entered nothing substantive (kept null for analytics)
   model                String // Claude model ID that generated the summaries
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
+  scheduledLessonId    String? // text-activity SC5: the ScheduledLesson summarised (replaces lessonScheduleId)
 
   member               Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  lessonSchedule       LessonSchedule @relation(fields: [lessonScheduleId], references: [id], onDelete: Cascade)
+  lessonSchedule       LessonSchedule? @relation(fields: [lessonScheduleId], references: [id], onDelete: Cascade)
+  scheduledLesson      ScheduledLesson? @relation(fields: [scheduledLessonId], references: [id], onDelete: Cascade)
 
   @@unique([memberId, lessonScheduleId])
   @@index([memberId])
@@ -1835,6 +2006,9 @@ model ClientEvent {
   scheduledDate        DateTime? // Enriched server-side from the lesson schedule's planned date at ingest
   value                Float @default(1)
   metadata             Json? // Event-specific attributes; anything queried regularly gets promoted to a real column (additive)
+  scheduledLessonId    String? // text-activity SC11: replaces lessonScheduleId (no FK, analytics rows)
+  activityKey          String? // text-activity SC11: replaces scheduledActivityId
+  kind                 String? // text-activity SC11: replaces activityType
   @@index([eventType, occurredAt])
   @@index([memberId])
   @@index([enrollmentId])

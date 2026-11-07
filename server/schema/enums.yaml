@@ -151,3 +151,8 @@ enums:
       - ALLOWED       # members see the directory
       - NAMES_ONLY    # members see names only
       - NOT_ALLOWED   # no directory
+
+  LessonVersionStatus:
+    values:
+      - DRAFT
+      - PUBLISHED
