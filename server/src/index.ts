@@ -33,6 +33,8 @@ import bibleRoutes from './routes/bible.js'
 import searchRoutes from './routes/search.js'
 import preferencesRoutes from './routes/preferences.js'
 import programsRoutes from './routes/programs.js'
+import lessonsRoutes from './routes/lessons.js'
+import lessonVersionsRoutes from './routes/lesson-versions.js'
 import videosRoutes from './routes/videos.js'
 import enrollmentsRoutes from './routes/enrollments.js'
 import enrollmentDraftsRoutes from './routes/enrollment-drafts.js'
@@ -466,6 +468,10 @@ app.use('/api/preferences', preferencesRoutes)
 
 // Study program routes
 app.use('/api', programsRoutes)
+
+// Lesson drafts and versions (text-activity)
+app.use('/api/lessons', lessonsRoutes)
+app.use('/api/lesson-versions', lessonVersionsRoutes)
 
 // Video routes (Cloudflare Stream)
 app.use('/api/videos', videosRoutes)

@@ -111,10 +111,32 @@ export async function seedActivity(
   })
 }
 
+/** A new lesson in the world's program with one PUBLISHED version (number 1) holding `activities`; `mediaId` puts that image in the document. */
+export async function seedPublishedLesson(
+  w: ContentWorld,
+  activities: { activityKey: string; mediaId?: string }[],
+): Promise<{ lessonId: string; versionId: string }> {
+  const last = await prisma.lesson.aggregate({ where: { programId: w.programId }, _max: { position: true } })
+  const lesson = await prisma.lesson.create({ data: { programId: w.programId, position: (last._max.position ?? 0) + 1 } })
+  const version = await prisma.lessonVersion.create({
+    data: { lessonId: lesson.id, number: 1, status: 'PUBLISHED', title: 'Published day', publishedAt: new Date() },
+  })
+  let position = 0
+  for (const a of activities) {
+    const doc = textDocument(a.mediaId ?? '')
+    if (!a.mediaId) delete (doc.background as any).image
+    await prisma.contentActivity.create({
+      data: { lessonVersionId: version.id, activityKey: a.activityKey, position: ++position, kind: 'text', title: 'Text', document: doc },
+    })
+  }
+  return { lessonId: lesson.id, versionId: version.id }
+}
+
 export async function destroyContentWorld(w: ContentWorld) {
-  await prisma.contentActivity.deleteMany({ where: { lessonVersion: { lessonId: w.lessonId } } })
-  await prisma.lessonVersion.deleteMany({ where: { lessonId: w.lessonId } })
-  await prisma.lesson.deleteMany({ where: { id: w.lessonId } })
+  const lessonIds = (await prisma.lesson.findMany({ where: { programId: w.programId }, select: { id: true } })).map(l => l.id)
+  await prisma.contentActivity.deleteMany({ where: { lessonVersion: { lessonId: { in: lessonIds } } } })
+  await prisma.lessonVersion.deleteMany({ where: { lessonId: { in: lessonIds } } })
+  await prisma.lesson.deleteMany({ where: { id: { in: lessonIds } } })
   await prisma.studyProgram.deleteMany({ where: { id: w.programId } })
   await prisma.mediaUsage.deleteMany({ where: { mediaId: { in: createdMediaIds } } })
   await prisma.media.deleteMany({ where: { id: { in: createdMediaIds } } })
