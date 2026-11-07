@@ -11,7 +11,9 @@
 
 import { prisma } from '../lib/prisma.js'
 
-export const READING_WPM = 200
+import { READING_WPM } from '../lib/reading-wpm.js'
+
+export { READING_WPM }
 const USER_INPUT_SECONDS = 180 // 3 minutes
 
 /**

@@ -7,7 +7,7 @@
  */
 import { createHash } from 'node:crypto'
 import { z } from 'zod'
-import { READING_WPM } from './lesson-estimate.service.js'
+import { READING_WPM } from '../lib/reading-wpm.js'
 
 export const ACTIVITY_KINDS = ['text', 'bible', 'video', 'youtube', 'write', 'poll'] as const
 export const MAX_DOCUMENT_BYTES = 262144
