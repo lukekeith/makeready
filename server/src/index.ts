@@ -35,6 +35,7 @@ import preferencesRoutes from './routes/preferences.js'
 import programsRoutes from './routes/programs.js'
 import lessonsRoutes from './routes/lessons.js'
 import lessonVersionsRoutes from './routes/lesson-versions.js'
+import contentActivitiesRoutes from './routes/content-activities.js'
 import videosRoutes from './routes/videos.js'
 import enrollmentsRoutes from './routes/enrollments.js'
 import enrollmentDraftsRoutes from './routes/enrollment-drafts.js'
@@ -472,6 +473,7 @@ app.use('/api', programsRoutes)
 // Lesson drafts and versions (text-activity)
 app.use('/api/lessons', lessonsRoutes)
 app.use('/api/lesson-versions', lessonVersionsRoutes)
+app.use('/api/content-activities', contentActivitiesRoutes)
 
 // Video routes (Cloudflare Stream)
 app.use('/api/videos', videosRoutes)
