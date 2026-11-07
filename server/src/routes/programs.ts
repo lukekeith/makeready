@@ -1508,10 +1508,9 @@ router.get('/programs/:id/export-preview', requireAuth, async (req, res) => {
  *     tags: [Programs]
  *     summary: Export a study program as a ZIP file
  *     description: |
- *       Exports the complete study program (lessons, activities, read blocks, source references,
- *       template) as a ZIP file containing a manifest.json. Media (cover images, videos) are
- *       referenced by URL, not embedded. The exported file can be imported by any authenticated
- *       user, even in a different organization.
+ *       Exports the program (format version 2: each live lesson's draft, else its latest published
+ *       version, with every activity's kind, title and document) as a ZIP file containing a
+ *       manifest.json. Media are referenced by id, not embedded.
  *     security:
  *       - userSession: []
  *     parameters:
@@ -1559,11 +1558,9 @@ router.post('/programs/:id/export', requireAuth, async (req, res) => {
  *     tags: [Programs]
  *     summary: Import a study program from a ZIP file
  *     description: |
- *       Accepts a ZIP file previously exported via the export endpoint. Creates a new study
- *       program with all lessons, activities, read blocks, and source references. The program
- *       is always created as a draft (isPublished=false). A new lesson template is created
- *       owned by the importing user. Video references are preserved as URLs but no Video
- *       records are created.
+ *       Accepts a version 2 ZIP file from the export endpoint. Creates a new program, unpublished,
+ *       whose lessons each get a draft with new activity keys. Every document is validated and its
+ *       media checked as a lesson-version POST does. A version 1 file is 400 VALIDATION.
  *     security:
  *       - userSession: []
  *     requestBody:
@@ -1580,10 +1577,10 @@ router.post('/programs/:id/export', requireAuth, async (req, res) => {
  *                 format: binary
  *                 description: ZIP file from program export
  *     responses:
- *       200:
+ *       201:
  *         description: Program imported successfully
  *       400:
- *         description: Invalid ZIP or manifest
+ *         description: Invalid ZIP or manifest, or an unsupported export version
  */
 router.post('/programs/import', requireAuth, uploadZip.single('file'), async (req, res) => {
   try {
@@ -1595,7 +1592,7 @@ router.post('/programs/import', requireAuth, uploadZip.single('file'), async (re
     const result = await importProgram(req.file.buffer, userId)
 
     if (!result.success) {
-      return res.status(400).json({ success: false, error: result.error })
+      return res.status(result.status ?? 400).json({ success: false, error: result.error, code: result.code })
     }
 
     if (result.program) {
@@ -1615,7 +1612,7 @@ router.post('/programs/import', requireAuth, uploadZip.single('file'), async (re
       })
     }
 
-    res.json({ success: true, program: result.program, warnings: result.warnings })
+    res.status(201).json({ success: true, program: result.program, warnings: result.warnings })
   } catch (error) {
     console.error('Error importing program:', error)
     res.status(500).json({ success: false, error: 'Failed to import program' })
