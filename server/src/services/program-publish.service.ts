@@ -32,6 +32,7 @@ export async function publishProgram(
   programId: string,
   opts: { changeSummary?: string } = {},
 ): Promise<PublishResult> {
+  const changeSummary = opts.changeSummary || undefined
   const txResult = await prisma.$transaction(async (tx) => {
     // The program lock serializes publishes; `::text` is valid for uuid and text id columns alike.
     await tx.$queryRaw`SELECT id FROM study_programs WHERE id::text = ${programId} FOR UPDATE`
@@ -52,25 +53,34 @@ export async function publishProgram(
     const after: Record<string, { title: string | null; document: unknown }> = {}
     const now = new Date()
 
+    // Two reads for every lesson instead of one pair per lesson; the draft rows are then locked and re-read.
+    const lessonIds = lessons.map((l) => l.id)
+    const draftRefs = await tx.lessonVersion.findMany({
+      where: { lessonId: { in: lessonIds }, enrollmentId: null, status: 'DRAFT' },
+      select: { id: true, lessonId: true },
+    })
+    const draftIdOf = new Map(draftRefs.map((d) => [d.lessonId, d.id]))
+    const published = await tx.lessonVersion.findMany({
+      where: { lessonId: { in: lessonIds }, enrollmentId: null, status: 'PUBLISHED' },
+      orderBy: { number: 'desc' },
+      include: { activities: { orderBy: { position: 'asc' } } },
+    })
+    const latestOf = new Map<string, (typeof published)[number]>()
+    for (const v of published) if (!latestOf.has(v.lessonId)) latestOf.set(v.lessonId, v)
+    const latestIdOf = new Map([...latestOf].map(([lessonId, v]) => [lessonId, v.id]))
+
     for (const lesson of lessons) {
-      const draftRef = await tx.lessonVersion.findFirst({
-        where: { lessonId: lesson.id, enrollmentId: null, status: 'DRAFT' },
-        select: { id: true },
-      })
-      if (!draftRef) continue
-      await tx.$queryRaw`SELECT id FROM lesson_versions WHERE id::text = ${draftRef.id} FOR UPDATE`
+      const draftId = draftIdOf.get(lesson.id)
+      if (!draftId) continue
+      await tx.$queryRaw`SELECT id FROM lesson_versions WHERE id::text = ${draftId} FOR UPDATE`
       const draft = await tx.lessonVersion.findUnique({
-        where: { id: draftRef.id },
+        where: { id: draftId },
         include: { activities: { orderBy: { position: 'asc' } } },
       })
       if (!draft || draft.status !== 'DRAFT') continue
 
       const hash = hashLessonContent({ title: draft.title ?? '', activities: draft.activities })
-      const latest = await tx.lessonVersion.findFirst({
-        where: { lessonId: lesson.id, enrollmentId: null, status: 'PUBLISHED' },
-        orderBy: { number: 'desc' },
-        include: { activities: { orderBy: { position: 'asc' } } },
-      })
+      const latest = latestOf.get(lesson.id)
       if (latest && latest.contentHash === hash) {
         await tx.lessonVersion.delete({ where: { id: draft.id } }) // activities cascade
         continue
@@ -85,6 +95,7 @@ export async function publishProgram(
           estimatedSeconds: draft.activities.reduce((sum, a) => sum + (a.estimatedSeconds ?? 0), 0),
         },
       })
+      latestIdOf.set(lesson.id, draft.id)
       changedLessonIds.push(lesson.id)
       before[lesson.id] = { title: latest?.title ?? null, document: latest?.activities.map((a) => a.document) ?? null }
       after[lesson.id] = { title: draft.title, document: draft.activities.map((a) => a.document) }
@@ -92,12 +103,8 @@ export async function publishProgram(
 
     const rows: VersionRow[] = []
     for (const [index, lesson] of lessons.entries()) {
-      const latest = await tx.lessonVersion.findFirst({
-        where: { lessonId: lesson.id, enrollmentId: null, status: 'PUBLISHED' },
-        orderBy: { number: 'desc' },
-        select: { id: true },
-      })
-      if (latest) rows.push({ lessonId: lesson.id, lessonVersionId: latest.id, position: lesson.position ?? index + 1 })
+      const lessonVersionId = latestIdOf.get(lesson.id)
+      if (lessonVersionId) rows.push({ lessonId: lesson.id, lessonVersionId, position: lesson.position ?? index + 1 })
     }
     const currentRows: VersionRow[] = program.currentVersionId
       ? await tx.programVersionLesson.findMany({
@@ -112,7 +119,7 @@ export async function publishProgram(
       data: {
         programId,
         number: (max._max.number ?? 0) + 1,
-        changeSummary: opts.changeSummary ?? null,
+        changeSummary: changeSummary ?? null,
         publishedById: userId,
         lessons: { create: rows },
       },
@@ -144,14 +151,16 @@ export async function publishProgram(
           .map((id) => ({ dayNumber: positionOf.get(id)!, title: after[id].title, before: before[id], after: after[id] })),
       },
     }
-  })
+  }, { timeout: 30_000, maxWait: 10_000 })
 
   if (!txResult) return { programVersion: null, changedLessonIds: [] }
-  let { programVersion } = txResult
+  const { programVersion } = txResult
 
-  if (!opts.changeSummary) {
-    const summary = await summarizeProgramChanges(txResult.diff).catch(() => null)
-    if (summary) programVersion = await prisma.programVersion.update({ where: { id: programVersion.id }, data: { changeSummary: summary } })
+  if (!changeSummary) {
+    // Best-effort and off the response path: the summary lands on the row once Claude answers.
+    void summarizeProgramChanges(txResult.diff)
+      .then((summary) => (summary ? prisma.programVersion.update({ where: { id: programVersion.id }, data: { changeSummary: summary } }) : null))
+      .catch((err) => console.error('Publish summary failed:', err))
   }
   await sendSyncPushes(txResult.enrollmentIds, programVersion).catch((err) => console.error('Publish pushes failed:', err))
   return { programVersion, changedLessonIds: txResult.changedLessonIds }
