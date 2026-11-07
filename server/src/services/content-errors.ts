@@ -5,7 +5,7 @@
 import type { Response } from 'express'
 import type { z } from 'zod'
 
-export type ContentErrorCode = 'VALIDATION' | 'NOT_FOUND' | 'NOT_DRAFT' | 'CONFLICT' | 'TOO_LARGE' | 'IN_USE'
+export type ContentErrorCode = 'VALIDATION' | 'NOT_FOUND' | 'NOT_DRAFT' | 'CONFLICT' | 'TOO_LARGE' | 'IN_USE' | 'INTERNAL'
 
 export class ContentError extends Error {
   constructor(
@@ -18,12 +18,16 @@ export class ContentError extends Error {
   }
 }
 
-/** Writes a `ContentError` as the contract's error body; rethrows anything else. */
+/**
+ * Writes a `ContentError` as the contract's error body. Anything else is logged and answered
+ * 500 `INTERNAL`: Express 4 never catches a rethrow from an async handler, so it would hang.
+ */
 export function sendContentError(res: Response, err: unknown): Response {
   if (err instanceof ContentError) {
     return res.status(err.status).json({ success: false, error: err.message, code: err.code })
   }
-  throw err
+  console.error('Unexpected error on content route:', err)
+  return res.status(500).json({ success: false, error: 'Internal server error', code: 'INTERNAL' })
 }
 
 /** Parses a request body; a failure is a 400 `VALIDATION` naming the first issue. */
