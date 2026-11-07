@@ -5,7 +5,7 @@ Short activities fill the screen, long ones scroll, and page boundaries snap. Th
 specification for rebuilding that experience natively on iOS and in HTML/React for mobile, so that
 both feel the same, plus the content schema every activity type renders from.
 
-**Status:** specification only, written 2026-11-06 from a frame-by-frame analysis. No code. The
+**Status:** reference specification, written 2026-11-06 from a frame-by-frame analysis. The build is `docs/features/text-activity/SPEC.md`: the leader editor, iPhone viewer, new data model and cutover. The React member viewer here is documented for a later member rebuild, not being built yet. The
 builder record is `.builder/text-activity/brainstorm.md` (local, git-ignored).
 
 ## Files
@@ -63,4 +63,6 @@ The owner's request, 2026-11-06, and where each part became acceptance criteria.
 | 3 | The rail's side? | **Bottom right**, as recorded |
 | 4 | Is the rail tappable? | **Indicator only** for now; touches pass through. Adding interaction later changes no content |
 | 5 | What about 1.0? | **No legacy support.** New app, zero users. The 1.0 UI/UX and schema aren't constraints; production content moves once by export (`05` §6) |
+| 7 | Member experience now? | **Not touched yet.** No React or member work in the current build; `client/` isn't edited, and its lesson pages stop at cutover |
+| 8 | Cutover? | **In the current build**, even though React comes later |
 | 6 | The new data model? | **`05` as written.** Group edits go live on Done. The Vue lesson and leader screens stop at cutover until React replaces them. The export carries content only |

@@ -4,7 +4,7 @@ The storage for the new app, designed as if 1.0 didn't exist (owner ruling 2026-
 legacy support, production content moves once by export). `02` defines what's inside a document; this
 file defines where documents live and how they change.
 
-**Status:** ruled by the owner, 2026-11-06, including group edits going live on Done, the Vue cutover in §7 and the export scope in §6.
+**Status:** ruled by the owner, 2026-11-06, including group edits going live on Done, the Vue cutover in §7 and the export scope in §6. The build in `docs/features/text-activity/SPEC.md` narrows it: `Prayer`, `ActivityResponse`, member endpoints and group forking wait for the member rebuild.
 
 ## 1. What the product has to do
 
