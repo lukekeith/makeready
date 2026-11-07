@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma.js'
 import { ContentVisibility } from './permission.js'
+import { isUsedByActivity } from './content-media.service.js'
 
 /**
  * Content Service - Media management
@@ -167,8 +168,15 @@ export async function updateMedia(mediaId: string, data: UpdateMediaData) {
   }
 }
 
+export const MEDIA_IN_USE_ERROR = 'This media is used by an activity'
+
 export async function deleteMedia(mediaId: string) {
   try {
+    // text-activity D34: an activity document names this media (JSON can't hold an FK).
+    if (await isUsedByActivity(prisma, [mediaId])) {
+      return { success: false, error: MEDIA_IN_USE_ERROR, code: 'IN_USE' as const }
+    }
+
     await prisma.media.delete({
       where: { id: mediaId },
     })
