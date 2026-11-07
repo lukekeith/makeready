@@ -22,6 +22,8 @@ export interface ContentWorld {
 }
 
 const createdMediaIds: string[] = []
+const createdGroupIds: string[] = []
+const createdMemberIds: string[] = []
 const createdVideoIds: string[] = []
 
 async function user(label: string, stamp: string): Promise<ContentUser> {
@@ -132,7 +134,119 @@ export async function seedPublishedLesson(
   return { lessonId: lesson.id, versionId: version.id }
 }
 
+export interface EnrolledProgram {
+  w: ContentWorld
+  enrollmentId: string
+  memberId: string
+  lessonIds: string[]
+  /** The PUBLISHED LessonVersion each lesson starts on, in lesson order. */
+  versionIds: string[]
+  scheduledLessonIds: string[]
+  programVersionId: string
+  programVersionNumber: number
+}
+
+/** The world's program published as version 1 over `opts.lessons` new lessons, one enrollment on it, one ScheduledLesson per lesson (a day apart, from tomorrow), and a member. Rows are written directly: the publish service is a later task. */
+export async function seedEnrolledProgram(w: ContentWorld, opts: { lessons: number }): Promise<EnrolledProgram> {
+  const stamp = randomBytes(4).toString('hex')
+  const lessonIds: string[] = []
+  const versionIds: string[] = []
+  for (let i = 0; i < opts.lessons; i++) {
+    const pub = await seedPublishedLesson(w, [{ activityKey: `a-${stamp}-${i}` }])
+    lessonIds.push(pub.lessonId)
+    versionIds.push(pub.versionId)
+  }
+  const latestNumber = await prisma.programVersion.aggregate({ where: { programId: w.programId }, _max: { number: true } })
+  const programVersion = await prisma.programVersion.create({
+    data: {
+      programId: w.programId, number: (latestNumber._max.number ?? 0) + 1,
+      lessons: { create: lessonIds.map((lessonId, i) => ({ lessonId, lessonVersionId: versionIds[i], position: i + 1 })) },
+    },
+  })
+  await prisma.studyProgram.update({ where: { id: w.programId }, data: { currentVersionId: programVersion.id } })
+  const group = await prisma.group.create({
+    data: { name: `Sync Group ${stamp}`, code: `sg-${stamp}`, creatorId: w.leader.userId, organizationId: w.orgId },
+  })
+  createdGroupIds.push(group.id)
+  const member = await prisma.member.create({ data: { phoneNumber: `+1555${Math.floor(1e6 + Math.random() * 9e6)}${stamp.slice(0, 1).charCodeAt(0) % 10}` } })
+  createdMemberIds.push(member.id)
+  const day = 24 * 3600 * 1000
+  const start = new Date(Date.now() + day)
+  const enrollment = await prisma.enrollment.create({
+    data: {
+      groupId: group.id, studyProgramId: w.programId, startDate: start, endDate: new Date(start.getTime() + opts.lessons * day),
+      enabledDays: JSON.stringify(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']), programVersionId: programVersion.id,
+    },
+  })
+  const scheduledLessonIds: string[] = []
+  for (let i = 0; i < opts.lessons; i++) {
+    const sl = await prisma.scheduledLesson.create({
+      data: {
+        enrollmentId: enrollment.id, lessonId: lessonIds[i], currentVersionId: versionIds[i],
+        scheduledDate: new Date(start.getTime() + i * day),
+      },
+    })
+    scheduledLessonIds.push(sl.id)
+  }
+  return {
+    w, enrollmentId: enrollment.id, memberId: member.id, lessonIds, versionIds, scheduledLessonIds,
+    programVersionId: programVersion.id, programVersionNumber: programVersion.number,
+  }
+}
+
+/**
+ * The next ProgramVersion of the seeded program. `changeLesson` gives that lesson (by index) a new PUBLISHED LessonVersion;
+ * `dropLessons` leaves those indexes out; every other lesson keeps the version it had. Becomes the program's current version.
+ */
+export async function publishNewVersion(
+  s: EnrolledProgram,
+  opts: { changeLesson?: number; dropLessons?: number[] } = {},
+) {
+  const latest = await prisma.programVersion.aggregate({ where: { programId: s.w.programId }, _max: { number: true } })
+  const rows: { lessonId: string; lessonVersionId: string; position: number }[] = []
+  for (let i = 0; i < s.lessonIds.length; i++) {
+    if (opts.dropLessons?.includes(i)) continue
+    let lessonVersionId = s.versionIds[i]
+    if (opts.changeLesson === i) {
+      const max = await prisma.lessonVersion.aggregate({ where: { lessonId: s.lessonIds[i] }, _max: { number: true } })
+      const changed = await prisma.lessonVersion.create({
+        data: { lessonId: s.lessonIds[i], number: (max._max.number ?? 0) + 1, status: 'PUBLISHED', title: 'Changed day', publishedAt: new Date() },
+      })
+      lessonVersionId = changed.id
+    }
+    rows.push({ lessonId: s.lessonIds[i], lessonVersionId, position: i + 1 })
+  }
+  const version = await prisma.programVersion.create({
+    data: { programId: s.w.programId, number: (latest._max.number ?? 0) + 1, lessons: { create: rows } },
+  })
+  await prisma.studyProgram.update({ where: { id: s.w.programId }, data: { currentVersionId: version.id } })
+  return version
+}
+
+/** A group's own PUBLISHED version of lesson `index` (`enrollmentId` set), which the enrollment's scheduled lesson now points at. */
+export async function customizeForEnrollment(s: EnrolledProgram, index: number) {
+  const max = await prisma.lessonVersion.aggregate({ where: { lessonId: s.lessonIds[index] }, _max: { number: true } })
+  const version = await prisma.lessonVersion.create({
+    data: {
+      lessonId: s.lessonIds[index], enrollmentId: s.enrollmentId, number: (max._max.number ?? 0) + 1,
+      status: 'PUBLISHED', title: 'Group edit', publishedAt: new Date(), basedOnVersionId: s.versionIds[index],
+    },
+  })
+  await prisma.scheduledLesson.update({ where: { id: s.scheduledLessonIds[index] }, data: { currentVersionId: version.id } })
+  return version
+}
+
 export async function destroyContentWorld(w: ContentWorld) {
+  // Scheduled lessons hold their versions with RESTRICT, so they go before the enrollments that cascade the versions.
+  await prisma.scheduledLesson.deleteMany({ where: { enrollment: { studyProgramId: w.programId } } })
+  await prisma.enrollment.deleteMany({ where: { studyProgramId: w.programId } })
+  await prisma.studyProgram.update({ where: { id: w.programId }, data: { currentVersionId: null } })
+  await prisma.programVersionLesson.deleteMany({ where: { programVersion: { programId: w.programId } } })
+  await prisma.programVersion.deleteMany({ where: { programId: w.programId } })
+  await prisma.group.deleteMany({ where: { id: { in: createdGroupIds } } })
+  await prisma.member.deleteMany({ where: { id: { in: createdMemberIds } } })
+  createdGroupIds.length = 0
+  createdMemberIds.length = 0
   const lessonIds = (await prisma.lesson.findMany({ where: { programId: w.programId }, select: { id: true } })).map(l => l.id)
   await prisma.contentActivity.deleteMany({ where: { lessonVersion: { lessonId: { in: lessonIds } } } })
   await prisma.lessonVersion.deleteMany({ where: { lessonId: { in: lessonIds } } })

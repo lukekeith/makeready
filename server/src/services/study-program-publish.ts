@@ -22,7 +22,6 @@ import {
   LESSON_CONTENT_INCLUDE,
 } from './lesson-content-hash.js'
 import { summarizeProgramChanges } from './claude.js'
-import { launchProgramVersionFanOut } from './enrollment-sync.js'
 
 export class PublishConflictError extends Error {
   constructor() {
@@ -257,10 +256,7 @@ export async function publishProgramVersion(params: {
       }),
     ])
 
-    // Fan the new version out to AUTO-sync enrollments in the background —
-    // publish returns immediately; EnrollmentSyncRun rows record per-enrollment
-    // progress and make failures retryable.
-    launchProgramVersionFanOut(programId, versionNumber)
+    // The old fan-out is gone (text-activity D37): the new publish service moves AUTO enrollments in its own transaction.
 
     return {
       alreadyUpToDate: false,
