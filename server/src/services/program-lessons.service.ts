@@ -282,19 +282,22 @@ export async function updateLesson(userId: string, lessonId: string, body: { tit
   return { ...(await oneLesson(prisma, lessonId)), program }
 }
 
+/** D36 delete inside the caller's transaction; the live lessons after it close up. Throws 404 when the user may not manage the lesson. */
+export async function deleteLessonIn(tx: Tx, userId: string, lessonId: string, programId?: string) {
+  const access = await resolveLessonAccess(tx, userId, lessonId)
+  if (!access || !access.programId || (programId && access.programId !== programId)) throw notFound()
+  await lockProgram(tx, access.programId)
+  // Re-read under the lock: a concurrent delete may have got there first.
+  const current = await tx.lesson.findUnique({ where: { id: lessonId }, select: { deletedAt: true } })
+  if (!current || current.deletedAt) throw notFound()
+  await removeLessons(tx, [lessonId])
+  await closeUpPositions(tx, access.programId)
+  return { programId: access.programId, organizationId: access.program?.organizationId ?? null }
+}
+
 /** D36 delete; the live lessons after it close up. */
 export async function deleteLesson(userId: string, lessonId: string, programId?: string) {
-  return prisma.$transaction(async (tx) => {
-    const access = await resolveLessonAccess(tx, userId, lessonId)
-    if (!access || !access.programId || (programId && access.programId !== programId)) throw notFound()
-    await lockProgram(tx, access.programId)
-    // Re-read under the lock: a concurrent delete may have got there first.
-    const current = await tx.lesson.findUnique({ where: { id: lessonId }, select: { deletedAt: true } })
-    if (!current || current.deletedAt) throw notFound()
-    await removeLessons(tx, [lessonId])
-    await closeUpPositions(tx, access.programId)
-    return { programId: access.programId, organizationId: access.program?.organizationId ?? null }
-  })
+  return prisma.$transaction((tx) => deleteLessonIn(tx, userId, lessonId, programId))
 }
 
 /** Rewrites the live lessons' positions to `lessonIds`, which must be exactly the program's live lessons. */

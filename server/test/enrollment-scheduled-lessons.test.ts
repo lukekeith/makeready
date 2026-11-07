@@ -139,6 +139,17 @@ describe('enrollments on scheduled lessons', () => {
     expect(dup.status).toBe(409)
   })
 
+  it('schedule delete by an enrollment manager who cannot manage org content is a 404 that changes nothing', async () => {
+    const s = await seedEnrolledProgram(w, { lessons: 2 })
+    // The outsider leads this group but is no member of the program's org: enrollmentManageFilter passes, canManageOrgContent does not.
+    await prisma.group.update({ where: { id: s.groupId }, data: { creatorId: w.outsider.userId } })
+    const del = await request(app)
+      .delete(`/api/enrollments/${s.enrollmentId}/schedules/${s.scheduledLessonIds[1]}`).set('Authorization', bearer(w.outsider.token))
+    expect(del.status).toBe(404)
+    expect(await prisma.scheduledLesson.count({ where: { enrollmentId: s.enrollmentId } })).toBe(2)
+    expect((await prisma.lesson.findUniqueOrThrow({ where: { id: s.lessonIds[1] } })).deletedAt).toBeNull()
+  })
+
   it('schedule add puts an unscheduled lesson on the version the enrollment is synced to', async () => {
     const s = await seedEnrolledProgram(w, { lessons: 2 })
     await prisma.event.deleteMany({ where: { scheduledLessonId: s.scheduledLessonIds[1] } })

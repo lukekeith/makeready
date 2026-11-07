@@ -20,7 +20,7 @@ import {
 } from '../services/enrollment-lessons.js'
 import { getStudyEnrollment, listStudyEnrollments } from '../services/study-enrollment-view.js'
 import { thumbnailFromDocument } from '../services/next-study-thumbnail.js'
-import { deleteLesson } from '../services/program-lessons.service.js'
+import { deleteLessonIn } from '../services/program-lessons.service.js'
 import { ContentError } from '../services/content-errors.js'
 import { buildMediaMap } from '../services/content-media.service.js'
 import { generateScheduleDates, validateScheduleDates } from '../services/enrollment-schedule.js'
@@ -301,8 +301,7 @@ router.post('/enrollments', requireAuth, async (req, res) => {
     )
 
     // ui2-enrollments-browse D11 + D24: the enrollment and its welcome post exist, so the pair's drafts are
-    // promoted — deleted whether or not draftId was sent. Its own try/catch, OUTSIDE the step try/catch
-    // above (whose catch deletes the enrollment, F4): a failure here is logged and the 200 stands.
+    // promoted — deleted whether or not draftId was sent. A failure here is logged and the 200 stands.
     try {
       await deleteDraftsForPair(body.groupId, body.studyProgramId)
     } catch (draftError) {
@@ -2485,40 +2484,29 @@ router.delete('/enrollments/:enrollmentId/schedules/:scheduleId', requireAuth, a
       return res.status(404).json({ success: false, error: 'Lesson schedule not found' })
     }
 
-    // Delete the associated event, then the scheduled lesson (cascades its progress)
-    await prisma.event.deleteMany({
-      where: { scheduledLessonId: scheduleId },
-    })
-    await prisma.scheduledLesson.delete({
-      where: { id: scheduleId },
-    })
-
-    // Delete the lesson from the program as well (D36 closes the remaining positions up and syncs the days
-    // count). Skipped when the curriculum lesson is already gone — an orphaned schedule.
-    if (schedule.lessonId) {
-      try {
-        await deleteLesson(userId, schedule.lessonId)
-      } catch (error) {
-        if (!(error instanceof ContentError && error.status === 404)) throw error
+    // One transaction: the event and schedule go, the curriculum lesson goes with them (D36 closes the program
+    // up), and the end date follows. A user who manages this enrollment but not the program's content gets the
+    // lesson's 404 and nothing changes. A lesson already gone (or an orphaned schedule) is skipped.
+    await prisma.$transaction(async (tx) => {
+      await tx.event.deleteMany({ where: { scheduledLessonId: scheduleId } })
+      await tx.scheduledLesson.delete({ where: { id: scheduleId } })
+      if (schedule.lessonId) {
+        const lesson = await tx.lesson.findUnique({ where: { id: schedule.lessonId }, select: { deletedAt: true } })
+        if (lesson && !lesson.deletedAt) await deleteLessonIn(tx, userId, schedule.lessonId)
       }
-    }
-
-    // Recalculate enrollment endDate from remaining schedules
-    const latestSchedule = await prisma.scheduledLesson.findFirst({
-      where: { enrollmentId },
-      orderBy: { scheduledDate: 'desc' },
-      select: { scheduledDate: true },
-    })
-
-    if (latestSchedule) {
-      await prisma.enrollment.update({
-        where: { id: enrollmentId },
-        data: { endDate: latestSchedule.scheduledDate },
+      const latestSchedule = await tx.scheduledLesson.findFirst({
+        where: { enrollmentId },
+        orderBy: { scheduledDate: 'desc' },
+        select: { scheduledDate: true },
       })
-    }
+      if (latestSchedule) {
+        await tx.enrollment.update({ where: { id: enrollmentId }, data: { endDate: latestSchedule.scheduledDate } })
+      }
+    })
 
     res.json({ success: true })
   } catch (error) {
+    if (error instanceof ContentError) return res.status(error.status).json({ success: false, error: error.message, code: error.code })
     console.error('Error deleting lesson schedule:', error)
     res.status(500).json({ success: false, error: 'Failed to delete lesson schedule' })
   }

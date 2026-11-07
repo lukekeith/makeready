@@ -44,6 +44,10 @@ export const FIXTURE_KIND = {
   template: '001f',
   programTag: '0020',
   recent: '0021',
+  // text-activity Task 11: the enrollment layers' version-pointer content.
+  programVersion: '0022',
+  lessonVersion: '0023',
+  contentActivity: '0024',
 } as const
 
 export type FixtureKind = keyof typeof FIXTURE_KIND

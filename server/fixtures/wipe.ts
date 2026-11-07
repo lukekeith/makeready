@@ -3,7 +3,7 @@
  *  1. client_events of the fixture org or a fixture member (no FKs, so explicit);
  *  2. the fixture members (cascades group_members, member_organizations, the
  *     three progress tables and membership_events);
- *  3. groups, study_programs and lesson_templates whose organizationId is the fixture org (a
+ *  3. groups, program_version_lessons (RESTRICT to lessons and versions), study_programs and lesson_templates whose organizationId is the fixture org (a
  *     backstop: organizationId has no FK; a template's creatorId is SetNull, so reset would
  *     otherwise leave it behind — master-search T6);
  *  4. the fixture users (FIXTURE_USER_IDS: the owner — cascading the owned
@@ -16,7 +16,7 @@
 import type { PrismaClient } from '../src/generated/prisma/index.js'
 import { FIXTURE_LEADER_EMAIL, FIXTURE_MEMBER_IDS, FIXTURE_ORG2_OWNER_EMAIL, FIXTURE_ORG_ID, FIXTURE_USER_EMAIL, FIXTURE_USER_IDS } from './ids.js'
 
-export type WipeClient = Pick<PrismaClient, 'clientEvent' | 'member' | 'group' | 'studyProgram' | 'lessonTemplate' | 'user'>
+export type WipeClient = Pick<PrismaClient, 'clientEvent' | 'member' | 'group' | 'studyProgram' | 'programVersionLesson' | 'lessonTemplate' | 'user'>
 
 export const FIXTURE_CLIENT_EVENT_WHERE = {
   OR: [{ organizationId: FIXTURE_ORG_ID }, { memberId: { in: FIXTURE_MEMBER_IDS } }],
@@ -26,6 +26,8 @@ export async function wipeFixtures(prisma: WipeClient): Promise<void> {
   await prisma.clientEvent.deleteMany({ where: FIXTURE_CLIENT_EVENT_WHERE })
   await prisma.member.deleteMany({ where: { id: { in: FIXTURE_MEMBER_IDS } } })
   await prisma.group.deleteMany({ where: { organizationId: FIXTURE_ORG_ID } })
+  // Frozen program-version rows hold their lessons and lesson versions with RESTRICT (text-activity), so they go first.
+  await prisma.programVersionLesson.deleteMany({ where: { programVersion: { program: { organizationId: FIXTURE_ORG_ID } } } })
   await prisma.studyProgram.deleteMany({ where: { organizationId: FIXTURE_ORG_ID } })
   await prisma.lessonTemplate.deleteMany({ where: { organizationId: FIXTURE_ORG_ID } })
   await prisma.user.deleteMany({ where: { id: { in: FIXTURE_USER_IDS } } })

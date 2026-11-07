@@ -12,6 +12,7 @@
 import { lessonId } from '../base.js'
 import { FIXTURE_TZ, type FixtureContext } from '../context.js'
 import { FIXTURE_LEADER_GROUP_ID, FIXTURE_LEADER_USER_ID, FIXTURE_PROGRAM_IDS, fixtureId } from '../ids.js'
+import { seedScheduledContent } from '../scheduled-content.js'
 import { READ_IMAGE_URL, YOUTUBE_THUMBNAIL_URL } from './groups-detail.js'
 
 export const HOME_ENROLLMENT_ID = fixtureId('enrollment', 950)
@@ -19,9 +20,6 @@ export const HOME_LESSON_COUNT = 21
 export const HOME_START_OFFSET = -10
 export const HOME_SMS_TIME = '07:30'
 const PROGRAM_INDEX = 1 // base PROGRAMS: days21 = index 1 "Foundations of Faith"
-const scheduleIdFor = (day: number) => fixtureId('schedule', 950_000 + day)
-const activityIdFor = (day: number, order: number) => fixtureId('scheduledActivity', 950_000 + day * 10 + order)
-const readBlockIdFor = (day: number) => fixtureId('readBlock', 950_000 + day)
 
 export async function full(ctx: FixtureContext): Promise<void> {
   const { prisma } = ctx
@@ -42,9 +40,11 @@ export async function full(ctx: FixtureContext): Promise<void> {
       createdAt: ctx.daysAgo(12),
     },
   })
+  // 1.0 rows, kept only until home-dashboard's engagement read (still on LessonSchedule) moves to the new model; the
+  // enrollment-home reads use the ScheduledLesson rows below. Task 17 deletes these with the table.
   await prisma.lessonSchedule.createMany({
     data: days.map((day) => ({
-      id: scheduleIdFor(day),
+      id: fixtureId('schedule', 950_000 + day),
       enrollmentId: HOME_ENROLLMENT_ID,
       lessonId: lessonId(PROGRAM_INDEX, day),
       scheduledDate: ctx.at(offsetOf(day), 12),
@@ -52,24 +52,20 @@ export async function full(ctx: FixtureContext): Promise<void> {
       estimatedMinutes: 25,
     })),
   })
-  for (const day of [1, 2, 3]) {
-    await prisma.scheduledLessonActivity.createMany({
-      data: [
-        {
-          id: activityIdFor(day, 1),
-          lessonScheduleId: scheduleIdFor(day),
-          type: 'YOUTUBE',
-          orderNumber: 1,
-          title: 'Watch: Overview',
-          youtubeUrl: 'https://www.youtube.com/watch?v=G-2e9mMf7E8',
-          youtubeVideoId: 'G-2e9mMf7E8',
-          youtubeThumbnailUrl: YOUTUBE_THUMBNAIL_URL,
-        },
-        { id: activityIdFor(day, 2), lessonScheduleId: scheduleIdFor(day), type: 'READ', orderNumber: 2, title: `Read John ${day}`, referenceTitle: `John ${day}` },
-      ],
-    })
-    await prisma.activityReadBlock.create({
-      data: { id: readBlockIdFor(day), scheduledActivityId: activityIdFor(day, 2), orderNumber: 1, title: `John ${day}`, content: `Read John ${day} slowly.`, backgroundImageUrl: READ_IMAGE_URL },
-    })
-  }
+  await seedScheduledContent(ctx, {
+    seed: 950,
+    programId: FIXTURE_PROGRAM_IDS.days21,
+    enrollmentId: HOME_ENROLLMENT_ID,
+    lessons: days.map((day) => ({ lessonId: lessonId(PROGRAM_INDEX, day), scheduledDate: ctx.at(offsetOf(day), 12), title: `Day ${day}` })),
+    // days 1–3: a YouTube-style slide (its thumbnail) and a read slide (its image), as the 1.0 rows had.
+    slides: Object.fromEntries(
+      [1, 2, 3].map((day) => [
+        day,
+        [
+          { kind: 'youtube', title: 'Watch: Overview', imageUrl: YOUTUBE_THUMBNAIL_URL },
+          { kind: 'text', title: `Read John ${day}`, imageUrl: READ_IMAGE_URL },
+        ],
+      ]),
+    ),
+  })
 }
