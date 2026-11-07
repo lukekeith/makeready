@@ -1,37 +1,24 @@
 import { describe, expect, it } from 'vitest'
-import { activityThumbnailUrl, type ThumbnailSource } from '../next-study-thumbnail.js'
+import { thumbnailFromDocument } from '../next-study-thumbnail.js'
+import type { MediaMap } from '../content-media.service.js'
 
-const src = (over: Partial<ThumbnailSource>): ThumbnailSource => ({
-  type: 'READ',
-  youtubeThumbnailUrl: null,
-  video: null,
-  readBlocks: [],
-  ...over,
-})
+const media: MediaMap = {
+  bg: { url: 'https://img.test/bg.jpg', kind: 'image' },
+  poster: { url: 'https://img.test/poster.jpg', kind: 'image' },
+}
 
-describe('activityThumbnailUrl (D17, T6)', () => {
-  it('prefers the YouTube thumbnail', () => {
-    expect(
-      activityThumbnailUrl(src({ type: 'YOUTUBE', youtubeThumbnailUrl: 'https://yt/1.jpg', video: { thumbnailUrl: 'https://v/1.jpg' } }))
-    ).toBe('https://yt/1.jpg')
+describe('thumbnailFromDocument', () => {
+  it('uses the background image', () => {
+    expect(thumbnailFromDocument({ background: { image: { mediaId: 'bg' } }, content: { posterMediaId: 'poster' } }, media)).toBe('https://img.test/bg.jpg')
   })
 
-  it('falls back to the uploaded video’s thumbnail', () => {
-    expect(activityThumbnailUrl(src({ type: 'VIDEO', video: { thumbnailUrl: 'https://v/1.jpg' } }))).toBe('https://v/1.jpg')
+  it('falls back to the video poster', () => {
+    expect(thumbnailFromDocument({ background: { color: '#000' }, content: { type: 'video', posterMediaId: 'poster' } }, media)).toBe('https://img.test/poster.jpg')
   })
 
-  it('uses the first read block image of a READ activity', () => {
-    expect(
-      activityThumbnailUrl(src({ type: 'READ', readBlocks: [{ backgroundImageUrl: null }, { backgroundImageUrl: 'https://r/2.jpg' }] }))
-    ).toBe('https://r/2.jpg')
-  })
-
-  it('ignores read blocks on a non-READ activity', () => {
-    expect(activityThumbnailUrl(src({ type: 'USER_INPUT', readBlocks: [{ backgroundImageUrl: 'https://r/2.jpg' }] }))).toBeNull()
-  })
-
-  it('is null with no source (incl. a video without a thumbnail)', () => {
-    expect(activityThumbnailUrl(src({ type: 'VIDEO', video: { thumbnailUrl: null } }))).toBeNull()
-    expect(activityThumbnailUrl(src({ type: 'READ' }))).toBeNull()
+  it('is null with neither, or when the media is not in the map', () => {
+    expect(thumbnailFromDocument({ background: { color: '#000' }, content: { type: 'canvas' } }, media)).toBeNull()
+    expect(thumbnailFromDocument({ background: { image: { mediaId: 'gone' } } }, media)).toBeNull()
+    expect(thumbnailFromDocument(null, media)).toBeNull()
   })
 })

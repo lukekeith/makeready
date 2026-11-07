@@ -4,19 +4,25 @@ import { randomUUID } from 'crypto'
 import QRCode from 'qrcode'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth } from '../middleware/auth.js'
-import { generateStudyCode } from '../lib/study-code.js'
 import { logSuccess, logFailure } from '../lib/activity-log.js'
 import { ActivityTypes } from '../lib/activity-types.js'
 import { trackActivity } from '../services/activity.js'
 import { getUserOrgId } from '../services/media-library.js'
 import { getEnrollmentCompletionStats } from '../services/enrollment-analytics.service.js'
-import { hashLessonContent } from '../services/lesson-content-hash.js'
-import { buildLessonCopyRows, type LessonCopyRows } from '../services/lesson-copy.js'
-import { syncEnrollmentToLatest, SyncNotPossibleError } from '../services/enrollment-sync.js'
+import { createScheduledLessons, syncEnrollmentToLatest, SyncNotPossibleError } from '../services/enrollment-sync.js'
 import { computePendingChanges } from '../services/enrollment-sync-changes.js'
 import { resolveNotificationsByDedupeKey } from '../services/notification.js'
-import { filterActivitiesToVersion } from '../services/enrollment-directory.service.js'
-import { activityThumbnailUrl } from '../services/next-study-thumbnail.js'
+import {
+  mediaForScheduledLessons,
+  scheduledLessonInclude,
+  serializeScheduledLesson,
+  setScheduledLessonTitle,
+} from '../services/enrollment-lessons.js'
+import { getStudyEnrollment, listStudyEnrollments } from '../services/study-enrollment-view.js'
+import { thumbnailFromDocument } from '../services/next-study-thumbnail.js'
+import { deleteLesson } from '../services/program-lessons.service.js'
+import { ContentError } from '../services/content-errors.js'
+import { buildMediaMap } from '../services/content-media.service.js'
 import { generateScheduleDates, validateScheduleDates } from '../services/enrollment-schedule.js'
 import { isValidTimezone } from '../utils/timezone.js'
 import { programReadFilter } from '../services/study-program.service.js'
@@ -190,42 +196,23 @@ router.post('/enrollments', requireAuth, async (req, res) => {
         isActive: true,
         ...(await programReadFilter(userId)),
       },
-      include: {
-        template: { select: { id: true, name: true } },
-        lessons: {
-          orderBy: { dayNumber: 'asc' },
-          include: {
-            activities: {
-              orderBy: { orderNumber: 'asc' },
-              include: {
-                sourceReferences: true,
-                readBlocks: {
-                  orderBy: { orderNumber: 'asc' },
-                  include: {
-                    theme: { select: { id: true, slug: true, name: true } },
-                    contentHighlights: { orderBy: { orderNumber: 'asc' } },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
     })
 
     if (!program) {
       return res.status(404).json({ success: false, error: 'Study program not found' })
     }
 
-    if (!program.isPublished) {
-      return res.status(400).json({
-        success: false,
-        error: 'Cannot enroll in a draft program. The program must be published first.'
-      })
+    // D2: an enrollment schedules the lessons of the program's current published version.
+    const programVersionId = program.currentVersionId
+    if (!programVersionId) {
+      return res.status(400).json({ success: false, error: 'Publish this program before enrolling a group', code: 'VALIDATION' })
     }
-
-    // Validate program has lessons
-    if (program.lessons.length === 0) {
+    const versionLessons = await prisma.programVersionLesson.findMany({
+      where: { programVersionId },
+      orderBy: { position: 'asc' },
+      select: { lessonId: true },
+    })
+    if (versionLessons.length === 0) {
       return res.status(400).json({
         success: false,
         error: 'Cannot enroll in a study program with no lessons. Please add lessons to the program first.'
@@ -245,213 +232,73 @@ router.post('/enrollments', requireAuth, async (req, res) => {
     // one per lesson on the enabled weekdays from the start date (shared with edit/reschedule).
     let scheduleDates: Date[]
     if (body.scheduleDates) {
-      const checked = validateScheduleDates(body.scheduleDates, program.lessons.length, body.timezone ?? 'UTC', new Date())
+      const checked = validateScheduleDates(body.scheduleDates, versionLessons.length, body.timezone ?? 'UTC', new Date())
       if (!checked.ok) {
         return res.status(400).json({ success: false, error: checked.error })
       }
       scheduleDates = checked.dates
     } else {
-      scheduleDates = generateScheduleDates(new Date(body.startDate), body.enabledDays, program.lessons.length)
+      scheduleDates = generateScheduleDates(new Date(body.startDate), body.enabledDays, versionLessons.length)
     }
     const startDate = body.scheduleDates ? scheduleDates[0] : new Date(body.startDate)
     const endDate = scheduleDates[scheduleDates.length - 1]
 
-    // Pre-generate IDs and codes to use batch operations (avoids PgBouncer transaction timeout)
+    // One transaction: the enrollment, a ScheduledLesson (and its calendar event) per lesson of the program
+    // version, and the welcome post land together or not at all.
     const enrollmentId = randomUUID()
-
-    // Generate unique codes for each lesson schedule (for deep linking via SMS)
-    const generatedCodes = new Set<string>()
-    const generateUniqueCodeForBatch = (): string => {
-      let code = generateStudyCode()
-      while (generatedCodes.has(code)) {
-        code = generateStudyCode()
-      }
-      generatedCodes.add(code)
-      return code
-    }
-
-    const scheduleData = program.lessons.map((lesson, i) => ({
-      id: randomUUID(),
-      code: generateUniqueCodeForBatch(), // 6-char alphanumeric for SMS deep linking
-      enrollmentId,
-      lessonId: lesson.id,
-      scheduledDate: scheduleDates[i],
-      lesson, // Keep reference for event creation
-    }))
-
-    // Create enrollment with lesson schedules, events, and welcome post
-    // Using sequential operations — if any step fails after enrollment creation,
-    // we delete the enrollment (cascade handles cleanup)
-    console.log(`🔄 Starting enrollment creation for group ${body.groupId}, program ${body.studyProgramId}`)
-    console.log(`   Lessons to schedule: ${program.lessons.length}, dates generated: ${scheduleDates.length}`)
-
-    try {
-      // Step 1: Create the enrollment
-      console.log('   Step 1: Creating enrollment record...')
-      await prisma.enrollment.create({
-        data: {
-          id: enrollmentId,
-          groupId: body.groupId,
-          studyProgramId: body.studyProgramId,
-          startDate,
-          endDate,
-          enabledDays: JSON.stringify(body.enabledDays),
-          smsTime: body.smsTime,
-          timezone: body.timezone,
-          requireResponse: body.requireResponse ?? program.requireResponse, // Inherit from program if not specified
-          // Default new enrollments to AUTO so curriculum updates a leader
-          // publishes flow to the group automatically — without this, added
-          // days never reached members unless the leader also toggled sync on
-          // per enrollment (monday#12268576962).
-          syncMode: body.syncMode ?? 'AUTO',
-          lessonAccess: body.lessonAccess ?? 'ALL_AT_ONCE',
-          // The copy is made from live curriculum, which reflects at least the
-          // latest published version — so the enrollment starts drift-free.
-          syncedProgramVersionNumber: program.currentVersionNumber ?? null,
-          createdById: userId,
-        },
-      })
-      console.log('   Step 1: Complete')
-
-      // Step 2: Batch create lesson schedules
-      console.log('   Step 2: Creating lesson schedules...')
-      await prisma.lessonSchedule.createMany({
-        data: scheduleData.map(({ id, code, enrollmentId, lessonId, scheduledDate, lesson }) => ({
-          id,
-          code,
-          enrollmentId,
-          lessonId,
-          scheduledDate,
-          templateId: program.template?.id ?? null,
-          templateName: program.template?.name ?? null,
-          title: (lesson as any).title ?? null,
-          estimatedMinutes: (lesson as any).estimatedMinutes ?? null,
-        })),
-      })
-      console.log('   Step 2: Complete')
-
-      // Step 2b: Create the v1 LessonScheduleVersion for each schedule, then copy
-      // lesson activities into scheduled lesson activities (flat copy for zero-join
-      // reads) stamped with versionId + lineageKey for study-sync.
-      console.log('   Step 2b: Creating lesson versions and scheduled activities...')
-
-      const versionIdBySchedule = new Map<string, string>(scheduleData.map((sd) => [sd.id, randomUUID()]))
-      await prisma.lessonScheduleVersion.createMany({
-        data: scheduleData.map((sd) => ({
-          id: versionIdBySchedule.get(sd.id)!,
-          lessonScheduleId: sd.id,
-          versionNumber: 1,
-          programVersionNumber: program.currentVersionNumber ?? null,
-          sourceContentHash: hashLessonContent(sd.lesson as any),
-        })),
-      })
-
-      // Point each schedule at its v1 (post-insert update because the FKs are circular)
-      await Promise.all(
-        scheduleData.map((sd) =>
-          prisma.lessonSchedule.update({
-            where: { id: sd.id },
-            data: { currentVersionId: versionIdBySchedule.get(sd.id)! },
-          })
-        )
-      )
-
-      const scheduledActivityData: LessonCopyRows['scheduledActivityData'] = []
-      const sourceRefData: LessonCopyRows['sourceRefData'] = []
-      const readBlockData: LessonCopyRows['readBlockData'] = []
-      const contentHighlightData: LessonCopyRows['contentHighlightData'] = []
-
-      for (const sd of scheduleData) {
-        const lesson = sd.lesson as typeof program.lessons[0]
-        const rows = buildLessonCopyRows({
-          lessonScheduleId: sd.id,
-          versionId: versionIdBySchedule.get(sd.id)!,
-          activities: lesson.activities as any,
+    const scheduleDatesByLesson = new Map(versionLessons.map((l, i) => [l.lessonId, scheduleDates[i]]))
+    const firstLessonDate = scheduleDates[0]
+    const formattedStartDate = firstLessonDate.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    })
+    const smsTimeFormatted = body.smsTime
+      ? new Date(`2000-01-01T${body.smsTime}`).toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
         })
-        scheduledActivityData.push(...rows.scheduledActivityData)
-        sourceRefData.push(...rows.sourceRefData)
-        readBlockData.push(...rows.readBlockData)
-        contentHighlightData.push(...rows.contentHighlightData)
-      }
+      : 'the scheduled time'
 
-      if (scheduledActivityData.length > 0) {
-        await prisma.scheduledLessonActivity.createMany({ data: scheduledActivityData })
-      }
-
-      if (sourceRefData.length > 0) {
-        await prisma.activitySourceReference.createMany({ data: sourceRefData })
-      }
-
-      if (readBlockData.length > 0) {
-        await prisma.activityReadBlock.createMany({ data: readBlockData })
-      }
-
-      if (contentHighlightData.length > 0) {
-        await prisma.contentHighlight.createMany({ data: contentHighlightData })
-      }
-
-      console.log(
-        `   Step 2b: Complete - ${scheduledActivityData.length} scheduled activities, ` +
-          `${sourceRefData.length} source refs, ${readBlockData.length} read blocks, ` +
-          `${contentHighlightData.length} exegesis highlights created`
-      )
-
-      // Step 3: Batch create events for calendar display
-      console.log('   Step 3: Creating calendar events...')
-      await prisma.event.createMany({
-        data: scheduleData.map(({ id: lessonScheduleId, lesson, scheduledDate }) => ({
-          groupId: body.groupId,
-          type: 'LESSON' as const,
-          title: `Day ${lesson.dayNumber}: ${program.name}`,
-          description: program.description,
-          date: scheduledDate,
-          startTime: body.smsTime,
-          lessonScheduleId,
-          enrollmentId,
-          dayNumber: lesson.dayNumber,
-        })),
-      })
-      console.log('   Step 3: Complete')
-
-      // Step 4: Create welcome post for the group feed
-      console.log('   Step 4: Creating welcome post...')
-      const firstLessonDate = scheduleDates[0]
-      const formattedStartDate = firstLessonDate.toLocaleDateString('en-US', {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-      })
-      const smsTimeFormatted = body.smsTime
-        ? new Date(`2000-01-01T${body.smsTime}`).toLocaleTimeString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true,
-          })
-        : 'the scheduled time'
-
-      await prisma.post.create({
-        data: {
-          groupId: body.groupId,
-          authorId: userId, // Set the group leader as the author
-          type: 'WELCOME',
-          title: `${program.name} starts ${formattedStartDate}!`,
-          content: `${group.name} is beginning the ${program.name} study program! Your first lesson link will be texted to you on ${formattedStartDate} at ${smsTimeFormatted}. Get ready for ${program.days} days of growth together!`,
-          imageUrl: program.coverImageUrl,
-          enrollmentId,
-        },
-      })
-      console.log('   Step 4: Complete - Welcome post created')
-    } catch (stepError) {
-      // If any step fails after enrollment was created, clean up
-      console.error('   ❌ Error during enrollment creation, cleaning up...', stepError)
-      try {
-        await prisma.enrollment.delete({ where: { id: enrollmentId } })
-        console.log('   🧹 Cleaned up partial enrollment')
-      } catch {
-        // Enrollment might not have been created yet
-      }
-      throw stepError
-    }
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.enrollment.create({
+          data: {
+            id: enrollmentId,
+            groupId: body.groupId,
+            studyProgramId: body.studyProgramId,
+            startDate,
+            endDate,
+            enabledDays: JSON.stringify(body.enabledDays),
+            smsTime: body.smsTime,
+            timezone: body.timezone,
+            requireResponse: body.requireResponse ?? program.requireResponse, // Inherit from program if not specified
+            // Default new enrollments to AUTO so curriculum updates a leader
+            // publishes flow to the group automatically — without this, added
+            // days never reached members unless the leader also toggled sync on
+            // per enrollment (monday#12268576962).
+            syncMode: body.syncMode ?? 'AUTO',
+            lessonAccess: body.lessonAccess ?? 'ALL_AT_ONCE',
+            programVersionId,
+            createdById: userId,
+          },
+        })
+        await createScheduledLessons(tx, enrollmentId, programVersionId, scheduleDatesByLesson)
+        await tx.post.create({
+          data: {
+            groupId: body.groupId,
+            authorId: userId, // Set the group leader as the author
+            type: 'WELCOME',
+            title: `${program.name} starts ${formattedStartDate}!`,
+            content: `${group.name} is beginning the ${program.name} study program! Your first lesson link will be texted to you on ${formattedStartDate} at ${smsTimeFormatted}. Get ready for ${program.days} days of growth together!`,
+            imageUrl: program.coverImageUrl,
+            enrollmentId,
+          },
+        })
+      },
+      { timeout: 60_000 },
+    )
 
     // ui2-enrollments-browse D11 + D24: the enrollment and its welcome post exist, so the pair's drafts are
     // promoted — deleted whether or not draftId was sent. Its own try/catch, OUTSIDE the step try/catch
@@ -500,7 +347,7 @@ router.post('/enrollments', requireAuth, async (req, res) => {
         },
         _count: {
           select: {
-            lessonSchedules: true,
+            scheduledLessons: true,
             events: true,
           },
         },
@@ -531,7 +378,14 @@ router.post('/enrollments', requireAuth, async (req, res) => {
       })
     }
 
-    res.json({ success: true, enrollment })
+    // The wire keeps `_count.lessonSchedules`: its value is now the scheduled lessons.
+    res.json({
+      success: true,
+      enrollment: enrollment && {
+        ...enrollment,
+        _count: { lessonSchedules: enrollment._count.scheduledLessons, events: enrollment._count.events },
+      },
+    })
   } catch (error) {
     if (error instanceof z.ZodError) {
       console.error('❌ Enrollment validation error:', JSON.stringify(error.errors, null, 2))
@@ -625,20 +479,9 @@ router.get('/enrollments/:id', requireAuth, async (req, res) => {
             coverImageUrl: true,
           },
         },
-        lessonSchedules: {
+        scheduledLessons: {
           orderBy: { scheduledDate: 'asc' },
-          include: {
-            lesson: {
-              select: { id: true, dayNumber: true, title: true, studyProgramId: true, createdAt: true, updatedAt: true },
-            },
-            scheduledActivities: {
-              orderBy: { orderNumber: 'asc' },
-              include: {
-                sourceReferences: true,
-                readBlocks: { orderBy: { orderNumber: 'asc' }, include: { theme: { select: { id: true, slug: true, name: true } } } },
-              },
-            },
-          },
+          include: scheduledLessonInclude,
         },
       },
     })
@@ -647,24 +490,13 @@ router.get('/enrollments/:id', requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Enrollment not found' })
     }
 
-    // Transform response: nest scheduledActivities inside lesson.activities
-    // so iPhone app can read schedule.lesson.activities
-    const transformed = {
-      ...enrollment,
-      lessonSchedules: enrollment.lessonSchedules.map((schedule) => {
-        const { scheduledActivities, ...rest } = schedule
-        return {
-          ...rest,
-          scheduledActivities,
-          lesson: {
-            ...schedule.lesson,
-            activities: scheduledActivities,
-          },
-        }
-      }),
-    }
-
-    res.json({ success: true, enrollment: transformed })
+    // `lessonSchedules[]` keeps today's keys, built from the ScheduledLessons; `media` resolves their documents' media ids.
+    const { scheduledLessons, ...rest } = enrollment
+    res.json({
+      success: true,
+      enrollment: { ...rest, lessonSchedules: scheduledLessons.map(serializeScheduledLesson) },
+      media: await mediaForScheduledLessons(scheduledLessons),
+    })
   } catch (error) {
     console.error('Error fetching enrollment:', error)
     res.status(500).json({ success: false, error: 'Failed to fetch enrollment' })
@@ -772,135 +604,11 @@ router.get('/groups/:groupId/study-enrollment', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Member not found in group' })
     }
 
-    // Get the active enrollment for this group (most recent)
-    const enrollment = await prisma.enrollment.findFirst({
-      // Exclude enrollments whose study program was soft-deleted (isActive:false)
-      // so a deleted study stops rendering in the member/leader lists (monday#12415690223).
-      where: { groupId, studyProgram: { isActive: true } },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        studyProgram: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            coverImageUrl: true,
-            days: true,
-          },
-        },
-        lessonSchedules: {
-          orderBy: { scheduledDate: 'asc' },
-          include: {
-            lesson: {
-              select: {
-                id: true,
-                dayNumber: true,
-                title: true,
-              },
-            },
-            scheduledActivities: {
-              orderBy: { orderNumber: 'asc' },
-              select: {
-                id: true,
-                type: true,
-                title: true,
-                estimatedSeconds: true,
-                sourceReferences: {
-                  take: 1,
-                  select: { passageReference: true },
-                },
-              },
-            },
-          },
-        },
-      },
-    })
+    // The active enrollment for this group (most recent). Exclude enrollments whose study program was
+    // soft-deleted (isActive:false) so a deleted study stops rendering (monday#12415690223).
+    const enrollment = await getStudyEnrollment({ groupId, studyProgram: { isActive: true } }, memberId, true)
 
-    if (!enrollment) {
-      return res.json({ success: true, enrollment: null })
-    }
-
-    // Per-activity completion keyed by scheduledActivityId — drives the LessonCard
-    // activity cubes (filled = completed) and the lesson-state computation.
-    const activityProgress = await prisma.memberActivityProgress.findMany({
-      where: {
-        memberId,
-        lessonScheduleId: {
-          in: enrollment.lessonSchedules.map(ls => ls.id),
-        },
-        completedAt: {
-          not: null,
-        },
-      },
-      select: {
-        lessonScheduleId: true,
-        scheduledActivityId: true,
-        completedAt: true,
-      },
-    })
-
-    const completedActivityIds = new Set<string>()
-    const completionMap = new Map<string, Date>()
-    for (const progress of activityProgress) {
-      if (progress.scheduledActivityId) {
-        completedActivityIds.add(progress.scheduledActivityId)
-      }
-      if (progress.completedAt) {
-        const existing = completionMap.get(progress.lessonScheduleId)
-        if (!existing || progress.completedAt < existing) {
-          completionMap.set(progress.lessonScheduleId, progress.completedAt)
-        }
-      }
-    }
-
-    let activeDays: number[] = []
-    try {
-      const enabledDaysStr = enrollment.enabledDays as string
-      const dayNames = JSON.parse(enabledDaysStr) as string[]
-      const dayMap: { [key: string]: number } = {
-        'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
-      }
-      activeDays = dayNames.map(d => dayMap[d]).filter(d => d !== undefined)
-    } catch {
-      activeDays = [1, 2, 3, 4, 5]
-    }
-
-    const formattedEnrollment = {
-      id: enrollment.id,
-      studyId: enrollment.studyProgramId,
-      studyTitle: enrollment.studyProgram.name,
-      studyDescription: enrollment.studyProgram.description || '',
-      coverImageUrl: enrollment.studyProgram.coverImageUrl,
-      totalLessons: enrollment.lessonSchedules.length,
-      completedLessons: completionMap.size,
-      firstDate: enrollment.startDate.toISOString(),
-      lastDate: enrollment.endDate.toISOString(),
-      activeDays,
-      lessons: enrollment.lessonSchedules.map(ls => {
-        const versionActivities = filterActivitiesToVersion(ls.scheduledActivities, ls.currentVersionId)
-        const firstActivity = versionActivities[0]
-        const passageRef = firstActivity?.sourceReferences?.[0]?.passageReference
-        const activities = versionActivities.map(a => ({
-          type: a.type,
-          completed: completedActivityIds.has(a.id),
-        }))
-        const totalSeconds = versionActivities.reduce((sum, a) => sum + (a.estimatedSeconds || 0), 0)
-        const estimatedMinutes = ls.estimatedMinutes
-          ?? (totalSeconds > 0 ? Math.max(1, Math.round(totalSeconds / 60)) : null)
-        return {
-          id: ls.id,
-          dayNumber: ls.lesson?.dayNumber ?? 0,
-          title: ls.lesson?.title || ls.title || passageRef || firstActivity?.title || `Day ${ls.lesson?.dayNumber ?? 0}`,
-          templateName: ls.templateName,
-          scheduledDate: ls.scheduledDate.toISOString(),
-          estimatedMinutes,
-          activities,
-          completedAt: completionMap.get(ls.id)?.toISOString() || undefined,
-        }
-      }),
-    }
-
-    res.json({ success: true, enrollment: formattedEnrollment })
+    res.json({ success: true, enrollment })
   } catch (error) {
     console.error('Error fetching study enrollment:', error)
     res.status(500).json({ success: false, error: 'Failed to fetch study enrollment' })
@@ -951,71 +659,7 @@ router.get('/groups/:groupId/study-enrollments', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Member not found in group' })
     }
 
-    const enrollments = await prisma.enrollment.findMany({
-      // Exclude enrollments whose study program was soft-deleted (isActive:false)
-      // so a deleted study stops rendering in the member/leader lists (monday#12415690223).
-      where: { groupId, studyProgram: { isActive: true } },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        studyProgram: {
-          select: { id: true, name: true, description: true, coverImageUrl: true, days: true },
-        },
-        lessonSchedules: {
-          orderBy: { scheduledDate: 'asc' },
-          include: {
-            lesson: { select: { id: true, dayNumber: true, title: true } },
-            // Count of scheduled activities per lesson — lets the member group-home
-            // treat a zero-activity lesson as vacuously complete (monday#12268464531).
-            _count: { select: { scheduledActivities: true } },
-          },
-        },
-      },
-    })
-
-    const formatted = await Promise.all(
-      enrollments.map(async enrollment => {
-        const scheduleIds = enrollment.lessonSchedules.map(ls => ls.id)
-
-        // Earliest activity completion per lesson schedule → drives "complete" state
-        const progress = scheduleIds.length
-          ? await prisma.memberActivityProgress.findMany({
-              where: {
-                memberId,
-                lessonScheduleId: { in: scheduleIds },
-                completedAt: { not: null },
-              },
-              select: { lessonScheduleId: true, completedAt: true },
-            })
-          : []
-
-        const completionMap = new Map<string, Date>()
-        for (const p of progress) {
-          if (!p.completedAt) continue
-          const existing = completionMap.get(p.lessonScheduleId)
-          if (!existing || p.completedAt < existing) {
-            completionMap.set(p.lessonScheduleId, p.completedAt)
-          }
-        }
-
-        return {
-          id: enrollment.id,
-          studyId: enrollment.studyProgramId,
-          studyTitle: enrollment.studyProgram.name,
-          studyDescription: enrollment.studyProgram.description || '',
-          coverImageUrl: enrollment.studyProgram.coverImageUrl,
-          totalLessons: enrollment.lessonSchedules.length,
-          completedLessons: completionMap.size,
-          lessons: enrollment.lessonSchedules.map(ls => ({
-            id: ls.id,
-            dayNumber: ls.lesson?.dayNumber ?? 0,
-            title: ls.lesson?.title || ls.title || `Day ${ls.lesson?.dayNumber ?? 0}`,
-            scheduledDate: ls.scheduledDate.toISOString(),
-            completedAt: completionMap.get(ls.id)?.toISOString() || undefined,
-            activityCount: ls._count.scheduledActivities,
-          })),
-        }
-      })
-    )
+    const formatted = await listStudyEnrollments(groupId, memberId)
 
     res.json({ success: true, enrollments: formatted })
   } catch (error) {
@@ -1074,121 +718,13 @@ router.get('/groups/:groupId/study-enrollment/:enrollmentId', async (req, res) =
       return res.status(404).json({ success: false, error: 'Member not found in group' })
     }
 
-    const enrollment = await prisma.enrollment.findFirst({
-      where: { id: enrollmentId, groupId },
-      include: {
-        studyProgram: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            coverImageUrl: true,
-            days: true,
-          },
-        },
-        lessonSchedules: {
-          orderBy: { scheduledDate: 'asc' },
-          include: {
-            lesson: {
-              select: { id: true, dayNumber: true, title: true, studyProgramId: true, createdAt: true, updatedAt: true },
-            },
-            scheduledActivities: {
-              orderBy: { orderNumber: 'asc' },
-              select: {
-                id: true,
-                type: true,
-                title: true,
-                estimatedSeconds: true,
-                sourceReferences: {
-                  take: 1,
-                  select: { passageReference: true },
-                },
-              },
-            },
-          },
-        },
-      },
-    })
+    const enrollment = await getStudyEnrollment({ id: enrollmentId, groupId }, memberId)
 
     if (!enrollment) {
       return res.status(404).json({ success: false, error: 'Enrollment not found' })
     }
 
-    // Per-activity completion keyed by scheduledActivityId — drives the LessonCard
-    // activity cubes (filled = completed) and the lesson-state computation.
-    const activityProgress = await prisma.memberActivityProgress.findMany({
-      where: {
-        memberId,
-        lessonScheduleId: { in: enrollment.lessonSchedules.map(ls => ls.id) },
-        completedAt: { not: null },
-      },
-      select: { lessonScheduleId: true, scheduledActivityId: true, completedAt: true },
-    })
-
-    // Set of completed scheduledActivityIds, plus a lesson→earliest-completion map
-    // (kept for the legacy `completedAt` field and `completedLessons` count).
-    const completedActivityIds = new Set<string>()
-    const completionMap = new Map<string, Date>()
-    for (const progress of activityProgress) {
-      if (progress.scheduledActivityId) {
-        completedActivityIds.add(progress.scheduledActivityId)
-      }
-      if (progress.completedAt) {
-        const existing = completionMap.get(progress.lessonScheduleId)
-        if (!existing || progress.completedAt < existing) {
-          completionMap.set(progress.lessonScheduleId, progress.completedAt)
-        }
-      }
-    }
-
-    let activeDays: number[] = []
-    try {
-      const enabledDaysStr = enrollment.enabledDays as string
-      const dayNames = JSON.parse(enabledDaysStr) as string[]
-      const dayMap: { [key: string]: number } = {
-        'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
-      }
-      activeDays = dayNames.map(d => dayMap[d]).filter(d => d !== undefined)
-    } catch {
-      activeDays = [1, 2, 3, 4, 5]
-    }
-
-    const formattedEnrollment = {
-      id: enrollment.id,
-      studyId: enrollment.studyProgramId,
-      studyTitle: enrollment.studyProgram.name,
-      studyDescription: enrollment.studyProgram.description || '',
-      coverImageUrl: enrollment.studyProgram.coverImageUrl,
-      totalLessons: enrollment.lessonSchedules.length,
-      completedLessons: completionMap.size,
-      firstDate: enrollment.startDate.toISOString(),
-      lastDate: enrollment.endDate.toISOString(),
-      activeDays,
-      lessons: enrollment.lessonSchedules.map(ls => {
-        const versionActivities = filterActivitiesToVersion(ls.scheduledActivities, ls.currentVersionId)
-        const firstActivity = versionActivities[0]
-        const passageRef = firstActivity?.sourceReferences?.[0]?.passageReference
-        const activities = versionActivities.map(a => ({
-          type: a.type,
-          completed: completedActivityIds.has(a.id),
-        }))
-        const totalSeconds = versionActivities.reduce((sum, a) => sum + (a.estimatedSeconds || 0), 0)
-        const estimatedMinutes = ls.estimatedMinutes
-          ?? (totalSeconds > 0 ? Math.max(1, Math.round(totalSeconds / 60)) : null)
-        return {
-          id: ls.id,
-          dayNumber: ls.lesson?.dayNumber ?? 0,
-          title: ls.lesson?.title || ls.title || passageRef || firstActivity?.title || `Day ${ls.lesson?.dayNumber ?? 0}`,
-          templateName: ls.templateName,
-          scheduledDate: ls.scheduledDate.toISOString(),
-          estimatedMinutes,
-          activities,
-          completedAt: completionMap.get(ls.id)?.toISOString() || undefined,
-        }
-      }),
-    }
-
-    res.json({ success: true, enrollment: formattedEnrollment })
+    res.json({ success: true, enrollment })
   } catch (error) {
     console.error('Error fetching study enrollment:', error)
     res.status(500).json({ success: false, error: 'Failed to fetch study enrollment' })
@@ -1271,7 +807,7 @@ router.get('/groups/:groupId/enrollments', requireAuth, async (req, res) => {
           },
         },
         _count: {
-          select: { lessonSchedules: true },
+          select: { scheduledLessons: true },
         },
       },
     })
@@ -1280,8 +816,10 @@ router.get('/groups/:groupId/enrollments', requireAuth, async (req, res) => {
     // enrollments this user can't edit (monday#12270302158). All enrollments
     // here share the one group fetched above.
     const canManage = await buildEnrollmentManageChecker(userId)
-    const enrollmentsWithPerm = enrollments.map((e) => ({
+    const enrollmentsWithPerm = enrollments.map(({ _count, ...e }) => ({
       ...e,
+      // The wire keeps `_count.lessonSchedules`: its value is now the scheduled lessons.
+      _count: { lessonSchedules: _count.scheduledLessons },
       canManage: canManage({ createdById: e.createdById, group }),
       studyProgramCreatorName: e.studyProgram?.creator?.name ?? null,
     }))
@@ -1372,12 +910,13 @@ router.get('/groups/:groupId/next-study', requireAuth, async (req, res) => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    // Find the next scheduled lesson across all enrollments for this group
-    const nextLesson = await prisma.lessonSchedule.findFirst({
+    // Find the next scheduled lesson across all enrollments for this group (a removed lesson is never next)
+    const nextLesson = await prisma.scheduledLesson.findFirst({
       where: {
         enrollment: {
           groupId,
         },
+        removedAt: null,
         scheduledDate: {
           gte: today, // Today or future
         },
@@ -1386,40 +925,13 @@ router.get('/groups/:groupId/next-study', requireAuth, async (req, res) => {
         scheduledDate: 'asc', // Get the soonest one
       },
       include: {
-        lesson: {
-          include: {
-            studyProgram: {
-              select: {
-                id: true,
-                name: true,
-                description: true,
-                days: true,
-                coverImageUrl: true,
-                requireResponse: true,
-              },
-            },
-          },
-        },
-        scheduledActivities: {
-          orderBy: { orderNumber: 'asc' },
+        lesson: { select: { position: true } },
+        currentVersion: {
           select: {
-            id: true,
-            type: true,
-            orderNumber: true,
             title: true,
-            videoUrl: true,
-            // ui2-groups-browse D17: without versionId, filterActivitiesToVersion keeps every version.
-            versionId: true,
-            sourceReferences: {
-              select: { passageReference: true },
-            },
-            youtubeThumbnailUrl: true,
-            video: { select: { thumbnailUrl: true } },
-            readBlocks: {
-              where: { backgroundImageUrl: { not: null } },
-              orderBy: { orderNumber: 'asc' },
-              take: 1,
-              select: { backgroundImageUrl: true },
+            activities: {
+              orderBy: { position: 'asc' },
+              select: { id: true, kind: true, position: true, title: true, document: true },
             },
           },
         },
@@ -1429,6 +941,9 @@ router.get('/groups/:groupId/next-study', requireAuth, async (req, res) => {
             requireResponse: true,
             startDate: true,
             endDate: true,
+            studyProgram: {
+              select: { id: true, name: true, description: true, days: true, coverImageUrl: true, requireResponse: true },
+            },
           },
         },
       },
@@ -1439,21 +954,28 @@ router.get('/groups/:groupId/next-study', requireAuth, async (req, res) => {
       return res.status(204).send()
     }
 
+    // Thumbnails come from each activity's document, through the media its background or poster names.
+    const media = await buildMediaMap(prisma, nextLesson.currentVersion.activities.map((a) => a.document))
+    const { studyProgram, ...enrollment } = nextLesson.enrollment
+
     // Format response
     const study = {
       id: nextLesson.id,
       code: nextLesson.code,
-      title: nextLesson.title ?? null,
-      dayNumber: nextLesson.lesson?.dayNumber ?? 0,
+      title: nextLesson.currentVersion.title ?? null,
+      dayNumber: nextLesson.lesson?.position ?? 0,
       scheduledDate: nextLesson.scheduledDate,
-      enrollment: nextLesson.enrollment,
-      studyProgram: nextLesson.lesson?.studyProgram ?? null,
-      activities: filterActivitiesToVersion(nextLesson.scheduledActivities, nextLesson.currentVersionId).map(
-        ({ youtubeThumbnailUrl, video, readBlocks, ...activity }) => ({
-          ...activity,
-          thumbnailUrl: activityThumbnailUrl({ type: activity.type, youtubeThumbnailUrl, video, readBlocks }),
-        })
-      ),
+      enrollment,
+      studyProgram,
+      activities: nextLesson.currentVersion.activities.map(({ id, kind, position, title, document }) => ({
+        id,
+        type: kind,
+        orderNumber: position,
+        title,
+        videoUrl: null,
+        sourceReferences: [],
+        thumbnailUrl: thumbnailFromDocument(document, media),
+      })),
     }
 
     res.json({ success: true, study })
@@ -2236,35 +1758,15 @@ router.get('/lesson-schedules/:id/invite', requireAuth, async (req, res) => {
     const { id } = req.params
     const userId = (req.user as any).id
 
-    // Fetch lesson schedule with related data
-    const schedule = await prisma.lessonSchedule.findUnique({
+    // Fetch the scheduled lesson with related data
+    const schedule = await prisma.scheduledLesson.findUnique({
       where: { id },
       include: {
-        lesson: {
-          include: {
-            studyProgram: {
-              select: {
-                id: true,
-                name: true,
-                description: true,
-                days: true,
-                coverImageUrl: true,
-              },
-            },
-          },
-        },
-        scheduledActivities: {
-          orderBy: { orderNumber: 'asc' },
-          take: 1, // Just get first activity for passage reference
-          include: {
-            sourceReferences: {
-              take: 1,
-              select: { passageReference: true },
-            },
-          },
-        },
+        lesson: { select: { position: true } },
+        template: { select: { name: true } },
         enrollment: {
           include: {
+            studyProgram: { select: { id: true, name: true, description: true, days: true, coverImageUrl: true } },
             group: {
               select: {
                 id: true,
@@ -2302,28 +1804,23 @@ router.get('/lesson-schedules/:id/invite', requireAuth, async (req, res) => {
       },
     })
 
-    // Get passage reference from first scheduled activity
-    const firstActivity = filterActivitiesToVersion(schedule.scheduledActivities, schedule.currentVersionId)[0]
-    const passageReference = firstActivity?.sourceReferences?.[0]?.passageReference || null
-
     res.json({
       success: true,
       invite: {
         id: schedule.id,
         lessonScheduleId: schedule.id, // Deprecated: use 'id' instead
         code: schedule.code,
-        dayNumber: schedule.lesson?.dayNumber ?? 0,
+        dayNumber: schedule.lesson?.position ?? 0,
         scheduledDate: schedule.scheduledDate,
-        templateName: schedule.templateName,
-        passageReference,
-        studyProgram: schedule.lesson
-          ? {
-              id: schedule.lesson.studyProgram!.id,
-              name: schedule.lesson.studyProgram!.name,
-              days: schedule.lesson.studyProgram!.days,
-              coverImageUrl: schedule.lesson.studyProgram!.coverImageUrl,
-            }
-          : null,
+        templateName: schedule.template?.name ?? null,
+        // Documents carry passages as book/chapter/verse numbers, not a printable reference.
+        passageReference: null,
+        studyProgram: {
+          id: schedule.enrollment.studyProgram.id,
+          name: schedule.enrollment.studyProgram.name,
+          days: schedule.enrollment.studyProgram.days,
+          coverImageUrl: schedule.enrollment.studyProgram.coverImageUrl,
+        },
         group: {
           id: schedule.enrollment.group.id,
           code: schedule.enrollment.group.code,
@@ -2466,7 +1963,7 @@ router.get('/groups/:groupId/events', requireAuth, async (req, res) => {
         startTime: true,
         endTime: true,
         dayNumber: true,
-        lessonScheduleId: true,
+        scheduledLessonId: true,
         enrollmentId: true,
         // Only include essential program info for display
         enrollment: {
@@ -2482,7 +1979,8 @@ router.get('/groups/:groupId/events', requireAuth, async (req, res) => {
       },
     })
 
-    res.json({ success: true, events })
+    // The wire keeps `lessonScheduleId`: the calendar event's ScheduledLesson.
+    res.json({ success: true, events: events.map(({ scheduledLessonId, ...event }) => ({ ...event, lessonScheduleId: scheduledLessonId })) })
   } catch (error) {
     console.error('Error fetching group events:', error)
     res.status(500).json({ success: false, error: 'Failed to fetch events' })
@@ -2738,47 +2236,20 @@ router.post('/enrollments/:id/schedules', requireAuth, async (req, res) => {
         id: enrollmentId,
         ...(await enrollmentManageFilter(userId)),
       },
-      include: {
-        studyProgram: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            currentVersionNumber: true,
-            template: { select: { id: true, name: true } },
-          },
-        },
-      },
+      include: { studyProgram: { select: { currentVersionId: true } } },
     })
 
     if (!enrollment) {
       return res.status(404).json({ success: false, error: 'Enrollment not found' })
     }
 
-    // Verify lesson belongs to this enrollment's study program
-    const lesson = await prisma.lesson.findFirst({
-      where: {
-        id: body.lessonId,
-        studyProgramId: enrollment.studyProgramId,
-      },
-      include: {
-        activities: {
-          orderBy: { orderNumber: 'asc' },
-          include: {
-            sourceReferences: true,
-            readBlocks: {
-              orderBy: { orderNumber: 'asc' },
-              include: {
-                theme: { select: { id: true, slug: true, name: true } },
-                contentHighlights: { orderBy: { orderNumber: 'asc' } },
-              },
-            },
-          },
-        },
-      },
-    })
+    // The lesson must be in the program version the enrollment is on (else the program's current one).
+    const programVersionId = enrollment.programVersionId ?? enrollment.studyProgram.currentVersionId
+    const versionLesson = programVersionId
+      ? await prisma.programVersionLesson.findFirst({ where: { programVersionId, lessonId: body.lessonId, lesson: { programId: enrollment.studyProgramId, deletedAt: null } } })
+      : null
 
-    if (!lesson) {
+    if (!programVersionId || !versionLesson) {
       return res.status(400).json({
         success: false,
         error: 'Lesson not found or does not belong to this enrollment\'s program',
@@ -2786,7 +2257,7 @@ router.post('/enrollments/:id/schedules', requireAuth, async (req, res) => {
     }
 
     // Check for duplicate (unique constraint: enrollmentId + lessonId)
-    const existing = await prisma.lessonSchedule.findUnique({
+    const existing = await prisma.scheduledLesson.findUnique({
       where: {
         enrollmentId_lessonId: {
           enrollmentId,
@@ -2809,7 +2280,7 @@ router.post('/enrollments/:id/schedules', requireAuth, async (req, res) => {
     }
     const enabledDayNumbers = enabledDays.map(d => dayMap[d])
 
-    const latestSchedule = await prisma.lessonSchedule.findFirst({
+    const latestSchedule = await prisma.scheduledLesson.findFirst({
       where: { enrollmentId },
       orderBy: { scheduledDate: 'desc' },
       select: { scheduledDate: true },
@@ -2832,117 +2303,24 @@ router.post('/enrollments/:id/schedules', requireAuth, async (req, res) => {
       }
     }
 
-    // Create schedule, activities, event — sequential with cleanup on failure
-    const scheduleId = randomUUID()
-    const code = generateStudyCode()
-
-    try {
-      // Step 1: Create the lesson schedule
-      await prisma.lessonSchedule.create({
-        data: {
-          id: scheduleId,
-          code,
-          enrollmentId,
-          lessonId: body.lessonId,
-          scheduledDate,
-          templateId: enrollment.studyProgram.template?.id ?? null,
-          templateName: enrollment.studyProgram.template?.name ?? null,
-          title: lesson.title ?? null,
-        },
-      })
-
-      // Step 2: Create the v1 version for this schedule, then copy lesson
-      // activities → scheduled lesson activities (stamped for study-sync)
-      const versionId = randomUUID()
-      await prisma.lessonScheduleVersion.create({
-        data: {
-          id: versionId,
-          lessonScheduleId: scheduleId,
-          versionNumber: 1,
-          programVersionNumber: enrollment.studyProgram.currentVersionNumber ?? null,
-          sourceContentHash: hashLessonContent(lesson as any),
-        },
-      })
-      await prisma.lessonSchedule.update({
-        where: { id: scheduleId },
-        data: { currentVersionId: versionId },
-      })
-
-      const { scheduledActivityData, sourceRefData, readBlockData, contentHighlightData } = buildLessonCopyRows({
-        lessonScheduleId: scheduleId,
-        versionId,
-        activities: lesson.activities as any,
-      })
-
-      if (scheduledActivityData.length > 0) {
-        await prisma.scheduledLessonActivity.createMany({ data: scheduledActivityData })
-      }
-      if (sourceRefData.length > 0) {
-        await prisma.activitySourceReference.createMany({ data: sourceRefData })
-      }
-      if (readBlockData.length > 0) {
-        await prisma.activityReadBlock.createMany({ data: readBlockData })
-      }
-      if (contentHighlightData.length > 0) {
-        await prisma.contentHighlight.createMany({ data: contentHighlightData })
-      }
-
-      // Step 3: Create calendar event
-      await prisma.event.create({
-        data: {
-          groupId: enrollment.groupId,
-          type: 'LESSON' as const,
-          title: `Day ${lesson.dayNumber}: ${enrollment.studyProgram.name}`,
-          description: enrollment.studyProgram.description,
-          date: scheduledDate,
-          startTime: enrollment.smsTime,
-          lessonScheduleId: scheduleId,
-          enrollmentId,
-          dayNumber: lesson.dayNumber,
-        },
-      })
-
-      // Step 4: Update enrollment endDate if new date extends past it
+    // The scheduled lesson, its calendar event and the endDate move together.
+    await prisma.$transaction(async (tx) => {
+      await createScheduledLessons(tx, enrollmentId, programVersionId, new Map([[body.lessonId, scheduledDate]]))
       if (scheduledDate > enrollment.endDate) {
-        await prisma.enrollment.update({
-          where: { id: enrollmentId },
-          data: { endDate: scheduledDate },
-        })
+        await tx.enrollment.update({ where: { id: enrollmentId }, data: { endDate: scheduledDate } })
       }
-    } catch (stepError) {
-      // Clean up partial schedule on failure
-      console.error('Error during schedule creation, cleaning up...', stepError)
-      try {
-        await prisma.lessonSchedule.delete({ where: { id: scheduleId } })
-      } catch {
-        // Schedule might not have been created yet
-      }
-      throw stepError
-    }
-
-    // Fetch the created schedule with activities
-    const schedule = await prisma.lessonSchedule.findUnique({
-      where: { id: scheduleId },
-      include: {
-        lesson: true,
-        scheduledActivities: {
-          orderBy: { orderNumber: 'asc' },
-          include: {
-            sourceReferences: true,
-            readBlocks: {
-              orderBy: { orderNumber: 'asc' },
-              include: {
-                theme: { select: { id: true, slug: true, name: true } },
-                contentHighlights: { orderBy: { orderNumber: 'asc' } },
-              },
-            },
-          },
-        },
-        event: true,
-      },
     })
 
-    res.json({ success: true, schedule })
+    // Fetch the created schedule with its lesson's activities
+    const row = await prisma.scheduledLesson.findUniqueOrThrow({
+      where: { enrollmentId_lessonId: { enrollmentId, lessonId: body.lessonId } },
+      include: { ...scheduledLessonInclude, event: true },
+    })
+    const { event, ...scheduled } = row
+    const schedule = { ...serializeScheduledLesson(scheduled), event }
+    const media = await mediaForScheduledLessons([row])
+
+    res.json({ success: true, schedule, media })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ success: false, error: error.errors })
@@ -3016,23 +2394,25 @@ router.patch('/enrollments/:enrollmentId/schedules/:scheduleId', requireAuth, as
       return res.status(404).json({ success: false, error: 'Enrollment not found' })
     }
 
-    const schedule = await prisma.lessonSchedule.findFirst({
+    const schedule = await prisma.scheduledLesson.findFirst({
       where: {
         id: scheduleId,
         enrollmentId,
       },
+      select: { id: true },
     })
 
     if (!schedule) {
       return res.status(404).json({ success: false, error: 'Lesson schedule not found' })
     }
 
-    const updated = await prisma.lessonSchedule.update({
+    await setScheduledLessonTitle(scheduleId, data.title)
+    const updated = await prisma.scheduledLesson.findUniqueOrThrow({
       where: { id: scheduleId },
-      data: { title: data.title },
+      include: scheduledLessonInclude,
     })
 
-    res.json({ success: true, schedule: updated })
+    res.json({ success: true, schedule: serializeScheduledLesson(updated) })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ success: false, error: error.errors })
@@ -3094,7 +2474,7 @@ router.delete('/enrollments/:enrollmentId/schedules/:scheduleId', requireAuth, a
     }
 
     // Verify schedule belongs to this enrollment
-    const schedule = await prisma.lessonSchedule.findFirst({
+    const schedule = await prisma.scheduledLesson.findFirst({
       where: {
         id: scheduleId,
         enrollmentId,
@@ -3105,48 +2485,26 @@ router.delete('/enrollments/:enrollmentId/schedules/:scheduleId', requireAuth, a
       return res.status(404).json({ success: false, error: 'Lesson schedule not found' })
     }
 
-    // Delete the associated event
+    // Delete the associated event, then the scheduled lesson (cascades its progress)
     await prisma.event.deleteMany({
-      where: { lessonScheduleId: scheduleId },
+      where: { scheduledLessonId: scheduleId },
     })
-
-    // Delete the schedule (cascades to scheduledActivities, sourceReferences, readBlocks)
-    await prisma.lessonSchedule.delete({
+    await prisma.scheduledLesson.delete({
       where: { id: scheduleId },
     })
 
-    // Delete the lesson from the program and sync days count (skip when the
-    // curriculum lesson is already gone — orphaned schedule)
-    await prisma.$transaction(async (tx) => {
-      const lesson = schedule.lessonId
-        ? await tx.lesson.findUnique({ where: { id: schedule.lessonId } })
-        : null
-
-      if (lesson) {
-        const programId = lesson.studyProgramId!
-
-        await tx.lesson.delete({ where: { id: lesson.id } })
-
-        // Reorder remaining lessons
-        await tx.lesson.updateMany({
-          where: {
-            studyProgramId: programId,
-            dayNumber: { gt: lesson.dayNumber! },
-          },
-          data: { dayNumber: { decrement: 1 } },
-        })
-
-        // Sync days count
-        const lessonCount = await tx.lesson.count({ where: { studyProgramId: programId } })
-        await tx.studyProgram.update({
-          where: { id: programId },
-          data: { days: lessonCount },
-        })
+    // Delete the lesson from the program as well (D36 closes the remaining positions up and syncs the days
+    // count). Skipped when the curriculum lesson is already gone — an orphaned schedule.
+    if (schedule.lessonId) {
+      try {
+        await deleteLesson(userId, schedule.lessonId)
+      } catch (error) {
+        if (!(error instanceof ContentError && error.status === 404)) throw error
       }
-    })
+    }
 
     // Recalculate enrollment endDate from remaining schedules
-    const latestSchedule = await prisma.lessonSchedule.findFirst({
+    const latestSchedule = await prisma.scheduledLesson.findFirst({
       where: { enrollmentId },
       orderBy: { scheduledDate: 'desc' },
       select: { scheduledDate: true },
@@ -3224,11 +2582,11 @@ router.get('/enrollments/:id/unenroll-info', requireAuth, async (req, res) => {
       where: { id },
       include: {
         studyProgram: { select: { name: true } },
-        lessonSchedules: {
+        scheduledLessons: {
           select: {
             id: true,
             _count: {
-              select: { memberProgress: true },
+              select: { activityProgress: true, lessonProgress: true },
             },
           },
         },
@@ -3239,9 +2597,9 @@ router.get('/enrollments/:id/unenroll-info', requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Enrollment not found' })
     }
 
-    const totalLessons = enrollment.lessonSchedules.length
-    const lessonsWithData = enrollment.lessonSchedules.filter(
-      (ls) => ls._count.memberProgress > 0
+    const totalLessons = enrollment.scheduledLessons.length
+    const lessonsWithData = enrollment.scheduledLessons.filter(
+      (ls) => ls._count.activityProgress + ls._count.lessonProgress > 0
     ).length
     const cleanLessons = totalLessons - lessonsWithData
 
@@ -3300,11 +2658,11 @@ router.post('/enrollments/:id/cancel-future', requireAuth, async (req, res) => {
     const enrollment = await prisma.enrollment.findUnique({
       where: { id },
       include: {
-        lessonSchedules: {
+        scheduledLessons: {
           select: {
             id: true,
             _count: {
-              select: { memberProgress: true },
+              select: { activityProgress: true, lessonProgress: true },
             },
           },
         },
@@ -3315,12 +2673,12 @@ router.post('/enrollments/:id/cancel-future', requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Enrollment not found' })
     }
 
-    const cleanScheduleIds = enrollment.lessonSchedules
-      .filter((ls) => ls._count.memberProgress === 0)
+    const cleanScheduleIds = enrollment.scheduledLessons
+      .filter((ls) => ls._count.activityProgress + ls._count.lessonProgress === 0)
       .map((ls) => ls.id)
 
     if (cleanScheduleIds.length > 0) {
-      await prisma.lessonSchedule.deleteMany({
+      await prisma.scheduledLesson.deleteMany({
         where: { id: { in: cleanScheduleIds } },
       })
     }

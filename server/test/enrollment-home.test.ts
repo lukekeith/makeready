@@ -4,10 +4,12 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import request from 'supertest'
+import { randomUUID } from 'node:crypto'
 import { app } from '../src/index.js'
 import { prisma } from '../src/lib/prisma.js'
 import { todayInTimezone, zonedMidnight } from '../src/utils/timezone.js'
 import { createUserWithApiKey, bearer, type TestUserWithToken } from './helpers/api-auth.js'
+import { destroySimplePrograms } from './helpers/published-program.js'
 
 const CHI = 'America/Chicago'
 const addDays = (ymd: string, n: number) => {
@@ -24,6 +26,7 @@ describe('GET /api/enrollments/:id/home', () => {
   const memberIds: string[] = []
   let s1: string, s2: string, s3: string, removed: string
   let aYoutube: string, aVideo: string, aRead: string, aInput: string
+  let mediaIds: string[] = []
   let enrolledAt: Date
 
   const home = (u: TestUserWithToken, id: string, query: Record<string, string> = {}) =>
@@ -51,32 +54,42 @@ describe('GET /api/enrollments/:id/home', () => {
         enabledDays: '["Mon"]', smsTime: '07:30', timezone: CHI, lessonAccess: 'ONE_AT_A_TIME', createdAt: enrolledAt,
       },
     })).id
-    const mkSchedule = async (date: Date, title: string, estimatedMinutes: number | null, removedAt: Date | null = null) =>
-      (await prisma.lessonSchedule.create({ data: { enrollmentId, scheduledDate: date, title, estimatedMinutes, removedAt } })).id
-    s1 = await mkSchedule(zonedMidnight(D, CHI), 'Day one', 20)
-    s2 = await mkSchedule(new Date(zonedMidnight(D, CHI).getTime() + 3_600_000), 'Day one, part two', 10) // same local date
-    s3 = await mkSchedule(zonedMidnight(addDays(D, 1), CHI), 'Day two', null)
-    removed = await mkSchedule(zonedMidnight(addDays(D, 2), CHI), 'Gone', 99, new Date())
+    // One lesson (with a PUBLISHED version) per schedule; the schedule points at that version.
+    let position = 0
+    const mkSchedule = async (date: Date, title: string, estimatedSeconds: number | null, removedAt: Date | null = null) => {
+      const lesson = await prisma.lesson.create({ data: { programId, position: ++position } })
+      const version = await prisma.lessonVersion.create({
+        data: { lessonId: lesson.id, number: 1, status: 'PUBLISHED', title, estimatedSeconds, publishedAt: new Date() },
+      })
+      const sl = await prisma.scheduledLesson.create({
+        data: { enrollmentId, lessonId: lesson.id, scheduledDate: date, currentVersionId: version.id, removedAt },
+      })
+      return { id: sl.id, versionId: version.id }
+    }
+    const first = await mkSchedule(zonedMidnight(D, CHI), 'Day one', 1200)
+    s1 = first.id
+    s2 = (await mkSchedule(new Date(zonedMidnight(D, CHI).getTime() + 3_600_000), 'Day one, part two', 600)).id // same local date
+    s3 = (await mkSchedule(zonedMidnight(addDays(D, 1), CHI), 'Day two', null)).id
+    removed = (await mkSchedule(zonedMidnight(addDays(D, 2), CHI), 'Gone', 5940, new Date())).id
 
-    // s1's activities: an old version's row (never shown) and the current version's four, one per thumbnail rule.
-    const v1 = await prisma.lessonScheduleVersion.create({ data: { lessonScheduleId: s1, versionNumber: 1 } })
-    const v2 = await prisma.lessonScheduleVersion.create({ data: { lessonScheduleId: s1, versionNumber: 2 } })
-    await prisma.lessonSchedule.update({ where: { id: s1 }, data: { currentVersionId: v2.id } })
-    const video = await prisma.video.create({
-      data: { cloudflareUid: `eh-${stamp}`, playbackUrl: 'https://video.test/v.m3u8', userId: owner.userId, thumbnailUrl: 'https://img.test/vid.jpg' },
+    // s1's version holds four activities, one per thumbnail rule: a background image, a video poster, a youtube page and a write page.
+    const media = async (title: string) =>
+      (await prisma.media.create({ data: { title, url: `https://img.test/${title}.jpg`, type: 'photo', organizationId: orgId, uploadedBy: owner.userId } })).id
+    mediaIds = [await media('bg'), await media('poster')]
+    const doc = (kind: string, background: object, content: object) => ({
+      schemaVersion: 1, kind, background, content, actions: [], chrome: { topAction: 'none' }, fallback: { title: 'x', body: 'y' },
     })
-    const act = async (data: Record<string, unknown>) =>
-      (await prisma.scheduledLessonActivity.create({ data: { lessonScheduleId: s1, ...data } as never })).id
-    await act({ type: 'YOUTUBE', orderNumber: 1, title: 'Old', versionId: v1.id, youtubeThumbnailUrl: 'https://img.test/old.jpg' })
-    aYoutube = await act({ type: 'YOUTUBE', orderNumber: 1, title: 'Watch', versionId: v2.id, youtubeThumbnailUrl: 'https://img.test/yt.jpg' })
-    aVideo = await act({ type: 'VIDEO', orderNumber: 2, title: 'Video', versionId: v2.id, videoId: video.id })
-    aRead = await act({ type: 'READ', orderNumber: 3, title: 'Read', versionId: v2.id })
-    aInput = await act({ type: 'USER_INPUT', orderNumber: 4, title: 'Reflect', versionId: v2.id })
-    await prisma.activityReadBlock.create({ data: { scheduledActivityId: aRead, orderNumber: 1, content: 'no image' } })
-    await prisma.activityReadBlock.create({ data: { scheduledActivityId: aRead, orderNumber: 2, content: 'image', backgroundImageUrl: 'https://img.test/read.jpg' } })
+    const act = async (position: number, kind: string, title: string, document: object) =>
+      (await prisma.contentActivity.create({
+        data: { lessonVersionId: first.versionId, activityKey: `k-${stamp}-${position}`, position, kind, title, document },
+      })).id
+    aYoutube = await act(1, 'text', 'Watch', doc('text', { color: '#000', image: { mediaId: mediaIds[0] } }, { type: 'canvas', objects: [] }))
+    aVideo = await act(2, 'video', 'Video', doc('video', { color: '#000' }, { type: 'video', videoId: randomUUID(), posterMediaId: mediaIds[1] }))
+    aRead = await act(3, 'youtube', 'Read', doc('youtube', { color: '#000' }, { type: 'youtube', youtubeVideoId: 'abc' }))
+    aInput = await act(4, 'write', 'Reflect', doc('write', { color: '#000' }, { type: 'write', prompt: { text: 'p' } }))
 
     const complete = (memberIndex: number, scheduleIds: string[]) =>
-      prisma.memberLessonProgress.createMany({ data: scheduleIds.map((lessonScheduleId) => ({ memberId: memberIds[memberIndex], lessonScheduleId, completedAt: new Date() })) })
+      prisma.lessonProgress.createMany({ data: scheduleIds.map((scheduledLessonId) => ({ memberId: memberIds[memberIndex], scheduledLessonId, completedAt: new Date() })) })
     await complete(0, [s1, s2, s3, removed])
     await complete(1, [s1])
     await complete(2, [s1, s2, s3]) // ex-member: never counts
@@ -84,16 +97,21 @@ describe('GET /api/enrollments/:id/home', () => {
     emptyEnrollmentId = (await prisma.enrollment.create({
       data: { groupId: emptyGroupId, studyProgramId: programId, startDate: zonedMidnight(D, CHI), endDate: zonedMidnight(D, CHI), enabledDays: '["Mon"]', timezone: CHI },
     })).id
-    emptyScheduleId = (await prisma.lessonSchedule.create({ data: { enrollmentId: emptyEnrollmentId, scheduledDate: zonedMidnight(D, CHI), title: 'Solo', estimatedMinutes: 5 } })).id
+    const soloLesson = await prisma.lesson.create({ data: { programId, position: ++position } })
+    const soloVersion = await prisma.lessonVersion.create({
+      data: { lessonId: soloLesson.id, number: 1, status: 'PUBLISHED', title: 'Solo', estimatedSeconds: 300, publishedAt: new Date() },
+    })
+    emptyScheduleId = (await prisma.scheduledLesson.create({
+      data: { enrollmentId: emptyEnrollmentId, lessonId: soloLesson.id, scheduledDate: zonedMidnight(D, CHI), currentVersionId: soloVersion.id },
+    })).id
   })
 
   afterAll(async () => {
     const orgs = [orgId, strangerOrgId]
-    await prisma.enrollment.deleteMany({ where: { group: { organizationId: { in: orgs } } } })
-    await prisma.video.deleteMany({ where: { userId: owner.userId } })
+    await destroySimplePrograms([programId])
+    await prisma.media.deleteMany({ where: { id: { in: mediaIds } } })
     await prisma.groupMember.deleteMany({ where: { memberId: { in: memberIds } } })
     await prisma.member.deleteMany({ where: { id: { in: memberIds } } })
-    await prisma.studyProgram.deleteMany({ where: { organizationId: { in: orgs } } })
     await prisma.group.deleteMany({ where: { organizationId: { in: orgs } } })
     const users = [owner.userId, stranger.userId]
     await prisma.apiKey.deleteMany({ where: { userId: { in: users } } })
@@ -136,10 +154,10 @@ describe('GET /api/enrollments/:id/home', () => {
       [s3, 3, 'Day two', addDays(D, 1), 0.5],
     ])
     expect(lessons[0].activities).toEqual([
-      { id: aYoutube, type: 'YOUTUBE', title: 'Watch', thumbnailUrl: 'https://img.test/yt.jpg' },
-      { id: aVideo, type: 'VIDEO', title: 'Video', thumbnailUrl: 'https://img.test/vid.jpg' },
-      { id: aRead, type: 'READ', title: 'Read', thumbnailUrl: 'https://img.test/read.jpg' },
-      { id: aInput, type: 'USER_INPUT', title: 'Reflect', thumbnailUrl: null },
+      { id: aYoutube, type: 'text', title: 'Watch', thumbnailUrl: 'https://img.test/bg.jpg' },
+      { id: aVideo, type: 'video', title: 'Video', thumbnailUrl: 'https://img.test/poster.jpg' },
+      { id: aRead, type: 'youtube', title: 'Read', thumbnailUrl: null },
+      { id: aInput, type: 'write', title: 'Reflect', thumbnailUrl: null },
     ])
     expect(lessons[1].activities).toEqual([])
   })

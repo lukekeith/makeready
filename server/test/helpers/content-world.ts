@@ -141,28 +141,28 @@ export async function seedPublishedLesson(
   return { lessonId: lesson.id, versionId: version.id }
 }
 
-export interface EnrolledProgram {
-  w: ContentWorld
-  enrollmentId: string
-  memberId: string
+export interface PublishedProgram {
+  programId: string
   lessonIds: string[]
   /** The PUBLISHED LessonVersion each lesson starts on, in lesson order. */
   versionIds: string[]
-  scheduledLessonIds: string[]
   programVersionId: string
   programVersionNumber: number
 }
 
-/** The world's program published as version 1 over `opts.lessons` new lessons, one enrollment on it, one ScheduledLesson per lesson (a day apart, from tomorrow), and a member. Rows are written directly, not through the publish service. `syncMode` defaults to the column's own default. */
-export async function seedEnrolledProgram(
+/**
+ * The world's program published as version 1 over `opts.lessons` new lessons (each one text activity; `mediaId` puts that image in the
+ * document) with that version as its `currentVersionId`. Rows are written directly, not through the publish service.
+ */
+export async function seedPublishedProgram(
   w: ContentWorld,
-  opts: { lessons: number; syncMode?: 'AUTO' | 'APPROVAL' | 'OFF' },
-): Promise<EnrolledProgram> {
+  opts: { lessons: number; mediaId?: string },
+): Promise<PublishedProgram> {
   const stamp = randomBytes(4).toString('hex')
   const lessonIds: string[] = []
   const versionIds: string[] = []
   for (let i = 0; i < opts.lessons; i++) {
-    const pub = await seedPublishedLesson(w, [{ activityKey: `a-${stamp}-${i}` }])
+    const pub = await seedPublishedLesson(w, [{ activityKey: `a-${stamp}-${i}`, mediaId: opts.mediaId }])
     lessonIds.push(pub.lessonId)
     versionIds.push(pub.versionId)
   }
@@ -173,7 +173,48 @@ export async function seedEnrolledProgram(
       lessons: { create: lessonIds.map((lessonId, i) => ({ lessonId, lessonVersionId: versionIds[i], position: i + 1 })) },
     },
   })
-  await prisma.studyProgram.update({ where: { id: w.programId }, data: { currentVersionId: programVersion.id } })
+  await prisma.studyProgram.update({
+    where: { id: w.programId },
+    data: { currentVersionId: programVersion.id },
+  })
+  return { programId: w.programId, lessonIds, versionIds, programVersionId: programVersion.id, programVersionNumber: programVersion.number }
+}
+
+/** A group in the world's org with one active member, so an enrollment may be created for it. Swept by `destroyContentWorld`. */
+export async function createGroupWithMember(w: ContentWorld): Promise<{ groupId: string; memberId: string }> {
+  const stamp = randomBytes(4).toString('hex')
+  const group = await prisma.group.create({
+    data: { name: `Enroll Group ${stamp}`, code: `eg-${stamp}`, creatorId: w.leader.userId, organizationId: w.orgId },
+  })
+  createdGroupIds.push(group.id)
+  const member = await prisma.member.create({ data: { phoneNumber: `+1556${Math.floor(1e6 + Math.random() * 9e6)}${stamp.slice(0, 1).charCodeAt(0) % 10}` } })
+  createdMemberIds.push(member.id)
+  await prisma.groupMember.create({ data: { groupId: group.id, memberId: member.id, isActive: true } })
+  return { groupId: group.id, memberId: member.id }
+}
+
+export interface EnrolledProgram {
+  w: ContentWorld
+  enrollmentId: string
+  groupId: string
+  memberId: string
+  lessonIds: string[]
+  /** The PUBLISHED LessonVersion each lesson starts on, in lesson order. */
+  versionIds: string[]
+  scheduledLessonIds: string[]
+  programVersionId: string
+  programVersionNumber: number
+}
+
+/** The world's program published as version 1 over `opts.lessons` new lessons, one enrollment on it, one ScheduledLesson per lesson (a day apart, from tomorrow), and a member. Rows are written directly, not through the publish service. `syncMode` defaults to the column's own default; `mediaId` is the image in every lesson's document. */
+export async function seedEnrolledProgram(
+  w: ContentWorld,
+  opts: { lessons: number; syncMode?: 'AUTO' | 'APPROVAL' | 'OFF'; mediaId?: string },
+): Promise<EnrolledProgram> {
+  const stamp = randomBytes(4).toString('hex')
+  const published = await seedPublishedProgram(w, { lessons: opts.lessons, mediaId: opts.mediaId })
+  const { lessonIds, versionIds, programVersionId } = published
+  const programVersion = { id: programVersionId, number: published.programVersionNumber }
   const group = await prisma.group.create({
     data: { name: `Sync Group ${stamp}`, code: `sg-${stamp}`, creatorId: w.leader.userId, organizationId: w.orgId },
   })
@@ -200,7 +241,7 @@ export async function seedEnrolledProgram(
     scheduledLessonIds.push(sl.id)
   }
   return {
-    w, enrollmentId: enrollment.id, memberId: member.id, lessonIds, versionIds, scheduledLessonIds,
+    w, enrollmentId: enrollment.id, groupId: group.id, memberId: member.id, lessonIds, versionIds, scheduledLessonIds,
     programVersionId: programVersion.id, programVersionNumber: programVersion.number,
   }
 }
