@@ -10,13 +10,25 @@ import { prisma } from '../lib/prisma.js'
 import { isValidTimezone, localDate, todayInTimezone } from '../utils/timezone.js'
 import { DRAFT_SELECT, toDraftWire, type DraftWire } from './enrollment-draft.service.js'
 import { enrollmentManageFilter, getManageableOrgIds, isSuperAdmin } from './permission.js'
-import { filterActivitiesToVersion } from './lesson-version-resolution.js'
+
 import { activityThumbnailUrl } from './next-study-thumbnail.js'
 
 export const FEED_STATUSES = ['active', 'upcoming', 'completed', 'draft', 'all'] as const
 export type FeedStatus = (typeof FEED_STATUSES)[number]
 /** D25: the most items one response carries, across all sections. */
 export const FEED_ITEM_CAP = 200
+
+/**
+ * Restrict a scheduled lesson's activity rows to its current version. Carried here from the removed
+ * lesson-version-resolution module until the enrollment reads move to ScheduledLesson (text-activity).
+ */
+export function filterActivitiesToVersion<T extends { id: string; versionId?: string | null }>(
+  activities: T[],
+  resolvedVersionId: string | null
+): T[] {
+  if (resolvedVersionId === null) return activities
+  return activities.filter((a) => a.versionId === resolvedVersionId || a.versionId == null)
+}
 
 /** A comma list of uuids (`a,b`), one uuid, or absent → the ids, or undefined for "no filter". */
 const idList = z

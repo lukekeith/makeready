@@ -25,7 +25,6 @@ describe('Enrollment versioning (study-sync)', () => {
   let groupId: string
   let programId: string
   let lesson1Id: string
-  let lesson2Id: string
   let lesson1ActivityIds: string[] = []
   let apiKey: string
   let memberId: string
@@ -132,7 +131,6 @@ describe('Enrollment versioning (study-sync)', () => {
     const lesson2 = await prisma.lesson.create({
       data: { studyProgramId: programId, dayNumber: 2, title: 'Day Two' },
     })
-    lesson2Id = lesson2.id
     await prisma.lessonActivity.create({
       data: {
         lessonId: lesson2.id,
@@ -298,28 +296,5 @@ describe('Enrollment versioning (study-sync)', () => {
     expect(schedule.scheduledActivities).toHaveLength(1)
     expect(schedule.scheduledActivities[0].versionId).toBe(schedule.currentVersionId)
     expect(schedule.scheduledActivities[0].lineageKey).toBe(lesson3Activity.id)
-  })
-
-  it('stamps leader-added custom activities with the current version and no lineage', async () => {
-    const enrollment = await prisma.enrollment.findFirstOrThrow({
-      where: { groupId },
-    })
-    const schedule = await prisma.lessonSchedule.findFirstOrThrow({
-      where: { enrollmentId: enrollment.id, lessonId: lesson2Id },
-    })
-
-    const response = await request(app)
-      .post(`/api/enrollments/${enrollment.id}/schedules/${schedule.id}/activities`)
-      .set(authed())
-      .send({ type: 'USER_INPUT', title: 'Custom Reflection' })
-
-    expect(response.status).toBe(200)
-
-    const created = await prisma.scheduledLessonActivity.findFirstOrThrow({
-      where: { lessonScheduleId: schedule.id, title: 'Custom Reflection' },
-    })
-    expect(created.versionId).toBe(schedule.currentVersionId)
-    expect(created.lineageKey).toBeNull()
-    expect(created.sourceLessonActivityId).toBeNull()
   })
 })

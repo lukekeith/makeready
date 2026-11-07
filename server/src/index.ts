@@ -50,8 +50,6 @@ import analyticsRoutes from './routes/analytics.js'
 import programAnalyticsRoutes from './routes/program-analytics.js'
 import homeRoutes from './routes/home.js'
 import notesRoutes from './routes/notes.js'
-import activityProgressRoutes from './routes/activity-progress.js'
-import memberLessonsRoutes from './routes/member-lessons.js'
 import apiKeysRoutes from './routes/api-keys.js'
 import deviceTokensRoutes from './routes/device-tokens.js'
 import notificationsRoutes from './routes/notifications.js'
@@ -59,8 +57,6 @@ import smsCampaignsRoutes from './routes/sms-campaigns.js'
 import githubRoutes from './routes/github.js'
 import templatesRoutes from './routes/templates.js'
 import activitiesRoutes from './routes/activities.js'
-import themesRoutes from './routes/themes.js'
-import { studyPreviewApiRouter, studyPreviewPublicRouter, studyPreviewDevRouter, previewStateRouter } from './routes/study-preview.js'
 import { prisma } from './lib/prisma.js'
 import { setupSwagger } from './docs/swagger.js'
 import { authenticateApiKey } from './middleware/api-key.js'
@@ -329,8 +325,6 @@ app.use('/api/beta', betaRoutes)
 
 // Public routes (no authentication required)
 app.use('/public', publicRoutes)
-app.use('/public/preview', studyPreviewPublicRouter)
-app.use('/api/preview', previewStateRouter)
 
 // Auth routes
 app.use('/auth', authRoutes)
@@ -523,20 +517,8 @@ app.use('/api/notifications', notificationsRoutes)
 // Notes routes (unified notes for SOAP, journals, etc.)
 app.use('/api', notesRoutes)
 
-// Activity progress routes (SOAP step tracking)
-app.use('/api', activityProgressRoutes)
-
-// Member lessons and enrollment progress routes
-app.use('/api', memberLessonsRoutes)
-
 // Lesson template routes (CRUD + duplicate + activity management)
 app.use('/api', templatesRoutes)
-
-// Theme routes (system + org themes for study content)
-app.use('/api/themes', themesRoutes)
-
-// Study preview routes (preview tokens for program creators)
-app.use('/api/study-preview', studyPreviewApiRouter)
 
 // GitHub activity routes (monorepo commit feed, classified by app folder)
 app.use('/api/github', githubRoutes)
@@ -585,7 +567,6 @@ if (process.env.NODE_ENV !== 'production') {
     })
   })
 
-  app.use('/api/dev/preview', studyPreviewDevRouter)
 }
 
 // API routes

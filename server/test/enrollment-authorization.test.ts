@@ -28,7 +28,6 @@ describe('Enrollment authorization (org-scoped management)', () => {
   let groupId: string
   let programId: string
   let enrollmentId: string
-  let scheduledActivityId: string
   let foreignOrgId: string
   let foreignProgramId: string
   let memberId: string
@@ -78,13 +77,9 @@ describe('Enrollment authorization (org-scoped management)', () => {
     })
     enrollmentId = enrollment.id
 
-    const schedule = await prisma.lessonSchedule.create({
+    await prisma.lessonSchedule.create({
       data: { enrollmentId: enrollment.id, lessonId: lesson.id, scheduledDate: start },
     })
-    const activity = await prisma.scheduledLessonActivity.create({
-      data: { lessonScheduleId: schedule.id, orderNumber: 1, title: 'Read', type: 'READ' },
-    })
-    scheduledActivityId = activity.id
 
     // ui2-enrollment-create T12: the group has an active member (D5) so a POST reaches the program
     // lookup; the stranger's published program in their own org is outside the owner's read scope.
@@ -191,25 +186,6 @@ describe('Enrollment authorization (org-scoped management)', () => {
     const res = await request(app)
       .get(`/api/groups/${groupId}/enrollments`)
       .set('Authorization', bearer(stranger.token))
-    expect(res.status).toBe(404)
-  })
-
-  // ─── Edit a scheduled activity ──────────────────────────────────────────────────
-
-  it('lets a NON-creator org leader EDIT a scheduled activity (the fix — was 404)', async () => {
-    const res = await request(app)
-      .patch(`/api/scheduled-activities/${scheduledActivityId}`)
-      .set('Authorization', bearer(leader.token))
-      .send({ title: `Edited by leader ${stamp}` })
-    expect(res.status).toBe(200)
-    expect(res.body.success).toBe(true)
-  })
-
-  it('denies a stranger editing a scheduled activity (404)', async () => {
-    const res = await request(app)
-      .patch(`/api/scheduled-activities/${scheduledActivityId}`)
-      .set('Authorization', bearer(stranger.token))
-      .send({ title: 'Edited by stranger' })
     expect(res.status).toBe(404)
   })
 
