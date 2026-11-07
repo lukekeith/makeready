@@ -9,10 +9,11 @@
  * the progress spread over days. Never touches ctx.rand. Creates no org, user or group; wipe.ts removes
  * all of it with the Prayer Team (group cascade).
  */
-import { lessonId } from '../base.js'
+import { youtubeDocument, textDocument, textObject } from '../activity-documents.js'
+import { lessonId, lessonVersionId, programVersionId, scheduleId } from '../base.js'
 import { FIXTURE_TZ, type FixtureContext } from '../context.js'
 import { FIXTURE_LEADER_GROUP_ID, FIXTURE_LEADER_USER_ID, FIXTURE_PROGRAM_IDS, fixtureId } from '../ids.js'
-import { seedScheduledContent } from '../scheduled-content.js'
+import { customizeLessons, scheduleLessons, seedImageMedia } from '../lesson-content.js'
 import { READ_IMAGE_URL, YOUTUBE_THUMBNAIL_URL } from './groups-detail.js'
 
 export const HOME_ENROLLMENT_ID = fixtureId('enrollment', 950)
@@ -40,32 +41,37 @@ export async function full(ctx: FixtureContext): Promise<void> {
       createdAt: ctx.daysAgo(12),
     },
   })
-  // 1.0 rows, kept only until home-dashboard's engagement read (still on LessonSchedule) moves to the new model; the
-  // enrollment-home reads use the ScheduledLesson rows below. Task 17 deletes these with the table.
-  await prisma.lessonSchedule.createMany({
-    data: days.map((day) => ({
-      id: fixtureId('schedule', 950_000 + day),
-      enrollmentId: HOME_ENROLLMENT_ID,
+  await scheduleLessons(ctx, {
+    enrollmentId: HOME_ENROLLMENT_ID,
+    programVersionId: programVersionId(PROGRAM_INDEX),
+    schedules: days.map((day) => ({
+      id: scheduleId(950, day),
       lessonId: lessonId(PROGRAM_INDEX, day),
+      currentVersionId: lessonVersionId(PROGRAM_INDEX, day),
       scheduledDate: ctx.at(offsetOf(day), 12),
-      title: `Day ${day}`,
-      estimatedMinutes: 25,
     })),
   })
-  await seedScheduledContent(ctx, {
-    seed: 950,
-    programId: FIXTURE_PROGRAM_IDS.days21,
-    enrollmentId: HOME_ENROLLMENT_ID,
-    lessons: days.map((day) => ({ lessonId: lessonId(PROGRAM_INDEX, day), scheduledDate: ctx.at(offsetOf(day), 12), title: `Day ${day}` })),
-    // days 1–3: a YouTube-style slide (its thumbnail) and a read slide (its image), as the 1.0 rows had.
-    slides: Object.fromEntries(
-      [1, 2, 3].map((day) => [
-        day,
-        [
-          { kind: 'youtube', title: 'Watch: Overview', imageUrl: YOUTUBE_THUMBNAIL_URL },
-          { kind: 'text', title: `Read John ${day}`, imageUrl: READ_IMAGE_URL },
+  // days 1–3: this group's own version of the lesson — a YouTube page (its thumbnail as the background) and a read
+  // page (its image), so the lesson rows show slide thumbnails.
+  const items = []
+  for (const day of [1, 2, 3]) {
+    const youtubeMedia = await seedImageMedia(ctx, 950_000 + day * 2 - 1, 'Watch: Overview', YOUTUBE_THUMBNAIL_URL)
+    const readMedia = await seedImageMedia(ctx, 950_000 + day * 2, `Read John ${day}`, READ_IMAGE_URL)
+    const base = lessonVersionId(PROGRAM_INDEX, day)
+    items.push({
+      scheduledLessonId: scheduleId(950, day),
+      version: {
+        id: fixtureId('lessonVersion', 950_000 + day),
+        lessonId: lessonId(PROGRAM_INDEX, day),
+        number: 1,
+        title: `Day ${day}`,
+        basedOnVersionId: base,
+        activities: [
+          { id: fixtureId('contentActivity', 950_000 + day * 2 - 1), activityKey: `fixture-950-${day}-1`, kind: 'youtube', title: 'Watch: Overview', document: youtubeDocument('G-2e9mMf7E8', { imageMediaId: youtubeMedia }) },
+          { id: fixtureId('contentActivity', 950_000 + day * 2), activityKey: `fixture-950-${day}-2`, kind: 'text', title: `Read John ${day}`, document: textDocument([textObject({ id: 'o1', text: `Read John ${day} slowly, twice.` })], { imageMediaId: readMedia }) },
         ],
-      ]),
-    ),
-  })
+      },
+    })
+  }
+  await customizeLessons(ctx, HOME_ENROLLMENT_ID, items)
 }

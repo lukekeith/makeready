@@ -4,7 +4,7 @@
  * FIXTURES_TEST_DATABASE_URL (db-harness.ts); absent, it prints the skip line.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { activityThumbnailUrl } from '../../src/services/next-study-thumbnail.js'
+import { thumbnailFromDocument } from '../../src/services/next-study-thumbnail.js'
 import { addDays, localDate } from '../context.js'
 import { FIXTURE_EMPTY_GROUP_ID, FIXTURE_ORG_ID } from '../ids.js'
 import { NEXT_LESSON_SCHEDULE_IDS, RICH_GROUP_FIELDS, RICH_GROUP_ID } from '../screens/groups-detail.js'
@@ -68,18 +68,15 @@ describe.skipIf(!TEST_DB_URL)('groups-browse layers against the test database (D
 
   it('gives the next lessons three activities, each with a thumbnail', async () => {
     for (const id of NEXT_LESSON_SCHEDULE_IDS) {
-      const activities = await db.prisma.scheduledLessonActivity.findMany({
-        where: { lessonScheduleId: id },
-        orderBy: { orderNumber: 'asc' },
-        select: {
-          type: true,
-          youtubeThumbnailUrl: true,
-          video: { select: { thumbnailUrl: true } },
-          readBlocks: { where: { backgroundImageUrl: { not: null } }, orderBy: { orderNumber: 'asc' }, take: 1, select: { backgroundImageUrl: true } },
-        },
+      const scheduled = await db.prisma.scheduledLesson.findUniqueOrThrow({
+        where: { id },
+        select: { currentVersion: { select: { activities: { orderBy: { position: 'asc' } } } } },
       })
-      expect(activities.map((a) => a.type)).toEqual(['YOUTUBE', 'VIDEO', 'READ'])
-      for (const a of activities) expect(activityThumbnailUrl(a)).toMatch(/^https:\/\//)
+      const activities = scheduled.currentVersion.activities
+      expect(activities.map((a) => a.kind)).toEqual(['youtube', 'video', 'text'])
+      const media = await db.prisma.media.findMany({ where: { organizationId: FIXTURE_ORG_ID } })
+      const map = Object.fromEntries(media.map((m) => [m.id, { url: m.url, kind: 'image' as const }]))
+      for (const a of activities) expect(thumbnailFromDocument(a.document, map)).toMatch(/^https:\/\//)
     }
   })
 

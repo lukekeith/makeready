@@ -11,8 +11,8 @@
  * Never touches ctx.rand. Creates no org, user or group; wipe.ts removes the drafts and the enrollment
  * with their groups (cascade).
  */
-import { lessonId } from '../base.js'
-import { seedScheduledContent } from '../scheduled-content.js'
+import { lessonId, lessonVersionId, programVersionId } from '../base.js'
+import { scheduleLessons } from '../lesson-content.js'
 import { FIXTURE_TZ, type FixtureContext } from '../context.js'
 import {
   FIXTURE_GROUP_IDS,
@@ -51,25 +51,14 @@ export async function full(ctx: FixtureContext): Promise<void> {
       createdAt: ctx.daysAgo(1),
     },
   })
-  // 1.0 rows, kept only until home-dashboard's engagement read (still on LessonSchedule) moves to the new model.
-  await prisma.lessonSchedule.createMany({
-    data: days.map((day) => ({
-      id: fixtureId('schedule', 960_000 + day),
-      enrollmentId: UPCOMING_ENROLLMENT_ID,
-      lessonId: lessonId(UPCOMING_PROGRAM_INDEX, day),
-      scheduledDate: ctx.at(offsetOf(day), 12),
-      title: `Day ${day}`,
-      estimatedMinutes: 25,
-    })),
-  })
-  await seedScheduledContent(ctx, {
-    seed: 960,
-    programId: FIXTURE_PROGRAM_IDS.days30,
+  await scheduleLessons(ctx, {
     enrollmentId: UPCOMING_ENROLLMENT_ID,
-    lessons: days.map((day) => ({
+    programVersionId: programVersionId(UPCOMING_PROGRAM_INDEX),
+    schedules: days.map((day) => ({
+      id: fixtureId('schedule', 960_000 + day),
       lessonId: lessonId(UPCOMING_PROGRAM_INDEX, day),
+      currentVersionId: lessonVersionId(UPCOMING_PROGRAM_INDEX, day),
       scheduledDate: ctx.at(offsetOf(day), 12),
-      title: `Day ${day}`,
     })),
   })
 

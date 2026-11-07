@@ -1,9 +1,9 @@
 /**
  * groups-detail layer (ui2-groups-browse D19, T9): what the group page reads beyond base, on the rich
  * group — base group 1, Tuesday Men's Group.
- *  - Lessons up next: enrollment 4's day 14 (today) and day 15 (tomorrow) each get three
- *    ScheduledLessonActivity rows — YOUTUBE (youtubeThumbnailUrl), VIDEO (a Video with a thumbnail)
- *    and READ (a read block image) — so next-study has three thumbnails whichever of the two the
+ *  - Lessons up next: enrollment 4's day 14 (today) and day 15 (tomorrow) each get a
+ *    version of the lesson that belongs to enrollment 4 with three activities — youtube (its thumbnail as the
+ *    background), video (a Video with a poster) and text (an image background) — so next-study has three thumbnails whichever of the two the
  *    server's midnight picks.
  *  - Requests: members 20 and 21 (Women's Bible Study) have pending join requests + REQUESTED events.
  *  - Timeline: member 12 joined (APPROVED, −20) and left (REMOVED_GROUP, −6); the group was created
@@ -17,9 +17,11 @@
  * Never touches ctx.rand: this file runs before home-dashboard.ts, and one draw would shift its numbers.
  * Creates no org, user or group.
  */
-import { scheduleId } from '../base.js'
+import { textDocument, textObject, videoDocument, youtubeDocument } from '../activity-documents.js'
+import { lessonId, lessonVersionId, scheduleId, videoActivityKey } from '../base.js'
+import { customizeLessons, seedImageMedia } from '../lesson-content.js'
 import type { FixtureContext } from '../context.js'
-import { FIXTURE_GROUP_IDS, FIXTURE_MEMBER_IDS, FIXTURE_ORG_ID, FIXTURE_USER_ID, fixtureId } from '../ids.js'
+import { FIXTURE_ENROLLMENT_IDS, FIXTURE_GROUP_IDS, FIXTURE_MEMBER_IDS, FIXTURE_ORG_ID, FIXTURE_USER_ID, fixtureId } from '../ids.js'
 
 export const RICH_GROUP_ID = FIXTURE_GROUP_IDS[0]
 /** ui2-groups-edit T5: the rich group's stored settings (age 26–35 is the "26 - 35" preset). */
@@ -32,7 +34,9 @@ export const RICH_GROUP_FIELDS = {
   memberDirectoryEnabled: false,
 } as const
 /** Enrollment 4 (group 1) runs daily from today−13: day 14 is today, day 15 tomorrow. */
-export const NEXT_LESSON_SCHEDULE_IDS: readonly string[] = [scheduleId(4, 14), scheduleId(4, 15)]
+export const NEXT_LESSON_DAYS: readonly number[] = [14, 15]
+export const NEXT_LESSON_SCHEDULE_IDS: readonly string[] = NEXT_LESSON_DAYS.map((day) => scheduleId(4, day))
+const ENROLLMENT_4_ID = FIXTURE_ENROLLMENT_IDS[3]
 /** Ruth Hamilton (20) and Esther Graham (21), newest request last in this list. */
 export const REQUESTER_INDICES: readonly number[] = [20, 21]
 /** Sophia Powell (12) joined group 1 and left it. */
@@ -132,33 +136,29 @@ export async function full(ctx: FixtureContext): Promise<void> {
       createdAt: ctx.daysAgo(30),
     },
   })
-  for (const [k, lessonScheduleId] of NEXT_LESSON_SCHEDULE_IDS.entries()) {
-    const id = (order: number) => fixtureId('scheduledActivity', (k + 1) * 10 + order)
-    await prisma.scheduledLessonActivity.createMany({
-      data: [
-        {
-          id: id(1),
-          lessonScheduleId,
-          type: 'YOUTUBE',
-          orderNumber: 1,
-          title: 'Watch: Overview of John',
-          youtubeUrl: 'https://www.youtube.com/watch?v=G-2e9mMf7E8',
-          youtubeVideoId: 'G-2e9mMf7E8',
-          youtubeThumbnailUrl: YOUTUBE_THUMBNAIL_URL,
-        },
-        { id: id(2), lessonScheduleId, type: 'VIDEO', orderNumber: 2, title: 'A welcome from your leader', videoId: VIDEO_ID, videoUrl: VIDEO_PLAYBACK_URL },
-        { id: id(3), lessonScheduleId, type: 'READ', orderNumber: 3, title: 'Read John 3', referenceTitle: 'John 3', readContent: 'Read John 3 slowly, twice.' },
-      ],
-    })
-    await prisma.activityReadBlock.create({
-      data: {
-        id: fixtureId('readBlock', k + 1),
-        scheduledActivityId: id(3),
-        orderNumber: 1,
-        title: 'John 3',
-        content: 'For God so loved the world…',
-        backgroundImageUrl: READ_IMAGE_URL,
+  const items = []
+  for (const [k, day] of NEXT_LESSON_DAYS.entries()) {
+    const media = (order: number) => 400_000 + (k + 1) * 10 + order
+    const youtubeMedia = await seedImageMedia(ctx, media(1), 'Watch: Overview of John', YOUTUBE_THUMBNAIL_URL)
+    const videoPoster = await seedImageMedia(ctx, media(2), 'A welcome from your leader', VIDEO_THUMBNAIL_URL)
+    const readMedia = await seedImageMedia(ctx, media(3), 'Read John 3', READ_IMAGE_URL)
+    const activity = (order: number) => fixtureId('contentActivity', media(order))
+    items.push({
+      scheduledLessonId: NEXT_LESSON_SCHEDULE_IDS[k],
+      version: {
+        id: fixtureId('lessonVersion', 4000 + day),
+        lessonId: lessonId(1, day),
+        number: 1,
+        title: `Day ${day}`,
+        basedOnVersionId: lessonVersionId(1, day),
+        activities: [
+          { id: activity(1), activityKey: `fixture-groups-detail-${day}-1`, kind: 'youtube', title: 'Watch: Overview of John', document: youtubeDocument('G-2e9mMf7E8', { imageMediaId: youtubeMedia }) },
+          // The base video's key, so its analytics rows keep matching.
+          { id: activity(2), activityKey: videoActivityKey(1, day), kind: 'video', title: 'A welcome from your leader', document: videoDocument(VIDEO_ID, { posterMediaId: videoPoster }), estimatedSeconds: 180 },
+          { id: activity(3), activityKey: `fixture-groups-detail-${day}-3`, kind: 'text', title: 'Read John 3', document: textDocument([textObject({ id: 'o1', text: 'For God so loved the world…' })], { imageMediaId: readMedia }) },
+        ],
       },
     })
   }
+  await customizeLessons(ctx, ENROLLMENT_4_ID, items)
 }

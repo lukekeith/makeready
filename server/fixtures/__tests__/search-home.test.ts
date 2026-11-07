@@ -8,7 +8,7 @@ const daysAgo = (n: number) => new Date(NOW.getTime() - n * 86_400_000)
 describe('search-home layer rows (master-search D25)', () => {
   it('covers every D5 type with the shared word', () => {
     const rows = searchHomeRows(NOW, daysAgo)
-    const titled = [rows.program, rows.lesson, rows.exactPost, rows.orgTemplate, rows.event, rows.photo, rows.video].map((r: any) => r.title ?? r.name)
+    const titled = [rows.program, rows.lessonVersion, rows.exactPost, rows.orgTemplate, rows.event, rows.photo, rows.video].map((r: any) => r.title ?? r.name)
     for (const t of titled) expect(t).toContain(SEARCH_HOME_WORD)
     expect(rows.exactPost.title).toBe('Grace')
     expect(rows.untitledPost.title).toBeNull()

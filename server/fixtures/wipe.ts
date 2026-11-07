@@ -2,7 +2,7 @@
  * Reset's delete step (SPEC ui2-fixtures D7) — exactly, in this order:
  *  1. client_events of the fixture org or a fixture member (no FKs, so explicit);
  *  2. the fixture members (cascades group_members, member_organizations, the
- *     three progress tables and membership_events);
+ *     lesson and activity progress and membership_events);
  *  3. groups, program_version_lessons (RESTRICT to lessons and versions), study_programs and lesson_templates whose organizationId is the fixture org (a
  *     backstop: organizationId has no FK; a template's creatorId is SetNull, so reset would
  *     otherwise leave it behind — master-search T6);

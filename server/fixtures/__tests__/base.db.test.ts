@@ -72,11 +72,12 @@ describe.skipIf(!TEST_DB_URL)('fixtures base layer against the test database (D1
       member_organizations: 24,
       study_programs: 2,
       lessons: 51,
-      lesson_activities: 153,
+      lesson_versions: 51,
+      content_activities: 153,
       enrollments: 4,
-      lesson_schedules: 102,
-      member_lesson_progress: 0,
-      member_video_progress: 0,
+      scheduled_lessons: 102,
+      lesson_progress: 0,
+      activity_progress: 0,
       membership_events: 0,
       client_events: 0,
       media: 0, // D22: images are off under vitest (FIXTURE_IMAGES=on turns them on)
@@ -114,8 +115,8 @@ describe.skipIf(!TEST_DB_URL)('fixtures base layer against the test database (D1
       expect(p.publishedAt).not.toBeNull()
       expect(p.creatorId).toBe(FIXTURE_USER_ID)
     }
-    const videoActivities = await db.prisma.lessonActivity.count({
-      where: { activityType: 'VIDEO', lesson: { studyProgram: { organizationId: FIXTURE_ORG_ID } } },
+    const videoActivities = await db.prisma.contentActivity.count({
+      where: { kind: 'video', lessonVersion: { lesson: { program: { organizationId: FIXTURE_ORG_ID } } } },
     })
     expect(videoActivities).toBe(51)
   }, 120_000)
@@ -131,13 +132,13 @@ describe.skipIf(!TEST_DB_URL)('fixtures base layer against the test database (D1
       expect(JSON.parse(enrollment.enabledDays)).toEqual([...plan.days])
       expect(enrollment.timezone).toBe('America/Chicago')
       expect(enrollment.createdById).toBe(FIXTURE_USER_ID)
-      const schedules = await db.prisma.lessonSchedule.findMany({ where: { enrollmentId: enrollment.id } })
+      const schedules = await db.prisma.scheduledLesson.findMany({ where: { enrollmentId: enrollment.id } })
       const dates = schedules.map((s) => localDate(s.scheduledDate)).sort()
       expect(dates).toEqual(offsets.map((o) => addDays(today, o)))
       expect(new Set(dates).size).toBe(dates.length)
     }
     const covered = new Set(
-      (await db.prisma.lessonSchedule.findMany({ where: { enrollmentId: { in: FIXTURE_ENROLLMENT_IDS } } })).map((s) =>
+      (await db.prisma.scheduledLesson.findMany({ where: { enrollmentId: { in: FIXTURE_ENROLLMENT_IDS } } })).map((s) =>
         localDate(s.scheduledDate)
       )
     )

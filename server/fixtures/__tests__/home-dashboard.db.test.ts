@@ -27,9 +27,9 @@ describe.skipIf(!TEST_DB_URL)('home-dashboard layer against the test database (D
     const second = await db.run('reset', 'full')
     expect(second).toEqual(first)
     // Base sittings carry video progress; the ~6-month history sittings (owner ruling 2026-10-25) do not.
-    expect(first.member_video_progress).toBeGreaterThan(300)
-    expect(first.member_lesson_progress).toBeGreaterThan(first.member_video_progress + 1000)
-    expect(first.client_events).toBeGreaterThanOrEqual(first.member_lesson_progress) // + mid-sitting resume opens
+    expect(first.activity_progress).toBeGreaterThan(300)
+    expect(first.lesson_progress).toBeGreaterThan(first.activity_progress + 1000)
+    expect(first.client_events).toBeGreaterThanOrEqual(first.lesson_progress) // + mid-sitting resume opens
     expect(first.membership_events).toBe(24 + GROUPS_DETAIL_MEMBERSHIP_EVENT_IDS.length) // + groups-detail's history (ui2-groups-browse D19)
   }, 180_000)
 
@@ -69,16 +69,16 @@ describe.skipIf(!TEST_DB_URL)('home-dashboard layer against the test database (D
     expect(seconds).toBeLessThanOrEqual(144_000 + 7_200)
 
     // F15: the explicit lastWatchedAt survived @updatedAt — every watch ends ≥ 5 min before the run.
-    const watched = await db.prisma.memberVideoProgress.aggregate({
+    const watched = await db.prisma.activityProgress.aggregate({
       where: { memberId: { in: FIXTURE_MEMBER_IDS } },
-      _max: { lastWatchedAt: true },
+      _max: { completedAt: true },
     })
-    expect(watched._max.lastWatchedAt).not.toBeNull()
-    expect(watched._max.lastWatchedAt!.getTime()).toBeLessThan(before - 60_000)
+    expect(watched._max.completedAt).not.toBeNull()
+    expect(watched._max.completedAt!.getTime()).toBeLessThan(before - 60_000)
 
     // D21: a sitting never crosses local midnight (it completes on the day it opened), and the
     // opens follow the habits — busy mornings and evenings, near-silent 1–4 AM.
-    const progress = await db.prisma.memberLessonProgress.findMany({ where: { memberId: { in: FIXTURE_MEMBER_IDS } } })
+    const progress = await db.prisma.lessonProgress.findMany({ where: { memberId: { in: FIXTURE_MEMBER_IDS } } })
     for (const p of progress) {
       expect(localDate(p.completedAt!)).toBe(localDate(p.startedAt!))
       expect(p.pinnedVersionId).toBeNull()
@@ -124,7 +124,7 @@ describe.skipIf(!TEST_DB_URL)('home-dashboard layer against the test database (D
     expect(completed.rows).toHaveLength(183)
 
     // Member-lessons due per day = Σ over that day's schedules of the group's member count (8).
-    const schedules = await db.prisma.lessonSchedule.findMany({
+    const schedules = await db.prisma.scheduledLesson.findMany({
       where: { enrollment: { group: { organizationId: FIXTURE_ORG_ID } }, removedAt: null },
     })
     const enrollmentGroup = new Map(
@@ -164,11 +164,10 @@ describe.skipIf(!TEST_DB_URL)('home-dashboard layer against the test database (D
     )
 
     // Video time is untouched by history sittings: exactly 40 h.
-    const video = await db.prisma.memberVideoProgress.aggregate({
-      where: { memberId: { in: FIXTURE_MEMBER_IDS } },
-      _sum: { watchedSeconds: true },
-    })
-    expect(video._sum.watchedSeconds).toBe(144_000)
+    const [video] = await db.prisma.$queryRaw<{ seconds: number }[]>`
+      SELECT COALESCE(SUM((state->>'watchedSeconds')::int), 0)::int AS seconds
+        FROM activity_progress WHERE "memberId"::text = ANY(${FIXTURE_MEMBER_IDS})`
+    expect(video.seconds).toBe(144_000)
   }, 180_000)
 
   it('(f) every D1 field source is non-zero after full (home-dashboard-data D1, D12, D17)', async () => {
