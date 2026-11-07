@@ -9,6 +9,8 @@ apps: server+iphone
 contract: open
 hold: none
 go-ahead: none
+tests: walk=risk review=slice
+target: feature/text-activity
 walk: none
 verify: none
 ready: none
