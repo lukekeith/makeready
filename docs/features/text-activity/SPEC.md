@@ -198,7 +198,7 @@ the member rebuild adds it), the themes routes, the member-lesson routes, study 
 | SC9 | REMOVE | `TemplateActivityType` | `kind` is validated text | A new kind needs no migration | todo |
 | SC10 | ADD | `Lesson.deletedAt`; `ScheduledLesson.smsSentAt`, `templateId` | program and enrollment reads | D36; the SMS edit lock and template name survive | landed 20261107175230 |
 | SC11 | EDIT | `ClientEvent.lessonScheduleId` → `scheduledLessonId`, `scheduledActivityId` → `activityKey`, `activityType` → `kind` | client event ingestion | D42 | todo |
-| SC12 | EDIT | `analytics_events` materialized view (hand migration, copied from `20261025200000.sql` and its arms rewritten on `ScheduledLesson`, `activityKey` and the new progress tables); search GIN indexes from `20261104000602` rewritten on version titles and document text, with `master-search-text.ts` constants matched | none | The view and indexes aren't in the YAML | todo |
+| SC12 | EDIT | `analytics_events` materialized view (hand migration, copied from `20261025200000.sql` and its arms rewritten on `ScheduledLesson`, `activityKey` and the new progress tables); search GIN indexes from `20261104000602` rewritten on version titles and document text, with `master-search-text.ts` constants matched | none | The view and indexes aren't in the YAML | landed 20261107221726 + 20261107224949 |
 | SC13 | ADD | Partial unique index: one `DRAFT` `LessonVersion` per `(lessonId, enrollmentId)`, `NULLS NOT DISTINCT`; hand migration skipped in `atlas.hcl` | `GET /draft` | D31 | landed 20261107175258 |
 | SC14 | EDIT | Back-relations on `Video`, `User`, `Organization` and `LessonTemplate` to removed models; `NoteLink`/`PreviewState` rows deleted (D42) | none | SC8 dependents | todo |
 
