@@ -889,8 +889,8 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-052: props.state must be Default|Active")
         }
         return declareCase(
-            MakeReadyUI.DayChip(content: ui2C052Content, state: ui2C052State),
-            // C-052 §2 fixes the component's own footprint (32×40 day, 32×32 weekday), so the
+            MakeReadyUI.DayChip(content: ui2C052Content, state: ui2C052State, isEmpty: c.isEmpty ?? false),
+            // C-052 §2 fixes the component's own footprint (40×48 day, 32×32 weekday), so the
             // call site fixes no width — it supplies the outer margin and the ground only.
             PreviewFrame(alignment: .leading, intrinsic: true)
         )
@@ -2340,7 +2340,12 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
                 title: ui2C063Title,
                 metaLabel: ui2C063MetaLabel,
                 progress: c.progress,
-                slides: ui2C063Slides
+                slides: ui2C063Slides,
+                // §4 #8–10: a fixture cannot carry a closure, so `true` means the host set it.
+                onAddActivity: c.onAddActivity == true ? {} : nil,
+                onActions: c.onActions == true ? {} : nil,
+                metaUnit: c.metaUnit,
+                showsDayLabel: c.showsDayLabel ?? false // §4 #11: the contract's default
             ),
             // C-063 §1 dev 3: the card is full-bleed at the host's width — the frame-local
             // source is 440 wide, so the master width is 440 with no horizontal margin (its

@@ -720,6 +720,7 @@
 		BF38BAC59699DB8D42805F81 /* KeypadKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33C1FA9984819D347D1C876A /* KeypadKey.swift */; };
 		BF528480976FA36B4C77ABEE /* TextInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DDF81A3117A2576E375188C /* TextInput.swift */; };
 		BF6CD157A5C47DDD8E96E969 /* DateSpanIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1D03A5064C702D151BD4A15 /* DateSpanIndicator.swift */; };
+		BF8392FC638B4941E426FBB8 /* ActivityNewContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1D8316232BF5704F61EEAB0 /* ActivityNewContainer.swift */; };
 		BSRV0001000000000000001 /* BibleSearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BSRV0002000000000000001 /* BibleSearchService.swift */; };
 		BVNT000100000000000001 /* BibleVerseContentNormalizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BVNT000200000000000001 /* BibleVerseContentNormalizerTests.swift */; };
 		BVT0001000000000000001 /* BibleVerseTextLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = BVT0002000000000000001 /* BibleVerseTextLayout.swift */; };
@@ -897,6 +898,7 @@
 		E91EAF436019E90EAB8090E8 /* TopNavInset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B6430FFED63399B7F40EBFD /* TopNavInset.swift */; };
 		E94B74528DEAB8190CA5D523 /* ChecklistStepRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43DB3778F0ED3889F1EAC471 /* ChecklistStepRow.swift */; };
 		E94B8BED9BAED428D93EAA2C /* FilterChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3180BFA78CF6854FCC37AA39 /* FilterChip.swift */; };
+		E97C89ADD396CBB669E42A25 /* ActivityNewContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1D8316232BF5704F61EEAB0 /* ActivityNewContainer.swift */; };
 		E980E514C5B057DB8E2681E2 /* CoverImageRendering.swift in Sources */ = {isa = PBXBuildFile; fileRef = 064C8DCC17A0C8C7EDBD17C8 /* CoverImageRendering.swift */; };
 		E9C85699FE47A5CCF9BC1272 /* InviteQrScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31F21EB65AE9BB53E4F7D0FE /* InviteQrScreen.swift */; };
 		E9D22070195D25579C18D29B /* LoadingStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = STAE8698BCEFBA4FADA19C /* LoadingStateManager.swift */; };
@@ -1551,6 +1553,7 @@
 		D10FFC8629C46C7F51F5D33B /* DateRangePicker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DateRangePicker.swift; sourceTree = "<group>"; };
 		D13E32E27A2ABE5B1A0D3485 /* GroupFieldEditor.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GroupFieldEditor.swift; path = Containers/Groups/GroupFieldEditor.swift; sourceTree = "<group>"; };
 		D1AF5325B8DBFC885E052353 /* LibraryHomeScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LibraryHomeScreen.swift; path = Screens/Library/LibraryHomeScreen.swift; sourceTree = "<group>"; };
+		D1D8316232BF5704F61EEAB0 /* ActivityNewContainer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ActivityNewContainer.swift; sourceTree = "<group>"; };
 		D1DRA6U1A000000000001 /* Dragula.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dragula.swift; sourceTree = "<group>"; };
 		D1E08A7E085D75848E6ABFE5 /* MemberProfileContainer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MemberProfileContainer.swift; path = Containers/Members/MemberProfileContainer.swift; sourceTree = "<group>"; };
 		D1ROH1A000000000000001 /* ReorderHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReorderHelpers.swift; sourceTree = "<group>"; };
@@ -1918,6 +1921,7 @@
 				202A0F843A485A269AF6F0F1 /* ProgramFieldEditContainer.swift */,
 				6432D73C37B7477E5BAA56B2 /* EditProgramCoverContainer.swift */,
 				D8758E706A3D3B1D56CC6121 /* ProgramsHomeHost.swift */,
+				D1D8316232BF5704F61EEAB0 /* ActivityNewContainer.swift */,
 			);
 			name = Programs;
 			path = Programs;
@@ -3950,6 +3954,7 @@
 				376EE43722798F5AA24B1010 /* SearchHomeMapper.swift in Sources */,
 				4F9583ED75EF95A74DB13B6F /* SearchHomeContainer.swift in Sources */,
 				6C51CA0A8979465827CCBB62 /* ProgramsHomeHost.swift in Sources */,
+				E97C89ADD396CBB669E42A25 /* ActivityNewContainer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -4457,6 +4462,7 @@
 				C9759C44984D0C311D1EB57A /* SearchHomeMapper.swift in Sources */,
 				3C842B491CAB55B292FCC281 /* SearchHomeContainer.swift in Sources */,
 				0E266C06A6AFF5BB9F41E704 /* ProgramsHomeHost.swift in Sources */,
+				BF8392FC638B4941E426FBB8 /* ActivityNewContainer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -9,8 +9,8 @@
 //  API-GAPs in §5).
 //  PREVIEW ONLY: referenced by no app screen, route, tab, flag or navigation case.
 //  ui2-programs container inputs (§3, as groups-detail D27): `showsHeader`, `loading`,
-//  `failed` + `onRetry` (reload = pull-to-refresh, OQ-study-program-home-19), `onCoverTap` and
-//  `onCoverFrameChange`.
+//  `failed` + `onRetry` (reload = pull-to-refresh, OQ-study-program-home-19), `onCoverTap`,
+//  `onCoverFrameChange`, `onAddActivity` and `onOpenLessonMenu`.
 //
 
 import SwiftUI
@@ -93,6 +93,9 @@ struct StudyProgramHomeScreen: View {
     var onCoverTap: () -> Void = {}                     // C-087 tap → the cover flow (group-cover-image D1/D2)
     var onCoverFrameChange: (CGRect) -> Void = { _ in } // C-087 global frame → the image viewer's zoom origin
     var onRetry: () -> Void = {}                        // pull-to-refresh → reload (host applies `.pullToRefresh`)
+    // §3: the `Int` is the lesson's index into the state's lesson arrays, not its lesson/day number.
+    var onAddActivity: (Int) -> Void = { _ in }         // C-063 add → activity creation for that lesson
+    var onOpenLessonMenu: (Int) -> Void = { _ in }      // C-063 actions → the host's lesson menu
 
     init(
         state: State,
@@ -107,7 +110,9 @@ struct StudyProgramHomeScreen: View {
         onOpenActivity: @escaping (Int, Int) -> Void = { _, _ in },
         onCoverTap: @escaping () -> Void = {},
         onRetry: @escaping () -> Void = {},
-        onCoverFrameChange: @escaping (CGRect) -> Void = { _ in }
+        onCoverFrameChange: @escaping (CGRect) -> Void = { _ in },
+        onAddActivity: @escaping (Int) -> Void = { _ in },
+        onOpenLessonMenu: @escaping (Int) -> Void = { _ in }
     ) {
         self.state = state
         self.showsHeader = showsHeader
@@ -122,6 +127,8 @@ struct StudyProgramHomeScreen: View {
         self.onCoverTap = onCoverTap
         self.onRetry = onRetry
         self.onCoverFrameChange = onCoverFrameChange
+        self.onAddActivity = onAddActivity
+        self.onOpenLessonMenu = onOpenLessonMenu
     }
 
     // §3 has no UI-only rule on this screen: the day selection is reported through `onSelectDay`
@@ -164,6 +171,11 @@ struct StudyProgramHomeScreen: View {
     // GAP — study-program-home §2 item 8: "Bottom content padding 16" — a vertical 16 with no
     // spacing token naming the role (page-margin is horizontal).
     private static let bottomPadding: CGFloat = 16
+    // GAP — program-day-rail-sticky: the pinned rail's band padding, owner 2026-11-06; no spacing
+    // token names the role. Taken out of §2.7's 32s, so the resting layout is unchanged.
+    private static let railBandPadding: CGFloat = 8
+    /// The pinned band's height (48 chips + padding both sides) plus the band-to-lesson gap.
+    private static let lessonLandingInset: CGFloat = 48 + railBandPadding * 2 + Token.Space.cardPadding
 
     // MARK: - Body (§2 top → bottom)
 
@@ -356,9 +368,19 @@ struct StudyProgramHomeScreen: View {
             .ui2Element("C-020 SectionHeader 2")
             // §3 `Empty (no lessons)`: "day rail and lesson list omitted"; §3 `Loading` too.
             if !state.loading, !state.lessonTitles.isEmpty {
-                Spacer().frame(height: Token.Space.sectionGap)       // §2.7: "→ 32 →"
+                // §2.7: "→ 32 →" either side; the band's own padding is part of each 32, so the
+                // resting layout doesn't move.
+                Spacer().frame(height: Token.Space.sectionGap - Self.railBandPadding)
                 dayRail
-                Spacer().frame(height: Token.Space.sectionGap)       // §2.7: "→ 32 →"
+                    .padding(.vertical, Self.railBandPadding)
+                    .background(Token.layoutBackground)
+                    // The rail pins itself at the top of the scroll view, as C-131 does on
+                    // search-home: it stays tappable, and the pin costs no layout.
+                    .visualEffect { effect, proxy in
+                        effect.offset(y: max(0, -proxy.frame(in: .scrollView(axis: .vertical)).minY))
+                    }
+                    .zIndex(1)
+                Spacer().frame(height: Token.Space.sectionGap - Self.railBandPadding)
                 lessonList
             }
         }
@@ -368,42 +390,73 @@ struct StudyProgramHomeScreen: View {
     /// `space-chip-gap` (2), exactly one `Active`; N = program day count". A horizontal
     /// carousel keeps its own ScrollView (D22); §1 deviation 3.
     private var dayRail: some View {
-        HorizontalRail {
-            HStack(spacing: Token.Space.chipGap) {
-                ForEach(Array(1...max(state.dayCount, 1)), id: \.self) { day in
-                    DayChip(
-                        content: .day(day),
-                        state: day == state.activeDay ? .active : .default,
-                        onTap: { onSelectDay(day) }
-                    )
-                    .ui2Element(Self.partName("C-052 DayChip", ordinal: day))
+        ScrollViewReader { rail in
+            HorizontalRail {
+                // Owner 2026-11-06: gap 4, with C-052's day look at 40×48 (was `space-chip-gap` 2).
+                HStack(spacing: Token.Space.metaGap) {
+                    ForEach(Array(1...max(state.dayCount, 1)), id: \.self) { day in
+                        DayChip(
+                            content: .day(day),
+                            state: day == state.activeDay ? .active : .default,
+                            isEmpty: dayIsEmpty(day),
+                            onTap: { onSelectDay(day) }
+                        )
+                        .id(day)
+                        .ui2Element(Self.partName("C-052 DayChip", ordinal: day))
+                    }
                 }
+                .padding(.horizontal, Token.Space.pageMargin)
             }
-            .padding(.horizontal, Token.Space.pageMargin)
+            .scrollIndicators(.hidden)
+            // The selected chip stays in view, wherever the rail was swiped to.
+            .onChange(of: state.activeDay) { _, day in
+                withAnimation { rail.scrollTo(day, anchor: .center) }
+            }
         }
-        .scrollIndicators(.hidden)
     }
 
     /// §2.7: "lesson list: three C-063 LessonCard, gap `space-section-gap` (32)". C-063 is
     /// full-bleed with its own `space-page-margin` inset (C-063 §1 deviation 3), so the page
     /// adds no margin here — its rail scrolls under the screen edges (§1 deviation 3).
     private var lessonList: some View {
-        VStack(alignment: .leading, spacing: Token.Space.sectionGap) {
+        VStack(alignment: .leading, spacing: 0) {
             ForEach(state.lessonTitles.indices, id: \.self) { index in
-                LessonCard(
-                    header: .numbered(lessonNumber: state.lessonNumbers[safe: index] ?? index + 1),
-                    title: state.lessonTitles[index],
-                    metaLabel: state.lessonDurations[safe: index] ?? "",
-                    // §4 C-063 amendment: "Both hosts consume the `plain` variant" — no progress.
-                    progress: nil,
-                    slides: slides(index),
-                    onOpen: { onOpenLesson(index) },
-                    onSelectSlide: { slide in onOpenActivity(index, slide) }
-                )
-                .ui2Element(Self.partName("C-063 LessonCard", ordinal: index + 1))
+                let meta = Self.splitMeta(state.lessonDurations[safe: index] ?? "")
+                // Owner 2026-11-06: C-088 between lessons, 16 either side, tighter than the page's
+                // section dividers, so the lessons still read as one list.
+                if index > 0 {
+                    SectionDivider()
+                        .padding(.horizontal, Token.Space.pageMargin)
+                        .padding(.vertical, Token.Space.cardPadding)
+                        .ui2Element(Self.partName("C-088 SectionDivider lesson", ordinal: index))
+                }
                 // §3 container input: the lesson scroll identity the host's ScrollViewReader
                 // scrolls to on `onSelectDay` (OQ-11 default). The screen itself never scrolls.
-                .id(Self.lessonScrollID(state.lessonNumbers[safe: index] ?? index + 1))
+                // A real layout element above the card, because scrollTo ignores an offset marker in
+                // a background: the title row lands below the pinned rail. The negative padding
+                // takes the marker's height back, so nothing moves.
+                VStack(alignment: .leading, spacing: 0) {
+                    Color.clear
+                        .frame(height: Self.lessonLandingInset)
+                        .allowsHitTesting(false)
+                        .id(Self.lessonScrollID(state.lessonNumbers[safe: index] ?? index + 1))
+                    LessonCard(
+                        header: .numbered(lessonNumber: state.lessonNumbers[safe: index] ?? index + 1),
+                        title: state.lessonTitles[index],
+                        metaLabel: meta.number,
+                        // §4 C-063 amendment: "Both hosts consume the `plain` variant" — no progress.
+                        progress: nil,
+                        slides: slides(index),
+                        onOpen: { onOpenLesson(index) },
+                        onSelectSlide: { slide in onOpenActivity(index, slide) },
+                        onAddActivity: { onAddActivity(index) },
+                        onActions: { onOpenLessonMenu(index) },
+                        metaUnit: meta.unit,
+                        showsDayLabel: true
+                    )
+                    .ui2Element(Self.partName("C-063 LessonCard", ordinal: index + 1))
+                }
+                .padding(.top, -Self.lessonLandingInset)
             }
         }
     }
@@ -415,6 +468,13 @@ struct StudyProgramHomeScreen: View {
         "study-program-home.lesson.\(lessonNumber)"
     }
 
+    /// program-day-rail-sticky: C-052's outline — a lesson with no activities. A day with no lesson
+    /// loaded stays filled, as this screen's sample days past its three lessons do.
+    private func dayIsEmpty(_ day: Int) -> Bool {
+        guard let lesson = state.lessonNumbers.firstIndex(of: day) else { return false }
+        return state.lessonSlideImages[safe: lesson]?.isEmpty ?? false
+    }
+
     private func slides(_ lesson: Int) -> [LessonCard.Slide] {
         let images = state.lessonSlideImages[safe: lesson] ?? []
         let labels = state.lessonSlideLabels[safe: lesson] ?? []
@@ -424,6 +484,13 @@ struct StudyProgramHomeScreen: View {
     }
 
     // MARK: - Derived (JSON-native props → the §4 views' types)
+
+    /// §3 Lesson meta: "splits it at the first space into a number and a unit … A label with no
+    /// space renders whole as the number with an empty unit."
+    private static func splitMeta(_ label: String) -> (number: String, unit: String) {
+        guard let space = label.firstIndex(of: " ") else { return (label, "") }
+        return (String(label[..<space]), String(label[label.index(after: space)...]))
+    }
 
     private static func optionalText(_ text: String?) -> String? {
         guard let text, !text.isEmpty else { return nil }

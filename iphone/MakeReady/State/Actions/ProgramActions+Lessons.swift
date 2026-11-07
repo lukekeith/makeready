@@ -49,9 +49,7 @@ extension ProgramActions {
         state.lessonActivityIndex.removeAll(parentId: lessonId)
         state.lessons.remove(lessonId)
         state.programLessonIndex.remove(parentId: programId, childId: lessonId)
-
-        // Refresh program to get updated lesson order
-        _ = try await getProgram(id: programId)
+        state.persist()
     }
 
     /// Add a new lesson (day) to a program

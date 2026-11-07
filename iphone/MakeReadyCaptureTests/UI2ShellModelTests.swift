@@ -363,6 +363,11 @@ final class UI2ShellModelTests: XCTestCase {
         XCTAssertFalse(UI2Destination.editProgramField(programId: "p1", field: .name).isFullScreen)
     }
 
+    /// program-lesson-add-activity D13: the picker takes the whole screen, so no TabBar sits under C-081.
+    func testActivityNewIsFullScreen() {
+        XCTAssertTrue(UI2Destination.activityNew(programId: "p1", lessonId: "l1").isFullScreen)
+    }
+
     /// ui2-programs D8: a created program replaces the create form; back returns below it.
     func testCreatedProgramReplacesTheCreateForm() {
         var m = UI2ShellModel()

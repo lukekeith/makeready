@@ -50,7 +50,7 @@ final class StudyProgramHomeMapperTests: XCTestCase {
         XCTAssertEqual(s.leaderName, "Luke Keith")
     }
 
-    /// D6: one card per lesson by day; "«n» min" or ""; slides in order with thumbnail fallbacks.
+    /// D6: one card per lesson by day; "N mins" (D11); slides in order with thumbnail fallbacks.
     func testLessons() {
         var read = StudyActivity(id: "a2", type: .read, orderNumber: 2, title: "Read: Romans 1")
         read.youtubeThumbnailUrl = nil
@@ -63,7 +63,7 @@ final class StudyProgramHomeMapperTests: XCTestCase {
         XCTAssertEqual(s.lessonCount, 2)
         XCTAssertEqual(s.lessonNumbers, [1, 2])
         XCTAssertEqual(s.lessonTitles, ["First", "Second"])
-        XCTAssertEqual(s.lessonDurations, ["12 min", ""])
+        XCTAssertEqual(s.lessonDurations, ["12 mins", "0 mins"])
         XCTAssertEqual(s.lessonSlideImages, [["https://yt/t.jpg", ""], []])
         XCTAssertEqual(s.lessonSlideLabels, [["Video", "Read: Romans 1"], []])
     }
@@ -94,8 +94,25 @@ final class StudyProgramHomeMapperTests: XCTestCase {
         XCTAssertFalse(cached.loading)
     }
 
-    /// D7: the selected chip passes through.
+    /// D11: the row's meta wording.
+    func testLessonDurationWording() {
+        XCTAssertEqual(StudyProgramHomeMapper.lessonDuration(nil), "0 mins")
+        XCTAssertEqual(StudyProgramHomeMapper.lessonDuration(0), "0 mins")
+        XCTAssertEqual(StudyProgramHomeMapper.lessonDuration(1), "1 min")
+        XCTAssertEqual(StudyProgramHomeMapper.lessonDuration(3), "3 mins")
+    }
+
+    /// D7: the selected chip passes through while it is within the lessons.
     func testActiveDayPassesThrough() {
-        XCTAssertEqual(state(input(program(), activeDay: 3)).activeDay, 3)
+        let lessons = (1...3).map { Lesson(id: "l\($0)", dayNumber: $0, title: "") }
+        XCTAssertEqual(state(input(program(), lessons: lessons, activeDay: 3)).activeDay, 3)
+    }
+
+    /// D14: past the last lesson selects the new last chip; no lessons selects 1.
+    func testActiveDayClampsToTheLessons() {
+        let lessons = [Lesson(id: "l1", dayNumber: 1, title: "A"), Lesson(id: "l2", dayNumber: 2, title: "B")]
+        XCTAssertEqual(state(input(program(), lessons: lessons, activeDay: 3)).activeDay, 2)
+        XCTAssertEqual(state(input(program(), lessons: lessons, activeDay: 2)).activeDay, 2)
+        XCTAssertEqual(state(input(program(), activeDay: 3)).activeDay, 1)
     }
 }

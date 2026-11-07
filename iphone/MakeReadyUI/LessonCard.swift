@@ -47,13 +47,27 @@ struct LessonCard: View {
     var onOpen: () -> Void = {}
     /// §4 #7 — "tap on slide *i*". No render effect; no-op default (R-03).
     var onSelectSlide: (Int) -> Void = { _ in }
+    /// §4 #8 — "`nil` → no add card (today's look; `empty` keeps OQ-C-063-005). Non-nil → the
+    /// add card after the last slide, `numbered` header only".
+    var onAddActivity: (() -> Void)? = nil
+    /// §4 #9 — "`nil` → no chevron. Non-nil → the actions chevron button in the title row, a
+    /// sibling of the title-block button".
+    var onActions: (() -> Void)? = nil
+    /// §4 #10 — "`nil` → one-tone meta. Non-nil → two-tone: `metaLabel` in
+    /// `color-text-primary`, `metaUnit` in `color-text-secondary`".
+    var metaUnit: String? = nil
+    /// §4 #11 — "`false` → the number draws as "{n}" (today's look). `true` with `.numbered` →
+    /// uppercase "DAY {n}", tracking 1.4pt, same type and colour, never truncated; no effect
+    /// with `.linked`. VoiceOver labels unchanged".
+    var showsDayLabel: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             titleBlock
             // OQ-C-063-005 (ruled): "no activities means the title block only, with no rail
-            // and no 16 gap."
-            if !slides.isEmpty {
+            // and no 16 gap." §3 `empty-add` departs from it for a host that supplies
+            // `onAddActivity`: the rail draws the add card alone, its 16 gap present.
+            if !slides.isEmpty || addAction != nil {
                 rail
                     // §2 gap: "16 (`space-card-padding`, as study-program-home §2 cites it)".
                     .padding(.top, Token.Space.cardPadding)
@@ -69,29 +83,55 @@ struct LessonCard: View {
     /// `space-element-gap` (8) between the title row and the second line … absent second
     /// line → no gap". §2 Accessibility: "the title block is one button".
     private var titleBlock: some View {
-        SwiftUI.Button(action: onOpen) {
-            VStack(alignment: .leading, spacing: Token.Space.elementGap) {
-                titleRow
-                secondLine
+        // §2 ↳ actions chevron: "a separate button, a sibling of the title-block button — never
+        // inside it". Top-aligned so it stays on the title row above a second line. Figma
+        // `4789:45919` sets it 16 after the meta.
+        HStack(alignment: .top, spacing: Token.Space.cardPadding) {
+            SwiftUI.Button(action: onOpen) {
+                VStack(alignment: .leading, spacing: Token.Space.elementGap) {
+                    titleRow
+                    secondLine
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(titleAccessibilityLabel)
+            .accessibilityValue(progressAccessibilityValue)
+            .accessibilityAddTraits(.isButton)
+            if let onActions {
+                actionsChevron(onActions)
+            }
         }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(titleAccessibilityLabel)
-        .accessibilityValue(progressAccessibilityValue)
-        .accessibilityAddTraits(.isButton)
         .padding(.horizontal, Token.Space.pageMargin)
         .ui2Element("Title block")
     }
 
-    /// §2 Title row: "height 20, HStack centre-aligned, gap 10 — FLAGGED LITERAL".
+    /// §2 ↳ actions chevron: "Glyph `chevron-down-carbon` 24, tint `color-accent` … hit target
+    /// ≥ 44 high". The 24 glyph (Figma `4789:45921`) fills the title row's 24 height; the hit
+    /// area is an expanded content shape, as C-021 does.
+    private func actionsChevron(_ action: @escaping () -> Void) -> some View {
+        SwiftUI.Button(action: action) {
+            Glyph(.chevronDownCarbon, size: .md, tint: Token.accent)
+                .frame(height: Self.titleRowHeightWithActions)
+                .contentShape(Rectangle().inset(by: -Self.chevronHitInset))
+        }
+        .buttonStyle(PressedDim())
+        // §2 Accessibility: "its own button, label "Lesson {n} actions", trait `.isButton`".
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(actionsAccessibilityLabel)
+        .accessibilityAddTraits(.isButton)
+        .ui2Element("Actions chevron")
+    }
+
+    /// §2 Title row: "height 20; 24 when `onActions` is set, HStack centre-aligned, gap 10 —
+    /// FLAGGED LITERAL".
     private var titleRow: some View {
         HStack(alignment: .center, spacing: Self.titleRowGap) {
             if case .numbered(let lessonNumber) = header {
                 // §2 ↳ lesson number: `type-title-card`, `color-accent`, intrinsic width.
-                Text(String(lessonNumber))
+                lessonNumberText(lessonNumber)
                     .designTextStyle(Token.TypeStyle.titleCard)
                     .foregroundStyle(Token.accent)
                     .fixedSize()
@@ -106,15 +146,30 @@ struct LessonCard: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .ui2Element("Title")
             // §2 ↳ meta: `type-page-title`, `color-text-secondary`, intrinsic width, trailing.
-            Text(metaLabel)
+            // Two-tone (`metaUnit`): `metaLabel` in `color-text-primary`, the unit in
+            // `color-text-secondary`, same type style, separated by one space.
+            metaText
                 .designTextStyle(Token.TypeStyle.pageTitle)
                 .foregroundStyle(Token.textSecondary)
                 .fixedSize()
                 .ui2Element("Meta")
         }
-        // §2 "height 20" — the row is exactly one `type-title-card` line (Bold 14/20).
-        .frame(height: Token.TypeStyle.titleCard.lineHeight)
+        // §2 "height 20" — the row is exactly one `type-title-card` line (Bold 14/20); 24 when
+        // `onActions` is set (Figma Top frame `4789:45916`).
+        .frame(height: onActions == nil ? Token.TypeStyle.titleCard.lineHeight : Self.titleRowHeightWithActions)
         .ui2Element("Title row")
+    }
+
+    /// §2 Day label: "uppercase "DAY {n}" instead of "{n}" … tracking 0.1em = 1.4pt at 14pt".
+    /// The tracking sits on the `Text` itself so it outranks the type style's own tracking.
+    private func lessonNumberText(_ lessonNumber: Int) -> Text {
+        guard showsDayLabel else { return Text(String(lessonNumber)) }
+        return Text(verbatim: "DAY \(lessonNumber)").tracking(Self.dayLabelTracking)
+    }
+
+    private var metaText: Text {
+        guard let metaUnit else { return Text(metaLabel) }
+        return Text("\(Text(metaLabel).foregroundStyle(Token.textPrimary)) \(metaUnit)")
     }
 
     /// §2: the second line is the link row (`linked`) or the progress bar (`progress=shown`);
@@ -179,6 +234,9 @@ struct LessonCard: View {
                     .accessibilityAddTraits(.isButton)
                     .ui2Element("Slide \(index + 1)")
                 }
+                if let addAction {
+                    addCard(addAction)
+                }
             }
             .padding(.horizontal, Token.Space.pageMargin)
         }
@@ -187,15 +245,61 @@ struct LessonCard: View {
         .ui2Element("Activity rail")
     }
 
+    /// §3: "The add card is not drawn with `header=linked`."
+    private var addAction: (() -> Void)? {
+        guard case .numbered = header else { return nil }
+        return onAddActivity
+    }
+
+    /// §2 Add card: "112 wide, the slide's height … Glyph `add-large-carbon` 24×24 centred,
+    /// tint `color-white-50`. Surface and corner radius follow Figma `4494:40744`" (#2e2e2e,
+    /// radius 8). The hidden C-079 gives the height, so the rail is the same height with or
+    /// without slides and follows C-079's aspect if it ever moves.
+    private func addCard(_ action: @escaping () -> Void) -> some View {
+        SwiftUI.Button(action: action) {
+            ActivityScreenshot(image: nil)
+                .hidden()
+                .frame(width: Self.slideWidth)
+                .overlay {
+                    RoundedRectangle(cornerRadius: Token.Radius.card)
+                        .fill(Token.activitySlidePlaceholder)
+                    Glyph(.addLargeCarbon, size: .md, tint: Token.white50)
+                        .ui2Element("Add icon")
+                }
+        }
+        .buttonStyle(PressedDim())
+        // §2 Accessibility: "a button, label "Add activity to lesson {n}", trait `.isButton`;
+        // the icon is decorative."
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(addAccessibilityLabel)
+        .accessibilityAddTraits(.isButton)
+        .ui2Element("Add card")
+    }
+
     // MARK: - Accessibility
 
-    /// §2 Accessibility: "Lesson {n}, {title}, {metaLabel}" (`linked`: "{title}, {label},
-    /// {metaLabel}").
+    /// §2 Accessibility: "Lesson {n}, {title}, {metaLabel}" (two-tone: "{metaLabel} {metaUnit}"
+    /// in place of {metaLabel}; `linked`: "{title}, {label}, {metaLabel}").
     private var titleAccessibilityLabel: String {
+        let meta = metaUnit.map { "\(metaLabel) \($0)" } ?? metaLabel
         switch header {
-        case .numbered(let lessonNumber): "Lesson \(lessonNumber), \(title), \(metaLabel)"
-        case .linked(let label): "\(title), \(label), \(metaLabel)"
+        case .numbered(let lessonNumber): return "Lesson \(lessonNumber), \(title), \(meta)"
+        case .linked(let label): return "\(title), \(label), \(meta)"
         }
+    }
+
+    /// §2 Accessibility: "Lesson {n} actions". A `linked` card has no number, so it reads its title.
+    private var actionsAccessibilityLabel: String {
+        switch header {
+        case .numbered(let lessonNumber): "Lesson \(lessonNumber) actions"
+        case .linked: "\(title) actions"
+        }
+    }
+
+    /// §2 Accessibility: "Add activity to lesson {n}". The card is only drawn for `numbered`.
+    private var addAccessibilityLabel: String {
+        guard case .numbered(let lessonNumber) = header else { return "Add activity" }
+        return "Add activity to lesson \(lessonNumber)"
     }
 
     /// §2 Accessibility: "the progress bar is an accessibility value on that button
@@ -212,8 +316,18 @@ struct LessonCard: View {
     // after C-033's root stack, per study-program-home §2).
     private static let titleRowGap: CGFloat = 10
 
+    // GAP — C-063 §2: day-label tracking 0.1em = 1.4pt at 14pt, no tracking token (owner ruling
+    // 2026-11-06, program-day-rail-sticky).
+    private static let dayLabelTracking: CGFloat = 1.4
+
     // GAP — C-063 §2 / §1 dev 4: slide width 112, no size token (OQ-C-063-008).
     private static let slideWidth: CGFloat = 112
+
+    // GAP — C-063 §2: title row "24 when `onActions` is set", no size token.
+    private static let titleRowHeightWithActions: CGFloat = 24
+
+    // GAP — C-063 §2: "hit target ≥ 44 high", no size token. 12 above and below the 24 row.
+    private static let chevronHitInset: CGFloat = 12
 
     /// §1 deviation 4 / OQ-C-063-6: "0.6 press feedback". Ephemeral, owned by the button (R-02).
     private struct PressedDim: ButtonStyle {

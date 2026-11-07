@@ -14,6 +14,11 @@ struct StudyProgramHomeContainer: View {
     static let goneMessage = "This program is no longer available"
     /// D9: the banner when adding a lesson fails.
     static let addLessonFailedMessage = "Couldn't add a lesson"
+    /// program-lesson-add-activity D8/D9/D16: the delete confirmation and the failure banner.
+    static let deleteLessonConfirmTitle = "Delete lesson?"
+    static let deleteLessonConfirmMessage = "This lesson and its activities will be permanently deleted."
+    static let deleteLessonFailedMessage = "Couldn't delete the lesson"
+    static let deleteLessonConfirmAction = ActionMenuOverlay.ActionItem(glyph: "", label: "Delete lesson", tone: .destructive)
     /// D5: how long the push takes to settle before a 404 pops it.
     static let pushSettle: Duration = .milliseconds(400)
 
@@ -27,6 +32,16 @@ struct StudyProgramHomeContainer: View {
     @State private var activeDay = 1
     /// D9: one add in flight.
     @State private var addingLesson = false
+    /// program-lesson-add-activity D15: one delete in flight.
+    @State private var deletingLesson = false
+    /// D16: the lesson the chevron was tapped on — held so a background reload can't retarget the action.
+    @State private var heldLessonId: String?
+    @State private var lessonMenuOpen = false
+    /// True from the menu's dismissal until `onHidden` — taps reach the page during the slide-out.
+    @State private var lessonMenuHiding = false
+    @State private var lessonMenuRows = StudyProgramHomeContainer.lessonMenuRows(lessonCount: 2)
+    @State private var pendingLessonChoice: LessonMenuChoice?
+    @State private var deleteConfirmOpen = false
     /// D11 (group-cover-image D1–D3): the system photo picker and its selection.
     @State private var pickerOpen = false
     @State private var pickedItem: PhotosPickerItem?
@@ -83,7 +98,22 @@ struct StudyProgramHomeContainer: View {
                         // D11: no cover → the picker; a cover → Edit · Change · View.
                         onCoverTap: { handleCoverTap() },
                         onRetry: { Task { await reload() } },
-                        onCoverFrameChange: { coverFrame = $0 }
+                        onCoverFrameChange: { coverFrame = $0 },
+                        // D2: the "+" card pushes the picker at once.
+                        onAddActivity: { index in
+                            guard let lessonId = Self.lessonID(at: index, in: AppState.shared.lessonsFor(programId: programId)) else { return }
+                            navigator.push(.activityNew(programId: programId, lessonId: lessonId))
+                        },
+                        // D4/D16: the chevron holds that lesson's id and opens the menu.
+                        onOpenLessonMenu: { index in
+                            // One lesson at a time: ignore a tap while a menu is open or sliding out,
+                            // or a choice or confirmation is pending, so the held id can't be retargeted.
+                            guard !lessonMenuOpen, !lessonMenuHiding, pendingLessonChoice == nil, !deleteConfirmOpen else { return }
+                            guard let lessonId = Self.lessonID(at: index, in: AppState.shared.lessonsFor(programId: programId)) else { return }
+                            heldLessonId = lessonId
+                            lessonMenuRows = Self.lessonMenuRows(lessonCount: state.lessonCount)
+                            lessonMenuOpen = true
+                        }
                     )
                 }
                 .scrollIndicators(.hidden)
@@ -102,6 +132,33 @@ struct StudyProgramHomeContainer: View {
                     coverMenuOpen = false
                 },
                 onDone: { coverMenuOpen = false }
+            )
+        }
+        // program-lesson-add-activity D4/D16: Add activity · Delete lesson; Done stays. The chosen row
+        // runs once the menu has hidden, as the cover menu does.
+        .actionMenuPresentation(isPresented: lessonMenuOpen, onDismiss: { closeLessonMenu() },
+                                onHidden: { runPendingLessonChoice() }) {
+            ActionMenuOverlay(
+                actions: lessonMenuRows,
+                onSelect: { item in
+                    pendingLessonChoice = LessonMenuChoice(rawValue: item.label)
+                    closeLessonMenu()
+                },
+                onDone: { closeLessonMenu() },
+                menuTitle: heldLessonId.flatMap { AppState.shared.lessons[$0] }.map {
+                    Self.lessonMenuTitle(dayNumber: $0.dayNumber, title: $0.title)
+                }
+            )
+        }
+        // D8/D16: the delete confirmation — one destructive action, Cancel keeps the lesson.
+        .actionMenuPresentation(isPresented: deleteConfirmOpen, onDismiss: { cancelDelete() }) {
+            ActionMenuOverlay(
+                title: Self.deleteLessonConfirmTitle,
+                message: Self.deleteLessonConfirmMessage,
+                actions: [Self.deleteLessonConfirmAction],
+                doneLabel: "Cancel",
+                onSelect: { _ in confirmDelete() },
+                onDone: { cancelDelete() }
             )
         }
         // The system picker — a modifier, not .sheet/.fullScreenCover; no permission prompt.
@@ -247,6 +304,62 @@ struct StudyProgramHomeContainer: View {
         }
     }
 
+    // MARK: - Lesson menu (program-lesson-add-activity D4, D8, D15, D16)
+
+    private func closeLessonMenu() {
+        lessonMenuOpen = false
+        lessonMenuHiding = true
+    }
+
+    private func runPendingLessonChoice() {
+        lessonMenuHiding = false
+        guard let choice = pendingLessonChoice else { heldLessonId = nil; return }
+        pendingLessonChoice = nil
+        switch choice {
+        case .addActivity:
+            if let lessonId = heldLessonId { navigator.push(.activityNew(programId: programId, lessonId: lessonId)) }
+            heldLessonId = nil
+        case .deleteLesson:
+            deleteConfirmOpen = true
+        }
+    }
+
+    /// D8: Cancel (button, scrim or swipe) keeps the lesson, sends nothing and clears the held id.
+    private func cancelDelete() {
+        deleteConfirmOpen = false
+        heldLessonId = nil
+    }
+
+    private func confirmDelete() {
+        let lessonId = heldLessonId
+        cancelDelete()
+        guard let lessonId else { return }
+        Task { await deleteLesson(lessonId) }
+    }
+
+    /// D15: success is the server's `{ success: true }`; the page then reloads. A failure shows the
+    /// banner and reloads too, so a row deleted elsewhere or a stale count corrects itself.
+    @MainActor
+    private func deleteLesson(_ lessonId: String) async {
+        guard !deletingLesson else { return }
+        deletingLesson = true
+        defer { deletingLesson = false }
+        do {
+            try await ProgramActions().deleteLesson(programId: programId, lessonId: lessonId)
+            await reload()
+        } catch {
+            switch Self.deleteFailure(for: error) {
+            case .silent: return
+            case .signOut: await signOut()
+            case .banner:
+                AppState.shared.recordError(error, context: "StudyProgramHomeContainer.deleteLesson", surface: true,
+                                            friendlyMessage: Self.deleteLessonFailedMessage,
+                                            retry: { Task { await deleteLesson(lessonId) } })
+                await reload()
+            }
+        }
+    }
+
     /// ui2-shell D27: a 401 ends the session; UI2Root then shows Login.
     @MainActor
     private func signOut() async {
@@ -256,6 +369,46 @@ struct StudyProgramHomeContainer: View {
     }
 
     // MARK: - Pure helpers
+
+    /// D4/D16: the chevron menu's choices, by row label.
+    enum LessonMenuChoice: String {
+        case addActivity = "Add activity"
+        case deleteLesson = "Delete lesson"
+    }
+
+    /// D4/D5/D16: Add activity, then Delete lesson unless it is the only lesson.
+    static func lessonMenuRows(lessonCount: Int) -> [ActionMenuOverlay.ActionItem] {
+        var rows = [ActionMenuOverlay.ActionItem(glyph: "add-large-carbon", label: LessonMenuChoice.addActivity.rawValue)]
+        if lessonCount > 1 {
+            rows.append(.init(glyph: "trash-2", label: LessonMenuChoice.deleteLesson.rawValue, tone: .destructive))
+        }
+        return rows
+    }
+
+    /// program-day-rail-sticky: the menu's title — "Day 15 · It is evident", or "Day 15" alone when
+    /// the lesson has no title, so no dot hangs off the end.
+    static func lessonMenuTitle(dayNumber: Int, title: String?) -> String {
+        let name = (title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty ? "Day \(dayNumber)" : "Day \(dayNumber) · \(name)"
+    }
+
+    /// D16: the id at a screen index — the screen's lesson arrays run in `dayNumber` order.
+    static func lessonID(at index: Int, in lessons: [Lesson]) -> String? {
+        let ordered = lessons.sorted { $0.dayNumber < $1.dayNumber }
+        return ordered.indices.contains(index) ? ordered[index].id : nil
+    }
+
+    /// D15: what a failed delete means — cancelled is silent, 401 signs out, anything else (a 404
+    /// included) is the banner.
+    enum DeleteFailure: Equatable { case silent, signOut, banner }
+
+    static func deleteFailure(for error: Error) -> DeleteFailure {
+        switch loadFailure(for: error) {
+        case .cancelled: return .silent
+        case .signOut: return .signOut
+        case .gone, .failed: return .banner
+        }
+    }
 
     /// D10: the row label's edit page — nil for "Lessons"/unknown labels, or while the program has
     /// not loaded (nothing to edit yet).
