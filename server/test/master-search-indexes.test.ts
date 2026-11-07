@@ -13,26 +13,29 @@ function readMigration(suffix: string) {
 
 type Key = keyof typeof SEARCH_TEXT
 const TABLE: Record<Key, string> = {
-  group: 'groups', program: 'study_programs', template: 'lesson_templates', lesson: 'lessons',
-  activity: 'lesson_activities', readBlock: 'activity_read_blocks', event: 'events', post: 'posts',
+  group: 'groups', program: 'study_programs', template: 'lesson_templates', lesson: 'lesson_versions',
+  activity: 'content_activities', event: 'events', post: 'posts',
   member: 'members', media: 'media', mediaTag: 'media_tags',
 }
 const TEXT_INDEX: Record<Key, string> = {
   group: 'groups_search_idx', program: 'study_programs_search_idx', template: 'lesson_templates_search_idx',
-  lesson: 'lessons_search_idx', activity: 'lesson_activities_search_idx', readBlock: 'activity_read_blocks_search_idx',
+  lesson: 'lesson_versions_search_idx', activity: 'content_activities_search_idx',
   event: 'events_search_idx', post: 'posts_search_idx', member: 'members_search_idx', media: 'media_search_idx',
   mediaTag: 'media_tags_search_idx',
 }
 const TITLE_INDEX: Record<keyof typeof SEARCH_TITLE, string> = {
   group: 'groups_title_lower_idx', program: 'study_programs_title_lower_idx', template: 'lesson_templates_title_lower_idx',
-  lesson: 'lessons_title_lower_idx', event: 'events_title_lower_idx', post: 'posts_title_lower_idx',
+  event: 'events_title_lower_idx', post: 'posts_title_lower_idx',
   member: 'members_title_lower_idx', media: 'media_title_lower_idx',
 }
 
 describe('master-search text constants', () => {
   it('every SEARCH_TEXT constant appears verbatim in the migration', () => {
     const sql = readMigration('_master_search_indexes.sql')
-    for (const expr of Object.values(SEARCH_TEXT)) expect(sql).toContain(`gin (${expr})`)
+    const lessonSql = readMigration('_text_activity_search_indexes.sql')
+    for (const [key, expr] of Object.entries(SEARCH_TEXT)) {
+      expect(key === 'lesson' || key === 'activity' ? lessonSql : sql).toContain(`gin (${expr})`)
+    }
     for (const expr of Object.values(SEARCH_TITLE)) expect(sql).toContain(`(${expr} text_pattern_ops)`)
   })
 
@@ -81,9 +84,11 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('master-search indexes', () => {
   it('each search and title index exists on the lease', async () => {
     const rows = await prisma.$queryRaw<{ indexname: string }[]>`SELECT indexname FROM pg_indexes WHERE indexname LIKE '%\_search\_idx' OR indexname LIKE '%\_title\_lower\_idx'`
     const names = rows.map((r: { indexname: string }) => r.indexname)
-    for (const n of ['groups_search_idx', 'media_tags_search_idx', 'activity_read_blocks_search_idx', 'members_title_lower_idx', 'media_title_lower_idx']) expect(names).toContain(n)
-    expect(names.filter((n: string) => n.endsWith('_search_idx') && n !== 'verses_search_idx')).toHaveLength(11)
-    expect(names.filter((n: string) => n.endsWith('_title_lower_idx'))).toHaveLength(8)
+    for (const n of ['groups_search_idx', 'media_tags_search_idx', 'content_activities_search_idx', 'members_title_lower_idx', 'media_title_lower_idx']) expect(names).toContain(n)
+    // text-activity SC12 dropped the old lesson indexes (lessons, lesson_activities, activity_read_blocks) and added two.
+    for (const n of ['lessons_search_idx', 'lessons_title_lower_idx', 'lesson_activities_search_idx', 'activity_read_blocks_search_idx']) expect(names).not.toContain(n)
+    expect(names.filter((n: string) => n.endsWith('_search_idx') && n !== 'verses_search_idx')).toHaveLength(10)
+    expect(names.filter((n: string) => n.endsWith('_title_lower_idx'))).toHaveLength(7)
   })
 
   it('the migration runs on a text-id database', async () => {
@@ -92,27 +97,25 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('master-search indexes', () => {
       const client = new Client({ connectionString: url }); await client.connect()
       try {
         await client.query(readMigration('_master_search_indexes.sql'))
-        const r = await client.query(`SELECT count(*)::int c FROM pg_indexes WHERE indexname = 'posts_search_idx'`)
-        expect(r.rows[0].c).toBe(1)
+        await client.query(readMigration('_text_activity_search_indexes.sql'))
+        const r = await client.query(`SELECT indexname FROM pg_indexes WHERE indexname IN ('posts_search_idx', 'lesson_versions_search_idx', 'content_activities_search_idx', 'lessons_search_idx')`)
+        expect(r.rows.map((row: { indexname: string }) => row.indexname).sort()).toEqual(['content_activities_search_idx', 'lesson_versions_search_idx', 'posts_search_idx'])
       } finally { await client.end() }
     })
   }, 180_000)
 
   it('the migration can be applied twice', async () => {
     await pg.query(readMigration('_master_search_indexes.sql'))
+    await pg.query(readMigration('_text_activity_search_indexes.sql'))
   })
 
   it.each(Object.entries(TEXT_INDEX))('EXPLAIN uses the text index for %s', async (key, index) => {
     const k = key as Key
     const config = k === 'member' ? 'simple' : 'english'
-    const partial = k === 'readBlock' ? ' AND "lessonActivityId" IS NOT NULL' : ''
-    // The arm's `"lessonActivityId" IS NOT NULL` is also what idx_activity_read_blocks_lessonActivityId serves, and
-    // on an empty analyzed table that btree is cheaper than the GIN index (the planner may pick either), so it is
-    // set aside for this one case. On a table with rows the GIN index wins by selectivity.
     // mediaTag: the btree on "tag" (idx_media_tags_tag) can be scanned in full with the tsquery as its filter, and on a
     // small table that can beat the GIN index (the verifier saw this fail once, with a green run at the same sha).
-    const without = k === 'readBlock' ? ['idx_activity_read_blocks_lessonActivityId'] : k === 'mediaTag' ? ['idx_media_tags_tag'] : []
-    const plan = await explain(`SELECT 1 FROM "${TABLE[k]}" WHERE ${SEARCH_TEXT[k]} @@ to_tsquery('${config}', $1)${partial}`, ['grace:*'], without)
+    const without = k === 'mediaTag' ? ['idx_media_tags_tag'] : []
+    const plan = await explain(`SELECT 1 FROM "${TABLE[k]}" WHERE ${SEARCH_TEXT[k]} @@ to_tsquery('${config}', $1)`, ['grace:*'], without)
     expect(plan).toContain(index)
   })
 

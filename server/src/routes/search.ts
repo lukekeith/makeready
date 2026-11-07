@@ -1,8 +1,9 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { prisma, Prisma } from '../lib/prisma.js'
+import { prisma } from '../lib/prisma.js'
 import { parseReference, getSearchType, matchBookNames } from '../utils/bible-reference-parser.js'
 import { requireAuth } from '../middleware/auth.js'
+import { searchLessons } from '../services/lesson-search.js'
 import { SEARCH_TYPES, SearchParamError, parseListFilters, parseRankedParams, parseRecentLimit } from '../services/master-search-query.js'
 import { deleteRecentResult, listRecentResults, recordRecentResult, searchFilterOptions, searchRanked } from '../services/master-search.js'
 
@@ -119,18 +120,6 @@ interface SearcherResult {
   items: unknown[]
   hasMore: boolean
   nextCursor: string | null
-}
-
-/** Raw SQL result shape for lesson FTS queries */
-interface LessonFtsRow {
-  id: string
-  title: string | null
-  day_number: number
-  study_program_id: string
-  program_name: string
-  program_cover_image_url: string | null
-  snippet_text: string | null
-  snippet_field: string | null
 }
 
 /**
@@ -613,182 +602,30 @@ router.get('/', requireAuth, async (req, res) => {
 
       LESSON: async () => {
         const wantLessonLinks = linkTypes.has('LESSON')
-        const c = cursorForType('LESSON')
-
-        // Use PostgreSQL FTS for lesson content search (stemming: "pray" → "prayer")
-        // Searches: lesson.title, activity.title/readContent/helpTitle/helpDescription,
-        //           readBlock.title/content
-        try {
-          const tsQuery = q.trim()
-          const ftsLimit = limit + 1
-
-          // Keyset cursor condition for (dayNumber, id) ordering
-          const cursorCond = c
-            ? Prisma.sql`AND (
-                l."dayNumber" > (SELECT "dayNumber" FROM lessons WHERE id = ${c}::uuid)
-                OR (l."dayNumber" = (SELECT "dayNumber" FROM lessons WHERE id = ${c}::uuid) AND l.id > ${c}::uuid)
-              )`
-            : Prisma.sql``
-
-          // Use a single raw query with conditional snippet generation
-          const rows = wantSnippets
-            ? await prisma.$queryRaw<LessonFtsRow[]>(Prisma.sql`
-              SELECT
-                l.id,
-                l.title,
-                l."dayNumber" as day_number,
-                l."studyProgramId" as study_program_id,
-                sp.name as program_name,
-                sp."coverImageUrl" as program_cover_image_url,
-                ts_headline(
-                  'english',
-                  best.matched_text,
-                  plainto_tsquery('english', ${tsQuery}),
-                  'MaxWords=35, MinWords=15, StartSel=<mark>, StopSel=</mark>'
-                ) as snippet_text,
-                best.snippet_field
-              FROM lessons l
-              JOIN study_programs sp ON sp.id = l."studyProgramId"
-              JOIN LATERAL (
-                SELECT matched_text, snippet_field, ts_rank(to_tsvector('english', matched_text), plainto_tsquery('english', ${tsQuery})) as rank
-                FROM (
-                  SELECT l.title as matched_text, 'lesson.title' as snippet_field
-                  WHERE l.title IS NOT NULL
-                    AND to_tsvector('english', l.title) @@ plainto_tsquery('english', ${tsQuery})
-                  UNION ALL
-                  SELECT la.title, 'activity.title'
-                  FROM lesson_activities la WHERE la."lessonId" = l.id
-                    AND to_tsvector('english', la.title) @@ plainto_tsquery('english', ${tsQuery})
-                  UNION ALL
-                  SELECT la."readContent", 'activity.readContent'
-                  FROM lesson_activities la WHERE la."lessonId" = l.id
-                    AND la."readContent" IS NOT NULL
-                    AND to_tsvector('english', la."readContent") @@ plainto_tsquery('english', ${tsQuery})
-                  UNION ALL
-                  SELECT la."helpTitle", 'activity.helpTitle'
-                  FROM lesson_activities la WHERE la."lessonId" = l.id
-                    AND la."helpTitle" IS NOT NULL
-                    AND to_tsvector('english', la."helpTitle") @@ plainto_tsquery('english', ${tsQuery})
-                  UNION ALL
-                  SELECT la."helpDescription", 'activity.helpDescription'
-                  FROM lesson_activities la WHERE la."lessonId" = l.id
-                    AND la."helpDescription" IS NOT NULL
-                    AND to_tsvector('english', la."helpDescription") @@ plainto_tsquery('english', ${tsQuery})
-                  UNION ALL
-                  SELECT arb.title, 'readBlock.title'
-                  FROM activity_read_blocks arb
-                  JOIN lesson_activities la2 ON la2.id = arb."lessonActivityId"
-                  WHERE la2."lessonId" = l.id
-                    AND arb.title IS NOT NULL
-                    AND to_tsvector('english', arb.title) @@ plainto_tsquery('english', ${tsQuery})
-                  UNION ALL
-                  SELECT arb.content, 'readBlock.content'
-                  FROM activity_read_blocks arb
-                  JOIN lesson_activities la2 ON la2.id = arb."lessonActivityId"
-                  WHERE la2."lessonId" = l.id
-                    AND arb.content IS NOT NULL
-                    AND to_tsvector('english', arb.content) @@ plainto_tsquery('english', ${tsQuery})
-                ) candidates
-                ORDER BY rank DESC
-                LIMIT 1
-              ) best ON true
-              WHERE sp."organizationId" = ${organizationId}
-                AND sp."isActive" = true
-              ${cursorCond}
-              ORDER BY l."dayNumber", l.id
-              LIMIT ${ftsLimit}
-            `)
-            : await prisma.$queryRaw<LessonFtsRow[]>(Prisma.sql`
-              SELECT
-                l.id,
-                l.title,
-                l."dayNumber" as day_number,
-                l."studyProgramId" as study_program_id,
-                sp.name as program_name,
-                sp."coverImageUrl" as program_cover_image_url,
-                NULL::text as snippet_text,
-                NULL::text as snippet_field
-              FROM lessons l
-              JOIN study_programs sp ON sp.id = l."studyProgramId"
-              WHERE sp."organizationId" = ${organizationId}
-                AND sp."isActive" = true
-                AND (
-                  (l.title IS NOT NULL AND to_tsvector('english', l.title) @@ plainto_tsquery('english', ${tsQuery}))
-                  OR EXISTS (
-                    SELECT 1 FROM lesson_activities la WHERE la."lessonId" = l.id AND (
-                      to_tsvector('english', la.title) @@ plainto_tsquery('english', ${tsQuery})
-                      OR (la."readContent" IS NOT NULL AND to_tsvector('english', la."readContent") @@ plainto_tsquery('english', ${tsQuery}))
-                      OR (la."helpTitle" IS NOT NULL AND to_tsvector('english', la."helpTitle") @@ plainto_tsquery('english', ${tsQuery}))
-                      OR (la."helpDescription" IS NOT NULL AND to_tsvector('english', la."helpDescription") @@ plainto_tsquery('english', ${tsQuery}))
-                    )
-                  )
-                  OR EXISTS (
-                    SELECT 1 FROM activity_read_blocks arb
-                    JOIN lesson_activities la2 ON la2.id = arb."lessonActivityId"
-                    WHERE la2."lessonId" = l.id AND (
-                      (arb.title IS NOT NULL AND to_tsvector('english', arb.title) @@ plainto_tsquery('english', ${tsQuery}))
-                      OR (arb.content IS NOT NULL AND to_tsvector('english', arb.content) @@ plainto_tsquery('english', ${tsQuery}))
-                    )
-                  )
-                )
-              ${cursorCond}
-              ORDER BY l."dayNumber", l.id
-              LIMIT ${ftsLimit}
-            `)
-
-          if (rows.length > 0 || c) {
-            const { items, hasMore, nextCursor } = paginateResults(rows)
-            const mapped = (items as LessonFtsRow[]).map((r) => ({
-              id: r.id,
-              title: r.title,
-              dayNumber: r.day_number,
-              studyProgramId: r.study_program_id,
-              studyProgram: { name: r.program_name, coverImageUrl: r.program_cover_image_url },
-              ...(wantSnippets && r.snippet_text
-                ? { snippet: { text: r.snippet_text, field: r.snippet_field } }
-                : {}),
-              ...(wantLessonLinks && {
-                links: [{ type: 'PROGRAM' as const, id: r.study_program_id, name: r.program_name, imageUrl: r.program_cover_image_url }],
-              }),
-            }))
-            return { items: mapped, hasMore, nextCursor }
-          }
-        } catch (ftsError) {
-          // FTS failed (e.g., all stop words) — fall through to ILIKE fallback
-          console.warn('Lesson FTS failed, falling back to ILIKE:', ftsError)
-        }
-
-        // ILIKE fallback: title-only search (same as original behavior)
-        const fallbackCursor = cursorForType('LESSON')
-        const fallbackRows = await prisma.lesson.findMany({
-          where: {
-            studyProgram: { organizationId, isActive: true },
-            AND: wordMatchConditions(words, ['title']),
-          },
-          select: {
-            id: true,
-            title: true,
-            dayNumber: true,
-            studyProgramId: true,
-            studyProgram: { select: { name: true, coverImageUrl: true } },
-          },
-          take: limit + 1,
-          orderBy: { dayNumber: 'asc' },
-          ...(fallbackCursor && { cursor: { id: fallbackCursor }, skip: 1 }),
+        const found = await searchLessons({
+          organizationId: organizationId as string,
+          query: q.trim(),
+          words,
+          limit,
+          cursor: cursorForType('LESSON'),
+          snippets: wantSnippets,
         })
-        const { items: fallbackItems, hasMore: fallbackHasMore, nextCursor: fallbackNextCursor } = paginateResults(fallbackRows)
-        const mapped = (fallbackItems as typeof fallbackRows).map((r) => ({
-          ...r,
+        const items = found.items.map((r) => ({
+          id: r.id,
+          title: r.title,
+          dayNumber: r.position,
+          studyProgramId: r.programId,
+          studyProgram: { name: r.programName, coverImageUrl: r.coverImageUrl },
           ...(wantSnippets && {
-            snippet: generateIlikeSnippet(r as unknown as Record<string, unknown>, [
-              { key: 'title', label: 'lesson.title' },
-            ], words),
+            snippet: found.titleOnly
+              ? generateIlikeSnippet({ title: r.title }, [{ key: 'title', label: 'lesson.title' }], words)
+              : r.snippet,
           }),
-          ...(wantLessonLinks && r.studyProgram && {
-            links: [{ type: 'PROGRAM' as const, id: r.studyProgramId, name: r.studyProgram.name, imageUrl: r.studyProgram.coverImageUrl }],
+          ...(wantLessonLinks && {
+            links: [{ type: 'PROGRAM' as const, id: r.programId, name: r.programName, imageUrl: r.coverImageUrl }],
           }),
         }))
-        return { items: mapped, hasMore: fallbackHasMore, nextCursor: fallbackNextCursor }
+        return { items, hasMore: found.hasMore, nextCursor: found.nextCursor }
       },
     }
 

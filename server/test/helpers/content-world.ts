@@ -80,11 +80,17 @@ export async function createMedia(
   return media
 }
 
-const textDocument = (mediaId: string) => ({
+/** A canvas object holding `text`, the minimum 02 §3 asks of one. */
+export const textObject = (text: string) => ({
+  id: 'o1', text, font: 'sans', weight: 400, size: 24, color: '#FFFFFF', alignment: 'center',
+  transform: { x: 0, y: 0, width: 1, scale: 1, rotation: 0 },
+})
+
+const textDocument = (mediaId: string, text?: string) => ({
   schemaVersion: 1,
   kind: 'text',
   background: { color: '#0E4A4D', image: { mediaId, focal: { x: 0.5, y: 0.5 } } },
-  content: { type: 'canvas', verticalAnchor: 'center', objects: [] },
+  content: { type: 'canvas', verticalAnchor: 'center', objects: text === undefined ? [] : [textObject(text)] },
   actions: [],
   chrome: { topAction: 'none' },
   fallback: { title: 'x', body: 'y' },
@@ -114,10 +120,10 @@ export async function seedActivity(
   })
 }
 
-/** A new lesson in the world's program with one PUBLISHED version (number 1) holding `activities`; `mediaId` puts that image in the document. */
+/** A new lesson in the world's program with one PUBLISHED version (number 1) holding `activities`; `mediaId` puts that image in the document, `text` is the text of its first object. */
 export async function seedPublishedLesson(
   w: ContentWorld,
-  activities: { activityKey: string; mediaId?: string }[],
+  activities: { activityKey: string; mediaId?: string; text?: string }[],
 ): Promise<{ lessonId: string; versionId: string }> {
   const last = await prisma.lesson.aggregate({ where: { programId: w.programId }, _max: { position: true } })
   const lesson = await prisma.lesson.create({ data: { programId: w.programId, position: (last._max.position ?? 0) + 1 } })
@@ -127,7 +133,7 @@ export async function seedPublishedLesson(
   let position = 0
   const created = []
   for (const a of activities) {
-    const doc = textDocument(a.mediaId ?? '')
+    const doc = textDocument(a.mediaId ?? '', a.text)
     if (!a.mediaId) delete (doc.background as any).image
     created.push(await prisma.contentActivity.create({
       data: { lessonVersionId: version.id, activityKey: a.activityKey, position: ++position, kind: 'text', title: 'Text', document: doc },

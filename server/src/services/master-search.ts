@@ -20,7 +20,8 @@ import {
   type RankedParams,
   type SearchType,
 } from './master-search-query.js'
-import { SEARCH_TEXT, SEARCH_TITLE, qualifySearchExpr } from './master-search-text.js'
+import { isSearchedVersion } from './lesson-search.js'
+import { LESSON_SEARCH_TEXT_SQL, SEARCH_TEXT, SEARCH_TITLE, qualifySearchExpr } from './master-search-text.js'
 import { memberAccessScope } from './member-access.js'
 import { normalizePhone } from './member-fields.js'
 import { getUserOrganizations } from './organization.js'
@@ -251,26 +252,25 @@ function programShape(scope: SearchScope): ArmShape {
   }
 }
 
-/** D45: a program's matching lessons, by their title or their text. `"lessonActivityId" IS NOT NULL` keeps scheduled copies out (D16). */
+/**
+ * D45: a program's matching lessons, by their title or their text. Each text predicate sits directly on its table so
+ * the GIN index serves it; the lesson's version is checked after, only for rows that matched (F4).
+ */
 function programLessonRollup(tsq: Prisma.Sql): Prisma.Sql {
-  const lesson = raw(qualifySearchExpr(SEARCH_TEXT.lesson, 'l'))
-  const activity = raw(qualifySearchExpr(SEARCH_TEXT.activity, 'la'))
-  const block = raw(qualifySearchExpr(SEARCH_TEXT.readBlock, 'rb'))
+  const title = raw(qualifySearchExpr(SEARCH_TEXT.lesson, 'v'))
+  const document = raw(qualifySearchExpr(LESSON_SEARCH_TEXT_SQL, 'ca'))
+  const searched = raw(isSearchedVersion('v'))
   return Prisma.sql`LEFT JOIN (
     SELECT t."programId", count(DISTINCT t."lessonId")::int AS "count", bool_or(t."inTitle") AS "inTitle" FROM (
-      SELECT l."studyProgramId"::text AS "programId", l."id"::text AS "lessonId", TRUE AS "inTitle"
-        FROM "lessons" l
-        WHERE ${lesson} @@ ${tsq}
+      SELECT l."programId"::text AS "programId", l."id"::text AS "lessonId", TRUE AS "inTitle"
+        FROM "lesson_versions" v JOIN "lessons" l ON l."id"::text = v."lessonId"::text
+        WHERE ${title} @@ ${tsq} AND v."enrollmentId" IS NULL AND l."deletedAt" IS NULL AND ${searched}
       UNION ALL
-      SELECT l."studyProgramId"::text, l."id"::text, FALSE
-        FROM "lesson_activities" la JOIN "lessons" l ON l."id"::text = la."lessonId"::text
-        WHERE ${activity} @@ ${tsq}
-      UNION ALL
-      SELECT l."studyProgramId"::text, l."id"::text, FALSE
-        FROM "activity_read_blocks" rb
-        JOIN "lesson_activities" la ON la."id"::text = rb."lessonActivityId"::text
-        JOIN "lessons" l ON l."id"::text = la."lessonId"::text
-        WHERE rb."lessonActivityId" IS NOT NULL AND ${block} @@ ${tsq}
+      SELECT l."programId"::text, l."id"::text, FALSE
+        FROM "content_activities" ca
+        JOIN "lesson_versions" v ON v."id"::text = ca."lessonVersionId"::text
+        JOIN "lessons" l ON l."id"::text = v."lessonId"::text
+        WHERE ${document} @@ ${tsq} AND v."enrollmentId" IS NULL AND l."deletedAt" IS NULL AND ${searched}
     ) t GROUP BY t."programId"
   ) ot ON ot."programId" = p."id"::text`
 }
