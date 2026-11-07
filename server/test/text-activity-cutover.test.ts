@@ -61,7 +61,22 @@ describe('cutover drop (live)', () => {
         const bundle = (await runExport(url, out, {})).bundlePath
         await runImport(url, bundle, {})
 
+        // An enrollment with an enrollment-owned version and a schedule on it (RESTRICT against the enrollment cascade).
+        const group = await c.group.create({ data: { name: `G ${stamp}`, code: `g-${stamp}`, creatorId: owner.userId, organizationId: owner.orgId } })
+        const enrollment = await c.enrollment.create({
+          data: { groupId: group.id, studyProgramId: dump.programId, startDate: new Date(), endDate: new Date(), enabledDays: '[]' },
+        })
+        const enrolledVersion = await c.lessonVersion.create({
+          data: { lessonId: dump.lessonId, enrollmentId: enrollment.id, number: 1, status: 'PUBLISHED', title: 'Customized' },
+        })
+        await c.scheduledLesson.create({
+          data: { enrollmentId: enrollment.id, lessonId: dump.lessonId, currentVersionId: enrolledVersion.id, scheduledDate: new Date() },
+        })
+
         await pg.query(readCutover())
+        expect(await c.enrollment.count()).toBe(0)
+        expect(await c.scheduledLesson.count()).toBe(0)
+        expect(await c.lessonVersion.count({ where: { enrollmentId: { not: null } } })).toBe(0)
 
         expect(await c.contentActivity.count()).toBeGreaterThan(0)
         expect(await c.lesson.count()).toBe(1)

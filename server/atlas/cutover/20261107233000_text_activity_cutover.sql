@@ -10,6 +10,8 @@ DELETE FROM "client_events" WHERE "lessonScheduleId" IS NOT NULL OR "scheduledAc
 
 -- D13: derived summaries and members' enrollments are not carried
 DELETE FROM "ai_lesson_summaries" WHERE "scheduledLessonId" IS NULL;
+-- scheduled_lessons.currentVersionId is RESTRICT while lesson_versions.enrollmentId cascades from enrollments: the schedule goes first
+DELETE FROM "scheduled_lessons";
 DELETE FROM "enrollments";
 
 -- Never imported (no program): nothing can own them

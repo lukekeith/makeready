@@ -27,7 +27,7 @@ drops the 13 replaced tables and the old columns, and makes `Lesson.programId` a
    `DATABASE_URL=<scratch url> npx tsx scripts/content-export.ts --out ~/cutover/run1`.
 4. **Read the report** at `~/cutover/run1/report.md`: counts by program, old type and new kind, everything converted
    with loss, unresolved media references. Spot-check three converted programs in the iPhone viewer (SPEC
-   verification item 9). Rehearse the import against a second scratch restore if you want to see conflicts:
+   verification item 9). To rehearse the import, restore the dump into a second scratch database and run `atlas migrate apply` on it first (a plain dump has none of the additive tables), then:
    `DATABASE_URL=<scratch url> npx tsx scripts/content-import.ts --bundle ~/cutover/run1/bundle.json`.
 5. **Deploy this branch.** The additive migrations (new tables and nullable columns) run at boot. The old tables
    still exist and the old data is untouched.

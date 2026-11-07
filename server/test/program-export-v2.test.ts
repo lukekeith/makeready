@@ -116,4 +116,33 @@ describe('program export file, version 2', () => {
     const r = await request(app).post(`/api/programs/${w.programId}/export`).set('Authorization', bearer(w.outsider.token))
     expect(r.status).toBe(404)
   })
+
+  it('export-preview counts the exported version by the 1.0 keys, and is 404 for another organization', async () => {
+    const program = await prisma.studyProgram.create({
+      data: { name: 'Preview program', days: 1, creatorId: w.leader.userId, organizationId: w.orgId },
+    })
+    const lesson = await prisma.lesson.create({ data: { programId: program.id, position: 1 } })
+    const draft = await prisma.lessonVersion.create({ data: { lessonId: lesson.id, number: 1, status: 'DRAFT', title: 'Day 1' } })
+    importedProgramIds.push(program.id)
+    const make = (key: string, position: number, kind: string, document: Record<string, unknown>) =>
+      prisma.contentActivity.create({ data: { lessonVersionId: draft.id, activityKey: key, position, kind, title: key, document: document as any } })
+    await make('pv-text', 90, 'text', doc('t', { content: { type: 'canvas', verticalAnchor: 'center', objects: [{}, {}] } }))
+    await make('pv-bible', 91, 'bible', { passages: [{ ref: 'a' }, { ref: 'b' }, { ref: 'c' }] })
+    await make('pv-video', 92, 'video', {})
+    await make('pv-write', 93, 'write', {})
+
+    const ok = await request(app).get(`/api/programs/${program.id}/export-preview`).set('Authorization', bearer(w.leader.token))
+    expect(ok.status).toBe(200)
+    expect(ok.body.preview.counts).toMatchObject({
+      lessons: 1,
+      activities: 4,
+      activityTypes: { READ: 2, VIDEO: 1, USER_INPUT: 1 },
+      videos: 1,
+      scriptureReferences: 3,
+      readBlocks: 2,
+    })
+
+    const other = await request(app).get(`/api/programs/${program.id}/export-preview`).set('Authorization', bearer(w.outsider.token))
+    expect(other.status).toBe(404)
+  })
 })
