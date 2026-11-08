@@ -35,6 +35,7 @@
 | 5 | iphone | 20–23 | d2m has the editor changes; models, `AppState`, Actions and the disk cache run on the frozen contract |
 | 6 | iphone | 24–25 | The Text tile creates, the editor opens from every entry point, edits round-trip through Done, and the background image picks from the library |
 | 7 | iphone | 26–27 | The viewer engine passes the shared vectors and the full-screen viewer plays a lesson's draft from the editor |
+| 8 | server | 28 | The media map resolves a document's `videoId` (D47) — the contract re-freezes |
 
 ---
 
@@ -2120,7 +2121,7 @@ Recipe: `/transition-review` before commit · `/ios-error-surface` · SPEC §iph
 - one `UIPanGestureRecognizer` and a `CADisplayLink` drive `ViewerEngine`; layer transforms render positions (D10)
 - the active page and one neighbour each side are mounted (§iphone "Viewer")
 - unknown kinds and malformed documents take a page and show `fallback` (D11)
-- video: autoplay when active, pause when the midline is crossed away, position kept per page (01 §9); presenter row = the document's `presenter`, else the video's `uploaderName`, no Follow button (§Contract)
+- video: autoplay when active, pause when the midline is crossed away, position kept per page (01 §9); presenter row = the document's `presenter`, else the video's `uploaderName`, no Follow button (§Contract); the video's entry is `media[content.videoId]` (D47)
 - YouTube: `WKWebView` navigation allowed only to `https://www.youtube.com/embed/…` and `https://www.youtube-nocookie.com/embed/…`; paused at the midline through the IFrame API (D24)
 - rail: bottom right, indicator only, touches pass through; fades 1.5 s after settling on a playing video over 0.3 s, fades in over 0.1 s on movement (D12, 01 §8)
 - action sheets open with Save disabled and a "Preview" label; `write` pages show a disabled field labelled "Preview"; no progress is written (D9, D25)
@@ -2181,3 +2182,51 @@ func testYouTubeHostAllowsOnlyTheEmbedPlayer() {
 - [ ] **Step 3: Implement the mapper, the two hosts and the container to the Behaviour; route the shell case**
 - [ ] **Step 4: Run `/transition-review` on the diff, the same verifier request and `cd iphone && swiftlint`, watch them pass**
 - [ ] **Step 5: Commit** — `feat(text-activity): full-screen lesson viewer on the engine, with video and YouTube`
+
+### Task 28: Video entries keyed by videoId in the media map
+App: server
+Phase: 8
+Recipe: `/api` · SPEC D47, §Contract `MediaMap`
+
+**Files:**
+- Modify: `server/src/services/content-media.service.ts` — `buildMediaMap` also writes a video-linked row's entry under `Media.videoId`
+- Test: `server/test/content-media.test.ts`
+
+**Interfaces:**
+- Produces: `buildMediaMap(tx, documents)` — unchanged signature; the returned `MediaMap` additionally holds, for every row with a non-null `videoId`, the same entry under that `videoId` key (D47)
+- Consumes: nothing new
+
+**Behaviour:**
+- every media row the documents name keeps its `Media.id` key exactly as today (§Contract `MediaMap`)
+- a row with `Media.videoId` set is also written under `map[videoId]`, the identical entry (D47); this covers every response carrying a `MediaMap` (`GET /draft`, `GET /api/lesson-versions/:id`, `GET /api/programs/:id`, activity writes) because they all build it here
+- a row without `videoId` gets no second key
+
+**Tests:**
+- `the media map also keys a video entry by its videoId` (D47)
+
+```ts
+it('the media map also keys a video entry by its videoId', async () => {
+  const vid = randomUUID()
+  const m = await createMedia(w.orgId, { videoId: vid })
+  const doc = { ...EXAMPLE_TEXT, kind: 'video', content: { type: 'video', videoId: vid } }
+  const map = await prisma.$transaction(tx => buildMediaMap(tx, [doc]))
+  expect(map[vid]).toEqual(map[m.id])
+  expect(map[vid]).toMatchObject({ kind: 'video', playbackUrl: `https://stream.test/${vid}.m3u8` })
+})
+```
+
+- `an image entry gets no second key` (D47)
+
+```ts
+it('an image entry gets no second key', async () => {
+  const m = await createMedia(w.orgId)
+  const map = await prisma.$transaction(tx => buildMediaMap(tx, [withImage(EXAMPLE_TEXT, m.id)]))
+  expect(Object.keys(map)).toEqual([m.id])
+})
+```
+
+- [ ] **Step 1: Write the listed tests**
+- [ ] **Step 2: Request a focused verifier run and watch the first fail** — `node <builder>/scripts/verify/verify.mjs request "$(git rev-parse --show-toplevel)" HEAD --tier commit --tree`, then `verify.mjs wait <id>`
+- [ ] **Step 3: Implement — after `map[m.id] = entry`, `if (m.videoId) map[m.videoId] = entry`**
+- [ ] **Step 4: The same verifier request, watch them pass**
+- [ ] **Step 5: Commit** — `fix(text-activity): the media map resolves a document's videoId`

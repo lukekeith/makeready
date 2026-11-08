@@ -141,6 +141,7 @@ GIN indexes and the server's boot command read them too.
 | D44 | iPhone disk cache | `PersistedState.schemaVersion` goes to 2, and a cache whose version differs is discarded at launch. Rejected: lenient decode of old keys (shows stale content) | auto (recommended) 2026-11-07 |
 | D45 | Legacy iPhone files | The old-model files under `iphone/MakeReady/Pages/` and `Components/` that no target compiles stay untouched. Compiled files are retyped or deleted per §iphone. Rejected: deleting the uncompiled files (churn with no effect on the build) | auto (recommended) 2026-11-07 |
 | D46 | Editor save conflict | When Done gets 409 `NOT_DRAFT` (another leader published), the container refetches `GET /draft`, maps the activity by `activityKey`, and re-PUTs once. A second failure shows "Couldn't save activity" with Retry and Discard changes | auto (recommended) 2026-11-07 |
+| D47 | Video entries in the MediaMap | `buildMediaMap` writes every media row linked to a `Video` under its `Media.id` AND under its `Media.videoId` (the same entry), so a client resolves a document's `content.videoId` as `media[videoId]` for `playbackUrl`, `posterUrl`, `durationSeconds` and the presenter fallback `uploaderName`. Additive: every existing `mediaId` key stays. Why: documents name videos by `videoId` (02 §2) but the frozen shape keyed entries only by media id, which a client cannot derive — found building the viewer (Task 27). Rejected: a `videoId` field on each entry (every client would scan the map) | agent ruling 2026-11-08 (/builder:revise, contract reopened) |
 
 ## Contract
 
@@ -172,6 +173,7 @@ ContentActivity { id, lessonVersionId, activityKey, position, kind, title, docum
 ActivitySummary { id, activityKey, position, kind, title, document }   // document feeds D26's rail slides
 LessonVersion   { id, lessonId, enrollmentId, number, status: 'DRAFT'|'PUBLISHED', title, estimatedSeconds, publishedAt }
 MediaMap        { [mediaId]: { url, width?, height?, kind: 'image'|'video', playbackUrl?, posterUrl?, durationSeconds?, uploaderName? } }
+// D47: a media row linked to a Video is ALSO keyed by its videoId (same entry), so a document's videoId resolves as media[videoId]
 ```
 
 `document` is `02-content-schema.md` §2. Server writes validate strictly; unknown fields are preserved,
@@ -409,3 +411,4 @@ The plan, task by task: `docs/features/text-activity/PLAN.md` (§PLAN.md).
 - Phase 6 · Task 25 · The editor container — load, edit buffer, Done, conflicts, back-out
 - Phase 7 · Task 26 · The viewer engine and the shared vectors
 - Phase 7 · Task 27 · The viewer container — load, drive, video and YouTube slots
+- Phase 8 · Task 28 · Video entries keyed by videoId in the media map
