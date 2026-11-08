@@ -1,7 +1,7 @@
 size: lg
 state: built
-next: /builder:agent-walk --path docs/features/text-activity
-head: 60699ac9
+next: /builder:resume --path docs/features/text-activity
+head: 2d45c6c0
 ticket: none
 branch: builder/text-activity
 pr: none

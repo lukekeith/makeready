@@ -412,3 +412,11 @@ The plan, task by task: `docs/features/text-activity/PLAN.md` (§PLAN.md).
 - Phase 7 · Task 26 · The viewer engine and the shared vectors
 - Phase 7 · Task 27 · The viewer container — load, drive, video and YouTube slots
 - Phase 8 · Task 28 · Video entries keyed by videoId in the media map
+
+## Fixes
+
+- [ ] iphone: Editor keyboard (item 7) — expected the bottom tool row to ride above the keyboard while editing text, so colour, font/weight, alignment, Background and Actions stay reachable and the keyboard can be dismissed; saw the tool row stay behind the keyboard (still hidden 3 s after it settled) and no way to dismiss it (agent walk round 1)
+- [ ] iphone: Next lesson action (item 10) — expected to add an inline "Next lesson" action from the Actions tool and save on Done; saw the Actions tool unreachable under the keyboard (blocked by the item 7 defect; the server accepts and saves the nextLesson shape, 200) (agent walk round 1)
+- [ ] iphone: Add → Text on a lesson whose draft was never opened on the device (E1) — expected the editor to open on the new activity; saw "Couldn't load this activity." and a pop back, leaving an empty orphan activity on the server, on two fresh launches in a row; it works once any activity in that lesson was opened first (suspect: the program read already carries the draft id so the draft is never loaded — ActivitiesEditorContainer.swift:205-228, AppState.swift:673 early return) (agent walk round 1)
+- [ ] iphone: Viewer swipe (E1) — expected a vertical swipe to page through every kind in Play; saw the page never change from page 8 or page 1 across 21 fast swipes and slow/fast held drags, while taps still reach the viewer (agent walk round 1)
+- [ ] iphone: Viewer Close (E1) — expected Close to dismiss the viewer; saw Close and Share drawn over the status bar and a tap on Close doing nothing (suspect: safe-area insets read inside an ignoresSafeArea view, resolving to 0) (agent walk round 1)
