@@ -10,8 +10,10 @@ import { prisma } from '../lib/prisma.js'
 import { isValidTimezone, localDate, todayInTimezone } from '../utils/timezone.js'
 import { DRAFT_SELECT, toDraftWire, type DraftWire } from './enrollment-draft.service.js'
 import { enrollmentManageFilter, getManageableOrgIds, isSuperAdmin } from './permission.js'
-import { filterActivitiesToVersion } from './lesson-version-resolution.js'
-import { activityThumbnailUrl } from './next-study-thumbnail.js'
+
+import { buildMediaMap } from './content-media.service.js'
+import { lessonMinutes } from './enrollment-lessons.js'
+import { thumbnailFromDocument } from './next-study-thumbnail.js'
 
 export const FEED_STATUSES = ['active', 'upcoming', 'completed', 'draft', 'all'] as const
 export type FeedStatus = (typeof FEED_STATUSES)[number]
@@ -116,17 +118,18 @@ interface ScheduleTotals {
   scheduleCount: number
 }
 
-/** D12: Σ estimatedMinutes (null = 0) and the count of non-removed schedules, per enrollment. */
+/** D12: Σ lesson minutes (null = 0; each lesson's version `estimatedSeconds` rounded up) and the count of non-removed schedules, per enrollment. */
 async function scheduleTotals(ids: string[]): Promise<Map<string, ScheduleTotals>> {
   if (ids.length === 0) return new Map()
   const rows = await prisma.$queryRawUnsafe<{ enrollmentId: string; plannedMinutes: number; scheduleCount: number }[]>(
-    `SELECT ls."enrollmentId"::text AS "enrollmentId",
-            COALESCE(SUM(ls."estimatedMinutes"), 0)::int AS "plannedMinutes",
+    `SELECT sl."enrollmentId"::text AS "enrollmentId",
+            COALESCE(SUM(CEIL(lv."estimatedSeconds" / 60.0)), 0)::int AS "plannedMinutes",
             COUNT(*)::int AS "scheduleCount"
-       FROM lesson_schedules ls
-      WHERE ls."enrollmentId"::text = ANY($1::text[])
-        AND ls."removedAt" IS NULL
-      GROUP BY ls."enrollmentId"`,
+       FROM scheduled_lessons sl
+       JOIN lesson_versions lv ON lv.id::text = sl."currentVersionId"::text
+      WHERE sl."enrollmentId"::text = ANY($1::text[])
+        AND sl."removedAt" IS NULL
+      GROUP BY sl."enrollmentId"`,
     ids,
   )
   return new Map(rows.map((r) => [r.enrollmentId, { plannedMinutes: r.plannedMinutes, scheduleCount: r.scheduleCount }]))
@@ -147,43 +150,39 @@ async function activeMemberCounts(ids: string[]): Promise<Map<string, number>> {
   return new Map(rows.map((r) => [r.enrollmentId, r.memberCount]))
 }
 
-/** D16: per enrollment, each ACTIVE member's count of completed non-removed lessons (not version-filtered). */
+/** D16: per enrollment, each ACTIVE member's count of completed non-removed lessons. */
 async function memberCompletions(ids: string[]): Promise<Map<string, number[]>> {
   const out = new Map<string, number[]>()
   if (ids.length === 0) return out
   const rows = await prisma.$queryRawUnsafe<{ enrollmentId: string; completed: number }[]>(
-    `SELECT ls."enrollmentId"::text AS "enrollmentId", COUNT(DISTINCT ls.id)::int AS "completed"
-       FROM lesson_schedules ls
-       JOIN enrollments e ON e.id = ls."enrollmentId"
-       JOIN member_lesson_progress mlp
-         ON mlp."lessonScheduleId" = ls.id AND mlp."completedAt" IS NOT NULL
+    `SELECT sl."enrollmentId"::text AS "enrollmentId", COUNT(DISTINCT sl.id)::int AS "completed"
+       FROM scheduled_lessons sl
+       JOIN enrollments e ON e.id = sl."enrollmentId"
+       JOIN lesson_progress lp
+         ON lp."scheduledLessonId" = sl.id AND lp."completedAt" IS NOT NULL
        JOIN group_members gm
-         ON gm."groupId" = e."groupId" AND gm."memberId" = mlp."memberId" AND gm."isActive" = true
-      WHERE ls."enrollmentId"::text = ANY($1::text[])
-        AND ls."removedAt" IS NULL
-      GROUP BY ls."enrollmentId", mlp."memberId"`,
+         ON gm."groupId" = e."groupId" AND gm."memberId" = lp."memberId" AND gm."isActive" = true
+      WHERE sl."enrollmentId"::text = ANY($1::text[])
+        AND sl."removedAt" IS NULL
+      GROUP BY sl."enrollmentId", lp."memberId"`,
     ids,
   )
   for (const r of rows) out.set(r.enrollmentId, [...(out.get(r.enrollmentId) ?? []), r.completed])
   return out
 }
 
-/** D17: the latest member progress touch on any of an enrollment's schedules. */
+/** D17: the latest member progress touch (a lesson or an activity started or completed) on any of an enrollment's schedules. */
 async function latestProgress(ids: string[]): Promise<Map<string, Date>> {
   if (ids.length === 0) return new Map()
   const rows = await prisma.$queryRawUnsafe<{ enrollmentId: string; lastAt: Date }[]>(
     `SELECT x."enrollmentId", MAX(x.at) AS "lastAt" FROM (
-       SELECT ls."enrollmentId"::text AS "enrollmentId", MAX(p."lastUpdatedAt") AS at
-         FROM lesson_schedules ls JOIN member_lesson_progress p ON p."lessonScheduleId" = ls.id
-        WHERE ls."enrollmentId"::text = ANY($1::text[]) GROUP BY ls."enrollmentId"
+       SELECT sl."enrollmentId"::text AS "enrollmentId", MAX(GREATEST(p."startedAt", COALESCE(p."completedAt", p."startedAt"))) AS at
+         FROM scheduled_lessons sl JOIN lesson_progress p ON p."scheduledLessonId" = sl.id
+        WHERE sl."enrollmentId"::text = ANY($1::text[]) GROUP BY sl."enrollmentId"
        UNION ALL
-       SELECT ls."enrollmentId"::text, MAX(p."lastUpdatedAt")
-         FROM lesson_schedules ls JOIN member_activity_progress p ON p."lessonScheduleId" = ls.id
-        WHERE ls."enrollmentId"::text = ANY($1::text[]) GROUP BY ls."enrollmentId"
-       UNION ALL
-       SELECT ls."enrollmentId"::text, MAX(p."lastWatchedAt")
-         FROM lesson_schedules ls JOIN member_video_progress p ON p."lessonScheduleId" = ls.id
-        WHERE ls."enrollmentId"::text = ANY($1::text[]) GROUP BY ls."enrollmentId"
+       SELECT sl."enrollmentId"::text, MAX(GREATEST(p."startedAt", COALESCE(p."completedAt", p."startedAt")))
+         FROM scheduled_lessons sl JOIN activity_progress p ON p."scheduledLessonId" = sl.id
+        WHERE sl."enrollmentId"::text = ANY($1::text[]) GROUP BY sl."enrollmentId"
      ) x GROUP BY x."enrollmentId"`,
     ids,
   )
@@ -353,30 +352,17 @@ export async function getEnrollmentHome(userId: string, enrollmentId: string): P
         select: { id: true, name: true, description: true, coverImageUrl: true, creator: { select: { name: true } } },
       },
       group: { select: { id: true, name: true, creator: { select: { id: true, name: true } } } },
-      lessonSchedules: {
+      scheduledLessons: {
         where: { removedAt: null },
         orderBy: [{ scheduledDate: 'asc' }, { id: 'asc' }],
         select: {
           id: true,
-          title: true,
           scheduledDate: true,
-          estimatedMinutes: true,
-          currentVersionId: true,
-          scheduledActivities: {
-            orderBy: { orderNumber: 'asc' },
+          currentVersion: {
             select: {
-              id: true,
-              type: true,
               title: true,
-              versionId: true,
-              youtubeThumbnailUrl: true,
-              video: { select: { thumbnailUrl: true } },
-              readBlocks: {
-                where: { backgroundImageUrl: { not: null } },
-                orderBy: { orderNumber: 'asc' },
-                take: 1,
-                select: { backgroundImageUrl: true },
-              },
+              estimatedSeconds: true,
+              activities: { orderBy: { position: 'asc' }, select: { id: true, kind: true, title: true, document: true } },
             },
           },
         },
@@ -385,7 +371,8 @@ export async function getEnrollmentHome(userId: string, enrollmentId: string): P
   })
   if (!enrollment) return null
   const tz = enrollment.timezone ?? 'UTC'
-  const schedules = enrollment.lessonSchedules
+  const schedules = enrollment.scheduledLessons
+  const media = await buildMediaMap(prisma, schedules.flatMap((s) => s.currentVersion.activities.map((a) => a.document)))
 
   // D16 / F5: active members only.
   const active = await prisma.groupMember.findMany({
@@ -396,11 +383,11 @@ export async function getEnrollmentHome(userId: string, enrollmentId: string): P
   const memberCount = activeIds.length
   const completers = new Map<string, Set<string>>(schedules.map((s) => [s.id, new Set<string>()]))
   if (memberCount > 0 && schedules.length > 0) {
-    const rows = await prisma.memberLessonProgress.findMany({
-      where: { lessonScheduleId: { in: schedules.map((s) => s.id) }, memberId: { in: activeIds }, completedAt: { not: null } },
-      select: { memberId: true, lessonScheduleId: true },
+    const rows = await prisma.lessonProgress.findMany({
+      where: { scheduledLessonId: { in: schedules.map((s) => s.id) }, memberId: { in: activeIds }, completedAt: { not: null } },
+      select: { memberId: true, scheduledLessonId: true },
     })
-    for (const r of rows) completers.get(r.lessonScheduleId)?.add(r.memberId)
+    for (const r of rows) completers.get(r.scheduledLessonId)?.add(r.memberId)
   }
 
   const byDate = new Map<string, typeof schedules>()
@@ -415,21 +402,21 @@ export async function getEnrollmentHome(userId: string, enrollmentId: string): P
       date,
       percent: memberCount === 0 ? 0 : Math.round((100 * everyOne) / memberCount),
       lessonCount: onDate.length,
-      plannedMinutes: onDate.reduce((sum, s) => sum + (s.estimatedMinutes ?? 0), 0),
+      plannedMinutes: onDate.reduce((sum, s) => sum + (lessonMinutes(s.currentVersion.estimatedSeconds) ?? 0), 0),
     }
   })
 
   const lessons: HomeLesson[] = schedules.map((s, index) => ({
     scheduleId: s.id,
     dayNumber: index + 1,
-    title: s.title ?? '',
+    title: s.currentVersion.title ?? '',
     date: localDate(s.scheduledDate, tz),
     progress: memberCount === 0 ? null : (completers.get(s.id)?.size ?? 0) / memberCount,
-    activities: filterActivitiesToVersion(s.scheduledActivities, s.currentVersionId).map((a) => ({
+    activities: s.currentVersion.activities.map((a) => ({
       id: a.id,
-      type: a.type,
+      type: a.kind,
       title: a.title,
-      thumbnailUrl: activityThumbnailUrl({ type: a.type, youtubeThumbnailUrl: a.youtubeThumbnailUrl, video: a.video, readBlocks: a.readBlocks }),
+      thumbnailUrl: thumbnailFromDocument(a.document, media),
     })),
   }))
 

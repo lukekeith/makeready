@@ -8,6 +8,8 @@
  */
 import { FIXTURE_TZ, FixtureError, type ScenarioFn, addDays, weekdayOf } from './context.js'
 import { seedImages } from './images.js'
+import { textDocument, textObject, videoDocument, writeDocument } from './activity-documents.js'
+import { type ScheduleSeed, publishProgramVersion, scheduleLessons } from './lesson-content.js'
 import {
   FIXTURE_EMPTY_GROUP_ID,
   FIXTURE_ENROLLMENT_IDS,
@@ -111,6 +113,10 @@ export function lessonOffsets(
 export const lessonId = (programIndex: number, day: number) => fixtureId('lesson', programIndex * 1000 + day)
 export const activityId = (programIndex: number, day: number, order: number) =>
   fixtureId('activity', (programIndex * 1000 + day) * 10 + order)
+export const lessonVersionId = (programIndex: number, day: number) => fixtureId('lessonVersion', programIndex * 1000 + day)
+export const programVersionId = (programIndex: number) => fixtureId('programVersion', programIndex)
+/** The key of a base lesson's video activity (analytics recognises a watched video through it). */
+export const videoActivityKey = (programIndex: number, day: number) => activityId(programIndex, day, 2)
 export const scheduleId = (enrollmentIndex: number, day: number) => fixtureId('schedule', enrollmentIndex * 1000 + day)
 
 const dayNumbers = (n: number) => Array.from({ length: n }, (_, i) => i + 1)
@@ -258,54 +264,58 @@ export const seedBase: ScenarioFn = async (ctx) => {
     })),
   })
   await prisma.lesson.createMany({
-    data: PROGRAMS.flatMap((p) =>
-      dayNumbers(p.days).map((day) => ({
-        id: lessonId(p.index, day),
-        studyProgramId: p.id,
-        dayNumber: day,
+    data: PROGRAMS.flatMap((p) => dayNumbers(p.days).map((day) => ({ id: lessonId(p.index, day), programId: p.id, position: day }))),
+  })
+  // Each lesson: one published version with a text page, a 20-minute video and a write prompt; each program: version 1.
+  for (const p of PROGRAMS) {
+    await publishProgramVersion(ctx, {
+      programId: p.id,
+      programVersionId: programVersionId(p.index),
+      publishedAt: ctx.daysAgo(70),
+      versions: dayNumbers(p.days).map((day) => ({
+        id: lessonVersionId(p.index, day),
+        lessonId: lessonId(p.index, day),
+        number: 1,
         title: `Day ${day}`,
-        estimatedMinutes: 25,
-      }))
-    ),
-  })
-  await prisma.lessonActivity.createMany({
-    data: PROGRAMS.flatMap((p) =>
-      dayNumbers(p.days).flatMap((day) => [
-        {
-          id: activityId(p.index, day, 1),
-          lessonId: lessonId(p.index, day),
-          activityType: 'READ' as const,
-          orderNumber: 1,
-          title: 'Read',
-          referenceTitle: `John ${day}`,
-          readContent: `Read John ${day} slowly, twice.`,
-        },
-        {
-          id: activityId(p.index, day, 2),
-          lessonId: lessonId(p.index, day),
-          activityType: 'VIDEO' as const,
-          orderNumber: 2,
-          title: 'Watch',
-          estimatedSeconds: VIDEO_SECONDS,
-        },
-        {
-          id: activityId(p.index, day, 3),
-          lessonId: lessonId(p.index, day),
-          activityType: 'USER_INPUT' as const,
-          orderNumber: 3,
-          title: 'Reflect',
-          placeholder: 'What stood out to you today?',
-        },
-      ])
-    ),
-  })
+        estimatedSeconds: 1500,
+        activities: [
+          {
+            id: fixtureId('contentActivity', (p.index * 1000 + day) * 10 + 1),
+            activityKey: activityId(p.index, day, 1),
+            kind: 'text',
+            title: 'Read',
+            document: textDocument([textObject({ id: 'o1', role: 'body', text: `Read John ${day} slowly, twice.` })]),
+          },
+          {
+            id: fixtureId('contentActivity', (p.index * 1000 + day) * 10 + 2),
+            activityKey: videoActivityKey(p.index, day),
+            kind: 'video',
+            title: 'Watch',
+            document: videoDocument(fixtureId('video', 1)),
+            estimatedSeconds: VIDEO_SECONDS,
+          },
+          {
+            id: fixtureId('contentActivity', (p.index * 1000 + day) * 10 + 3),
+            activityKey: activityId(p.index, day, 3),
+            kind: 'write',
+            title: 'Reflect',
+            document: writeDocument('What stood out to you today?'),
+          },
+        ],
+      })),
+    })
+  }
   created.programs = await prisma.studyProgram.findMany({ where: { organizationId: FIXTURE_ORG_ID }, orderBy: { id: 'asc' } })
   created.lessons = await prisma.lesson.findMany({
-    where: { studyProgramId: { in: PROGRAMS.map((p) => p.id) } },
+    where: { programId: { in: PROGRAMS.map((p) => p.id) } },
     orderBy: { id: 'asc' },
   })
-  created.activities = await prisma.lessonActivity.findMany({
+  created.lessonVersions = await prisma.lessonVersion.findMany({
     where: { lessonId: { in: created.lessons.map((l) => l.id) } },
+    orderBy: { id: 'asc' },
+  })
+  created.activities = await prisma.contentActivity.findMany({
+    where: { lessonVersionId: { in: created.lessonVersions.map((v) => v.id) } },
     orderBy: { id: 'asc' },
   })
 
@@ -329,22 +339,24 @@ export const seedBase: ScenarioFn = async (ctx) => {
       }
     }),
   })
-  await prisma.lessonSchedule.createMany({
-    data: ENROLLMENT_PLAN.flatMap((e) => {
-      const p = PROGRAM_BY_KEY[e.program]
-      const offsets = offsetsOf(e)
-      return dayNumbers(p.days).map((day) => ({
-        id: scheduleId(e.index, day),
-        enrollmentId: FIXTURE_ENROLLMENT_IDS[e.index - 1],
-        lessonId: lessonId(p.index, day),
-        scheduledDate: ctx.at(offsets[day - 1], 12),
-        title: `Day ${day}`,
-        estimatedMinutes: 25,
-      }))
-    }),
-  })
+  for (const e of ENROLLMENT_PLAN) {
+    const p = PROGRAM_BY_KEY[e.program]
+    const offsets = offsetsOf(e)
+    await scheduleLessons(ctx, {
+      enrollmentId: FIXTURE_ENROLLMENT_IDS[e.index - 1],
+      programVersionId: programVersionId(p.index),
+      schedules: dayNumbers(p.days).map(
+        (day): ScheduleSeed => ({
+          id: scheduleId(e.index, day),
+          lessonId: lessonId(p.index, day),
+          currentVersionId: lessonVersionId(p.index, day),
+          scheduledDate: ctx.at(offsets[day - 1], 12),
+        })
+      ),
+    })
+  }
   created.enrollments = await prisma.enrollment.findMany({ where: { id: { in: FIXTURE_ENROLLMENT_IDS } }, orderBy: { id: 'asc' } })
-  created.schedules = await prisma.lessonSchedule.findMany({
+  created.schedules = await prisma.scheduledLesson.findMany({
     where: { enrollmentId: { in: FIXTURE_ENROLLMENT_IDS } },
     orderBy: { id: 'asc' },
   })

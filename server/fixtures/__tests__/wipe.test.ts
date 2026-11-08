@@ -25,6 +25,7 @@ describe('wipeFixtures (D7)', () => {
       member: model('member'),
       group: model('group'),
       studyProgram: model('studyProgram'),
+      programVersionLesson: model('programVersionLesson'),
       lessonTemplate: model('lessonTemplate'),
       user: model('user'),
     } as unknown as WipeClient
@@ -38,6 +39,7 @@ describe('wipeFixtures (D7)', () => {
       },
       { model: 'member', args: { where: { id: { in: FIXTURE_MEMBER_IDS } } } },
       { model: 'group', args: { where: { organizationId: FIXTURE_ORG_ID } } },
+      { model: 'programVersionLesson', args: { where: { programVersion: { program: { organizationId: FIXTURE_ORG_ID } } } } },
       { model: 'studyProgram', args: { where: { organizationId: FIXTURE_ORG_ID } } },
       { model: 'lessonTemplate', args: { where: { organizationId: FIXTURE_ORG_ID } } },
       { model: 'user', args: { where: { id: { in: [FIXTURE_USER_ID, FIXTURE_LEADER_USER_ID, FIXTURE_ORG2_OWNER_USER_ID] } } } },

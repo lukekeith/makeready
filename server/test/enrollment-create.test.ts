@@ -8,6 +8,7 @@ import request from 'supertest'
 import { app } from '../src/index.js'
 import { prisma } from '../src/lib/prisma.js'
 import { createUserWithApiKey, bearer, type TestUserWithToken } from './helpers/api-auth.js'
+import { createSimpleProgram, destroySimplePrograms } from './helpers/published-program.js'
 import { todayInTimezone } from '../src/utils/timezone.js'
 
 const TZ = 'America/Chicago'
@@ -44,13 +45,8 @@ describe('POST /api/enrollments (ui2-enrollment-create)', () => {
     emptyGroupId = (await prisma.group.create({ data: { name: `EC Empty ${stamp}`, code: `ece-${stamp}`, creatorId: owner.userId, organizationId: orgId } })).id
     memberId = (await prisma.member.create({ data: { firstName: 'Ann', lastName: 'Lee', phoneNumber: `+1555${String(stamp).slice(-7)}` } })).id
     await prisma.groupMember.create({ data: { groupId, memberId, isActive: true } })
-    const mkProgram = async (org: string, creator: string, name: string) => {
-      const p = await prisma.studyProgram.create({
-        data: { name, days: 3, creatorId: creator, organizationId: org, isPublished: true, publishedAt: new Date() },
-      })
-      for (const day of [1, 2, 3]) await prisma.lesson.create({ data: { studyProgramId: p.id, dayNumber: day } })
-      return p.id
-    }
+    const mkProgram = async (org: string, creator: string, name: string) =>
+      (await createSimpleProgram({ name, creatorId: creator, organizationId: org, titles: ['Day 1', 'Day 2', 'Day 3'] })).programId
     programId = await mkProgram(orgId, owner.userId, `EC Program ${stamp}`)
     foreignProgramId = await mkProgram(otherOrgId, stranger.userId, `EC Foreign ${stamp}`)
   })
@@ -65,8 +61,7 @@ describe('POST /api/enrollments (ui2-enrollment-create)', () => {
     await prisma.enrollment.deleteMany({ where: { group: { organizationId: { in: orgs } } } })
     await prisma.groupMember.deleteMany({ where: { memberId } })
     await prisma.member.deleteMany({ where: { id: memberId } })
-    await prisma.lesson.deleteMany({ where: { studyProgram: { organizationId: { in: orgs } } } })
-    await prisma.studyProgram.deleteMany({ where: { organizationId: { in: orgs } } })
+    await destroySimplePrograms([programId, foreignProgramId])
     await prisma.group.deleteMany({ where: { organizationId: { in: orgs } } })
     await prisma.apiKey.deleteMany({ where: { userId: { in: [owner.userId, stranger.userId] } } })
     await prisma.organization.deleteMany({ where: { id: { in: orgs } } })
@@ -79,7 +74,7 @@ describe('POST /api/enrollments (ui2-enrollment-create)', () => {
     expect(res.status).toBe(200)
     expect(res.body.enrollment.lessonAccess).toBe('ONE_AT_A_TIME')
     expect(res.body.enrollment.syncMode).toBe('OFF')
-    const schedules = await prisma.lessonSchedule.findMany({
+    const schedules = await prisma.scheduledLesson.findMany({
       where: { enrollmentId: res.body.enrollment.id }, orderBy: { scheduledDate: 'asc' },
     })
     const local = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(d)
@@ -95,7 +90,7 @@ describe('POST /api/enrollments (ui2-enrollment-create)', () => {
     const res = await post(body())
     expect(res.status).toBe(200)
     expect(res.body.enrollment.lessonAccess).toBe('ALL_AT_ONCE')
-    expect(await prisma.lessonSchedule.count({ where: { enrollmentId: res.body.enrollment.id } })).toBe(3)
+    expect(await prisma.scheduledLesson.count({ where: { enrollmentId: res.body.enrollment.id } })).toBe(3)
   })
 
   it('400s a wrong count, naming the expected one (A2)', async () => {

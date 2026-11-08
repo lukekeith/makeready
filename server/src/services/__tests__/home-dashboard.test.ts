@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const prismaMock = vi.hoisted(() => ({
   group: { findMany: vi.fn() },
-  memberLessonProgress: { findMany: vi.fn() },
+  lessonProgress: { findMany: vi.fn() },
 }))
 vi.mock('../../lib/prisma.js', () => ({ prisma: prismaMock, Prisma: {} }))
 vi.mock('../home-sessions.js', async (importOriginal) => ({
@@ -306,7 +306,7 @@ describe('getHomeEngagement', () => {
         members: [{ memberId: 'm1' }, { memberId: 'm2' }],
         enrollments: [
           {
-            lessonSchedules: [
+            scheduledLessons: [
               { id: 's1', scheduledDate: at('2026-10-24T17:00:00Z') },
               { id: 's2', scheduledDate: at('2026-10-25T00:00:00Z') }, // = Oct 24 19:00 CDT, but stored date is today
             ],
@@ -314,7 +314,7 @@ describe('getHomeEngagement', () => {
         ],
       },
     ])
-    prismaMock.memberLessonProgress.findMany.mockResolvedValue([{ memberId: 'm1', lessonScheduleId: 's1' }])
+    prismaMock.lessonProgress.findMany.mockResolvedValue([{ memberId: 'm1', scheduledLessonId: 's1' }])
     vi.mocked(loadSessions).mockResolvedValue([session('m1', '2026-10-24T15:00:00Z', 600)])
 
     expect(await getHomeEngagement(SCOPE, CHI, NOW)).toEqual({
@@ -326,13 +326,13 @@ describe('getHomeEngagement', () => {
         id: true,
         members: { where: { isActive: true, memberId: { not: null } }, select: { memberId: true } },
         enrollments: {
-          select: { lessonSchedules: { where: { removedAt: null }, select: { id: true, scheduledDate: true } } },
+          select: { scheduledLessons: { where: { removedAt: null }, select: { id: true, scheduledDate: true } } },
         },
       },
     })
-    expect(prismaMock.memberLessonProgress.findMany).toHaveBeenCalledWith({
-      where: { completedAt: { not: null }, lessonScheduleId: { in: ['s1'] }, memberId: { in: ['m1', 'm2'] } },
-      select: { memberId: true, lessonScheduleId: true },
+    expect(prismaMock.lessonProgress.findMany).toHaveBeenCalledWith({
+      where: { completedAt: { not: null }, scheduledLessonId: { in: ['s1'] }, memberId: { in: ['m1', 'm2'] } },
+      select: { memberId: true, scheduledLessonId: true },
     })
     expect(loadSessions).toHaveBeenCalledWith(SCOPE, { from: at('2026-10-19T05:00:00Z'), to: NOW })
   })

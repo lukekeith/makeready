@@ -220,20 +220,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Load Theme Definitions
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_URL: ${{ secrets.DATABASE_URL }}
+      - name: Install dependencies
         run: |
           npm install
           npx prisma generate
-          npx tsx src/scripts/load-themes.ts
-
-      - name: Backfill Lesson Time Estimates
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_URL: ${{ secrets.DATABASE_URL }}
-        run: npx tsx src/scripts/backfill-lesson-estimates.ts
 
       - name: Backfill Video Media Library Entries
         env:

@@ -9,8 +9,9 @@ import type {
   Group,
   GroupMember,
   Lesson,
-  LessonActivity,
-  LessonSchedule,
+  ContentActivity,
+  LessonVersion,
+  ScheduledLesson,
   Member,
   Organization,
   PrismaClient,
@@ -131,9 +132,10 @@ export interface FixtureCreated {
   groupMembers: GroupMember[]
   programs: StudyProgram[]
   lessons: Lesson[]
-  activities: LessonActivity[]
+  lessonVersions: LessonVersion[]
+  activities: ContentActivity[]
   enrollments: Enrollment[]
-  schedules: LessonSchedule[]
+  schedules: ScheduledLesson[]
 }
 
 export interface FixtureContext {
@@ -174,6 +176,7 @@ export function createContext(prisma: PrismaClient, now: Date, seed: number = FI
       groupMembers: [],
       programs: [],
       lessons: [],
+      lessonVersions: [],
       activities: [],
       enrollments: [],
       schedules: [],

@@ -162,10 +162,10 @@ final class GroupDetailMapperTests: XCTestCase {
 
     func testNextLessonCard() {
         let activities = [
-            NextStudyActivity(id: "a1", type: "VIDEO", orderNumber: 1, title: "Watch", thumbnailUrl: "https://img/a1.jpg"),
-            NextStudyActivity(id: "a2", type: "READ", orderNumber: 2, title: "Read", thumbnailUrl: nil),
-            NextStudyActivity(id: "a3", type: "READ", orderNumber: 3, title: nil, thumbnailUrl: "https://img/a3.jpg"),
-            NextStudyActivity(id: "a4", type: "VIDEO", orderNumber: 4, title: "Fourth", thumbnailUrl: "https://img/a4.jpg")
+            NextStudyActivity(id: "a1", type: "video", orderNumber: 1, title: "Watch", thumbnailUrl: "https://img/a1.jpg"),
+            NextStudyActivity(id: "a2", type: "text", orderNumber: 2, title: "Read", thumbnailUrl: nil),
+            NextStudyActivity(id: "a3", type: "text", orderNumber: 3, title: nil, thumbnailUrl: "https://img/a3.jpg"),
+            NextStudyActivity(id: "a4", type: "video", orderNumber: 4, title: "Fourth", thumbnailUrl: "https://img/a4.jpg")
         ]
         var study = NextStudy(id: "s1", dayNumber: 3, scheduledDate: "2026-10-26T00:00:00.000Z", title: nil,
                               studyProgram: NextStudyProgram(id: "p1", name: "Faith over fear"), activities: activities)

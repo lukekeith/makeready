@@ -11,6 +11,8 @@ import { trackActivity } from '../services/activity.js'
 import { captureToLibrary, getUserOrgId, syncVideoStatus } from '../services/media-library.js'
 import { deriveVideoMetadata } from '../services/media-metadata.js'
 import { canManageOrgContent } from '../services/permission.js'
+import { isUsedByActivity } from '../services/content-media.service.js'
+import { MEDIA_IN_USE_ERROR } from '../services/content.js'
 
 /**
  * The organization that owns a video, derived from its media-library entry.
@@ -1187,6 +1189,12 @@ router.delete('/:videoId', requireAuth, async (req, res) => {
           error: 'Not authorized to delete this video',
         })
       }
+    }
+
+    // text-activity D34: refuse while an activity document names the video's media.
+    const linkedMedia = await prisma.media.findMany({ where: { videoId: video.id }, select: { id: true } })
+    if (await isUsedByActivity(prisma, linkedMedia.map((m) => m.id))) {
+      return res.status(409).json({ success: false, error: MEDIA_IN_USE_ERROR, code: 'IN_USE' })
     }
 
     // Delete from Cloudflare first

@@ -156,6 +156,10 @@ struct ActivitiesPlayerScreen: View {
 
         /// C-092 `animationStart` for the active page: the host's date, nil at rest (§3).
         var animationStart: Date?
+
+        /// §3 Load failed: the container could not load the activity — the header and close only
+        /// (C-134 `close`, no top action), no pages, no rail; `onLoadFailed`, then `onClose` after 2 s.
+        var loadFailed: Bool = false
     }
 
     let state: State
@@ -182,6 +186,8 @@ struct ActivitiesPlayerScreen: View {
     let onCloseSheet: () -> Void
     let onSheetTitleChange: (String) -> Void
     let onSheetBodyTextChange: (String) -> Void
+    /// §3 Load failed: the container raises the error banner with this message.
+    let onLoadFailed: (String) -> Void
 
     // §2 Canvas placement: "the screen measures the objects' rotated, scaled box" — C-091
     // `contentExtent`, measured per object index. Ephemeral layout feedback (R-31).
@@ -202,7 +208,8 @@ struct ActivitiesPlayerScreen: View {
         onVideoPlayingChange: @escaping (Int, Bool) -> Void = { _, _ in },
         onCloseSheet: @escaping () -> Void = {},
         onSheetTitleChange: @escaping (String) -> Void = { _ in },
-        onSheetBodyTextChange: @escaping (String) -> Void = { _ in }
+        onSheetBodyTextChange: @escaping (String) -> Void = { _ in },
+        onLoadFailed: @escaping (String) -> Void = { _ in }
     ) {
         self.state = state
         self.videoSlot = videoSlot
@@ -219,6 +226,7 @@ struct ActivitiesPlayerScreen: View {
         self.onCloseSheet = onCloseSheet
         self.onSheetTitleChange = onSheetTitleChange
         self.onSheetBodyTextChange = onSheetBodyTextChange
+        self.onLoadFailed = onLoadFailed
     }
 
     /// The host's player is not this screen's (§2): until the host supplies one, the slot shows
@@ -226,6 +234,42 @@ struct ActivitiesPlayerScreen: View {
     static var slotStandIn: AnyView { AnyView(Token.activitySlidePlaceholder) }
 
     var body: some View {
+        if state.loadFailed {
+            loadFailedPage
+        } else {
+            playerPage
+        }
+    }
+
+    /// §3 Load failed (mirrors activities-editor §9.4): C-134 with close only over the ground, no
+    /// pages, no rail. The banner is raised through `onLoadFailed`; 2 s later `onClose` leaves. The
+    /// wait is cancelled with the task when the state ends first.
+    private var loadFailedPage: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .topLeading) {
+                Token.layoutBackground
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+                ViewerChrome(
+                    topAction: ViewerChrome.TopAction.none,
+                    topInset: state.topInset,
+                    onClose: onClose,
+                    onShare: onShare,
+                    onMenu: onMenu
+                )
+                .ui2Element("C-134 ViewerChrome")
+                .frame(width: proxy.size.width)
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
+        }
+        .task {
+            onLoadFailed(Self.loadFailedMessage)
+            try? await Task.sleep(for: Self.loadFailedDelay)
+            guard !Task.isCancelled else { return }
+            onClose()
+        }
+    }
+
+    private var playerPage: some View {
         GeometryReader { proxy in
             let width = proxy.size.width
             let height = proxy.size.height
@@ -555,6 +599,9 @@ struct ActivitiesPlayerScreen: View {
 
     /// 02 §4: the 440 × 956 reference canvas, and the 392 wu slot (24 wu each side).
     private static let referenceWidth: CGFloat = 440
+    /// §3 Load failed: the banner's copy, and FLAGGED LITERAL — the 2 s wait before `onClose`.
+    private static let loadFailedMessage = "Couldn't load this activity."
+    private static let loadFailedDelay = Duration.seconds(2)
     private static let referenceHeight: CGFloat = 956
     private static let slotWidth: CGFloat = 392
     /// FLAGGED LITERAL — activities-player §2 (C-133 §2): rail geometry.
@@ -1118,6 +1165,13 @@ extension ActivitiesPlayerScreen.State {
         s.rest(on: 4)
         return s
     }()
+
+    /// `load-failed`: the container could not load the activity — header and close only.
+    static let loadFailed: Self = {
+        var s = base
+        s.loadFailed = true
+        return s
+    }()
 }
 
 // MARK: - Previews (one per §3 state, in §3's order; the device canvas is the 440 × 956 recording)
@@ -1184,5 +1238,10 @@ extension ActivitiesPlayerScreen.State {
 
 #Preview("fallback") {
     ActivitiesPlayerScreen(state: .fallback)
+        .frame(width: 440, height: 956)
+}
+
+#Preview("load-failed") {
+    ActivitiesPlayerScreen(state: .loadFailed)
         .frame(width: 440, height: 956)
 }

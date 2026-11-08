@@ -72,6 +72,14 @@ enum UI2Destination: Hashable {
     /// program-lesson-add-activity D2/D4: the activity-type picker for one lesson, pushed from the program
     /// page's "+" card or lesson menu. Reached only from there — no deep link or notification target.
     case activityNew(programId: String, lessonId: String)
+    /// text-activity D39: the Text editor, over one activity. Reached from the Text tile (swapped in place)
+    /// and from a canvas-kind slide tap; the Background and Actions sheets are drawn in-screen.
+    case activitiesEditor(activityId: String)
+    /// text-activity D39/D22: the full-screen viewer on one activity of a lesson version.
+    case activityViewer(lessonVersionId: String, activityId: String)
+    /// text-activity D40: the Media grid in pick mode, above the editor; a pick goes back to it by
+    /// `ActivityBackgroundPick` and the page pops.
+    case chooseActivityBackground(activityId: String)
 }
 
 extension UI2Destination {
@@ -88,6 +96,9 @@ extension UI2Destination {
         case .editGroupCover, .editMemberAvatar, .editProgramCover, .chooseCoverFromLibrary: return true
         // program-lesson-add-activity D13: C-081 is pinned to the bottom, so no TabBar sits under it.
         case .activityNew: return true
+        // text-activity D39: the viewer takes the whole screen; the editor keeps the shell's chrome rules
+        // (its own bars are drawn in-screen), so it is not listed. The background pick is a full-screen picker.
+        case .activityViewer, .chooseActivityBackground: return true
         // Owner 2026-10-29: no TabBar on any enrollment page — the enrollment's own page, the
         // checklist and its six pickers.
         case .enrollmentHome, .enrollChecklist, .enrollSelectGroup, .enrollSelectProgram, .enrollSelectSchedule,

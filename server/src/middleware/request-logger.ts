@@ -118,7 +118,7 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
     // Extract entity IDs from route params
     const groupId = req.params?.groupId || null
     const eventId = req.params?.eventId || null
-    const lessonId = req.params?.lessonId || req.params?.lessonScheduleId || null
+    const lessonId = req.params?.lessonId || req.params?.scheduledLessonId || null
     const enrollmentId = req.params?.enrollmentId || null
 
     // Build message

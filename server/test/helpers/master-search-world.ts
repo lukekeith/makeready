@@ -5,6 +5,12 @@
 import { randomBytes, randomUUID } from 'node:crypto'
 import type { PrismaClient } from '../../src/generated/prisma/index.js'
 
+/** A canvas object reading `text`, the minimum 02 s3 asks of one. */
+const textObject = (text: string) => ({
+  id: 'o1', text, font: 'sans', weight: 400, size: 24, color: '#FFFFFF', alignment: 'center',
+  transform: { x: 0, y: 0, width: 1, scale: 1, rotation: 0 },
+})
+
 /** Seeded by migration on a lease; a `prisma db push` database starts without it. */
 async function findOrCreateSystemRole(prisma: PrismaClient, name: string) {
   const found = await prisma.role.findFirst({ where: { name, isSystem: true, organizationId: null } })
@@ -64,8 +70,25 @@ export async function seedMasterSearchWorld(prisma: PrismaClient) {
 
   await prisma.studyProgramTag.create({ data: { studyProgramId: mainProgram.id, tag: 'lent' } })
 
-  const lesson = (studyProgramId: string, dayNumber: number, title: string | null) =>
-    prisma.lesson.create({ data: { studyProgramId, dayNumber, title } })
+  // text-activity SC12: a lesson's title lives on its published version and its text in that version's documents.
+  const lesson = async (programId: string, position: number, title: string | null) => {
+    const made = await prisma.lesson.create({ data: { programId, position } })
+    await prisma.lessonVersion.create({ data: { lessonId: made.id, number: 1, status: 'PUBLISHED', title, publishedAt: new Date() } })
+    return made
+  }
+  /** One more text activity on the lesson's number-1 version (or `versionNumber`), its first object reading `text`. */
+  const lessonText = async (lessonId: string, text: string, opts: { versionId?: string } = {}) => {
+    const version = opts.versionId
+      ? { id: opts.versionId }
+      : await prisma.lessonVersion.findFirstOrThrow({ where: { lessonId, enrollmentId: null, number: 1 }, select: { id: true } })
+    const position = (await prisma.contentActivity.count({ where: { lessonVersionId: version.id } })) + 1
+    return prisma.contentActivity.create({
+      data: {
+        lessonVersionId: version.id, activityKey: `ms-${randomBytes(4).toString('hex')}`, position, kind: 'text', title: 'Text',
+        document: { schemaVersion: 1, kind: 'text', content: { type: 'canvas', verticalAnchor: 'center', objects: [textObject(text)] }, actions: [] },
+      },
+    })
+  }
   await lesson(mainProgram.id, 1, 'Grace Lesson')
   const otherLesson = await lesson(mainProgram.id, 2, 'Reading Day')
   const untitledLesson = await lesson(mainProgram.id, 7, null)
@@ -73,18 +96,9 @@ export async function seedMasterSearchWorld(prisma: PrismaClient) {
   await lesson(privateProgram.id, 1, 'Secret Lesson')
   const manyLesson = await lesson(manyProgram.id, 1, 'Manyword Lesson')
 
-  await prisma.lessonActivity.create({
-    data: { lessonId: otherLesson.id, activityType: 'READ', title: 'Reading', readContent: 'A page of grace notes to read' },
-  })
-  await prisma.lessonActivity.create({
-    data: { lessonId: untitledLesson.id, activityType: 'READ', title: 'Reading', readContent: 'lessontext' },
-  })
-  for (const orderNumber of [1, 2, 3]) {
-    const activity = await prisma.lessonActivity.create({
-      data: { lessonId: manyLesson.id, activityType: 'READ', orderNumber, title: 'Manyword activity' },
-    })
-    await prisma.activityReadBlock.create({ data: { lessonActivityId: activity.id, title: 'Manyword block', content: 'manyword' } })
-  }
+  await lessonText(otherLesson.id, 'A page of grace notes to read')
+  await lessonText(untitledLesson.id, 'lessontext')
+  for (let i = 0; i < 3; i++) await lessonText(manyLesson.id, 'manyword')
 
   const enroll = (groupId: string, studyProgramId: string) =>
     prisma.enrollment.create({
@@ -227,37 +241,36 @@ export async function seedMasterSearchWorld(prisma: PrismaClient) {
   const tagOnlyVideo = await media('Harbor Video', 'video')
   await prisma.mediaTag.createMany({ data: [tagOnlyPhoto, tagOnlyVideo].map((m) => ({ mediaId: m.id, tag: 'tagonlyword' })) })
   const blockOnlyLesson = await lesson(mainProgram.id, 20, 'Harbor Day')
-  const blockOnlyActivity = await prisma.lessonActivity.create({ data: { lessonId: blockOnlyLesson.id, activityType: 'READ', title: 'Reading' } })
-  await prisma.activityReadBlock.create({ data: { lessonActivityId: blockOnlyActivity.id, title: 'Block', content: 'blockonlyword' } })
-  const scheduledLesson = await lesson(mainProgram.id, 21, 'Harbor Evening')
-  const schedule = await prisma.lessonSchedule.create({ data: { enrollmentId: mainEnrollment.id, lessonId: scheduledLesson.id, scheduledDate: new Date('2026-01-05') } })
-  const scheduledActivity = await prisma.scheduledLessonActivity.create({ data: { lessonScheduleId: schedule.id, type: 'READ', orderNumber: 1, title: 'Reading' } })
-  await prisma.activityReadBlock.create({ data: { scheduledActivityId: scheduledActivity.id, title: 'Block', content: 'scheduledonlyword' } })
-  // `orchardword`: a lesson with the word in its title and three reached only through other text, whose ranks
+  await lessonText(blockOnlyLesson.id, 'blockonlyword')
+  // A group's own copy of a lesson (`enrollmentId` set) is never searched (SC12).
+  const customizedLesson = await lesson(mainProgram.id, 21, 'Harbor Evening')
+  const customizedVersion = await prisma.lessonVersion.create({
+    data: { lessonId: customizedLesson.id, enrollmentId: mainEnrollment.id, number: 2, status: 'PUBLISHED', title: 'Harbor Evening', publishedAt: new Date() },
+  })
+  await lessonText(customizedLesson.id, 'scheduledonlyword', { versionId: customizedVersion.id })
+  // `orchardword`: a lesson with the word in its title and three reached only through document text, whose ranks
   // follow how often the word occurs. The strongest also has a weaker activity, so its rank must be the greatest.
-  const orchardActivity = (lessonId: string, orderNumber: number, readContent: string) =>
-    prisma.lessonActivity.create({ data: { lessonId, orderNumber, activityType: 'READ', title: 'Reading', readContent } })
   const orchardTitleLesson = await lesson(mainProgram.id, 30, 'Harbor Orchardword')
   const orchardStrongActivityLesson = await lesson(mainProgram.id, 31, 'Harbor Morning')
-  await orchardActivity(orchardStrongActivityLesson.id, 1, 'orchardword')
-  await orchardActivity(orchardStrongActivityLesson.id, 2, 'orchardword orchardword orchardword')
+  await lessonText(orchardStrongActivityLesson.id, 'orchardword')
+  await lessonText(orchardStrongActivityLesson.id, 'orchardword orchardword orchardword')
   const orchardBlockLesson = await lesson(mainProgram.id, 32, 'Harbor Noon')
-  const orchardBlockActivity = await orchardActivity(orchardBlockLesson.id, 1, 'Nothing here')
-  await prisma.activityReadBlock.create({ data: { lessonActivityId: orchardBlockActivity.id, title: 'Block', content: 'orchardword orchardword' } })
+  await lessonText(orchardBlockLesson.id, 'Nothing here')
+  await lessonText(orchardBlockLesson.id, 'orchardword orchardword')
   const orchardWeakActivityLesson = await lesson(mainProgram.id, 33, 'Harbor Dusk')
-  await orchardActivity(orchardWeakActivityLesson.id, 1, 'orchardword')
+  await lessonText(orchardWeakActivityLesson.id, 'orchardword')
 
   // `ridgeword` (D45): one row for each rank a lesson match can land on, with a program's own title above them all.
   const ridgeProgram = (name: string) => program(name, owner.id)
   const ridgeTitled = await ridgeProgram('Ridgeword Study')
-  await orchardActivity((await lesson(ridgeTitled.id, 1, 'Day 1')).id, 1, 'ridgeword')
+  await lessonText((await lesson(ridgeTitled.id, 1, 'Day 1')).id, 'ridgeword')
   const ridgeLessonTitled = await ridgeProgram('Hill Study')
   await lesson(ridgeLessonTitled.id, 1, 'The Ridgeword Day')
   const ridgeMany = await ridgeProgram('Valley Study')
-  await orchardActivity((await lesson(ridgeMany.id, 1, 'Day 1')).id, 1, 'ridgeword')
-  await orchardActivity((await lesson(ridgeMany.id, 2, 'Day 2')).id, 1, 'ridgeword')
+  await lessonText((await lesson(ridgeMany.id, 1, 'Day 1')).id, 'ridgeword')
+  await lessonText((await lesson(ridgeMany.id, 2, 'Day 2')).id, 'ridgeword')
   const ridgeFew = await ridgeProgram('Meadow Study')
-  await orchardActivity((await lesson(ridgeFew.id, 1, 'Day 1')).id, 1, 'ridgeword')
+  await lessonText((await lesson(ridgeFew.id, 1, 'Day 1')).id, 'ridgeword')
   await prisma.group.update({ where: { id: groupB.id }, data: { description: 'ridgeword' } })
 
   const mixedCaseEmail = `Mixed.Case-${stamp}@MS.Test`

@@ -18,6 +18,9 @@ struct MediaHomeContainer: View {
         case browse
         /// media-library D9: choose a group's or program's cover from the library.
         case pick(CoverOwner)
+        /// text-activity D40: choose the background image of the activity being edited; the pick goes back
+        /// to the editor through `ActivityBackgroundPick` and the page pops.
+        case pickActivityBackground(activityId: String)
         /// master-search D9: pushed from a search result (a video's exit). A header with a back button, the
         /// viewer on, no upload; the page has no TopNav.
         case pushed
@@ -27,8 +30,17 @@ struct MediaHomeContainer: View {
     static func allowsUpload(_ mode: Mode) -> Bool { mode == .browse }
     /// A tap opens the viewer everywhere except the cover picker, where it picks.
     static func opensViewer(_ mode: Mode) -> Bool {
-        if case .pick = mode { return false }
-        return true
+        switch mode {
+        case .pick, .pickActivityBackground: return false
+        case .browse, .pushed: return true
+        }
+    }
+    /// The modes whose tap picks a photo (under the "Choose image" header).
+    private static func picksAnImage(_ mode: Mode) -> Bool {
+        switch mode {
+        case .pick, .pickActivityBackground: return true
+        case .browse, .pushed: return false
+        }
     }
     /// The modes that sit under their own `PageHeader` (no TopNav above them).
     static func drawsHeader(_ mode: Mode) -> Bool { mode != .browse }
@@ -105,7 +117,7 @@ struct MediaHomeContainer: View {
         let photoTitles = tiles.map(\.title)
         // Only this reader observes `generation`, so a landed image redraws the screen, not the mapper.
         VStack(spacing: 0) {
-          if case .pick = mode {
+          if Self.picksAnImage(mode) {
             // media-library D9: the picker page's header — back, and what it is for.
             PageHeader(style: .default, title: "Choose image", showIcons: false, rightButtons: [],
                        onLeading: { navigator.pop() })
@@ -146,7 +158,11 @@ struct MediaHomeContainer: View {
                     requestImages(tiles: tiles)
                 },
                 onTap: { id, frame in
-                    if case .pick(let owner) = mode { pick(id: id, owner: owner) } else { open(id: id, frame: frame, tiles: tiles) }
+                    switch mode {
+                    case .pick(let owner): pick(id: id, owner: owner)
+                    case .pickActivityBackground(let activityId): pickBackground(id: id, activityId: activityId)
+                    case .browse, .pushed: open(id: id, frame: frame, tiles: tiles)
+                    }
                 },
                 onVisibleRangeChange: { range in
                     gridBox.visibleRange = range
@@ -483,6 +499,17 @@ struct MediaHomeContainer: View {
                                             friendlyMessage: "Couldn't open that photo")
             }
         }
+    }
+
+    /// text-activity D40: hand the tapped photo's media id to the editor, with the entry the editor
+    /// resolves it through (`MediaMap`), then pop back to it.
+    private func pickBackground(id: String, activityId: String) {
+        guard let item = AppState.shared.mediaLibrary[id], item.mediaType == .photo else { return }
+        AppState.shared.mergeMedia([item.id: MediaMapEntry(url: item.url, width: nil, height: nil, kind: "image",
+                                                           playbackUrl: nil, posterUrl: nil, durationSeconds: nil,
+                                                           uploaderName: item.uploader?.name)])
+        ActivityBackgroundPick.shared.deliver(mediaId: item.id, for: activityId)
+        navigator.pop()
     }
 
     /// filter-clear-keeps-open: the Time menu's draft seed — nothing picked at rest (All time), so Clear starts disabled.

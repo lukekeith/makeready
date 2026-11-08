@@ -9,6 +9,7 @@ import { prisma } from '../src/lib/prisma.js'
 import { bucketOf } from '../src/services/enrollment-directory.service.js'
 import { todayInTimezone } from '../src/utils/timezone.js'
 import { createUserWithApiKey, bearer, type TestUserWithToken } from './helpers/api-auth.js'
+import { destroySimplePrograms } from './helpers/published-program.js'
 
 const addDays = (ymd: string, n: number) => {
   const d = new Date(`${ymd}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10)
@@ -81,24 +82,35 @@ describe('GET /api/enrollments-feed', () => {
     }
 
     eActive = await mkEnrollment(g1, program, -5, 5, ago(10 * DAY))
+    // Each schedule is a lesson with a PUBLISHED version; `estimatedSeconds` gives its planned minutes.
+    let position = 0
+    const mkSchedule = async (date: Date, title: string, estimatedSeconds: number | null, removedAt: Date | null = null) => {
+      const lesson = await prisma.lesson.create({ data: { programId: program, position: ++position } })
+      const version = await prisma.lessonVersion.create({
+        data: { lessonId: lesson.id, number: 1, status: 'PUBLISHED', title, estimatedSeconds, publishedAt: new Date() },
+      })
+      return prisma.scheduledLesson.create({
+        data: { enrollmentId: eActive, lessonId: lesson.id, scheduledDate: date, currentVersionId: version.id, removedAt },
+      })
+    }
     const s = [
-      await prisma.lessonSchedule.create({ data: { enrollmentId: eActive, scheduledDate: day(-5), estimatedMinutes: 30, title: 'A' } }),
-      await prisma.lessonSchedule.create({ data: { enrollmentId: eActive, scheduledDate: new Date(day(-5).getTime() + HOUR), estimatedMinutes: 30, title: 'B' } }),
-      await prisma.lessonSchedule.create({ data: { enrollmentId: eActive, scheduledDate: day(-4), estimatedMinutes: null, title: 'C' } }),
-      await prisma.lessonSchedule.create({ data: { enrollmentId: eActive, scheduledDate: day(-3), estimatedMinutes: 60, title: 'Removed', removedAt: now } }),
+      await mkSchedule(day(-5), 'A', 1800),
+      await mkSchedule(new Date(day(-5).getTime() + HOUR), 'B', 1800),
+      await mkSchedule(day(-4), 'C', null),
+      await mkSchedule(day(-3), 'Removed', 3600, now),
     ]
     const complete = (memberIndex: number, scheduleIndexes: number[]) =>
-      prisma.memberLessonProgress.createMany({
+      prisma.lessonProgress.createMany({
         data: scheduleIndexes.map((k) => ({
-          memberId: memberIds[memberIndex], lessonScheduleId: s[k].id, completedAt: ago(2 * HOUR), startedAt: ago(3 * HOUR), lastUpdatedAt: ago(2 * HOUR),
+          memberId: memberIds[memberIndex], scheduledLessonId: s[k].id, completedAt: ago(2 * HOUR), startedAt: ago(3 * HOUR),
         })),
       })
     await complete(0, [0, 1, 2, 3]) // every lesson (+ the removed one, which never counts)
     await complete(1, [0])
     await complete(3, [0, 1, 2]) // ex-member
-    await prisma.memberLessonProgress.update({
-      where: { memberId_lessonScheduleId: { memberId: memberIds[1], lessonScheduleId: s[0].id } },
-      data: { lastUpdatedAt: progressAt },
+    await prisma.lessonProgress.update({
+      where: { memberId_scheduledLessonId: { memberId: memberIds[1], scheduledLessonId: s[0].id } },
+      data: { completedAt: progressAt },
     })
 
     eUpcoming = await mkEnrollment(g1, program, 3, 10, ago(2 * DAY))
@@ -112,11 +124,10 @@ describe('GET /api/enrollments-feed', () => {
 
   afterAll(async () => {
     const orgs = [orgA, orgB]
-    await prisma.enrollment.deleteMany({ where: { group: { organizationId: { in: orgs } } } })
+    await destroySimplePrograms([program, programInactive, programB])
     await prisma.enrollmentDraft.deleteMany({ where: { group: { organizationId: { in: orgs } } } })
     await prisma.groupMember.deleteMany({ where: { memberId: { in: memberIds } } })
     await prisma.member.deleteMany({ where: { id: { in: memberIds } } })
-    await prisma.studyProgram.deleteMany({ where: { organizationId: { in: orgs } } })
     await prisma.group.deleteMany({ where: { organizationId: { in: orgs } } })
     await prisma.userRole.deleteMany({ where: { organizationId: orgA } })
     await prisma.role.deleteMany({ where: { organizationId: orgA } })

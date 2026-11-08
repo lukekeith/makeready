@@ -20,18 +20,18 @@ describe.skipIf(!TEST_DB_URL)('groups-enroll-program full scenario against the t
   })
 
   it('adds a published 12-lesson program with exactly one ended enrollment', async () => {
-    const p = await db.prisma.studyProgram.findUniqueOrThrow({ where: { id: ENROLL_PROGRAM_ID }, include: { lessons: true } })
+    const p = await db.prisma.studyProgram.findUniqueOrThrow({ where: { id: ENROLL_PROGRAM_ID }, include: { programLessons: true } })
     expect(p).toMatchObject({ isPublished: true, days: 12, organizationId: FIXTURE_ORG_ID })
-    expect(p.lessons).toHaveLength(12)
+    expect(p.programLessons).toHaveLength(12)
     const ended = await db.prisma.enrollment.count({ where: { studyProgramId: ENROLL_PROGRAM_ID, endDate: { lt: new Date() } } })
     expect(ended).toBe(1)
   })
 
   it('adds a published 0-day program the picker hides', async () => {
-    const p = await db.prisma.studyProgram.findUniqueOrThrow({ where: { id: ENROLL_EMPTY_PROGRAM_ID }, include: { lessons: true } })
+    const p = await db.prisma.studyProgram.findUniqueOrThrow({ where: { id: ENROLL_EMPTY_PROGRAM_ID }, include: { programLessons: true } })
     expect(p.isPublished).toBe(true)
     expect(p.days).toBe(0)
-    expect(p.lessons).toHaveLength(0)
+    expect(p.programLessons).toHaveLength(0)
   })
 
   it('keeps the 0-member base group (the picker hides it)', async () => {

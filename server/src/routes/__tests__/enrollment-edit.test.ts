@@ -15,6 +15,50 @@ import { generateApiKey, hashApiKey, getKeyPrefix } from '../../lib/api-key'
 import { applyEnrollmentEdit, applyStudySwap, EnrollmentEditError } from '../../services/enrollment-edit'
 import { buildEnrollmentManageChecker } from '../../services/permission'
 
+// A program written straight to the new model: one Lesson per title, each with a PUBLISHED version holding one
+// activity, all in ProgramVersion 1 (the program's current version). `published: false` leaves a draft program.
+async function createSimpleProgram(opts: {
+  name: string; creatorId: string; templateId?: string; titles: string[]; published?: boolean
+}) {
+  const published = opts.published ?? true
+  const program = await prisma.studyProgram.create({
+    data: {
+      name: opts.name, days: opts.titles.length, creatorId: opts.creatorId, templateId: opts.templateId,
+      isPublished: published, publishedAt: published ? new Date() : null,
+    },
+  })
+  const lessons: { lessonId: string; lessonVersionId: string; position: number }[] = []
+  for (const [i, title] of opts.titles.entries()) {
+    const lesson = await prisma.lesson.create({ data: { programId: program.id, position: i + 1 } })
+    const version = await prisma.lessonVersion.create({
+      data: {
+        lessonId: lesson.id, number: 1, status: 'PUBLISHED', title, publishedAt: new Date(),
+        activities: {
+          create: [{
+            activityKey: `${program.id}-${i}`, position: 1, kind: 'text', title: `Activity ${i + 1}`,
+            document: { schemaVersion: 1, kind: 'text', background: { color: '#000' }, content: { type: 'canvas', objects: [] }, actions: [], chrome: { topAction: 'none' }, fallback: { title: 'x', body: 'y' } },
+          }],
+        },
+      },
+    })
+    lessons.push({ lessonId: lesson.id, lessonVersionId: version.id, position: i + 1 })
+  }
+  if (published) {
+    const pv = await prisma.programVersion.create({ data: { programId: program.id, number: 1, lessons: { create: lessons } } })
+    await prisma.studyProgram.update({ where: { id: program.id }, data: { currentVersionId: pv.id } })
+  }
+  return { programId: program.id }
+}
+
+async function destroySimplePrograms(programIds: string[]) {
+  await prisma.enrollment.deleteMany({ where: { studyProgramId: { in: programIds } } })
+  await prisma.studyProgram.updateMany({ where: { id: { in: programIds } }, data: { currentVersionId: null } })
+  await prisma.programVersionLesson.deleteMany({ where: { programVersion: { programId: { in: programIds } } } })
+  await prisma.programVersion.deleteMany({ where: { programId: { in: programIds } } })
+  await prisma.lesson.deleteMany({ where: { programId: { in: programIds } } })
+  await prisma.studyProgram.deleteMany({ where: { id: { in: programIds } } })
+}
+
 // A Monday well into the future — enabledDays: all week ⇒ schedules land on
 // consecutive days starting here.
 const START = '2035-01-01T12:00:00.000Z' // 2035-01-01 is a Monday
@@ -30,6 +74,7 @@ describe('Enrollment edit (reschedule / group change / preview)', () => {
   let richProgramId: string
   let draftProgramId: string
   let emptyProgramId: string
+  let templateId: string
   let memberId: string
   let apiKey: string
   const RANDOM_UUID = '00000000-0000-4000-8000-000000000000'
@@ -41,14 +86,14 @@ describe('Enrollment edit (reschedule / group change / preview)', () => {
       .post('/api/enrollments')
       .set(authed())
       .send({ groupId, studyProgramId: programId, startDate: START, enabledDays: ALL_DAYS, ...overrides })
-    expect(res.status).toBe(200)
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
     return res.body.enrollment.id
   }
 
   async function schedulesFor(enrollmentId: string) {
-    return prisma.lessonSchedule.findMany({
+    return prisma.scheduledLesson.findMany({
       where: { enrollmentId, removedAt: null },
-      include: { lesson: { select: { dayNumber: true } }, event: true },
+      include: { lesson: { select: { position: true } }, currentVersion: { select: { title: true } }, event: true },
       orderBy: { scheduledDate: 'asc' },
     })
   }
@@ -73,91 +118,18 @@ describe('Enrollment edit (reschedule / group change / preview)', () => {
     const other = await prisma.group.create({ data: { name: 'Edit Test Group 2', creatorId: userId, organizationId } })
     otherGroupId = other.id
 
-    const program = await prisma.studyProgram.create({
-      data: { name: 'Edit Test Program', days: 3, creatorId: userId, isPublished: true },
-    })
-    programId = program.id
-    for (let day = 1; day <= 3; day++) {
-      const lesson = await prisma.lesson.create({
-        data: { studyProgramId: programId, dayNumber: day, title: `Day ${day}` },
-      })
-      await prisma.lessonActivity.create({
-        data: { lessonId: lesson.id, activityType: 'USER_INPUT', orderNumber: 1, title: `Activity ${day}` },
-      })
-    }
+    programId = (await createSimpleProgram({ name: 'Edit Test Program', creatorId: userId, titles: ['Day 1', 'Day 2', 'Day 3'] })).programId
 
     // Program B: a DIFFERENT curriculum (2 lessons) to swap to.
-    const programB = await prisma.studyProgram.create({
-      data: { name: 'Edit Test Program B', days: 2, creatorId: userId, isPublished: true },
-    })
-    programBId = programB.id
-    for (let day = 1; day <= 2; day++) {
-      const lesson = await prisma.lesson.create({
-        data: { studyProgramId: programBId, dayNumber: day, title: `B Day ${day}` },
-      })
-      await prisma.lessonActivity.create({
-        data: { lessonId: lesson.id, activityType: 'USER_INPUT', orderNumber: 1, title: `B Activity ${day}` },
-      })
-    }
+    programBId = (await createSimpleProgram({ name: 'Edit Test Program B', creatorId: userId, titles: ['B Day 1', 'B Day 2'] })).programId
 
-    // A "rich" swap target: has a template + a READ activity carrying a source
-    // reference, a read block, and an exegesis highlight — exercises the full
-    // copy pipeline on study swap.
-    const template = await prisma.lessonTemplate.create({
-      data: { name: 'Rich Template', creatorId: userId },
-    })
-    const rich = await prisma.studyProgram.create({
-      data: { name: 'Edit Test Rich', days: 1, creatorId: userId, isPublished: true, templateId: template.id },
-    })
-    richProgramId = rich.id
-    const richLesson = await prisma.lesson.create({
-      data: { studyProgramId: richProgramId, dayNumber: 1, title: 'Rich Day 1' },
-    })
-    const readActivity = await prisma.lessonActivity.create({
-      data: { lessonId: richLesson.id, activityType: 'READ', orderNumber: 1, title: 'Scripture', referenceTitle: 'John 1:1-3' },
-    })
-    const sourceRef = await prisma.activitySourceReference.create({
-      data: {
-        lessonActivityId: readActivity.id,
-        sourceType: 'SCRIPTURE',
-        passageReference: 'John 1:1-3',
-        bookNumber: 43,
-        bookName: 'John',
-        chapterStart: 1,
-        chapterEnd: 1,
-        verseStart: 1,
-        verseEnd: 3,
-      },
-    })
-    const readBlock = await prisma.activityReadBlock.create({
-      data: {
-        lessonActivityId: readActivity.id,
-        orderNumber: 1,
-        title: 'John 1:1-3',
-        content: '1 In the beginning was the Word...',
-        isLocked: true,
-        sourceReferenceId: sourceRef.id,
-      },
-    })
-    await prisma.contentHighlight.create({
-      data: { readBlockId: readBlock.id, orderNumber: 1, start: 0, end: 5, noteMarkdown: 'Note on the opening.' },
-    })
+    // A swap target with a template: its scheduled lessons carry the template.
+    templateId = (await prisma.lessonTemplate.create({ data: { name: 'Rich Template', creatorId: userId } })).id
+    richProgramId = (await createSimpleProgram({ name: 'Edit Test Rich', creatorId: userId, templateId, titles: ['Rich Day 1'] })).programId
 
-    // A DRAFT program (unpublished) and a published-but-empty program — swap targets that must be rejected.
-    const draft = await prisma.studyProgram.create({
-      data: { name: 'Edit Test Draft', days: 1, creatorId: userId, isPublished: false },
-    })
-    draftProgramId = draft.id
-    const draftLesson = await prisma.lesson.create({
-      data: { studyProgramId: draftProgramId, dayNumber: 1, title: 'Draft Day 1' },
-    })
-    await prisma.lessonActivity.create({
-      data: { lessonId: draftLesson.id, activityType: 'USER_INPUT', orderNumber: 1, title: 'Draft Activity' },
-    })
-    const empty = await prisma.studyProgram.create({
-      data: { name: 'Edit Test Empty', days: 0, creatorId: userId, isPublished: true },
-    })
-    emptyProgramId = empty.id
+    // A DRAFT program (unpublished, no current version) and a published-but-empty program — swap targets that must be rejected.
+    draftProgramId = (await createSimpleProgram({ name: 'Edit Test Draft', creatorId: userId, titles: ['Draft Day 1'], published: false })).programId
+    emptyProgramId = (await createSimpleProgram({ name: 'Edit Test Empty', creatorId: userId, titles: [] })).programId
 
     const member = await prisma.member.create({
       data: { phoneNumber: `+1555${String(stamp).slice(-7)}`, firstName: 'Prog', lastName: 'Member' },
@@ -170,9 +142,7 @@ describe('Enrollment edit (reschedule / group change / preview)', () => {
   afterAll(async () => {
     await prisma.member.deleteMany({ where: { id: memberId } })
     await prisma.group.deleteMany({ where: { id: { in: [groupId, otherGroupId] } } })
-    await prisma.studyProgram.deleteMany({
-      where: { id: { in: [programId, programBId, richProgramId, draftProgramId, emptyProgramId] } },
-    })
+    await destroySimplePrograms([programId, programBId, richProgramId, draftProgramId, emptyProgramId])
     await prisma.lessonTemplate.deleteMany({ where: { creatorId: userId } })
     await prisma.organization.deleteMany({ where: { id: organizationId } })
     await prisma.user.deleteMany({ where: { id: userId } })
@@ -229,7 +199,7 @@ describe('Enrollment edit (reschedule / group change / preview)', () => {
     const enrollmentId = await enroll()
     const before = await schedulesFor(enrollmentId)
     // Lock the first lesson as if its SMS already went out.
-    await prisma.lessonSchedule.update({ where: { id: before[0].id }, data: { smsSentAt: new Date() } })
+    await prisma.scheduledLesson.update({ where: { id: before[0].id }, data: { smsSentAt: new Date() } })
 
     const res = await request(app)
       .patch(`/api/enrollments/${enrollmentId}`)
@@ -306,7 +276,7 @@ describe('Enrollment edit (reschedule / group change / preview)', () => {
     const enrollmentId = await enroll()
     const before = await schedulesFor(enrollmentId)
     // Lock only the first lesson; the other two can still shift.
-    await prisma.lessonSchedule.update({ where: { id: before[0].id }, data: { smsSentAt: new Date() } })
+    await prisma.scheduledLesson.update({ where: { id: before[0].id }, data: { smsSentAt: new Date() } })
 
     const res = await request(app)
       .post(`/api/enrollments/${enrollmentId}/edit/preview`)
@@ -346,23 +316,25 @@ describe('Enrollment edit (reschedule / group change / preview)', () => {
     expect(enrollment.studyProgramId).toBe(programBId)
 
     // Old (no-progress) schedules hard-deleted
-    const survivingOld = await prisma.lessonSchedule.findMany({ where: { id: { in: oldScheduleIds } } })
+    const survivingOld = await prisma.scheduledLesson.findMany({ where: { id: { in: oldScheduleIds } } })
     expect(survivingOld).toHaveLength(0)
 
     // New schedules from program B (2 lessons), titled "B Day N", dates from start
     const after = await schedulesFor(enrollmentId)
     expect(after).toHaveLength(2)
-    expect(after.map((s) => s.title)).toEqual(['B Day 1', 'B Day 2'])
+    expect(after.map((s) => s.currentVersion.title)).toEqual(['B Day 1', 'B Day 2'])
     expect(after.map((s) => s.scheduledDate.toISOString().slice(0, 10))).toEqual(['2035-01-01', '2035-01-02'])
-    // Each new schedule has its v1 version + copied activity + calendar event
+    // Each new schedule points at the target's lesson version, with its activity and a calendar event
     for (const s of after) {
       expect(s.event).not.toBeNull()
       expect(s.currentVersionId).not.toBeNull()
     }
-    const activities = await prisma.scheduledLessonActivity.count({
-      where: { lessonScheduleId: { in: after.map((s) => s.id) } },
+    const activities = await prisma.contentActivity.count({
+      where: { lessonVersionId: { in: after.map((s) => s.currentVersionId) } },
     })
     expect(activities).toBe(2)
+    const targetProgram = await prisma.studyProgram.findUniqueOrThrow({ where: { id: programBId } })
+    expect(enrollment.programVersionId).toBe(targetProgram.currentVersionId)
 
     await prisma.enrollment.delete({ where: { id: enrollmentId } })
   })
@@ -372,8 +344,8 @@ describe('Enrollment edit (reschedule / group change / preview)', () => {
     const beforeA = await schedulesFor(enrollmentId)
     // Give lesson 1 member progress so it must be preserved.
     const progressedId = beforeA[0].id
-    await prisma.memberLessonProgress.create({
-      data: { memberId, lessonScheduleId: progressedId, completedAt: new Date() },
+    await prisma.lessonProgress.create({
+      data: { memberId, scheduledLessonId: progressedId, completedAt: new Date() },
     })
 
     const res = await request(app)
@@ -383,17 +355,17 @@ describe('Enrollment edit (reschedule / group change / preview)', () => {
     expect(res.status).toBe(200)
 
     // Progressed schedule kept but soft-removed (removedAt set)
-    const progressed = await prisma.lessonSchedule.findUnique({ where: { id: progressedId } })
+    const progressed = await prisma.scheduledLesson.findUnique({ where: { id: progressedId } })
     expect(progressed).not.toBeNull()
     expect(progressed!.removedAt).not.toBeNull()
     // The other two (no progress) were hard-deleted
-    const otherOld = await prisma.lessonSchedule.findMany({
+    const otherOld = await prisma.scheduledLesson.findMany({
       where: { id: { in: [beforeA[1].id, beforeA[2].id] } },
     })
     expect(otherOld).toHaveLength(0)
     // New B schedules present (active)
     const active = await schedulesFor(enrollmentId)
-    expect(active.map((s) => s.title)).toEqual(['B Day 1', 'B Day 2'])
+    expect(active.map((s) => s.currentVersion.title)).toEqual(['B Day 1', 'B Day 2'])
 
     await prisma.enrollment.delete({ where: { id: enrollmentId } })
   })
@@ -402,8 +374,8 @@ describe('Enrollment edit (reschedule / group change / preview)', () => {
     const enrollmentId = await enroll()
     const beforeA = await schedulesFor(enrollmentId)
     // One progressed lesson ⇒ 1 archived, 2 removed, 2 added.
-    await prisma.memberLessonProgress.create({
-      data: { memberId, lessonScheduleId: beforeA[1].id, completedAt: new Date() },
+    await prisma.lessonProgress.create({
+      data: { memberId, scheduledLessonId: beforeA[1].id, completedAt: new Date() },
     })
 
     const res = await request(app)
@@ -542,7 +514,7 @@ describe('Enrollment edit (reschedule / group change / preview)', () => {
   it('treats an all-locked reschedule as a no-op', async () => {
     const enrollmentId = await enroll()
     const before = await schedulesFor(enrollmentId)
-    await prisma.lessonSchedule.updateMany({
+    await prisma.scheduledLesson.updateMany({
       where: { id: { in: before.map((s) => s.id) } },
       data: { smsSentAt: new Date() },
     })
@@ -599,7 +571,7 @@ describe('Enrollment edit (reschedule / group change / preview)', () => {
     await prisma.enrollment.delete({ where: { id: enrollmentId } })
   })
 
-  it('copies source refs, read blocks, and exegesis highlights on a rich-content swap', async () => {
+  it('carries the target program\'s template onto the new scheduled lessons on a swap', async () => {
     const enrollmentId = await enroll()
     const res = await request(app)
       .patch(`/api/enrollments/${enrollmentId}`)
@@ -609,25 +581,9 @@ describe('Enrollment edit (reschedule / group change / preview)', () => {
 
     const after = await schedulesFor(enrollmentId)
     expect(after).toHaveLength(1)
-    // Template denormalized onto the new schedule
-    expect(after[0].templateName).toBe('Rich Template')
-    const scheduleIds = after.map((s) => s.id)
-    // Copied rows link via scheduledActivityId → readBlockId (not lessonScheduleId).
-    const acts = await prisma.scheduledLessonActivity.findMany({
-      where: { lessonScheduleId: { in: scheduleIds } },
-      select: { id: true },
-    })
-    const actIds = acts.map((a) => a.id)
-    const refs = await prisma.activitySourceReference.count({ where: { scheduledActivityId: { in: actIds } } })
-    const blocks = await prisma.activityReadBlock.findMany({
-      where: { scheduledActivityId: { in: actIds } },
-      select: { id: true },
-    })
-    const highlights = await prisma.contentHighlight.count({ where: { readBlockId: { in: blocks.map((b) => b.id) } } })
-    expect(acts).toHaveLength(1)
-    expect(refs).toBe(1)
-    expect(blocks).toHaveLength(1)
-    expect(highlights).toBe(1)
+    expect(after[0].templateId).toBe(templateId)
+    const activities = await prisma.contentActivity.count({ where: { lessonVersionId: after[0].currentVersionId } })
+    expect(activities).toBe(1)
     await prisma.enrollment.delete({ where: { id: enrollmentId } })
   })
 

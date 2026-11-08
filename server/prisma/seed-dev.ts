@@ -4,14 +4,15 @@
  * Creates realistic test data for local development:
  * - Test user with organization
  * - Sample groups
- * - Study programs with template-based lessons
- * - Enrollments with scheduled activities
+ * - Study programs whose lessons hold published versions of text activities
+ * - Enrollments with scheduled lessons on those versions
  *
  * Run with: npm run db:seed:dev
  */
 
-import { PrismaClient, TemplateActivityType } from '../src/generated/prisma'
+import { PrismaClient } from '../src/generated/prisma'
 import { randomUUID } from 'crypto'
+import { estimateDocumentSeconds, hashLessonContent } from '../src/services/activity-document.js'
 
 const prisma = new PrismaClient()
 
@@ -30,20 +31,20 @@ async function main() {
 
   // Clear existing test data (order matters for foreign keys)
   console.log('🧹 Clearing existing test data...')
-  await prisma.activitySourceReference.deleteMany({})
-  await prisma.memberActivityProgress.deleteMany({})
-  await prisma.memberVideoProgress.deleteMany({})
-  await prisma.memberLessonProgress.deleteMany({})
+  await prisma.activityProgress.deleteMany({})
+  await prisma.lessonProgress.deleteMany({})
   await prisma.studyNote.deleteMany({})
   await prisma.noteLink.deleteMany({})
   await prisma.eventAttendee.deleteMany({})
   await prisma.eventAttachment.deleteMany({})
   await prisma.event.deleteMany({})
   await prisma.post.deleteMany({})
-  await prisma.scheduledLessonActivity.deleteMany({})
-  await prisma.lessonSchedule.deleteMany({})
+  await prisma.scheduledLesson.deleteMany({})
   await prisma.enrollment.deleteMany({})
-  await prisma.lessonActivity.deleteMany({})
+  await prisma.programVersionLesson.deleteMany({})
+  await prisma.programVersion.deleteMany({})
+  await prisma.contentActivity.deleteMany({})
+  await prisma.lessonVersion.deleteMany({})
   await prisma.lesson.deleteMany({})
   await prisma.studyProgram.deleteMany({})
   await prisma.groupMember.deleteMany({})
@@ -156,14 +157,9 @@ async function main() {
     },
   })
 
-  // 6. Get SOAP template activities for creating lessons
-  console.log('📚 Creating study program with SOAP template...')
-  const soapTemplate = await prisma.lessonTemplate.findUnique({
-    where: { id: SOAP_TEMPLATE_ID },
-    include: {
-      activities: { orderBy: { orderNumber: 'asc' } },
-    },
-  })
+  // 6. The program (SOAP names the template its lessons start from)
+  console.log('📚 Creating study program...')
+  const soapTemplate = await prisma.lessonTemplate.findUnique({ where: { id: SOAP_TEMPLATE_ID } })
 
   if (!soapTemplate) {
     throw new Error('SOAP system template not found. Run migrations first.')
@@ -177,67 +173,90 @@ async function main() {
       templateId: SOAP_TEMPLATE_ID,
       days: 7,
       creatorId: TEST_USER_ID,
+      organizationId: TEST_ORG_ID,
       coverImageUrl: 'https://images.unsplash.com/photo-1504052434569-70ad5836ab65?w=800',
       requireResponse: true,
     },
   })
   console.log(`   Created program: ${soapProgram.name}`)
 
-  // 7. Create lessons for the program (each with template activities + source references)
+  // 7. One lesson per passage, each with a PUBLISHED version holding text activities (02 s2 documents),
+  //    then one ProgramVersion over them as the program's current version.
   console.log('📖 Creating lessons...')
   const passages = [
-    { dayNumber: 1, passage: 'Romans 1:1-7', book: 45, bookName: 'Romans', chapter: 1, verseStart: 1, verseEnd: 7 },
-    { dayNumber: 2, passage: 'Romans 3:21-26', book: 45, bookName: 'Romans', chapter: 3, verseStart: 21, verseEnd: 26 },
-    { dayNumber: 3, passage: 'Romans 5:1-11', book: 45, bookName: 'Romans', chapter: 5, verseStart: 1, verseEnd: 11 },
-    { dayNumber: 4, passage: 'Romans 6:1-14', book: 45, bookName: 'Romans', chapter: 6, verseStart: 1, verseEnd: 14 },
-    { dayNumber: 5, passage: 'Romans 8:1-17', book: 45, bookName: 'Romans', chapter: 8, verseStart: 1, verseEnd: 17 },
-    { dayNumber: 6, passage: 'Romans 8:28-39', book: 45, bookName: 'Romans', chapter: 8, verseStart: 28, verseEnd: 39 },
-    { dayNumber: 7, passage: 'Romans 12:1-8', book: 45, bookName: 'Romans', chapter: 12, verseStart: 1, verseEnd: 8 },
+    { position: 1, passage: 'Romans 1:1-7' },
+    { position: 2, passage: 'Romans 3:21-26' },
+    { position: 3, passage: 'Romans 5:1-11' },
+    { position: 4, passage: 'Romans 6:1-14' },
+    { position: 5, passage: 'Romans 8:1-17' },
+    { position: 6, passage: 'Romans 8:28-39' },
+    { position: 7, passage: 'Romans 12:1-8' },
   ]
+  const steps = [
+    { title: 'Scripture', prompt: (passage: string) => `Read ${passage}` },
+    { title: 'Observe', prompt: () => 'What stands out in this passage?' },
+    { title: 'Apply', prompt: () => 'How will you live this out today?' },
+    { title: 'Pray', prompt: () => 'Talk to God about what you noticed.' },
+  ]
+  const textDocument = (text: string, title: string) => ({
+    schemaVersion: 1,
+    kind: 'text',
+    background: { color: '#0E4A4D' },
+    content: {
+      type: 'canvas',
+      verticalAnchor: 'center',
+      objects: [{
+        id: 'o1', text, font: 'sans', weight: 400, size: 24, color: '#FFFFFF', alignment: 'center',
+        transform: { x: 0, y: 0, width: 1, scale: 1, rotation: 0 },
+      }],
+    },
+    actions: [],
+    chrome: { topAction: 'none' },
+    fallback: { title, body: text },
+  })
 
+  const lessonVersionIds: string[] = []
+  const lessonIds: string[] = []
   for (const p of passages) {
-    const lesson = await prisma.lesson.create({
+    const title = `Day ${p.position}: ${p.passage}`
+    const lesson = await prisma.lesson.create({ data: { programId: TEST_PROGRAM_ID, position: p.position } })
+    const activities = steps.map((step, i) => ({
+      activityKey: randomUUID(),
+      position: i + 1,
+      kind: 'text',
+      title: step.title,
+      document: textDocument(step.prompt(p.passage), step.title),
+    }))
+    const version = await prisma.lessonVersion.create({
       data: {
-        studyProgramId: TEST_PROGRAM_ID,
-        dayNumber: p.dayNumber,
+        lessonId: lesson.id,
+        number: 1,
+        status: 'PUBLISHED',
+        title,
+        publishedAt: new Date(),
+        publishedById: TEST_USER_ID,
+        contentHash: hashLessonContent({ title, activities }),
+        estimatedSeconds: activities.reduce((n, a) => n + (estimateDocumentSeconds(a.document) ?? 0), 0),
+        activities: {
+          create: activities.map((a) => ({ ...a, estimatedSeconds: estimateDocumentSeconds(a.document) })),
+        },
       },
     })
-
-    // Create activities from template
-    for (const tmplActivity of soapTemplate.activities) {
-      const activityId = randomUUID()
-      await prisma.lessonActivity.create({
-        data: {
-          id: activityId,
-          lessonId: lesson.id,
-          activityType: tmplActivity.type,
-          orderNumber: tmplActivity.orderNumber,
-          title: tmplActivity.title,
-          helpTitle: tmplActivity.helpTitle,
-          helpDescription: tmplActivity.helpDescription,
-          helpAlwaysVisible: tmplActivity.helpAlwaysVisible,
-          helpIcon: tmplActivity.helpIcon,
-        },
-      })
-
-      // Add source reference for READ activities
-      if (tmplActivity.type === TemplateActivityType.READ) {
-        await prisma.activitySourceReference.create({
-          data: {
-            lessonActivityId: activityId,
-            sourceType: 'SCRIPTURE',
-            passageReference: p.passage,
-            bookNumber: p.book,
-            bookName: p.bookName,
-            chapterStart: p.chapter,
-            verseStart: p.verseStart,
-            verseEnd: p.verseEnd,
-          },
-        })
-      }
-    }
+    lessonIds.push(lesson.id)
+    lessonVersionIds.push(version.id)
   }
-  console.log(`   Created ${passages.length} lessons with SOAP template activities`)
+  const programVersion = await prisma.programVersion.create({
+    data: {
+      programId: TEST_PROGRAM_ID,
+      number: 1,
+      publishedById: TEST_USER_ID,
+      lessons: {
+        create: lessonIds.map((lessonId, i) => ({ lessonId, lessonVersionId: lessonVersionIds[i], position: i + 1 })),
+      },
+    },
+  })
+  await prisma.studyProgram.update({ where: { id: TEST_PROGRAM_ID }, data: { currentVersionId: programVersion.id } })
+  console.log(`   Created ${passages.length} lessons with published versions of ${steps.length} text activities each`)
 
   // 8. Create an enrollment
   console.log('📅 Creating enrollment...')
@@ -250,6 +269,7 @@ async function main() {
     data: {
       groupId: TEST_GROUP_ID,
       studyProgramId: TEST_PROGRAM_ID,
+      programVersionId: programVersion.id,
       startDate,
       endDate,
       enabledDays: JSON.stringify(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']),
@@ -261,74 +281,24 @@ async function main() {
   })
   console.log(`   Created enrollment for group: ${TEST_GROUP_ID}`)
 
-  // 9. Create lesson schedules with scheduled activities
-  console.log('📆 Creating lesson schedules with scheduled activities...')
-  const lessons = await prisma.lesson.findMany({
-    where: { studyProgramId: TEST_PROGRAM_ID },
-    orderBy: { dayNumber: 'asc' },
-    include: {
-      activities: {
-        orderBy: { orderNumber: 'asc' },
-        include: { sourceReferences: true },
-      },
-    },
-  })
-
-  for (let i = 0; i < lessons.length; i++) {
+  // 9. One scheduled lesson per lesson, pointing at the lesson's published version
+  console.log('📆 Creating scheduled lessons...')
+  for (let i = 0; i < lessonIds.length; i++) {
     const scheduleDate = new Date(startDate)
     scheduleDate.setDate(scheduleDate.getDate() + i)
 
-    const schedule = await prisma.lessonSchedule.create({
+    await prisma.scheduledLesson.create({
       data: {
         code: `SCHD${String(i + 1).padStart(2, '0')}`,
         enrollmentId: enrollment.id,
-        lessonId: lessons[i].id,
+        lessonId: lessonIds[i],
         scheduledDate: scheduleDate,
+        currentVersionId: lessonVersionIds[i],
         templateId: SOAP_TEMPLATE_ID,
-        templateName: soapTemplate.name,
       },
     })
-
-    // Create scheduled activities (flat copy from lesson activities)
-    for (const activity of lessons[i].activities) {
-      const saId = randomUUID()
-      await prisma.scheduledLessonActivity.create({
-        data: {
-          id: saId,
-          lessonScheduleId: schedule.id,
-          type: activity.activityType,
-          orderNumber: activity.orderNumber,
-          title: activity.title,
-          helpTitle: activity.helpTitle,
-          helpDescription: activity.helpDescription,
-          helpAlwaysVisible: activity.helpAlwaysVisible,
-          helpIcon: activity.helpIcon,
-          readContent: activity.readContent,
-          videoId: activity.videoId,
-          videoUrl: activity.videoUrl,
-          sourceLessonActivityId: activity.id,
-        },
-      })
-
-      // Copy source references
-      for (const ref of activity.sourceReferences) {
-        await prisma.activitySourceReference.create({
-          data: {
-            scheduledActivityId: saId,
-            sourceType: ref.sourceType,
-            passageReference: ref.passageReference,
-            bookNumber: ref.bookNumber,
-            bookName: ref.bookName,
-            chapterStart: ref.chapterStart,
-            chapterEnd: ref.chapterEnd,
-            verseStart: ref.verseStart,
-            verseEnd: ref.verseEnd,
-          },
-        })
-      }
-    }
   }
-  console.log(`   Created ${lessons.length} lesson schedules with scheduled activities`)
+  console.log(`   Created ${lessonIds.length} scheduled lessons`)
 
   // 10. Create some events
   console.log('🗓️ Creating events...')

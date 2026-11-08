@@ -1100,6 +1100,10 @@ router.delete(
 
       const result = await deleteMedia(mediaId)
 
+      if (!result.success && 'code' in result && result.code === 'IN_USE') {
+        return res.status(409).json({ success: false, error: result.error, code: result.code })
+      }
+
       if (!result.success) {
         return res.status(400).json({
           success: false,

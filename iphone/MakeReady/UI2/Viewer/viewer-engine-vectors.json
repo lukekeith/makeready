@@ -1,0 +1,998 @@
+[
+  {
+    "name": "hold never commits",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        956,
+        956,
+        956
+      ],
+      "anchor": 0,
+      "drag": 700,
+      "owner": "pager"
+    },
+    "input": {
+      "kind": "tick",
+      "ticks": 30
+    },
+    "expect": {
+      "anchor": 0,
+      "drag": 700,
+      "settling": false,
+      "owner": "pager",
+      "outputs": []
+    }
+  },
+  {
+    "name": "slow release under half returns",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        956,
+        956,
+        956
+      ],
+      "anchor": 0,
+      "drag": 400,
+      "owner": "pager"
+    },
+    "input": {
+      "kind": "lift",
+      "velocity": 0,
+      "ticks": 60
+    },
+    "expect": {
+      "anchor": 0,
+      "drag": 0,
+      "settling": false,
+      "outputs": [
+        "settled:0"
+      ]
+    }
+  },
+  {
+    "name": "slow release over half commits next",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        956,
+        956,
+        956
+      ],
+      "anchor": 0,
+      "drag": 500,
+      "owner": "pager"
+    },
+    "input": {
+      "kind": "lift",
+      "velocity": 0,
+      "ticks": 60
+    },
+    "expect": {
+      "anchor": 1,
+      "drag": 0,
+      "settling": false,
+      "outputs": [
+        "commitStarted:1",
+        "settled:1"
+      ]
+    },
+    "note": "F4 retune input: this from-rest settle over 456 pt ends at about 0.49 s (30 ticks of 1/60) under endEpsilon 0.5 / endSpeed 5, above walk item 6's 0.3 to 0.45 s. omega 20 kept; retune on device."
+  },
+  {
+    "name": "flick from rest commits next",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        956,
+        956,
+        956
+      ],
+      "anchor": 0,
+      "drag": 30,
+      "owner": "pager"
+    },
+    "input": {
+      "kind": "lift",
+      "velocity": 5000,
+      "ticks": 60
+    },
+    "expect": {
+      "anchor": 1,
+      "drag": 0,
+      "settling": false,
+      "outputs": [
+        "commitStarted:1",
+        "activeChanged:1",
+        "settled:1"
+      ]
+    }
+  },
+  {
+    "name": "weak flick returns (30 + 125 < 478)",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        956,
+        956,
+        956
+      ],
+      "anchor": 0,
+      "drag": 30,
+      "owner": "pager"
+    },
+    "input": {
+      "kind": "lift",
+      "velocity": 500,
+      "ticks": 60
+    },
+    "expect": {
+      "anchor": 0,
+      "drag": 0,
+      "settling": false,
+      "outputs": [
+        "settled:0"
+      ]
+    }
+  },
+  {
+    "name": "flick against the drag returns (400 - 750 = -350)",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        956,
+        956,
+        956
+      ],
+      "anchor": 0,
+      "drag": 400,
+      "owner": "pager"
+    },
+    "input": {
+      "kind": "lift",
+      "velocity": -3000,
+      "ticks": 60
+    },
+    "expect": {
+      "anchor": 0,
+      "drag": 0,
+      "settling": false,
+      "outputs": [
+        "settled:0"
+      ]
+    }
+  },
+  {
+    "name": "one page per release",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        956,
+        956,
+        956
+      ],
+      "anchor": 0,
+      "drag": 900,
+      "owner": "pager"
+    },
+    "input": {
+      "kind": "lift",
+      "velocity": 9000,
+      "ticks": 60
+    },
+    "expect": {
+      "anchor": 1,
+      "drag": 0,
+      "settling": false,
+      "outputs": [
+        "commitStarted:1",
+        "settled:1"
+      ]
+    }
+  },
+  {
+    "name": "no next page returns",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        956,
+        956,
+        956
+      ],
+      "anchor": 2,
+      "drag": 40,
+      "owner": "pager"
+    },
+    "input": {
+      "kind": "lift",
+      "velocity": 0,
+      "ticks": 60
+    },
+    "expect": {
+      "anchor": 2,
+      "drag": 0,
+      "settling": false,
+      "outputs": [
+        "settled:2"
+      ]
+    }
+  },
+  {
+    "name": "ownership: long page mid-scroll goes to inner",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        1856,
+        956
+      ],
+      "anchor": 0,
+      "drag": 0,
+      "owner": "none",
+      "inner": [
+        300,
+        0
+      ]
+    },
+    "input": {
+      "kind": "move",
+      "dy": [
+        10
+      ]
+    },
+    "expect": {
+      "owner": "inner",
+      "inner": [
+        310,
+        0
+      ],
+      "drag": 0
+    }
+  },
+  {
+    "name": "ownership: long page at its end goes to pager",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        1856,
+        956
+      ],
+      "anchor": 0,
+      "drag": 0,
+      "owner": "none",
+      "inner": [
+        900,
+        0
+      ]
+    },
+    "input": {
+      "kind": "move",
+      "dy": [
+        10
+      ]
+    },
+    "expect": {
+      "owner": "pager",
+      "inner": [
+        900,
+        0
+      ],
+      "drag": 10
+    }
+  },
+  {
+    "name": "reversal is held: drag goes negative, inner stays",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        956,
+        1856,
+        956
+      ],
+      "anchor": 1,
+      "drag": 0,
+      "owner": "pager",
+      "inner": [
+        0,
+        900,
+        0
+      ]
+    },
+    "input": {
+      "kind": "move",
+      "dy": [
+        -100
+      ]
+    },
+    "expect": {
+      "anchor": 1,
+      "drag": -100,
+      "inner": [
+        0,
+        900,
+        0
+      ],
+      "owner": "pager"
+    }
+  },
+  {
+    "name": "inner limit stops momentum at max",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        1856,
+        956
+      ],
+      "anchor": 0,
+      "drag": 0,
+      "owner": "inner",
+      "inner": [
+        900,
+        0
+      ],
+      "momentum": 2000
+    },
+    "input": {
+      "kind": "tick",
+      "ticks": 1
+    },
+    "expect": {
+      "inner": [
+        900,
+        0
+      ],
+      "drag": 0,
+      "owner": "none",
+      "anchor": 0,
+      "settling": false
+    }
+  },
+  {
+    "name": "midline flips active",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        956,
+        956,
+        956
+      ],
+      "anchor": 0,
+      "drag": 477,
+      "owner": "pager"
+    },
+    "input": {
+      "kind": "move",
+      "dy": [
+        2
+      ]
+    },
+    "expect": {
+      "active": 1,
+      "outputs": [
+        "activeChanged:1"
+      ]
+    }
+  },
+  {
+    "name": "midline flips back",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        956,
+        956,
+        956
+      ],
+      "anchor": 0,
+      "drag": 479,
+      "owner": "pager"
+    },
+    "input": {
+      "kind": "move",
+      "dy": [
+        -2
+      ]
+    },
+    "expect": {
+      "active": 0,
+      "outputs": [
+        "activeChanged:0"
+      ]
+    }
+  },
+  {
+    "name": "rail window, active 6 of 8",
+    "start": {
+      "viewportHeight": 956
+    },
+    "input": {
+      "kind": "rail",
+      "active": 6,
+      "pageCount": 8
+    },
+    "expect": {
+      "railStart": 3,
+      "railSlots": 5
+    }
+  },
+  {
+    "name": "rail window, few pages",
+    "start": {
+      "viewportHeight": 956
+    },
+    "input": {
+      "kind": "rail",
+      "active": 1,
+      "pageCount": 3
+    },
+    "expect": {
+      "railStart": 0,
+      "railSlots": 3
+    }
+  },
+  {
+    "name": "rail window, first page of eight",
+    "start": {
+      "viewportHeight": 956
+    },
+    "input": {
+      "kind": "rail",
+      "active": 0,
+      "pageCount": 8
+    },
+    "expect": {
+      "railStart": 0,
+      "railSlots": 5
+    }
+  },
+  {
+    "name": "rail window, last page of eight",
+    "start": {
+      "viewportHeight": 956
+    },
+    "input": {
+      "kind": "rail",
+      "active": 7,
+      "pageCount": 8
+    },
+    "expect": {
+      "railStart": 3,
+      "railSlots": 5
+    }
+  },
+  {
+    "name": "inner follows 1:1 and never spills into drag",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        1856,
+        956
+      ],
+      "anchor": 0,
+      "drag": 0,
+      "owner": "inner",
+      "inner": [
+        800,
+        0
+      ]
+    },
+    "input": {
+      "kind": "move",
+      "dy": [
+        300
+      ]
+    },
+    "expect": {
+      "inner": [
+        900,
+        0
+      ],
+      "drag": 0,
+      "owner": "inner",
+      "anchor": 0
+    }
+  },
+  {
+    "name": "past the first page's top follows at 0.55x",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        956,
+        956,
+        956
+      ],
+      "anchor": 0,
+      "drag": 0,
+      "owner": "none"
+    },
+    "input": {
+      "kind": "move",
+      "dy": [
+        -100
+      ]
+    },
+    "expect": {
+      "owner": "pager",
+      "drag": -55,
+      "anchor": 0
+    }
+  },
+  {
+    "name": "past the first page's top returns on lift",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        956,
+        956,
+        956
+      ],
+      "anchor": 0,
+      "drag": -55,
+      "owner": "pager"
+    },
+    "input": {
+      "kind": "lift",
+      "velocity": 0,
+      "ticks": 60
+    },
+    "expect": {
+      "anchor": 0,
+      "drag": 0,
+      "settling": false,
+      "outputs": [
+        "settled:0"
+      ]
+    }
+  },
+  {
+    "name": "flick toward the previous page commits previous",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        956,
+        956,
+        956
+      ],
+      "anchor": 1,
+      "drag": -300,
+      "owner": "pager"
+    },
+    "input": {
+      "kind": "lift",
+      "velocity": -2000,
+      "ticks": 60
+    },
+    "expect": {
+      "anchor": 0,
+      "drag": 0,
+      "settling": false,
+      "outputs": [
+        "commitStarted:0",
+        "activeChanged:0",
+        "settled:0"
+      ]
+    }
+  },
+  {
+    "name": "a touch during a settle hands the finger to the pager",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        956,
+        956,
+        956
+      ],
+      "anchor": 0,
+      "drag": 500,
+      "owner": "pager"
+    },
+    "input": {
+      "kind": "lift",
+      "velocity": 0,
+      "ticks": 10,
+      "interrupt": true
+    },
+    "expect": {
+      "anchor": 1,
+      "owner": "pager",
+      "settling": false,
+      "active": 1,
+      "drag": -70.4918
+    }
+  },
+  {
+    "name": "first visit from below starts at the page's max",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        956,
+        1856,
+        956
+      ],
+      "anchor": 2,
+      "drag": 0,
+      "owner": "pager",
+      "inner": [
+        0,
+        0,
+        0
+      ]
+    },
+    "input": {
+      "kind": "move",
+      "dy": [
+        -50
+      ]
+    },
+    "expect": {
+      "drag": -50,
+      "inner": [
+        0,
+        900,
+        0
+      ]
+    }
+  },
+  {
+    "name": "first visit from above starts at 0",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        956,
+        1856,
+        956
+      ],
+      "anchor": 0,
+      "drag": 0,
+      "owner": "pager",
+      "inner": [
+        0,
+        0,
+        0
+      ]
+    },
+    "input": {
+      "kind": "move",
+      "dy": [
+        50
+      ]
+    },
+    "expect": {
+      "drag": 50,
+      "inner": [
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "name": "inner is retained on a revisit",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        956,
+        1856,
+        956
+      ],
+      "anchor": 2,
+      "drag": 0,
+      "owner": "pager",
+      "inner": [
+        0,
+        400,
+        0
+      ],
+      "visited": [
+        1,
+        2
+      ]
+    },
+    "input": {
+      "kind": "move",
+      "dy": [
+        -50
+      ]
+    },
+    "expect": {
+      "drag": -50,
+      "inner": [
+        0,
+        400,
+        0
+      ]
+    }
+  },
+  {
+    "name": "pager crossing a full page rebases the anchor",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        956,
+        956,
+        956
+      ],
+      "anchor": 0,
+      "drag": 0,
+      "owner": "pager"
+    },
+    "input": {
+      "kind": "move",
+      "dy": [
+        500,
+        500
+      ]
+    },
+    "expect": {
+      "anchor": 1,
+      "drag": 44,
+      "active": 1,
+      "owner": "pager",
+      "outputs": [
+        "activeChanged:1"
+      ]
+    }
+  },
+  {
+    "name": "thumb tracks inner over the range",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        1856,
+        956
+      ],
+      "anchor": 0,
+      "drag": 0,
+      "owner": "none",
+      "inner": [
+        450,
+        0
+      ]
+    },
+    "input": {
+      "kind": "thumb",
+      "page": 0
+    },
+    "expect": {
+      "thumb": 0.5
+    }
+  },
+  {
+    "name": "no thumb on a page with no range",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        956,
+        956
+      ],
+      "anchor": 0,
+      "drag": 0,
+      "owner": "none"
+    },
+    "input": {
+      "kind": "thumb",
+      "page": 0
+    },
+    "expect": {
+      "noThumb": true
+    }
+  },
+  {
+    "name": "inner lift carries momentum forward and decays at 0.998 per ms",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        1856,
+        956,
+        956
+      ],
+      "anchor": 0,
+      "drag": 0,
+      "owner": "inner",
+      "inner": [
+        300,
+        0,
+        0
+      ]
+    },
+    "input": {
+      "kind": "lift",
+      "velocity": 1000,
+      "ticks": 10
+    },
+    "expect": {
+      "inner": [
+        439.3609,
+        0,
+        0
+      ],
+      "owner": "inner",
+      "drag": 0,
+      "settling": false,
+      "outputs": []
+    }
+  },
+  {
+    "name": "inner lift against the reading direction carries momentum back",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        1856,
+        956,
+        956
+      ],
+      "anchor": 0,
+      "drag": 0,
+      "owner": "inner",
+      "inner": [
+        300,
+        0,
+        0
+      ]
+    },
+    "input": {
+      "kind": "lift",
+      "velocity": -1000,
+      "ticks": 10
+    },
+    "expect": {
+      "inner": [
+        160.6391,
+        0,
+        0
+      ],
+      "owner": "inner"
+    }
+  },
+  {
+    "name": "momentum stops below 5 pt/s before any limit",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        1856,
+        956,
+        956
+      ],
+      "anchor": 0,
+      "drag": 0,
+      "owner": "inner",
+      "inner": [
+        300,
+        0,
+        0
+      ]
+    },
+    "input": {
+      "kind": "lift",
+      "velocity": 30,
+      "ticks": 120
+    },
+    "expect": {
+      "inner": [
+        312.3049,
+        0,
+        0
+      ],
+      "owner": "none",
+      "drag": 0
+    }
+  },
+  {
+    "name": "inner lift under 5 pt/s starts no momentum",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        1856,
+        956,
+        956
+      ],
+      "anchor": 0,
+      "drag": 0,
+      "owner": "inner",
+      "inner": [
+        300,
+        0,
+        0
+      ]
+    },
+    "input": {
+      "kind": "lift",
+      "velocity": 3,
+      "ticks": 5
+    },
+    "expect": {
+      "inner": [
+        300,
+        0,
+        0
+      ],
+      "owner": "none"
+    }
+  },
+  {
+    "name": "inner lift never settles the pager",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        1856,
+        956,
+        956
+      ],
+      "anchor": 0,
+      "drag": 300,
+      "owner": "inner",
+      "inner": [
+        300,
+        0,
+        0
+      ]
+    },
+    "input": {
+      "kind": "lift",
+      "velocity": 0,
+      "ticks": 5
+    },
+    "expect": {
+      "drag": 300,
+      "anchor": 0,
+      "settling": false,
+      "outputs": []
+    }
+  },
+  {
+    "name": "pager lift at drag 0 does not settle",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        1856,
+        956,
+        956
+      ],
+      "anchor": 1,
+      "drag": 0,
+      "owner": "pager",
+      "inner": [
+        0,
+        0,
+        0
+      ]
+    },
+    "input": {
+      "kind": "lift",
+      "velocity": 500,
+      "ticks": 5
+    },
+    "expect": {
+      "drag": 0,
+      "anchor": 1,
+      "settling": false,
+      "outputs": []
+    }
+  },
+  {
+    "name": "touch during a return settle before the midline keeps the anchor",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        956,
+        956,
+        956
+      ],
+      "anchor": 0,
+      "drag": 300,
+      "owner": "pager"
+    },
+    "input": {
+      "kind": "lift",
+      "velocity": 0,
+      "ticks": 5,
+      "interrupt": true
+    },
+    "expect": {
+      "anchor": 0,
+      "drag": 151.1005,
+      "owner": "pager",
+      "settling": false,
+      "active": 0
+    }
+  }
+]

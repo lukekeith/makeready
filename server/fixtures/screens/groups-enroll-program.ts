@@ -13,6 +13,7 @@
  */
 import type { FixtureContext } from '../context.js'
 import { placeProgramCovers } from '../images.js'
+import { publishProgramVersion, scheduleLessons } from '../lesson-content.js'
 import {
   FIXTURE_GROUP_IDS,
   FIXTURE_LEADER_GROUP_ID,
@@ -29,6 +30,7 @@ export const ENROLL_PROGRAM_DAYS = 12
 export const ENROLL_ENDED_ENROLLMENT_ID = fixtureId('enrollment', 900)
 export const DRAFT_PRAYER_TEAM_ID = fixtureId('enrollmentDraft', 3)
 const lessonIdFor = (day: number) => fixtureId('lesson', 900_000 + day)
+const versionIdFor = (day: number) => fixtureId('lessonVersion', 900_000 + day)
 const scheduleIdFor = (day: number) => fixtureId('schedule', 900_000 + day)
 
 export async function full(ctx: FixtureContext): Promise<void> {
@@ -63,7 +65,13 @@ export async function full(ctx: FixtureContext): Promise<void> {
   await placeProgramCovers(ctx, [ENROLL_PROGRAM_ID])
   const days = Array.from({ length: ENROLL_PROGRAM_DAYS }, (_, i) => i + 1)
   await prisma.lesson.createMany({
-    data: days.map((day) => ({ id: lessonIdFor(day), studyProgramId: ENROLL_PROGRAM_ID, dayNumber: day, title: `Day ${day}` })),
+    data: days.map((day) => ({ id: lessonIdFor(day), programId: ENROLL_PROGRAM_ID, position: day })),
+  })
+  await publishProgramVersion(ctx, {
+    programId: ENROLL_PROGRAM_ID,
+    programVersionId: fixtureId('programVersion', 900),
+    publishedAt: ctx.daysAgo(60),
+    versions: days.map((day) => ({ id: versionIdFor(day), lessonId: lessonIdFor(day), number: 1, title: `Day ${day}` })),
   })
   // Ran days −40 … −29: ended before today, so it counts as completed (D8/D17).
   await prisma.enrollment.create({
@@ -80,13 +88,14 @@ export async function full(ctx: FixtureContext): Promise<void> {
       createdAt: ctx.daysAgo(41),
     },
   })
-  await prisma.lessonSchedule.createMany({
-    data: days.map((day) => ({
+  await scheduleLessons(ctx, {
+    enrollmentId: ENROLL_ENDED_ENROLLMENT_ID,
+    programVersionId: fixtureId('programVersion', 900),
+    schedules: days.map((day) => ({
       id: scheduleIdFor(day),
-      enrollmentId: ENROLL_ENDED_ENROLLMENT_ID,
       lessonId: lessonIdFor(day),
+      currentVersionId: versionIdFor(day),
       scheduledDate: ctx.at(-41 + day, 12),
-      title: `Day ${day}`,
     })),
   })
   await prisma.enrollmentDraft.create({

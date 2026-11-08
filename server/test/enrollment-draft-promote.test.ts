@@ -21,6 +21,7 @@ vi.mock('../src/services/enrollment-draft.service.js', async (importOriginal) =>
 import { app } from '../src/index.js'
 import { prisma } from '../src/lib/prisma.js'
 import { createUserWithApiKey, bearer, type TestUserWithToken } from './helpers/api-auth.js'
+import { createSimpleProgram, destroySimplePrograms } from './helpers/published-program.js'
 
 describe('POST /api/enrollments promotes the pair\'s draft (D11, D24)', () => {
   const stamp = Date.now()
@@ -48,10 +49,7 @@ describe('POST /api/enrollments promotes the pair\'s draft (D11, D24)', () => {
     memberId = (await prisma.member.create({ data: { firstName: 'Pat', lastName: 'Lee', phoneNumber: `+1557${String(stamp).slice(-7)}` } })).id
     await prisma.groupMember.create({ data: { groupId, memberId, isActive: true } })
     for (let i = 0; i < 5; i++) {
-      const p = await prisma.studyProgram.create({
-        data: { name: `EDP P${i} ${stamp}`, days: 2, creatorId: owner.userId, organizationId: orgId, isPublished: true, publishedAt: new Date() },
-      })
-      for (const day of [1, 2]) await prisma.lesson.create({ data: { studyProgramId: p.id, dayNumber: day } })
+      const p = { id: (await createSimpleProgram({ name: `EDP P${i} ${stamp}`, creatorId: owner.userId, organizationId: orgId, titles: ['Day 1', 'Day 2'] })).programId }
       programs.push(p.id)
     }
   })
@@ -66,8 +64,7 @@ describe('POST /api/enrollments promotes the pair\'s draft (D11, D24)', () => {
     await prisma.enrollmentDraft.deleteMany({ where: { groupId } })
     await prisma.groupMember.deleteMany({ where: { memberId } })
     await prisma.member.deleteMany({ where: { id: memberId } })
-    await prisma.lesson.deleteMany({ where: { studyProgramId: { in: programs } } })
-    await prisma.studyProgram.deleteMany({ where: { id: { in: programs } } })
+    await destroySimplePrograms(programs)
     await prisma.post.deleteMany({ where: { groupId } })
     await prisma.group.deleteMany({ where: { id: groupId } })
     await prisma.apiKey.deleteMany({ where: { userId: owner.userId } })

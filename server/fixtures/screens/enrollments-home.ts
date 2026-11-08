@@ -11,7 +11,8 @@
  * Never touches ctx.rand. Creates no org, user or group; wipe.ts removes the drafts and the enrollment
  * with their groups (cascade).
  */
-import { lessonId } from '../base.js'
+import { lessonId, lessonVersionId, programVersionId } from '../base.js'
+import { scheduleLessons } from '../lesson-content.js'
 import { FIXTURE_TZ, type FixtureContext } from '../context.js'
 import {
   FIXTURE_GROUP_IDS,
@@ -50,14 +51,14 @@ export async function full(ctx: FixtureContext): Promise<void> {
       createdAt: ctx.daysAgo(1),
     },
   })
-  await prisma.lessonSchedule.createMany({
-    data: days.map((day) => ({
+  await scheduleLessons(ctx, {
+    enrollmentId: UPCOMING_ENROLLMENT_ID,
+    programVersionId: programVersionId(UPCOMING_PROGRAM_INDEX),
+    schedules: days.map((day) => ({
       id: fixtureId('schedule', 960_000 + day),
-      enrollmentId: UPCOMING_ENROLLMENT_ID,
       lessonId: lessonId(UPCOMING_PROGRAM_INDEX, day),
+      currentVersionId: lessonVersionId(UPCOMING_PROGRAM_INDEX, day),
       scheduledDate: ctx.at(offsetOf(day), 12),
-      title: `Day ${day}`,
-      estimatedMinutes: 25,
     })),
   })
 

@@ -161,11 +161,11 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('GET /api/search/ranked', () => 
     }
   })
 
-  it('D16, D45: a read block or an activity alone returns the lesson\'s program, counted and under tier 1', async () => {
+  it('D16, D45: an activity\'s text alone returns the lesson\'s program, counted and under tier 1', async () => {
     for (const [q, lessonId] of [['blockonlyword', world.blockOnlyLessonId], ['lessontext', world.untitledLessonId]]) {
-      const { studyProgramId } = await prisma.lesson.findUniqueOrThrow({ where: { id: lessonId } })
+      const { programId } = await prisma.lesson.findUniqueOrThrow({ where: { id: lessonId } })
       const { items } = await search(world.owner, { q, limit: '50' })
-      expect(items.map((i: any) => [i.type, i.id])).toEqual([['PROGRAM', studyProgramId]])
+      expect(items.map((i: any) => [i.type, i.id])).toEqual([['PROGRAM', programId]])
       expect(items[0].matchingLessons).toBe(1)
       expect(items[0].score).toBeGreaterThan(0)
       expect(items[0].score).toBeLessThan(0.5)
@@ -197,7 +197,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('GET /api/search/ranked', () => 
     expect(items.find((i: any) => i.id === world.exactPostId).matchingLessons).toBeNull()
   })
 
-  it('F4: PROGRAM reads activities and read blocks once per query, never once per program', async () => {
+  it('F4: PROGRAM reads lesson versions and activity documents once per query, never once per program', async () => {
     const scope = await buildSearchScope(world.owner.id)
     const [row] = await prisma.$queryRaw<any[]>(Prisma.sql`EXPLAIN (FORMAT JSON) ${buildArm('PROGRAM', scope, {}, buildTextMatch('orchardword'))}`)
     const read: { relation: string; perLesson: boolean }[] = []
@@ -207,12 +207,12 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('GET /api/search/ranked', () => 
       for (const child of node.Plans ?? []) walk(child, perLesson)
     }
     walk(row['QUERY PLAN'][0].Plan, false)
-    const texts = read.filter((r) => r.relation === 'lesson_activities' || r.relation === 'activity_read_blocks')
-    expect(new Set(texts.map((r) => r.relation))).toEqual(new Set(['lesson_activities', 'activity_read_blocks']))
+    const texts = read.filter((r) => r.relation === 'content_activities')
+    expect(texts.length).toBeGreaterThan(0)
     expect(texts.filter((r) => r.perLesson)).toEqual([])
   })
 
-  it('D16: a scheduled copy of a read block does not match', async () => {
+  it('SC12: a group\'s own copy of a lesson does not match', async () => {
     expect((await search(world.owner, { q: 'scheduledonlyword' })).items).toHaveLength(0)
   })
 

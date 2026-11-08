@@ -7,7 +7,9 @@
  * and 201 are clear of base (1–2), search-home (lesson 7000) and groups-enroll-program (900,000+).
  */
 import type { FixtureContext } from '../context.js'
-import { activityId, lessonId } from '../base.js'
+import { textDocument, textObject, writeDocument } from '../activity-documents.js'
+import { activityId, lessonId, lessonVersionId } from '../base.js'
+import { type ActivitySeed, writeVersions } from '../lesson-content.js'
 import { FIXTURE_ORG_ID, FIXTURE_USER_ID, fixtureId } from '../ids.js'
 
 export const LESSON_RAIL_PROGRAM_ID = fixtureId('program', 200)
@@ -26,33 +28,46 @@ export async function full(ctx: FixtureContext): Promise<void> {
   })
   await prisma.lesson.createMany({
     data: [
-      { id: lessonId(RAIL_INDEX, 1), studyProgramId: LESSON_RAIL_PROGRAM_ID, dayNumber: 1, title: 'Day 1', estimatedMinutes: 3 },
-      { id: lessonId(RAIL_INDEX, 2), studyProgramId: LESSON_RAIL_PROGRAM_ID, dayNumber: 2, title: 'Day 2', estimatedMinutes: 5 },
-      { id: lessonId(RAIL_INDEX, 3), studyProgramId: LESSON_RAIL_PROGRAM_ID, dayNumber: 3, title: 'Day 3' },
-      { id: lessonId(SINGLE_INDEX, 1), studyProgramId: SINGLE_LESSON_PROGRAM_ID, dayNumber: 1, title: 'Day 1' },
+      { id: lessonId(RAIL_INDEX, 1), programId: LESSON_RAIL_PROGRAM_ID, position: 1 },
+      { id: lessonId(RAIL_INDEX, 2), programId: LESSON_RAIL_PROGRAM_ID, position: 2 },
+      { id: lessonId(RAIL_INDEX, 3), programId: LESSON_RAIL_PROGRAM_ID, position: 3 },
+      { id: lessonId(SINGLE_INDEX, 1), programId: SINGLE_LESSON_PROGRAM_ID, position: 1 },
     ],
   })
   const read = (day: number, order: number) => ({
-    id: activityId(RAIL_INDEX, day, order),
-    lessonId: lessonId(RAIL_INDEX, day),
-    activityType: 'READ' as const,
-    orderNumber: order,
+    id: fixtureId('contentActivity', (RAIL_INDEX * 1000 + day) * 10 + order),
+    activityKey: activityId(RAIL_INDEX, day, order),
+    kind: 'text',
     title: 'Read',
-    referenceTitle: `John ${day}`,
-    readContent: `Read John ${day} slowly, twice.`,
+    document: textDocument([textObject({ id: 'o1', text: `Read John ${day} slowly, twice.` })]),
   })
-  await prisma.lessonActivity.createMany({
-    data: [
-      read(1, 1),
-      {
-        id: activityId(RAIL_INDEX, 1, 2),
-        lessonId: lessonId(RAIL_INDEX, 1),
-        activityType: 'USER_INPUT' as const,
-        orderNumber: 2,
-        title: 'Reflect',
-        placeholder: 'What stood out to you today?',
-      },
-      read(2, 1),
+  const draft = (index: number, day: number, estimatedSeconds: number | null, activities: ActivitySeed[]) => ({
+    id: lessonVersionId(index, day),
+    lessonId: lessonId(index, day),
+    number: 1,
+    status: 'DRAFT' as const,
+    title: 'Day ' + day,
+    estimatedSeconds,
+    activities,
+  })
+  // Drafts only: neither program is published, so the program page and the picker read the drafts.
+  await writeVersions(
+    ctx,
+    [
+      draft(RAIL_INDEX, 1, 180, [
+        read(1, 1),
+        {
+          id: fixtureId('contentActivity', (RAIL_INDEX * 1000 + 1) * 10 + 2),
+          activityKey: activityId(RAIL_INDEX, 1, 2),
+          kind: 'write',
+          title: 'Reflect',
+          document: writeDocument('What stood out to you today?'),
+        },
+      ]),
+      draft(RAIL_INDEX, 2, 300, [read(2, 1)]),
+      draft(RAIL_INDEX, 3, null, []),
+      draft(SINGLE_INDEX, 1, null, []),
     ],
-  })
+    ctx.daysAgo(2)
+  )
 }

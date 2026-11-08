@@ -1,555 +1,243 @@
 /**
- * Enrollment Sync Engine (study-sync phase 3)
+ * Enrollment sync (text-activity D5, D37, 05 s3 "Sync").
  *
- * Applies a published StudyProgramVersion to an enrollment: "bring enrollment
- * E to program version N". Content comes from the version SNAPSHOT, never from
- * live curriculum — unpublished edits must not reach members.
+ * Moves an enrollment onto a ProgramVersion by POINTER: each ScheduledLesson's `currentVersionId` becomes the
+ * version the ProgramVersionLesson row names, and no content is copied. No sync run is written (D37).
  *
- * Invariants:
- *  - Sync NEVER mutates or deletes activity rows of existing versions. A
- *    changed lesson gets a new LessonScheduleVersion; old versions stay for
- *    pinned members (member progress cascades from activity deletes, so
- *    deletion is forbidden here by design).
- *  - Members who completed a lesson are pinned to the version they completed
- *    (belt-and-suspenders: completion-time pinning also happens at write time,
- *    but any unpinned completed member is pinned before the switch).
- *  - Scheduling: past-dated or already-sent lessons never move ("locked").
- *    Remaining curriculum lessons are laid over the surviving future dates in
- *    curriculum order; overflow walks forward through the enrollment's
- *    enabled days. Removed lessons free their future slots.
- *  - Removed lessons are hard-deleted when no member ever touched them,
- *    soft-hidden (removedAt) when progress exists.
- *  - Idempotent + resumable: per-lesson changes are hash-guarded and applied
- *    in their own transactions; EnrollmentSyncRun records the attempt. A
- *    failed run can be retried and picks up where it left off.
+ *  - A scheduled lesson whose current version belongs to the enrollment (`enrollmentId` set: the group's own
+ *    edit) is skipped and reported (D5).
+ *  - A lesson the enrollment never had gets a ScheduledLesson: in a slot freed by a removal in the same sync,
+ *    else on the next enabled day after every date the enrollment holds. A full sync re-lays every unlocked lesson
+ *    over the slot pool in program order, as the old sync did.
+ *  - A lesson absent from the target is deleted when no member started it, else soft-removed (`removedAt`).
+ *  - Past-dated or already-sent lessons count as locked: their dates are never reused as free slots.
  */
 
-import { randomUUID } from 'crypto'
 import { prisma } from '../lib/prisma.js'
+import type { Prisma } from '../generated/prisma/index.js'
 import { generateStudyCode } from '../lib/study-code.js'
-import { buildLessonRowsFromSnapshot, type LiveActivityDerivedFields } from './lesson-copy.js'
-import { recalculateScheduledLessonEstimate } from './lesson-estimate.service.js'
-import type { SnapshotLesson } from './study-program-publish.js'
+import { computePendingChanges } from './enrollment-sync-changes.js'
 import {
   upsertNotificationByDedupeKey,
   resolveNotificationsByDedupeKey,
 } from './notification.js'
 
+type Tx = Prisma.TransactionClient
+
 const DAY_NAME_TO_NUMBER: Record<string, number> = {
   Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
 }
 
-export interface SyncOutcome {
-  alreadySynced: boolean
-  targetVersionNumber: number
-  lessonsUpdated: number
-  lessonsAdded: number
-  lessonsRemoved: number
+export interface ApplyProgramVersionResult {
+  movedLessonIds: string[]
+  addedLessonIds: string[]
+  removedLessonIds: string[]
+  skippedCustomizedLessonIds: string[]
+  /** Existing scheduled lessons whose date moved when the unlocked lessons were re-laid in program order. */
   datesShifted: number
-  /** True when the enrollment fully matches the target version after this
-   *  run. False after a partial (selective) approval — the enrollment stays
-   *  drifted and the leader can approve more later. */
-  fullySynced: boolean
+}
+
+export interface ApplyProgramVersionOptions {
+  /**
+   * Selective approval (Review Changes): only these pending changes apply, keyed by lessonId (or `schedule:{id}`
+   * for a scheduled lesson whose lesson is gone). The enrollment's `programVersionId` is then left for the caller
+   * to move once nothing remains pending.
+   */
+  only?: ReadonlySet<string>
 }
 
 export class SyncNotPossibleError extends Error {}
 
-/**
- * Bring one enrollment to the latest published version of its program —
- * fully, or restricted to the leader-approved lessons.
- *
- * @param lessonKeys selective approval (Review Changes screen): only these
- *   pending changes apply (curriculum lessonId, or `schedule:{id}` for
- *   orphans). The enrollment's syncedProgramVersionNumber bumps ONLY when
- *   nothing pending remains afterwards, so partial approvals keep the
- *   enrollment drifted (and its action-required notification alive).
- *
- * Safe to call repeatedly; concurrent calls are serialized by the
- * (enrollmentId, targetProgramVersionNumber) unique on EnrollmentSyncRun.
- */
-export async function syncEnrollmentToLatest(params: {
-  enrollmentId: string
-  triggeredById?: string | null
-  lessonKeys?: string[] | null
-}): Promise<SyncOutcome> {
-  const { enrollmentId, triggeredById = null, lessonKeys = null } = params
-  const selection = lessonKeys ? new Set(lessonKeys) : null
-
-  const enrollment = await loadEnrollment(enrollmentId)
-
-  const targetVersionNumber = enrollment.studyProgram.currentVersionNumber
-  if (targetVersionNumber == null) {
-    throw new SyncNotPossibleError('This study program has no published version to sync to.')
-  }
-
-  const noOp: SyncOutcome = {
-    alreadySynced: true,
-    targetVersionNumber,
-    lessonsUpdated: 0,
-    lessonsAdded: 0,
-    lessonsRemoved: 0,
-    datesShifted: 0,
-    fullySynced: true,
-  }
-
-  if (enrollment.syncedProgramVersionNumber === targetVersionNumber) return noOp
-  if (selection && selection.size === 0) {
-    return { ...noOp, alreadySynced: false, fullySynced: false }
-  }
-
-  const run = await prisma.enrollmentSyncRun.upsert({
-    where: {
-      enrollmentId_targetProgramVersionNumber: {
-        enrollmentId,
-        targetProgramVersionNumber: targetVersionNumber,
-      },
-    },
-    create: {
-      enrollmentId,
-      targetProgramVersionNumber: targetVersionNumber,
-      status: 'RUNNING',
-      startedAt: new Date(),
-      triggeredById,
-    },
-    update: {
-      status: 'RUNNING',
-      startedAt: new Date(),
-      error: null,
-      triggeredById,
-    },
-  })
-
-  try {
-    const outcome = await applyVersion(enrollment, targetVersionNumber, selection)
-
-    // Selective approvals only "complete" the sync when nothing pending
-    // remains — otherwise the enrollment stays drifted for a later visit.
-    const fullySynced = selection === null || !(await hasPendingLessons(enrollmentId, targetVersionNumber))
-
-    await prisma.$transaction([
-      prisma.enrollmentSyncRun.update({
-        where: { id: run.id },
-        data: { status: 'COMPLETED', completedAt: new Date() },
-      }),
-      ...(fullySynced
-        ? [
-            prisma.enrollment.update({
-              where: { id: enrollmentId },
-              data: { syncedProgramVersionNumber: targetVersionNumber },
-            }),
-          ]
-        : []),
-    ])
-
-    // The pending-updates notification resolves only when everything is dealt
-    // with (action-required contract).
-    if (fullySynced && enrollment.createdById) {
-      await resolveNotificationsByDedupeKey(
-        enrollment.createdById,
-        `study-sync-updates:${enrollmentId}`
-      ).catch(() => undefined)
-    }
-
-    return { ...outcome, fullySynced }
-  } catch (error) {
-    await prisma.enrollmentSyncRun
-      .update({
-        where: { id: run.id },
-        data: {
-          status: 'FAILED',
-          completedAt: new Date(),
-          error: error instanceof Error ? error.message : String(error),
-        },
-      })
-      .catch(() => undefined) // never mask the original failure
-    throw error
-  }
-}
-
-/** Cheap post-apply check: does anything still differ from the target
- *  version? (Hash mismatches, missing lessons, or stale schedules.) */
-async function hasPendingLessons(
+/** Bring one enrollment onto `programVersionId`. Run inside the caller's transaction. */
+export async function applyProgramVersion(
+  tx: Tx,
   enrollmentId: string,
-  targetVersionNumber: number
-): Promise<boolean> {
-  const enrollment = await prisma.enrollment.findUniqueOrThrow({
+  programVersionId: string,
+  options: ApplyProgramVersionOptions = {},
+): Promise<ApplyProgramVersionResult> {
+  const { only } = options
+  const enrollment = await tx.enrollment.findUniqueOrThrow({
     where: { id: enrollmentId },
-    select: { studyProgramId: true },
+    select: { id: true, enabledDays: true, endDate: true, studyProgram: { select: { name: true } } },
   })
-  const version = await prisma.studyProgramVersion.findUniqueOrThrow({
-    where: {
-      studyProgramId_versionNumber: {
-        studyProgramId: enrollment.studyProgramId,
-        versionNumber: targetVersionNumber,
-      },
-    },
-    select: { lessonHashes: true },
+  const targetLessons = await tx.programVersionLesson.findMany({
+    where: { programVersionId },
+    orderBy: { position: 'asc' },
   })
-  const hashes = (version.lessonHashes ?? {}) as Record<string, string>
-
-  const schedules = await prisma.lessonSchedule.findMany({
-    where: { enrollmentId, removedAt: null },
-    select: {
-      lessonId: true,
-      currentVersion: { select: { sourceContentHash: true } },
-    },
+  const targetByLessonId = new Map(targetLessons.map((l) => [l.lessonId, l]))
+  const schedules = await tx.scheduledLesson.findMany({
+    where: { enrollmentId },
+    include: { currentVersion: { select: { enrollmentId: true } } },
+    orderBy: { scheduledDate: 'asc' },
   })
-  const byLessonId = new Map(schedules.map((s) => [s.lessonId, s]))
-
-  for (const [lessonId, hash] of Object.entries(hashes)) {
-    const schedule = byLessonId.get(lessonId)
-    if (!schedule || schedule.currentVersion?.sourceContentHash !== hash) return true
-  }
-  return schedules.some((s) => s.lessonId === null || hashes[s.lessonId] === undefined)
-}
-
-type LoadedEnrollment = Awaited<ReturnType<typeof loadEnrollment>>
-async function loadEnrollment(enrollmentId: string) {
-  return prisma.enrollment.findUniqueOrThrow({
-    where: { id: enrollmentId },
-    include: {
-      studyProgram: {
-        select: {
-          id: true,
-          name: true,
-          description: true,
-          currentVersionNumber: true,
-          template: { select: { id: true, name: true } },
-        },
-      },
-    },
-  })
-}
-
-async function applyVersion(
-  enrollment: LoadedEnrollment,
-  targetVersionNumber: number,
-  selection: Set<string> | null = null
-): Promise<SyncOutcome> {
-  const programVersion = await prisma.studyProgramVersion.findUniqueOrThrow({
-    where: {
-      studyProgramId_versionNumber: {
-        studyProgramId: enrollment.studyProgramId,
-        versionNumber: targetVersionNumber,
-      },
-    },
-  })
-
-  const snapshotLessons = (((programVersion.snapshot as any)?.lessons ?? []) as SnapshotLesson[])
-    .slice()
-    .sort((a, b) => a.dayNumber - b.dayNumber)
-  const snapshotByLessonId = new Map(snapshotLessons.map((l) => [l.id, l]))
-
-  const schedules = await prisma.lessonSchedule.findMany({
-    where: { enrollmentId: enrollment.id },
-    include: { currentVersion: { select: { id: true, sourceContentHash: true } } },
-  })
-  const scheduleByLessonId = new Map(schedules.map((s) => [s.lessonId, s]))
-
-  // Derived-field sources: live curriculum activities for all snapshot lessons
-  const liveActivities = await prisma.lessonActivity.findMany({
-    where: { lessonId: { in: snapshotLessons.map((l) => l.id) } },
-    select: {
-      id: true,
-      videoId: true,
-      videoUrl: true,
-      youtubeUrl: true,
-      youtubeVideoId: true,
-      youtubeThumbnailUrl: true,
-      estimatedSeconds: true,
-    },
-  })
-  const liveById = new Map<string, LiveActivityDerivedFields>(
-    liveActivities.map((a) => [a.id, a])
-  )
-  const existingSourceActivityIds = new Set(liveActivities.map((a) => a.id))
+  const selected = (lessonId: string | null, scheduleId: string) =>
+    !only || only.has(lessonId ?? `schedule:${scheduleId}`)
 
   const now = new Date()
-  const isLocked = (s: { scheduledDate: Date; smsSentAt: Date | null }) =>
-    s.smsSentAt !== null || s.scheduledDate <= now
+  const result: ApplyProgramVersionResult = {
+    movedLessonIds: [], addedLessonIds: [], removedLessonIds: [], skippedCustomizedLessonIds: [], datesShifted: 0,
+  }
 
-  // ── Removals ──────────────────────────────────────────────────────────────
-  let lessonsRemoved = 0
+  // Removals
   const freedSlotDates: Date[] = []
+  const removedScheduleIds = new Set<string>()
   for (const schedule of schedules) {
-    // A null lessonId means the curriculum lesson was deleted outright — the
-    // schedule is orphaned and follows the same removal rules as a lesson
-    // missing from the published snapshot
-    if (schedule.lessonId !== null && snapshotByLessonId.has(schedule.lessonId)) continue
-    if (schedule.removedAt !== null) continue // removed by an earlier sync
-    // Selective approval: unapproved removals stay untouched (and keep their slot)
-    if (selection && !selection.has(schedule.lessonId ?? `schedule:${schedule.id}`)) continue
+    if (schedule.removedAt !== null) continue
+    if (schedule.lessonId !== null && targetByLessonId.has(schedule.lessonId)) continue
+    if (!selected(schedule.lessonId, schedule.id)) continue
 
-    if (!isLocked(schedule)) freedSlotDates.push(schedule.scheduledDate)
+    const locked = schedule.smsSentAt !== null || schedule.scheduledDate <= now
+    if (!locked) freedSlotDates.push(schedule.scheduledDate)
 
-    const [activityCount, videoCount, lessonCount] = await Promise.all([
-      prisma.memberActivityProgress.count({ where: { lessonScheduleId: schedule.id } }),
-      prisma.memberVideoProgress.count({ where: { lessonScheduleId: schedule.id } }),
-      prisma.memberLessonProgress.count({ where: { lessonScheduleId: schedule.id } }),
-    ])
-    const hasProgress = activityCount + videoCount + lessonCount > 0
-
+    const hasProgress = (await tx.lessonProgress.count({ where: { scheduledLessonId: schedule.id } })) > 0
     if (hasProgress) {
-      await prisma.$transaction([
-        prisma.lessonSchedule.update({
-          where: { id: schedule.id },
-          data: { removedAt: now },
-        }),
-        // The lesson is no longer happening — drop its future calendar event
-        prisma.event.deleteMany({
-          where: { lessonScheduleId: schedule.id, date: { gt: now } },
-        }),
-      ])
+      await tx.event.deleteMany({ where: { scheduledLessonId: schedule.id, date: { gt: now } } })
+      await tx.scheduledLesson.update({ where: { id: schedule.id }, data: { removedAt: now } })
     } else {
-      await prisma.$transaction([
-        prisma.event.deleteMany({ where: { lessonScheduleId: schedule.id } }),
-        prisma.lessonSchedule.delete({ where: { id: schedule.id } }),
-      ])
+      await tx.event.deleteMany({ where: { scheduledLessonId: schedule.id } })
+      await tx.scheduledLesson.delete({ where: { id: schedule.id } })
     }
-    scheduleByLessonId.delete(schedule.lessonId)
-    lessonsRemoved++
+    removedScheduleIds.add(schedule.id)
+    if (schedule.lessonId !== null) result.removedLessonIds.push(schedule.lessonId)
   }
 
-  // ── Content updates for existing schedules ────────────────────────────────
-  let lessonsUpdated = 0
-  for (const lesson of snapshotLessons) {
-    const schedule = scheduleByLessonId.get(lesson.id)
-    if (!schedule) continue
-    // Selective approval: unapproved content updates stay on their version
-    if (selection && !selection.has(lesson.id)) continue
-
-    const upToDate =
-      schedule.currentVersion?.sourceContentHash === lesson.contentHash &&
-      schedule.removedAt === null
-    if (upToDate) continue
-
-    const latestVersion = await prisma.lessonScheduleVersion.findFirst({
-      where: { lessonScheduleId: schedule.id },
-      orderBy: { versionNumber: 'desc' },
-      select: { versionNumber: true },
-    })
-
-    const versionId = randomUUID()
-    const rows = buildLessonRowsFromSnapshot({
-      lessonScheduleId: schedule.id,
-      versionId,
-      content: lesson.content as any,
-      activityIds: lesson.activityIds,
-      existingSourceActivityIds,
-      liveActivities: liveById,
-    })
-
-    await prisma.$transaction(async (tx) => {
-      // Pin completed members to the version they actually finished
-      if (schedule.currentVersionId) {
-        await tx.memberLessonProgress.updateMany({
-          where: {
-            lessonScheduleId: schedule.id,
-            completedAt: { not: null },
-            pinnedVersionId: null,
-          },
-          data: { pinnedVersionId: schedule.currentVersionId },
-        })
-      }
-
-      await tx.lessonScheduleVersion.create({
-        data: {
-          id: versionId,
-          lessonScheduleId: schedule.id,
-          versionNumber: (latestVersion?.versionNumber ?? 0) + 1,
-          programVersionNumber: targetVersionNumber,
-          sourceContentHash: lesson.contentHash,
-        },
-      })
-
-      if (rows.scheduledActivityData.length > 0) {
-        await tx.scheduledLessonActivity.createMany({ data: rows.scheduledActivityData })
-      }
-      if (rows.sourceRefData.length > 0) {
-        await tx.activitySourceReference.createMany({ data: rows.sourceRefData })
-      }
-      if (rows.readBlockData.length > 0) {
-        await tx.activityReadBlock.createMany({ data: rows.readBlockData })
-      }
-      if (rows.contentHighlightData.length > 0) {
-        await tx.contentHighlight.createMany({ data: rows.contentHighlightData })
-      }
-
-      await tx.lessonSchedule.update({
-        where: { id: schedule.id },
-        data: {
-          currentVersionId: versionId,
-          title: lesson.title,
-          removedAt: null, // lesson re-added to the curriculum revives its schedule
-        },
-      })
-    })
-
-    await recalculateScheduledLessonEstimate(schedule.id)
-    lessonsUpdated++
-  }
-
-  // ── Scheduling: lay remaining lessons over the surviving future slots ────
-  const survivors = await prisma.lessonSchedule.findMany({
-    where: { enrollmentId: enrollment.id, removedAt: null },
-    select: { id: true, lessonId: true, scheduledDate: true, smsSentAt: true },
-  })
-  const survivorByLessonId = new Map(survivors.map((s) => [s.lessonId, s]))
-
-  const lockedLessonIds = new Set(survivors.filter(isLocked).map((s) => s.lessonId))
-
-  // Selective approval: existing schedules NEVER move (a partial approval
-  // must not reshuffle lessons the leader didn't approve) — every surviving
-  // schedule is treated as locked, only approved additions are placed, and
-  // the slot pool is just the dates freed by approved removals. Curriculum
-  // reorders take effect when the enrollment fully catches up.
-  const remainingLessons = selection
-    ? snapshotLessons.filter((l) => !survivorByLessonId.has(l.id) && selection.has(l.id))
-    : snapshotLessons.filter((l) => !lockedLessonIds.has(l.id))
-
-  // Slot pool: dates already held by future unsent schedules + slots freed by
-  // removed lessons, in date order
-  const slotDates = (
-    selection
-      ? [...freedSlotDates]
-      : [...survivors.filter((s) => !isLocked(s)).map((s) => s.scheduledDate), ...freedSlotDates]
-  ).sort((a, b) => a.getTime() - b.getTime())
-
-  const enabledDayNumbers = parseEnabledDays(enrollment.enabledDays)
-  // Overflow starts after every immovable date — in selective mode ALL
-  // surviving schedules hold their dates, so additions append after them.
-  const immovable = selection ? survivors : survivors.filter(isLocked)
-  const lastLockedTime = Math.max(
-    now.getTime(),
-    ...immovable.map((s) => s.scheduledDate.getTime())
+  // Pointer moves, in program order
+  const scheduleByLessonId = new Map(
+    schedules.filter((s) => s.lessonId !== null).map((s) => [s.lessonId as string, s]),
   )
+  const toAdd = new Set<string>()
+  const revivedScheduleIds = new Set<string>()
+  for (const target of targetLessons) {
+    const schedule = scheduleByLessonId.get(target.lessonId)
+    if (!schedule) {
+      if (!only || only.has(target.lessonId)) toAdd.add(target.lessonId)
+      continue
+    }
+    if (removedScheduleIds.has(schedule.id) || !selected(target.lessonId, schedule.id)) continue
+    if (schedule.currentVersion.enrollmentId !== null) {
+      result.skippedCustomizedLessonIds.push(target.lessonId)
+      continue
+    }
+    // A lesson back in the program revives its soft-removed scheduled lesson.
+    if (schedule.removedAt !== null) revivedScheduleIds.add(schedule.id)
+    await tx.scheduledLesson.update({
+      where: { id: schedule.id },
+      data: { currentVersionId: target.lessonVersionId, removedAt: null },
+    })
+    result.movedLessonIds.push(target.lessonId)
+  }
 
-  let cursor = new Date(Math.max(lastLockedTime, slotDates.at(-1)?.getTime() ?? 0))
+  // Dates. Without a selection every unlocked lesson is re-laid, in program order, over the slots the
+  // unlocked schedules hold plus the slots freed by removals (overflow goes on the next enabled day after
+  // every locked date). A selection never moves an existing schedule: additions take freed slots, then overflow.
+  const isLocked = (s: { smsSentAt: Date | null; scheduledDate: Date }) => s.smsSentAt !== null || s.scheduledDate <= now
+  const survivors = schedules.filter(
+    (s) => !removedScheduleIds.has(s.id) && (s.removedAt === null || revivedScheduleIds.has(s.id)),
+  )
+  const survivorByLessonId = new Map(survivors.filter((s) => s.lessonId !== null).map((s) => [s.lessonId as string, s]))
+  const immovable = only ? survivors : survivors.filter(isLocked)
+  const lockedLessonIds = new Set(survivors.filter(isLocked).map((s) => s.lessonId))
+  const relaid = only
+    ? targetLessons.filter((t) => toAdd.has(t.lessonId))
+    : targetLessons.filter((t) => !lockedLessonIds.has(t.lessonId))
+  const slots = (only ? [...freedSlotDates] : [...survivors.filter((s) => !isLocked(s)).map((s) => s.scheduledDate), ...freedSlotDates])
+    .sort((a, b) => a.getTime() - b.getTime())
+  const enabledDays = parseEnabledDays(enrollment.enabledDays)
+  let cursor = new Date(Math.max(
+    now.getTime(), slots.at(-1)?.getTime() ?? 0, ...immovable.map((s) => s.scheduledDate.getTime()),
+  ))
   const nextOverflowDate = (): Date => {
     cursor = new Date(cursor)
     do {
       cursor.setDate(cursor.getDate() + 1)
-    } while (!enabledDayNumbers.includes(cursor.getDay()))
+    } while (!enabledDays.includes(cursor.getDay()))
     return new Date(cursor)
   }
 
-  let datesShifted = 0
-  let lessonsAdded = 0
-  let latestDate: Date | null = null
-
-  for (let index = 0; index < remainingLessons.length; index++) {
-    const lesson = remainingLessons[index]
-    const assignedDate = index < slotDates.length ? slotDates[index] : nextOverflowDate()
-    if (latestDate === null || assignedDate > latestDate) latestDate = assignedDate
-
-    const existing = survivorByLessonId.get(lesson.id)
-    if (existing) {
-      if (existing.scheduledDate.getTime() !== assignedDate.getTime()) {
-        await prisma.$transaction([
-          prisma.lessonSchedule.update({
-            where: { id: existing.id },
-            data: { scheduledDate: assignedDate },
-          }),
-          prisma.event.updateMany({
-            where: { lessonScheduleId: existing.id },
-            data: {
-              date: assignedDate,
-              dayNumber: lesson.dayNumber,
-              title: `Day ${lesson.dayNumber}: ${enrollment.studyProgram.name}`,
-            },
-          }),
-        ])
-        datesShifted++
-      }
+  const addedDates = new Map<string, Date>()
+  let latest = 0
+  for (const [i, lesson] of relaid.entries()) {
+    const date = i < slots.length ? slots[i] : nextOverflowDate()
+    latest = Math.max(latest, date.getTime())
+    const existing = survivorByLessonId.get(lesson.lessonId)
+    if (!existing) {
+      addedDates.set(lesson.lessonId, date)
       continue
     }
-
-    // New lesson: schedule + v1 version + activities + calendar event
-    const scheduleId = randomUUID()
-    const versionId = randomUUID()
-    const rows = buildLessonRowsFromSnapshot({
-      lessonScheduleId: scheduleId,
-      versionId,
-      content: lesson.content as any,
-      activityIds: lesson.activityIds,
-      existingSourceActivityIds,
-      liveActivities: liveById,
+    if (existing.scheduledDate.getTime() === date.getTime()) continue
+    await tx.scheduledLesson.update({ where: { id: existing.id }, data: { scheduledDate: date } })
+    await tx.event.updateMany({
+      where: { scheduledLessonId: existing.id },
+      data: { date, dayNumber: lesson.position, title: `Day ${lesson.position}: ${enrollment.studyProgram.name}` },
     })
-
-    await prisma.$transaction(async (tx) => {
-      await tx.lessonSchedule.create({
-        data: {
-          id: scheduleId,
-          code: generateStudyCode(),
-          enrollmentId: enrollment.id,
-          lessonId: lesson.id,
-          scheduledDate: assignedDate,
-          templateId: enrollment.studyProgram.template?.id ?? null,
-          templateName: enrollment.studyProgram.template?.name ?? null,
-          title: lesson.title,
-        },
-      })
-      await tx.lessonScheduleVersion.create({
-        data: {
-          id: versionId,
-          lessonScheduleId: scheduleId,
-          versionNumber: 1,
-          programVersionNumber: targetVersionNumber,
-          sourceContentHash: lesson.contentHash,
-        },
-      })
-      await tx.lessonSchedule.update({
-        where: { id: scheduleId },
-        data: { currentVersionId: versionId },
-      })
-      if (rows.scheduledActivityData.length > 0) {
-        await tx.scheduledLessonActivity.createMany({ data: rows.scheduledActivityData })
-      }
-      if (rows.sourceRefData.length > 0) {
-        await tx.activitySourceReference.createMany({ data: rows.sourceRefData })
-      }
-      if (rows.readBlockData.length > 0) {
-        await tx.activityReadBlock.createMany({ data: rows.readBlockData })
-      }
-      if (rows.contentHighlightData.length > 0) {
-        await tx.contentHighlight.createMany({ data: rows.contentHighlightData })
-      }
-      await tx.event.create({
-        data: {
-          groupId: enrollment.groupId,
-          type: 'LESSON',
-          title: `Day ${lesson.dayNumber}: ${enrollment.studyProgram.name}`,
-          description: enrollment.studyProgram.description,
-          date: assignedDate,
-          startTime: enrollment.smsTime,
-          lessonScheduleId: scheduleId,
-          enrollmentId: enrollment.id,
-          dayNumber: lesson.dayNumber,
-        },
-      })
-    })
-
-    await recalculateScheduledLessonEstimate(scheduleId)
-    lessonsAdded++
+    result.datesShifted++
+  }
+  if (addedDates.size > 0) {
+    result.addedLessonIds.push(...(await createScheduledLessons(tx, enrollmentId, programVersionId, addedDates)))
+  }
+  if (latest > enrollment.endDate.getTime()) {
+    await tx.enrollment.update({ where: { id: enrollmentId }, data: { endDate: new Date(latest) } })
   }
 
-  if (latestDate !== null && latestDate > enrollment.endDate) {
-    await prisma.enrollment.update({
-      where: { id: enrollment.id },
-      data: { endDate: latestDate },
+  if (!only) {
+    await tx.enrollment.update({ where: { id: enrollmentId }, data: { programVersionId } })
+  }
+  return result
+}
+
+/**
+ * One ScheduledLesson (and its calendar event) per `dates` entry, on the version `programVersionId` names for
+ * that lesson. Used by the sync's additions and by enroll. Returns the lesson ids in program order.
+ */
+export async function createScheduledLessons(
+  tx: Tx,
+  enrollmentId: string,
+  programVersionId: string,
+  dates: ReadonlyMap<string, Date>,
+): Promise<string[]> {
+  if (dates.size === 0) return []
+  const enrollment = await tx.enrollment.findUniqueOrThrow({
+    where: { id: enrollmentId },
+    select: {
+      id: true, groupId: true, smsTime: true,
+      studyProgram: { select: { name: true, description: true, templateId: true } },
+    },
+  })
+  const lessons = await tx.programVersionLesson.findMany({
+    where: { programVersionId, lessonId: { in: [...dates.keys()] } },
+    orderBy: { position: 'asc' },
+  })
+  const missing = [...dates.keys()].filter((id) => !lessons.some((l) => l.lessonId === id))
+  if (missing.length > 0) {
+    throw new Error(`createScheduledLessons: lessons not in program version ${programVersionId}: ${missing.join(', ')}`)
+  }
+  for (const lesson of lessons) {
+    const scheduledDate = dates.get(lesson.lessonId) as Date
+    const scheduled = await tx.scheduledLesson.create({
+      data: {
+        code: generateStudyCode(),
+        enrollmentId,
+        lessonId: lesson.lessonId,
+        scheduledDate,
+        currentVersionId: lesson.lessonVersionId,
+        templateId: enrollment.studyProgram.templateId,
+      },
+    })
+    await tx.event.create({
+      data: {
+        groupId: enrollment.groupId,
+        type: 'LESSON',
+        title: `Day ${lesson.position}: ${enrollment.studyProgram.name}`,
+        description: enrollment.studyProgram.description,
+        date: scheduledDate,
+        startTime: enrollment.smsTime,
+        scheduledLessonId: scheduled.id,
+        enrollmentId,
+        dayNumber: lesson.position,
+      },
     })
   }
-
-  return {
-    alreadySynced: false,
-    targetVersionNumber,
-    lessonsUpdated,
-    lessonsAdded,
-    lessonsRemoved,
-    datesShifted,
-    // Provisional; the caller overwrites after the post-apply pending check.
-    fullySynced: selection === null,
-  }
+  return lessons.map((l) => l.lessonId)
 }
 
 function parseEnabledDays(enabledDays: string): number[] {
@@ -563,107 +251,116 @@ function parseEnabledDays(enabledDays: string): number[] {
   return [0, 1, 2, 3, 4, 5, 6]
 }
 
-// In-flight background fan-outs. Production never waits on these; tests must
-// drain them before tearing data down (a fan-out outliving its test file
-// races the next file's writes — the suite shares one database).
-const inFlightFanOuts = new Set<Promise<unknown>>()
-
-/** Fire a fan-out in the background (used by the publish flow). */
-export function launchProgramVersionFanOut(programId: string, versionNumber: number): void {
-  const promise = fanOutProgramVersionSync(programId, versionNumber)
-    .catch((error) => {
-      console.error(`Study-sync fan-out crashed for program ${programId}:`, error)
-    })
-    .finally(() => {
-      inFlightFanOuts.delete(promise)
-    })
-  inFlightFanOuts.add(promise)
+export interface SyncOutcome {
+  alreadySynced: boolean
+  targetVersionNumber: number
+  lessonsUpdated: number
+  lessonsAdded: number
+  lessonsRemoved: number
+  datesShifted: number
+  skippedCustomizedLessonIds: string[]
+  /** False after a partial (selective) approval: the enrollment stays behind and the leader can approve more. */
+  fullySynced: boolean
 }
 
-/** Wait for all background fan-outs to settle (test teardown helper). */
-export async function drainStudySyncFanOuts(): Promise<void> {
-  while (inFlightFanOuts.size > 0) {
-    await Promise.allSettled([...inFlightFanOuts])
+/**
+ * Bring one enrollment to its program's current version, fully or restricted to the leader-approved `lessonKeys`,
+ * in one transaction. Pushes go out after it commits (D32): a full sync clears the "updates available" notice, and
+ * an AUTO enrollment's leader is told the update was applied.
+ */
+export async function syncEnrollmentToCurrent(params: {
+  enrollmentId: string
+  lessonKeys?: string[] | null
+}): Promise<SyncOutcome> {
+  const { enrollmentId, lessonKeys = null } = params
+  const enrollment = await prisma.enrollment.findUniqueOrThrow({
+    where: { id: enrollmentId },
+    select: {
+      createdById: true,
+      syncMode: true,
+      programVersionId: true,
+      studyProgram: { select: { currentVersion: { select: { id: true, programId: true, number: true, changeSummary: true } } } },
+    },
+  })
+  const target = enrollment.studyProgram.currentVersion
+  if (!target) throw new SyncNotPossibleError('This study program has no published version to sync to.')
+
+  const noOp: SyncOutcome = {
+    alreadySynced: true, targetVersionNumber: target.number, lessonsUpdated: 0, lessonsAdded: 0,
+    lessonsRemoved: 0, datesShifted: 0, skippedCustomizedLessonIds: [], fullySynced: true,
+  }
+  if (enrollment.programVersionId === target.id) return noOp
+  if (lessonKeys && lessonKeys.length === 0) return { ...noOp, alreadySynced: false, fullySynced: false }
+
+  const only = lessonKeys ? new Set(lessonKeys) : undefined
+  const { result, fullySynced } = await prisma.$transaction(async (tx) => {
+    const result = await applyProgramVersion(tx, enrollmentId, target.id, { only })
+    const fullySynced = !only || !(await computePendingChanges(enrollmentId, tx)).hasPending
+    if (only && fullySynced) {
+      await tx.enrollment.update({ where: { id: enrollmentId }, data: { programVersionId: target.id } })
+    }
+    return { result, fullySynced }
+  })
+
+  if (fullySynced && enrollment.createdById) {
+    await resolveNotificationsByDedupeKey(enrollment.createdById, `study-sync-updates:${enrollmentId}`)
+      .catch(() => undefined)
+  }
+  if (fullySynced && enrollment.syncMode === 'AUTO') await sendSyncPushes([enrollmentId], target).catch((err) => console.error('Sync apply pushes failed:', err))
+  return {
+    alreadySynced: false,
+    targetVersionNumber: target.number,
+    lessonsUpdated: result.movedLessonIds.length,
+    lessonsAdded: result.addedLessonIds.length,
+    lessonsRemoved: result.removedLessonIds.length,
+    datesShifted: result.datesShifted,
+    skippedCustomizedLessonIds: result.skippedCustomizedLessonIds,
+    fullySynced,
   }
 }
 
 /**
- * Fan a freshly published version out to every AUTO-sync enrollment of the
- * program. Runs enrollments sequentially (steady DB load; a publish with
- * thousands of enrollments trickles rather than spikes) and isolates failures
- * per enrollment — the EnrollmentSyncRun rows record what needs retrying.
+ * Tell each enrollment's leader what a published version did: AUTO enrollments were already moved (applied),
+ * the rest have updates waiting. Called after the publish transaction commits; a failure for one enrollment
+ * never stops the others.
  */
-export async function fanOutProgramVersionSync(
-  programId: string,
-  versionNumber: number
-): Promise<{ synced: number; skipped: number; failed: number }> {
-  const [program, version] = await Promise.all([
-    prisma.studyProgram.findUniqueOrThrow({
-      where: { id: programId },
-      select: { name: true },
-    }),
-    prisma.studyProgramVersion.findUnique({
-      where: { studyProgramId_versionNumber: { studyProgramId: programId, versionNumber } },
-      select: { changeSummary: true },
+export async function sendSyncPushes(
+  enrollmentIds: string[],
+  programVersion: { id: string; programId: string; number: number; changeSummary?: string | null },
+): Promise<void> {
+  if (enrollmentIds.length === 0) return
+  const [program, enrollments] = await Promise.all([
+    prisma.studyProgram.findUniqueOrThrow({ where: { id: programVersion.programId }, select: { name: true } }),
+    prisma.enrollment.findMany({
+      where: { id: { in: enrollmentIds } },
+      select: {
+        id: true, syncMode: true, createdById: true,
+        group: { select: { name: true } },
+        programVersion: { select: { number: true } },
+      },
     }),
   ])
+  const versionNumber = programVersion.number
+  const programId = programVersion.programId
+  const summaryLine = programVersion.changeSummary ? ` ${programVersion.changeSummary}` : ''
 
-  const enrollments = await prisma.enrollment.findMany({
-    where: {
-      studyProgramId: programId,
-      OR: [
-        { syncedProgramVersionNumber: null },
-        { syncedProgramVersionNumber: { lt: versionNumber } },
-      ],
-    },
-    select: {
-      id: true,
-      syncMode: true,
-      createdById: true,
-      syncedProgramVersionNumber: true,
-      group: { select: { name: true } },
-    },
-  })
-
-  const summaryLine = version?.changeSummary ? ` ${version.changeSummary}` : ''
-
-  let synced = 0
-  let skipped = 0
-  let failed = 0
   for (const enrollment of enrollments) {
+    if (!enrollment.createdById) continue
     try {
       if (enrollment.syncMode === 'AUTO') {
-        const outcome = await syncEnrollmentToLatest({ enrollmentId: enrollment.id })
-        if (outcome.alreadySynced) {
-          skipped++
-        } else {
-          synced++
-          if (enrollment.createdById) {
-            await upsertNotificationByDedupeKey({
-              userId: enrollment.createdById,
-              type: 'STUDY_SYNC_APPLIED',
-              title: `${program.name} updated`,
-              body: `Updates to "${program.name}" were applied to ${enrollment.group.name}'s enrollment (now version ${versionNumber}).${summaryLine}`,
-              dedupeKey: `study-sync-applied:${enrollment.id}`,
-              data: {
-                enrollmentId: enrollment.id,
-                programId,
-                toVersion: String(versionNumber),
-              },
-              actions: [
-                {
-                  label: 'View enrollment',
-                  view: 'enrollment-sync',
-                  params: { enrollmentId: enrollment.id },
-                },
-              ],
-            })
-          }
-        }
-      } else if (enrollment.createdById) {
-        // APPROVAL and OFF: the leader decides — tell them what's waiting.
-        // (OFF leaders are notified too so an accidental toggle-off is
-        // recoverable; the notification carries the sync-settings action.)
+        await upsertNotificationByDedupeKey({
+          userId: enrollment.createdById,
+          type: 'STUDY_SYNC_APPLIED',
+          title: `${program.name} updated`,
+          body: `Updates to "${program.name}" were applied to ${enrollment.group.name}'s enrollment (now version ${versionNumber}).${summaryLine}`,
+          dedupeKey: `study-sync-applied:${enrollment.id}`,
+          data: { enrollmentId: enrollment.id, programId, toVersion: String(versionNumber) },
+          actions: [
+            { label: 'View enrollment', view: 'enrollment-sync', params: { enrollmentId: enrollment.id } },
+          ],
+        })
+      } else {
+        // APPROVAL and OFF: the leader decides. OFF leaders are told too, so an accidental toggle-off is recoverable.
         await upsertNotificationByDedupeKey({
           userId: enrollment.createdById,
           type: 'STUDY_SYNC_UPDATES_AVAILABLE',
@@ -673,11 +370,10 @@ export async function fanOutProgramVersionSync(
           data: {
             enrollmentId: enrollment.id,
             programId,
-            fromVersion: String(enrollment.syncedProgramVersionNumber ?? 0),
+            fromVersion: String(enrollment.programVersion?.number ?? 0),
             toVersion: String(versionNumber),
             syncMode: enrollment.syncMode,
-            // Not view-dismissable: stays unread until the leader applies the
-            // updates or changes the sync mode (mark-read skips it).
+            // Not view-dismissable: stays unread until the leader applies the updates or changes the sync mode.
             requiresAction: true,
           },
           actions: [
@@ -690,15 +386,7 @@ export async function fanOutProgramVersionSync(
         })
       }
     } catch (error) {
-      failed++
-      console.error(`Study-sync fan-out failed for enrollment ${enrollment.id}:`, error)
+      console.error(`Sync push failed for enrollment ${enrollment.id}:`, error)
     }
   }
-
-  if (enrollments.length > 0) {
-    console.log(
-      `Study-sync fan-out for program ${programId} v${versionNumber}: ${synced} synced, ${skipped} already current, ${failed} failed`
-    )
-  }
-  return { synced, skipped, failed }
 }

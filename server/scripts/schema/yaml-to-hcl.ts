@@ -364,10 +364,11 @@ function generateTableHcl(
   }
 
   // Find primary key
-  let primaryKeyField: string | null = null
+  // Several `primary` fields make a composite key.
+  const primaryKeyFields: string[] = []
   for (const [fieldName, field] of Object.entries(fields)) {
     if (field.primary) {
-      primaryKeyField = fieldName
+      primaryKeyFields.push(fieldName)
     }
   }
 
@@ -377,9 +378,9 @@ function generateTableHcl(
   }
 
   // Primary key
-  if (primaryKeyField) {
+  if (primaryKeyFields.length > 0) {
     lines.push(`  primary_key {`)
-    lines.push(`    columns = [column.${primaryKeyField}]`)
+    lines.push(`    columns = [${primaryKeyFields.map(f => `column.${f}`).join(', ')}]`)
     lines.push(`  }`)
   }
 

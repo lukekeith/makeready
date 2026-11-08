@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const prismaMock = vi.hoisted(() => ({
   enrollment: { findMany: vi.fn() },
-  memberLessonProgress: { findMany: vi.fn() },
-  memberVideoProgress: { findMany: vi.fn() },
+  lessonProgress: { findMany: vi.fn() },
+  activityProgress: { findMany: vi.fn() },
   clientEvent: { findMany: vi.fn() },
 }))
 vi.mock('../../lib/prisma.js', () => ({ prisma: prismaMock, Prisma: {} }))
@@ -75,7 +75,7 @@ describe('getMemberEngagement', () => {
         id: 'e1',
         studyProgramId: 'p-john',
         studyProgram: { name: 'Walking Through John', coverImageUrl: 'http://img/john.jpg' },
-        lessonSchedules: [
+        scheduledLessons: [
           sched('s1', '2026-10-23T17:00:00Z'),
           sched('s2', '2026-10-24T17:00:00Z'),
           sched('s3', '2026-10-25T17:00:00Z'),
@@ -86,16 +86,16 @@ describe('getMemberEngagement', () => {
         id: 'e2',
         studyProgramId: 'p-faith',
         studyProgram: { name: 'Foundations of Faith', coverImageUrl: null },
-        lessonSchedules: [sched('t1', '2026-11-02T17:00:00Z')],
+        scheduledLessons: [sched('t1', '2026-11-02T17:00:00Z')],
       },
     ])
-    prismaMock.memberLessonProgress.findMany.mockResolvedValue([
-      { lessonScheduleId: 's1', completedAt: at('2026-10-24T15:00:00Z'), lessonSchedule: { enrollmentId: 'e1' } },
-      { lessonScheduleId: 's3', completedAt: at('2026-10-23T16:10:00Z'), lessonSchedule: { enrollmentId: 'e1' } },
-      { lessonScheduleId: 's2', completedAt: null, lessonSchedule: { enrollmentId: 'e1' } },
+    prismaMock.lessonProgress.findMany.mockResolvedValue([
+      { scheduledLessonId: 's1', completedAt: at('2026-10-24T15:00:00Z'), scheduledLesson: { enrollmentId: 'e1' } },
+      { scheduledLessonId: 's3', completedAt: at('2026-10-23T16:10:00Z'), scheduledLesson: { enrollmentId: 'e1' } },
+      { scheduledLessonId: 's2', completedAt: null, scheduledLesson: { enrollmentId: 'e1' } },
     ])
-    prismaMock.memberVideoProgress.findMany.mockResolvedValue([
-      { startedAt: at('2026-10-23T15:05:00Z'), lastWatchedAt: at('2026-10-23T16:50:00Z'), lessonSchedule: { enrollmentId: 'e2' } },
+    prismaMock.activityProgress.findMany.mockResolvedValue([
+      { startedAt: at('2026-10-23T15:05:00Z'), completedAt: at('2026-10-23T16:50:00Z'), scheduledLesson: { enrollmentId: 'e2' } },
     ])
     prismaMock.clientEvent.findMany.mockResolvedValue([
       { enrollmentId: 'e1', occurredAt: at('2026-10-23T15:00:00Z') },
@@ -141,18 +141,18 @@ describe('getMemberEngagement', () => {
         id: true,
         studyProgramId: true,
         studyProgram: { select: { name: true, coverImageUrl: true } },
-        lessonSchedules: { where: { removedAt: null }, select: { id: true, scheduledDate: true } },
+        scheduledLessons: { where: { removedAt: null }, select: { id: true, scheduledDate: true } },
       },
       orderBy: [{ startDate: 'desc' }, { id: 'asc' }],
     })
-    const tied = { lessonSchedule: { enrollmentId: { in: ['e1', 'e2'] } } }
-    expect(prismaMock.memberLessonProgress.findMany).toHaveBeenCalledWith({
+    const tied = { scheduledLesson: { enrollmentId: { in: ['e1', 'e2'] } } }
+    expect(prismaMock.lessonProgress.findMany).toHaveBeenCalledWith({
       where: { memberId: 'm1', ...tied },
-      select: { lessonScheduleId: true, completedAt: true, lessonSchedule: { select: { enrollmentId: true } } },
+      select: { scheduledLessonId: true, completedAt: true, scheduledLesson: { select: { enrollmentId: true } } },
     })
-    expect(prismaMock.memberVideoProgress.findMany).toHaveBeenCalledWith({
+    expect(prismaMock.activityProgress.findMany).toHaveBeenCalledWith({
       where: { memberId: 'm1', ...tied },
-      select: { startedAt: true, lastWatchedAt: true, lessonSchedule: { select: { enrollmentId: true } } },
+      select: { startedAt: true, completedAt: true, scheduledLesson: { select: { enrollmentId: true } } },
     })
     expect(prismaMock.clientEvent.findMany).toHaveBeenCalledWith({
       where: { memberId: 'm1', enrollmentId: { in: ['e1', 'e2'] } },
@@ -177,7 +177,7 @@ describe('getMemberEngagement', () => {
   it('answers no enrollments with an empty list and no progress queries', async () => {
     prismaMock.enrollment.findMany.mockResolvedValue([])
     expect(await getMemberEngagement('m1', { kind: 'user', userId: 'gl' }, CHI, NOW)).toEqual({ programs: [] })
-    expect(prismaMock.memberLessonProgress.findMany).not.toHaveBeenCalled()
+    expect(prismaMock.lessonProgress.findMany).not.toHaveBeenCalled()
   })
 
   it('takes "today" in the caller’s tz', async () => {

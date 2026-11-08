@@ -89,11 +89,15 @@ enum EnrollmentHomeMapper {
         return format(date, "MMM d", calendar.timeZone)
     }
 
-    /// VoiceOver only: "Read: Romans 1", "Video".
+    /// The activity kinds a lesson can hold, as VoiceOver names them.
+    private static let kindNames = ["text": "Text", "bible": "Bible", "video": "Video",
+                                    "youtube": "YouTube", "write": "Write", "poll": "Poll"]
+
+    /// VoiceOver only: "Text: Romans 1", "Video". The wire's `type` is the activity's kind.
     private static func slideLabel(_ a: EnrollmentHome.Activity) -> String {
-        let type = a.type.lowercased().capitalized
-        guard let title = MembersHomeMapper.nonEmpty(a.title) else { return type }
-        return "\(type): \(title)"
+        let kind = kindNames[a.type.lowercased()] ?? a.type.lowercased().capitalized
+        guard let title = MembersHomeMapper.nonEmpty(a.title) else { return kind }
+        return "\(kind): \(title)"
     }
 
     private static func zip2(_ a: Date?, _ b: Date?) -> (Date, Date)? {

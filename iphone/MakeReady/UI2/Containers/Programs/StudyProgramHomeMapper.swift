@@ -6,7 +6,7 @@ enum StudyProgramHomeMapper {
         /// The list-known title, shown while the program loads.
         var name: String
         var program: StudyProgram?
-        /// Ordered by `dayNumber` (`AppState.lessonsFor(programId:)`).
+        /// Ordered by `position` (`AppState.lessonsFor(programId:)`).
         var lessons: [Lesson]
         /// As the endpoint returns them (D16).
         var enrollments: [ProgramEnrollment]
@@ -14,11 +14,13 @@ enum StudyProgramHomeMapper {
         var failed: Bool
         /// D7: the selected DayChip.
         var activeDay: Int
+        /// The media the lessons' documents name (`AppState.mediaMap`), for the rail thumbnails.
+        var media: [String: MediaMapEntry] = [:]
     }
 
     static func state(_ input: Input, timeZone: TimeZone) -> StudyProgramHomeScreen.State {
         let p = input.program
-        let lessons = input.lessons.sorted { $0.dayNumber < $1.dayNumber }
+        let lessons = input.lessons.sorted { $0.position < $1.position }
         return StudyProgramHomeScreen.State(
             coverURL: p?.coverImageUrl ?? "",
             createdLabel: p.map { MembersHomeMapper.mediumDate($0.createdAt, timeZone: timeZone) } ?? "",
@@ -39,15 +41,23 @@ enum StudyProgramHomeMapper {
             enrollmentMemberCounts: input.enrollments.map { $0.group?._count?.members ?? 0 },
             dayCount: lessons.count,
             activeDay: min(max(input.activeDay, 1), max(lessons.count, 1)),
-            lessonNumbers: lessons.map(\.dayNumber),
+            lessonNumbers: lessons.map(\.position),
             lessonTitles: lessons.map { $0.title ?? "" },
-            lessonDurations: lessons.map { lessonDuration($0.estimatedMinutes) },
-            lessonSlideImages: lessons.map { $0.activities.sorted { $0.orderNumber < $1.orderNumber }.map(slideImage) },
-            lessonSlideLabels: lessons.map { $0.activities.sorted { $0.orderNumber < $1.orderNumber }.map { $0.title ?? "" } },
+            lessonDurations: lessons.map { lessonDuration(minutes(fromSeconds: $0.estimatedSeconds)) },
+            lessonSlideImages: lessons.map { lesson in
+                lesson.activities.sorted { $0.position < $1.position }.map { slideImage($0, media: input.media) }
+            },
+            lessonSlideLabels: lessons.map { $0.activities.sorted { $0.position < $1.position }.map(\.title) },
             // D5: skeletons only with nothing cached; a failure over a cache keeps the page.
             loading: p == nil && !input.failed,
             failed: p == nil && input.failed
         )
+    }
+
+    /// The lesson's estimate in whole minutes, rounded up (`ceil(seconds / 60)`); nil without one.
+    static func minutes(fromSeconds seconds: Int?) -> Int? {
+        guard let seconds, seconds > 0 else { return nil }
+        return (seconds + 59) / 60
     }
 
     /// D11: the row's meta — "N mins", "1 min" singular, "0 mins" for 0 or no estimate.
@@ -62,8 +72,18 @@ enum StudyProgramHomeMapper {
         return AgeRange(min: program.ageRangeMin, max: program.ageRangeMax)
     }
 
-    /// D6/OQ-8: a slide's image — the YouTube thumbnail, else the video's; "" = the themed placeholder.
-    static func slideImage(_ activity: StudyActivity) -> String {
-        activity.youtubeThumbnailUrl ?? activity.video?.thumbnailUrl ?? ""
+    /// A slide's thumbnail URL: a canvas kind's rendered page (D26, the `ActivityThumbnail` key), else a video's
+    /// poster, else a YouTube clip's thumbnail; "" = the themed placeholder.
+    static func slideImage(_ activity: ActivitySummary, media: [String: MediaMapEntry]) -> String {
+        let rendered = ActivityThumbnail.key(for: activity)
+        if !rendered.isEmpty { return rendered }
+        switch activity.document.renderable {
+        case .video(let video):
+            return video.posterMediaId.flatMap { media[$0]?.posterUrl ?? media[$0]?.url } ?? ""
+        case .youtube(let clip):
+            return "https://img.youtube.com/vi/\(clip.youtubeVideoId)/hqdefault.jpg"
+        default:
+            return ""
+        }
     }
 }

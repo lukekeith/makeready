@@ -50,22 +50,45 @@ final class StudyProgramHomeMapperTests: XCTestCase {
         XCTAssertEqual(s.leaderName, "Luke Keith")
     }
 
-    /// D6: one card per lesson by day; "N mins" (D11); slides in order with thumbnail fallbacks.
+    private func summary(_ id: String, position: Int, kind: String = "text", title: String, document: String) -> ActivitySummary {
+        let json = #"{"id":"\#(id)","activityKey":"k-\#(id)","position":\#(position),"kind":"\#(kind)","title":"\#(title)","document":\#(document)}"#
+        return try! JSONDecoder.apiDecoder.decode(ActivitySummary.self, from: Data(json.utf8))
+    }
+
+    /// D6: one card per lesson by position; "N mins" from `ceil(seconds / 60)` (D11); slides in
+    /// position order; a canvas kind's image is its rendered page (D26), a YouTube clip's its thumbnail.
     func testLessons() {
-        var read = StudyActivity(id: "a2", type: .read, orderNumber: 2, title: "Read: Romans 1")
-        read.youtubeThumbnailUrl = nil
-        var video = StudyActivity(id: "a1", type: .video, orderNumber: 1, title: "Video")
-        video.youtubeThumbnailUrl = "https://yt/t.jpg"
-        let lessons = [Lesson(id: "l2", dayNumber: 2, title: "Second"),
-                       Lesson(id: "l1", dayNumber: 1, title: "First", estimatedMinutes: 12, activities: [read, video])]
-        let s = state(input(program(), lessons: lessons))
+        let withImage = summary("a2", position: 1, title: "Read: Romans 1",
+            document: ##"{"schemaVersion":1,"kind":"text","background":{"color":"#000000","image":{"mediaId":"m1"}},"content":{"type":"canvas","objects":[]}}"##)
+        let clip = summary("a1", position: 0, kind: "youtube", title: "Clip",
+            document: #"{"schemaVersion":1,"kind":"youtube","content":{"youtubeVideoId":"abc"}}"#)
+        let plain = summary("a3", position: 2, title: "Plain",
+            document: #"{"schemaVersion":1,"kind":"text","content":{"type":"canvas","objects":[]}}"#)
+        let lessons = [Lesson(id: "l2", position: 2, title: "Second"),
+                       Lesson(id: "l1", position: 1, title: "First", estimatedSeconds: 661, activities: [withImage, plain, clip])]
+        let media = ["m1": MediaMapEntry(url: "https://cdn/m1.jpg", width: nil, height: nil, kind: "image", playbackUrl: nil,
+                                         posterUrl: nil, durationSeconds: nil, uploaderName: nil)]
+        var i = input(program(), lessons: lessons)
+        i.media = media
+        let s = state(i)
         XCTAssertEqual(s.dayCount, 2)
         XCTAssertEqual(s.lessonCount, 2)
         XCTAssertEqual(s.lessonNumbers, [1, 2])
         XCTAssertEqual(s.lessonTitles, ["First", "Second"])
         XCTAssertEqual(s.lessonDurations, ["12 mins", "0 mins"])
-        XCTAssertEqual(s.lessonSlideImages, [["https://yt/t.jpg", ""], []])
-        XCTAssertEqual(s.lessonSlideLabels, [["Video", "Read: Romans 1"], []])
+        XCTAssertEqual(s.lessonSlideImages, [["https://img.youtube.com/vi/abc/hqdefault.jpg",
+                                              ActivityThumbnail.key(for: withImage), ActivityThumbnail.key(for: plain)], []])
+        XCTAssertTrue(s.lessonSlideImages[0][1].hasPrefix("activity-thumbnail://"))
+        XCTAssertEqual(s.lessonSlideLabels, [["Clip", "Read: Romans 1", "Plain"], []])
+    }
+
+    /// The estimate shows in whole minutes, rounded up.
+    func testMinutesRoundUp() {
+        XCTAssertNil(StudyProgramHomeMapper.minutes(fromSeconds: nil))
+        XCTAssertNil(StudyProgramHomeMapper.minutes(fromSeconds: 0))
+        XCTAssertEqual(StudyProgramHomeMapper.minutes(fromSeconds: 1), 1)
+        XCTAssertEqual(StudyProgramHomeMapper.minutes(fromSeconds: 60), 1)
+        XCTAssertEqual(StudyProgramHomeMapper.minutes(fromSeconds: 61), 2)
     }
 
     /// D6/D16: every enrollment as returned — name, photo, the leader's short name, member count.
@@ -104,13 +127,13 @@ final class StudyProgramHomeMapperTests: XCTestCase {
 
     /// D7: the selected chip passes through while it is within the lessons.
     func testActiveDayPassesThrough() {
-        let lessons = (1...3).map { Lesson(id: "l\($0)", dayNumber: $0, title: "") }
+        let lessons = (1...3).map { Lesson(id: "l\($0)", position: $0, title: "") }
         XCTAssertEqual(state(input(program(), lessons: lessons, activeDay: 3)).activeDay, 3)
     }
 
     /// D14: past the last lesson selects the new last chip; no lessons selects 1.
     func testActiveDayClampsToTheLessons() {
-        let lessons = [Lesson(id: "l1", dayNumber: 1, title: "A"), Lesson(id: "l2", dayNumber: 2, title: "B")]
+        let lessons = [Lesson(id: "l1", position: 1, title: "A"), Lesson(id: "l2", position: 2, title: "B")]
         XCTAssertEqual(state(input(program(), lessons: lessons, activeDay: 3)).activeDay, 2)
         XCTAssertEqual(state(input(program(), lessons: lessons, activeDay: 2)).activeDay, 2)
         XCTAssertEqual(state(input(program(), activeDay: 3)).activeDay, 1)

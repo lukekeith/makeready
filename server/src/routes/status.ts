@@ -284,20 +284,20 @@ router.get('/perf', async (_req, res) => {
       })
     );
 
-    // 8. Enrollment with lesson schedules (study view)
+    // 8. Enrollment with scheduled lessons (study view)
     const enrollmentLoad = await time(() =>
       prisma.enrollment.findFirst({
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
           studyProgram: { select: { id: true, name: true } },
-          lessonSchedules: {
+          scheduledLessons: {
             take: 10,
             orderBy: { scheduledDate: 'asc' },
             select: {
               id: true,
               scheduledDate: true,
-              lesson: { select: { id: true, dayNumber: true } },
+              lesson: { select: { id: true, position: true } },
             },
           },
         },
@@ -325,7 +325,7 @@ router.get('/perf', async (_req, res) => {
         { name: 'Books List', description: 'All 66 books for Bible navigation', time: +booksList.toFixed(1), category: 'bible' },
         { name: 'Member Profile', description: 'Member with org memberships (auth path)', time: +memberLookup.toFixed(1), category: 'auth' },
         { name: 'Groups List', description: 'Active groups with member counts', time: +groupsList.toFixed(1), category: 'app' },
-        { name: 'Study Progress', description: 'Enrollment with lesson schedules', time: +enrollmentLoad.toFixed(1), category: 'app' },
+        { name: 'Study Progress', description: 'Enrollment with scheduled lessons', time: +enrollmentLoad.toFixed(1), category: 'app' },
       ],
     });
   } catch (error) {

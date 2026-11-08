@@ -145,62 +145,15 @@ func setupCaptureState(from fixture: CaptureFixture) {
             let lesson = Lesson(
                 id: lessonData.id,
                 studyProgramId: programId,
-                dayNumber: lessonData.dayNumber,
+                position: lessonData.dayNumber,
                 title: lessonData.title,
-                estimatedMinutes: lessonData.estimatedMinutes,
+                estimatedSeconds: lessonData.estimatedMinutes.map { $0 * 60 },
                 activities: [],
                 createdAt: now,
                 updatedAt: now
             )
             state.lessons.upsert(lesson)
             state.programLessonIndex.add(parentId: programId, childId: lesson.id)
-
-            // Seed activities embedded in this lesson
-            if let lessonActivities = lessonData.activities {
-                for captureActivity in lessonActivities {
-                    let activityType = ActivityType(rawValue: captureActivity.type) ?? .read
-                    let activityStatus = ActivityStatus(rawValue: captureActivity.status ?? "PENDING") ?? .pending
-                    // Read blocks drive READ/EXEGESIS `isConfigured` (EditDay cards)
-                    let readBlocks: [ActivityReadBlock]? = captureActivity.readBlocks?.map { block in
-                        ActivityReadBlock(
-                            id: block.id,
-                            orderNumber: block.orderNumber,
-                            title: block.title,
-                            content: block.content,
-                            isLocked: block.isLocked,
-                            sourceReferenceId: block.sourceReferenceId,
-                            backgroundImageUrl: block.backgroundImageUrl,
-                            backgroundColor: block.backgroundColor,
-                            backgroundOverlayOpacity: block.backgroundOverlayOpacity,
-                            fontSize: block.fontSize,
-                            selections: block.selections?.map { sel in
-                                ReadBlockSelection(start: sel.start, end: sel.end, style: sel.style)
-                            }
-                        )
-                    }
-                    var activity = StudyActivity(
-                        id: captureActivity.id,
-                        lessonId: lessonData.id,
-                        type: activityType,
-                        status: activityStatus,
-                        orderNumber: captureActivity.orderNumber ?? 1,
-                        title: captureActivity.title,
-                        isHelpEnabled: captureActivity.isHelpEnabled,
-                        helpTitle: captureActivity.helpTitle,
-                        helpDescription: captureActivity.helpDescription,
-                        helpIcon: captureActivity.helpIcon,
-                        readBlocks: readBlocks
-                    )
-                    activity.placeholder = captureActivity.placeholder
-                    activity.passageReference = captureActivity.passageReference
-                    activity.estimatedSeconds = captureActivity.estimatedSeconds
-                    activity.youtubeUrl = captureActivity.youtubeUrl
-                    activity.youtubeVideoId = captureActivity.youtubeVideoId
-                    activity.youtubeThumbnailUrl = captureActivity.youtubeThumbnailUrl
-                    state.activities.upsert(activity)
-                    state.lessonActivityIndex.add(parentId: lessonData.id, childId: activity.id)
-                }
-            }
         }
     }
 
@@ -365,92 +318,6 @@ func setupCaptureState(from fixture: CaptureFixture) {
         if let data = try? JSONSerialization.data(withJSONObject: payload) {
             MockURLProtocol.responses["/api/lesson-schedules/\(invite.scheduleId)/invite"] = data
         }
-    }
-
-    // Activity-editor state: seed activity into AppState
-    if let captureActivity = fixtureState.activity {
-        let programId = fixtureState.programId ?? "capture-prog-0"
-        let lessonId = fixtureState.lessonId ?? "capture-lesson-0"
-
-        // Ensure the program is present (may already be seeded above)
-        if state.programs[programId] == nil {
-            state.programs.upsert(StudyProgram(
-                id: programId,
-                name: fixtureState.programName ?? "Romans Study",
-                days: fixtureState.programDays ?? 30,
-                creatorId: creatorId,
-                isPublished: true,
-                createdAt: now,
-                updatedAt: now
-            ))
-        }
-
-        // Build ActivityReadBlocks
-        let readBlocks: [ActivityReadBlock]? = captureActivity.readBlocks?.map { block in
-            ActivityReadBlock(
-                id: block.id,
-                orderNumber: block.orderNumber,
-                title: block.title,
-                content: block.content,
-                isLocked: block.isLocked,
-                sourceReferenceId: block.sourceReferenceId,
-                backgroundImageUrl: block.backgroundImageUrl,
-                backgroundColor: block.backgroundColor,
-                backgroundOverlayOpacity: block.backgroundOverlayOpacity,
-                fontSize: block.fontSize,
-                selections: block.selections?.map { sel in
-                    ReadBlockSelection(start: sel.start, end: sel.end, style: sel.style)
-                }
-            )
-        }
-
-        // Build ActivitySourceReferences
-        let sourceRefs: [ActivitySourceReference]? = captureActivity.sourceReferences?.map { ref in
-            ActivitySourceReference(
-                id: ref.id,
-                lessonActivityId: captureActivity.id,
-                sourceType: nil,
-                passageReference: ref.passageReference,
-                bookNumber: ref.bookNumber,
-                bookName: ref.bookName,
-                chapterStart: ref.chapterStart,
-                chapterEnd: ref.chapterEnd,
-                verseStart: ref.verseStart,
-                verseEnd: ref.verseEnd,
-                createdAt: nil,
-                updatedAt: nil
-            )
-        }
-
-        let activityType = ActivityType(rawValue: captureActivity.type) ?? .read
-        let activityStatus = ActivityStatus(rawValue: captureActivity.status ?? "PENDING") ?? .pending
-
-        var activity = StudyActivity(
-            id: captureActivity.id,
-            lessonId: lessonId,
-            type: activityType,
-            status: activityStatus,
-            orderNumber: captureActivity.orderNumber ?? 1,
-            title: captureActivity.title,
-            isHelpEnabled: captureActivity.isHelpEnabled,
-            helpTitle: captureActivity.helpTitle,
-            helpDescription: captureActivity.helpDescription,
-            helpIcon: captureActivity.helpIcon,
-            sourceReferences: sourceRefs,
-            readBlocks: readBlocks
-        )
-
-        // USER_INPUT placeholder (the Write editor's second field)
-        activity.placeholder = captureActivity.placeholder
-
-        // YouTube fields
-        activity.youtubeUrl = captureActivity.youtubeUrl
-        activity.youtubeVideoId = captureActivity.youtubeVideoId
-        activity.youtubeThumbnailUrl = captureActivity.youtubeThumbnailUrl
-        activity.youtubeStartSeconds = captureActivity.youtubeStartSeconds
-        activity.youtubeEndSeconds = captureActivity.youtubeEndSeconds
-
-        state.activities.upsert(activity)
     }
 }
 

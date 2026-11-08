@@ -134,19 +134,14 @@ let api: APIClientProtocol
         // Update program in state
         state.programs.upsert(program)
 
-        // Update lessons if included
+        // Update lessons if included (their activities ride on each lesson as rail summaries)
         if let lessons = program.lessons {
             for lesson in lessons {
                 state.lessons.upsert(lesson)
                 state.programLessonIndex.add(parentId: id, childId: lesson.id)
-
-                // Update activities
-                for activity in lesson.activities {
-                    state.activities.upsert(activity)
-                    state.lessonActivityIndex.add(parentId: lesson.id, childId: activity.id)
-                }
             }
         }
+        state.mergeMedia(response.media ?? [:])
 
         state.persist()
         return (program: program, pagination: response.pagination)
@@ -226,13 +221,9 @@ let api: APIClientProtocol
             for lesson in lessons {
                 state.lessons.upsert(lesson)
                 state.programLessonIndex.add(parentId: program.id, childId: lesson.id)
-
-                for activity in lesson.activities {
-                    state.activities.upsert(activity)
-                    state.lessonActivityIndex.add(parentId: lesson.id, childId: activity.id)
-                }
             }
         }
+        state.mergeMedia(response.media ?? [:])
 
         state.persist()
 
@@ -267,6 +258,7 @@ let api: APIClientProtocol
         }
 
         state.programs.upsert(program)
+        if isPublished == true { forgetProgramDrafts(programId: id) }
         state.persist()
 
         NSLog("📚 ProgramActions: Updated program '\(program.name)'")
@@ -330,11 +322,8 @@ let api: APIClientProtocol
             for lesson in program.lessons ?? [] {
                 state.lessons.upsert(lesson)
                 lessonIds.append(lesson.id)
-                for activity in lesson.activities {
-                    state.activities.upsert(activity)
-                    state.lessonActivityIndex.add(parentId: lesson.id, childId: activity.id)
-                }
             }
+            state.mergeMedia(response.media ?? [:])
             guard response.pagination?.hasMore == true else { break }
             page += 1
         }
@@ -342,90 +331,44 @@ let api: APIClientProtocol
         state.persist()
     }
 
-    // MARK: - Publish Updates (study sync)
+    // MARK: - Publish (D37, D41)
 
-    /// Result of publishing curriculum updates as a new program version.
-    struct PublishUpdatesResult {
-        let alreadyUpToDate: Bool
-        let versionNumber: Int?
-        let changeSummary: String?
+    /// What a publish did: the new program version's number (nil when no lesson changed, so
+    /// nothing was written) and the lessons it froze.
+    struct PublishResult: Equatable {
+        let programVersionNumber: Int?
+        let changedLessonIds: [String]
     }
 
-    /// What "Publish updates" would publish — read-only diff vs the latest
-    /// version plus when the program was last published. Shown to the leader
-    /// before confirming.
-    struct PublishPreview: Decodable {
-        struct LastPublished: Decodable {
-            let versionNumber: Int
-            let publishedAt: Date
-        }
-        struct Lesson: Decodable {
-            let dayNumber: Int
-            let title: String?
-        }
-        struct Moved: Decodable {
-            let title: String?
-            let fromDay: Int
-            let toDay: Int
-        }
-        struct Changes: Decodable {
-            let added: [Lesson]
-            let changed: [Lesson]
-            let removed: [Lesson]
-            let moved: [Moved]
-        }
-        let upToDate: Bool
-        let lastPublished: LastPublished?
-        /// nil on a baseline (no previous version to diff against).
-        let changes: Changes?
-    }
-
+    /// `POST /api/programs/:id/publish` — freezes each changed lesson's draft into a program
+    /// version. A publish with no changes writes nothing and reports a nil version number.
     @MainActor
-    func getPublishPreview(programId: String) async throws -> PublishPreview {
+    @discardableResult
+    func publish(programId: String, changeSummary: String?) async throws -> PublishResult {
         struct Response: Decodable {
-            let success: Bool
-            let preview: PublishPreview?
-            let error: String?
+            struct Version: Decodable { let number: Int }
+            let programVersion: Version?
+            let changedLessonIds: [String]
         }
-        let response: Response = try await api.get(
-            "/api/programs/\(programId)/publish-preview",
-            responseType: Response.self
-        )
-        guard response.success, let preview = response.preview else {
-            throw APIError.serverError(response.error ?? "Failed to load publish preview")
+        var body: [String: Any] = [:]
+        if let changeSummary { body["changeSummary"] = changeSummary }
+        let data = try await api.requestWithStatus(endpoint: "/api/programs/\(programId)/publish", method: "POST", body: body)
+        let response = try JSONDecoder.apiDecoder.decode(Response.self, from: data)
+        // The server froze each changed lesson's draft: drop the loaded versions (a stale `.draft`
+        // would make the next write 409 NOT_DRAFT) and move the draft id to the published slot.
+        for lessonId in response.changedLessonIds {
+            let frozenId = state.draftVersionId(forLesson: lessonId)
+            forgetLessonVersions(lessonId: lessonId)
+            if var lesson = state.lessons[lessonId] {
+                lesson.publishedVersionId = frozenId ?? lesson.publishedVersionId
+                lesson.draftVersionId = nil
+                state.lessons.upsert(lesson)
+            }
         }
-        return preview
-    }
-
-    /// Cut an immutable program version from the current curriculum
-    /// (study-sync). AUTO enrollments receive it via the server fan-out;
-    /// APPROVAL/OFF enrollments are notified. Publishing an unchanged
-    /// program is a no-op (`alreadyUpToDate`).
-    @MainActor
-    func publishUpdates(programId: String) async throws -> PublishUpdatesResult {
-        struct VersionInfo: Decodable {
-            let versionNumber: Int
-            let changeSummary: String?
-        }
-        struct Response: Decodable {
-            let success: Bool
-            let alreadyUpToDate: Bool?
-            let version: VersionInfo?
-            let error: String?
-        }
-        let response: Response = try await api.post(
-            "/api/programs/\(programId)/publish-updates",
-            body: [:],
-            responseType: Response.self
-        )
-        guard response.success else {
-            throw APIError.serverError(response.error ?? "Failed to publish updates")
-        }
-        return PublishUpdatesResult(
-            alreadyUpToDate: response.alreadyUpToDate ?? false,
-            versionNumber: response.version?.versionNumber,
-            changeSummary: response.version?.changeSummary
-        )
+        state.persist()
+        Log.state.info("published a program: \(response.changedLessonIds.count, privacy: .public) lesson(s) changed")
+        return PublishResult(programVersionNumber: response.programVersion?.number,
+                             changedLessonIds: response.changedLessonIds)
     }
 
     // MARK: - Delete Program
@@ -457,9 +400,7 @@ let api: APIClientProtocol
 
         let lessonIds = state.programLessonIndex.get(id)
         for lessonId in lessonIds {
-            let activityIds = state.lessonActivityIndex.get(lessonId)
-            state.activities.removeMany(activityIds)
-            state.lessonActivityIndex.removeAll(parentId: lessonId)
+            forgetLessonVersions(lessonId: lessonId)
         }
         state.lessons.removeMany(lessonIds)
         state.programLessonIndex.removeAll(parentId: id)

@@ -1109,6 +1109,8 @@ struct CaptureComponent: Codable {
     let highlightEnds: [Int]?
     let deleteTargetShown: Bool?
     let saveFailed: Bool?
+    let editingIndex: Int?                     // activities-editor §9.1 — the edited object
+    let loadFailed: Bool?                      // activities-editor §9.4 · activities-player §3
     let showsHighlightTool: Bool?
     let showsEffectsTool: Bool?
     let showsEyedropper: Bool?

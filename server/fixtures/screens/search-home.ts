@@ -9,6 +9,7 @@
  * touches ctx.rand; creates no org, user or group.
  */
 import type { FixtureContext } from '../context.js'
+import { publishProgramVersion } from '../lesson-content.js'
 import { FIXTURE_GROUP_IDS, FIXTURE_MEMBER_IDS, FIXTURE_ORG_ID, FIXTURE_USER_ID, fixtureId } from '../ids.js'
 
 export const SEARCH_HOME_WORD = 'Grace'
@@ -37,7 +38,8 @@ export function searchHomeRows(_now: Date, daysAgo: (n: number) => Date) {
     publishedAt: daysAgo(20),
     createdAt: daysAgo(20),
   }
-  const lesson = { id: lessonId, studyProgramId: programId, dayNumber: 3, title: 'Day 3: Grace', createdAt: daysAgo(20) }
+  const lesson = { id: lessonId, programId, position: 3, createdAt: daysAgo(20) }
+  const lessonVersion = { id: fixtureId('lessonVersion', 7000), lessonId, number: 1, title: 'Day 3: Grace' }
   const programTag = { id: fixtureId('programTag', 1), studyProgramId: programId, tag: 'romans' }
 
   const exactPost = {
@@ -140,7 +142,7 @@ export function searchHomeRows(_now: Date, daysAgo: (n: number) => Date) {
     recentOf(6, 'MEMBER', GRACE_MEMBER_ID),
   ]
 
-  return { program, lesson, programTag, exactPost, untitledPost, orgTemplate, event, series, lessonEvent, photo, video, mediaTags, recents }
+  return { program, lesson, lessonVersion, programTag, exactPost, untitledPost, orgTemplate, event, series, lessonEvent, photo, video, mediaTags, recents }
 }
 
 export async function full(ctx: FixtureContext): Promise<void> {
@@ -148,6 +150,12 @@ export async function full(ctx: FixtureContext): Promise<void> {
   const rows = searchHomeRows(ctx.now, (n) => ctx.daysAgo(n))
   await prisma.studyProgram.create({ data: rows.program })
   await prisma.lesson.create({ data: rows.lesson })
+  await publishProgramVersion(ctx, {
+    programId: rows.program.id,
+    programVersionId: fixtureId('programVersion', 7000),
+    publishedAt: ctx.daysAgo(20),
+    versions: [rows.lessonVersion],
+  })
   await prisma.studyProgramTag.create({ data: rows.programTag })
   await prisma.post.createMany({ data: [rows.exactPost, rows.untitledPost] })
   await prisma.lessonTemplate.create({ data: rows.orgTemplate })

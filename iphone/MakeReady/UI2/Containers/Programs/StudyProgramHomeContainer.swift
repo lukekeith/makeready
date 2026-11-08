@@ -60,7 +60,7 @@ struct StudyProgramHomeContainer: View {
         let app = AppState.shared
         let mapped = StudyProgramHomeMapper.state(
             .init(name: name, program: app.programs[programId], lessons: app.lessonsFor(programId: programId),
-                  enrollments: app.programEnrollmentsFor(programId: programId), failed: failed, activeDay: activeDay),
+                  enrollments: app.programEnrollmentsFor(programId: programId), failed: failed, activeDay: activeDay, media: app.mediaMap),
             timeZone: .current
         )
         let _ = imagesSeeded
@@ -94,6 +94,13 @@ struct StudyProgramHomeContainer: View {
                         onSelectDay: { day in
                             activeDay = day
                             withAnimation { proxy.scrollTo(StudyProgramHomeScreen.lessonScrollID(day), anchor: .top) }
+                        },
+                        // text-activity D39: a canvas-kind slide opens the editor; any other kind says it can't be edited yet.
+                        onOpenActivity: { lessonIndex, slideIndex in
+                            let lessons = AppState.shared.lessonsFor(programId: programId)
+                            guard let lessonId = Self.lessonID(at: lessonIndex, in: lessons),
+                                  let activity = Self.activity(at: slideIndex, inLesson: lessonId) else { return }
+                            ActivityEntry.open(kind: activity.kind, activityId: activity.id, push: navigator.push)
                         },
                         // D11: no cover → the picker; a cover → Edit · Change · View.
                         onCoverTap: { handleCoverTap() },
@@ -146,7 +153,7 @@ struct StudyProgramHomeContainer: View {
                 },
                 onDone: { closeLessonMenu() },
                 menuTitle: heldLessonId.flatMap { AppState.shared.lessons[$0] }.map {
-                    Self.lessonMenuTitle(dayNumber: $0.dayNumber, title: $0.title)
+                    Self.lessonMenuTitle(dayNumber: $0.position, title: $0.title)
                 }
             )
         }
@@ -172,6 +179,11 @@ struct StudyProgramHomeContainer: View {
         .task { await reload() }
         .task(id: Self.imageURLs(mapped)) {
             if await UI2ImageLoader.seed(Self.imageURLs(mapped), context: "StudyProgramHomeContainer") { imagesSeeded += 1 }
+        }
+        // text-activity D26: canvas-kind rail slides render their document once and cache it under the slide's key.
+        .task(id: mapped.lessonSlideImages.flatMap { $0 }) {
+            let slides = app.lessonsFor(programId: programId).flatMap(\.activities)
+            if await ActivityThumbnail.seed(slides, media: app.mediaMap) { imagesSeeded += 1 }
         }
         .task(id: mapped.enrollmentPhotoURLs) {
             if await CoverImageLoader.seedList(mapped.enrollmentPhotoURLs) { imagesSeeded += 1 }
@@ -394,8 +406,15 @@ struct StudyProgramHomeContainer: View {
 
     /// D16: the id at a screen index — the screen's lesson arrays run in `dayNumber` order.
     static func lessonID(at index: Int, in lessons: [Lesson]) -> String? {
-        let ordered = lessons.sorted { $0.dayNumber < $1.dayNumber }
+        let ordered = lessons.sorted { $0.position < $1.position }
         return ordered.indices.contains(index) ? ordered[index].id : nil
+    }
+
+    /// D39: the activity a rail slide stands for — the lesson's activities run in `position` order, as the slides do.
+    @MainActor
+    static func activity(at index: Int, inLesson lessonId: String) -> ActivitySummary? {
+        let ordered = (AppState.shared.lessons[lessonId]?.activities ?? []).sorted { $0.position < $1.position }
+        return ordered.indices.contains(index) ? ordered[index] : nil
     }
 
     /// D15: what a failed delete means — cancelled is silent, 401 signs out, anything else (a 404

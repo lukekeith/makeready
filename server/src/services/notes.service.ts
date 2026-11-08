@@ -2,14 +2,8 @@ import { prisma } from '../lib/prisma.js'
 import type {
   StudyNote,
   NoteLink,
-  MemberActivityProgress,
   Prisma,
 } from '../generated/prisma/index.js'
-import {
-  checkAndUpdateLessonCompletion,
-  getMemberLessonDetail,
-  type LessonDetail,
-} from './member-progress.service.js'
 
 /**
  * Study Notes Service
@@ -26,12 +20,13 @@ import {
  *
  * Link Types (extensible - just add new string values):
  * - LESSON: Link to a Lesson
- * - LESSON_ACTIVITY: Link to a LessonActivity
- * - LESSON_SCHEDULE: Link to a LessonSchedule
  * - ENROLLMENT: Link to an Enrollment
  * - GROUP: Link to a Group
  * - VERSE: Link to a Verse (with metadata)
  * - PROGRAM: Link to a StudyProgram
+ *
+ * Removed link types (text-activity D42): LESSON_ACTIVITY, SCHEDULED_ACTIVITY and LESSON_SCHEDULE name rows of the
+ * 1.0 lesson models. New notes cannot carry them; existing note bodies keep working.
  */
 
 // ============================================================================
@@ -50,13 +45,16 @@ export const NOTE_TYPES = {
 
 export const LINK_TYPES = {
   LESSON: 'LESSON',
-  LESSON_ACTIVITY: 'LESSON_ACTIVITY',
-  LESSON_SCHEDULE: 'LESSON_SCHEDULE',
   ENROLLMENT: 'ENROLLMENT',
   GROUP: 'GROUP',
   VERSE: 'VERSE',
   PROGRAM: 'PROGRAM',
 } as const
+
+/** Link types no write or read accepts any more (D42). */
+export const REMOVED_LINK_TYPES: readonly string[] = ['LESSON_ACTIVITY', 'SCHEDULED_ACTIVITY', 'LESSON_SCHEDULE']
+
+export const REMOVED_LINK_ERROR = (refType: string) => `Link type ${refType} is no longer supported`
 
 export type NoteType = (typeof NOTE_TYPES)[keyof typeof NOTE_TYPES] | string
 export type LinkType = (typeof LINK_TYPES)[keyof typeof LINK_TYPES] | string
@@ -73,6 +71,8 @@ export interface NoteResult {
   success: boolean
   data?: StudyNoteWithLinks
   error?: string
+  /** `VALIDATION` when the request itself is refused (a removed link type). */
+  code?: 'VALIDATION'
 }
 
 export interface NotesResult {
@@ -80,12 +80,7 @@ export interface NotesResult {
   data?: StudyNoteWithLinks[]
   total?: number
   error?: string
-}
-
-export interface ProgressResult {
-  success: boolean
-  data?: MemberActivityProgress
-  error?: string
+  code?: 'VALIDATION'
 }
 
 export interface NoteLinkData {
@@ -100,17 +95,6 @@ export interface CreateNoteData {
   type: NoteType
   content: string
   links?: NoteLinkData[]
-}
-
-export interface UpdateProgressData {
-  memberId: string
-  lessonScheduleId: string
-  lessonActivityId: string
-  currentStep?: string // Legacy: mapped to completed if 'COMPLETE'
-  notes?: Array<{
-    type: NoteType
-    content: string
-  }>
 }
 
 export interface GetNotesOptions {
@@ -138,11 +122,6 @@ export interface GetNotesWithContextOptions {
 export interface NoteContext {
   program?: { id: string; name: string; description: string | null }
   lesson?: { id: string; dayNumber: number }
-  activity?: {
-    id: string
-    type: string
-    title: string | null
-  }
   verse?: {
     passageReference: string | null
     bookName: string | null
@@ -153,7 +132,6 @@ export interface NoteContext {
     scriptureText: string | null
   }
   group?: { id: string; name: string }
-  lessonSchedule?: { id: string; scheduledDate: Date }
   enrollment?: { id: string; groupId: string }
 }
 
@@ -214,118 +192,10 @@ export function noteTypeToStep(noteType: string): string | null {
   return mapping[noteType] || null
 }
 
-/**
- * Fetch scripture text for a passage from the Verse table
- * Used to store in metadata for LLM context
- */
-async function fetchScriptureText(
-  bookNumber: number,
-  chapterStart: number,
-  verseStart: number,
-  chapterEnd?: number,
-  verseEnd?: number,
-  translationCode: string = 'WEB'
-): Promise<string | null> {
-  try {
-    const translation = await prisma.translation.findUnique({
-      where: { code: translationCode },
-    })
-
-    if (!translation) {
-      console.warn(`Translation ${translationCode} not found`)
-      return null
-    }
-
-    const effectiveChapterEnd = chapterEnd ?? chapterStart
-    const effectiveVerseEnd = verseEnd ?? verseStart
-
-    // For single chapter passages
-    if (chapterStart === effectiveChapterEnd) {
-      const verses = await prisma.verse.findMany({
-        where: {
-          translationId: translation.id,
-          bookNumber,
-          chapter: chapterStart,
-          verse: {
-            gte: verseStart,
-            lte: effectiveVerseEnd,
-          },
-        },
-        orderBy: [{ chapter: 'asc' }, { verse: 'asc' }],
-        select: { text: true },
-      })
-
-      return verses.map((v) => v.text).join(' ')
-    }
-
-    // For multi-chapter passages
-    const verses = await prisma.verse.findMany({
-      where: {
-        translationId: translation.id,
-        bookNumber,
-        OR: [
-          { chapter: chapterStart, verse: { gte: verseStart } },
-          { chapter: { gt: chapterStart, lt: effectiveChapterEnd } },
-          { chapter: effectiveChapterEnd, verse: { lte: effectiveVerseEnd } },
-        ],
-      },
-      orderBy: [{ chapter: 'asc' }, { verse: 'asc' }],
-      select: { text: true },
-    })
-
-    return verses.map((v) => v.text).join(' ')
-  } catch (error) {
-    console.error('Error fetching scripture text:', error)
-    return null
-  }
-}
-
-/**
- * Get verse reference data from an activity's source references
- * Works with both LessonActivity and ScheduledLessonActivity
- */
-async function getActivityVerseMetadata(activityId: string): Promise<{
-  bookNumber?: number
-  bookName?: string
-  chapterStart?: number
-  chapterEnd?: number
-  verseStart?: number
-  verseEnd?: number
-  passageReference?: string
-  scriptureText?: string
-} | null> {
-  const sourceRef = await prisma.activitySourceReference.findFirst({
-    where: {
-      scheduledActivityId: activityId,
-      sourceType: 'SCRIPTURE',
-    },
-  })
-
-  if (!sourceRef || !sourceRef.bookNumber) return null
-
-  // Fetch scripture text for LLM context
-  let scriptureText: string | undefined
-  if (sourceRef.chapterStart && sourceRef.verseStart) {
-    const text = await fetchScriptureText(
-      sourceRef.bookNumber,
-      sourceRef.chapterStart,
-      sourceRef.verseStart,
-      sourceRef.chapterEnd ?? undefined,
-      sourceRef.verseEnd ?? undefined
-    )
-    if (text) scriptureText = text
-  }
-
-  return {
-    bookNumber: sourceRef.bookNumber ?? undefined,
-    bookName: sourceRef.bookName ?? undefined,
-    chapterStart: sourceRef.chapterStart ?? undefined,
-    chapterEnd: sourceRef.chapterEnd ?? undefined,
-    verseStart: sourceRef.verseStart ?? undefined,
-    verseEnd: sourceRef.verseEnd ?? undefined,
-    passageReference: sourceRef.passageReference ?? undefined,
-    scriptureText,
-  }
+/** The first removed link type among `links`, as a refusal (D42); null when every link is allowed. */
+function removedLinkRefusal(links: { refType: string }[] | undefined): { success: false; code: 'VALIDATION'; error: string } | null {
+  const removed = links?.find((link) => REMOVED_LINK_TYPES.includes(link.refType))
+  return removed ? { success: false, code: 'VALIDATION', error: REMOVED_LINK_ERROR(removed.refType) } : null
 }
 
 // ============================================================================
@@ -336,6 +206,8 @@ async function getActivityVerseMetadata(activityId: string): Promise<{
  * Create a new note with polymorphic links
  */
 export async function createNote(data: CreateNoteData): Promise<NoteResult> {
+  const refusal = removedLinkRefusal(data.links)
+  if (refusal) return refusal
   try {
     // Validate owner - must have either memberId or userId
     if (!data.memberId && !data.userId) {
@@ -452,6 +324,9 @@ export async function getNotes(options: GetNotesOptions): Promise<NotesResult> {
 export async function getNotesForEntity(
   options: GetNotesForEntityOptions
 ): Promise<NotesResult> {
+  if (REMOVED_LINK_TYPES.includes(options.refType)) {
+    return { success: false, code: 'VALIDATION', error: REMOVED_LINK_ERROR(options.refType) }
+  }
   try {
     const { refType, refId, type, limit = 100 } = options
 
@@ -530,7 +405,7 @@ export async function getNotesWithContext(
     }
 
     // Batch-resolve linked entities
-    const [programs, lessons, activities, schedules, enrollments, groups] =
+    const [programs, lessons, enrollments, groups] =
       await Promise.all([
         refIdsByType.has(LINK_TYPES.PROGRAM)
           ? prisma.studyProgram.findMany({
@@ -541,29 +416,7 @@ export async function getNotesWithContext(
         refIdsByType.has(LINK_TYPES.LESSON)
           ? prisma.lesson.findMany({
               where: { id: { in: [...refIdsByType.get(LINK_TYPES.LESSON)!] } },
-              select: { id: true, dayNumber: true },
-            })
-          : [],
-        refIdsByType.has(LINK_TYPES.LESSON_ACTIVITY)
-          ? prisma.lessonActivity.findMany({
-              where: {
-                id: { in: [...refIdsByType.get(LINK_TYPES.LESSON_ACTIVITY)!] },
-              },
-              select: {
-                id: true,
-                activityType: true,
-                title: true,
-              },
-            })
-          : [],
-        refIdsByType.has(LINK_TYPES.LESSON_SCHEDULE)
-          ? prisma.lessonSchedule.findMany({
-              where: {
-                id: {
-                  in: [...refIdsByType.get(LINK_TYPES.LESSON_SCHEDULE)!],
-                },
-              },
-              select: { id: true, scheduledDate: true },
+              select: { id: true, position: true },
             })
           : [],
         refIdsByType.has(LINK_TYPES.ENROLLMENT)
@@ -585,8 +438,6 @@ export async function getNotesWithContext(
     // Build lookup maps
     const programMap = new Map(programs.map((p) => [p.id, p]))
     const lessonMap = new Map(lessons.map((l) => [l.id, l]))
-    const activityMap = new Map(activities.map((a) => [a.id, a]))
-    const scheduleMap = new Map(schedules.map((s) => [s.id, s]))
     const enrollmentMap = new Map(enrollments.map((e) => [e.id, e]))
     const groupMap = new Map(groups.map((g) => [g.id, g]))
 
@@ -604,12 +455,7 @@ export async function getNotesWithContext(
           }
           case LINK_TYPES.LESSON: {
             const l = lessonMap.get(link.refId)
-            if (l) context.lesson = l
-            break
-          }
-          case LINK_TYPES.LESSON_ACTIVITY: {
-            const a = activityMap.get(link.refId)
-            if (a) context.activity = { id: a.id, type: a.activityType, title: a.title }
+            if (l) context.lesson = { id: l.id, dayNumber: l.position }
             break
           }
           case LINK_TYPES.VERSE: {
@@ -631,11 +477,6 @@ export async function getNotesWithContext(
           case LINK_TYPES.GROUP: {
             const g = groupMap.get(link.refId)
             if (g) context.group = g
-            break
-          }
-          case LINK_TYPES.LESSON_SCHEDULE: {
-            const s = scheduleMap.get(link.refId)
-            if (s) context.lessonSchedule = s
             break
           }
           case LINK_TYPES.ENROLLMENT: {
@@ -717,6 +558,8 @@ export async function addNoteLink(
   noteId: string,
   link: NoteLinkData
 ): Promise<NoteResult> {
+  const refusal = removedLinkRefusal([link])
+  if (refusal) return refusal
   try {
     await prisma.noteLink.create({
       data: {
@@ -781,409 +624,6 @@ export async function deleteNote(noteId: string): Promise<NoteResult> {
   } catch (error) {
     console.error('Error deleting note:', error)
     return { success: false, error: 'Failed to delete note' }
-  }
-}
-
-// ============================================================================
-// Activity Progress Operations
-// ============================================================================
-
-/**
- * Save activity progress and create notes in a single transaction
- * This is the main endpoint for saving SOAP progress
- */
-export async function saveActivityProgress(
-  data: UpdateProgressData
-): Promise<{
-  success: boolean
-  progress?: MemberActivityProgress
-  notes?: StudyNoteWithLinks[]
-  error?: string
-}> {
-  try {
-    const { memberId, lessonScheduleId, lessonActivityId, currentStep, notes } =
-      data
-
-    const scheduledActivity = await prisma.scheduledLessonActivity.findUnique({
-      where: { id: lessonActivityId },
-      include: {
-        lessonSchedule: {
-          include: {
-            enrollment: true,
-            lesson: {
-              include: { studyProgram: true },
-            },
-          },
-        },
-      },
-    })
-
-    if (!scheduledActivity) {
-      return { success: false, error: 'Activity not found' }
-    }
-
-    const schedule = scheduledActivity.lessonSchedule
-
-    if (!schedule) {
-      return { success: false, error: 'Lesson schedule not found' }
-    }
-
-    // Verify member belongs to the group
-    const membership = await prisma.groupMember.findFirst({
-      where: {
-        memberId,
-        groupId: schedule.enrollment.groupId,
-        isActive: true,
-      },
-    })
-
-    if (!membership) {
-      return {
-        success: false,
-        error: 'Member is not part of this group',
-      }
-    }
-
-    // In the new model, each activity IS a step. Progress is just completedAt.
-    const isComplete = currentStep === 'COMPLETE'
-
-    // Get verse metadata for notes
-    const verseMetadata = await getActivityVerseMetadata(lessonActivityId)
-
-    // Use transaction to save progress and notes atomically
-    const result = await prisma.$transaction(async (tx) => {
-      // Try to find existing progress
-      const existingProgress = await tx.memberActivityProgress.findFirst({
-        where: { memberId, lessonScheduleId, scheduledActivityId: lessonActivityId },
-      })
-
-      const progress = existingProgress
-        ? await tx.memberActivityProgress.update({
-            where: { id: existingProgress.id },
-            data: {
-              completedAt: isComplete ? new Date() : null,
-              lastUpdatedAt: new Date(),
-            },
-          })
-        : await tx.memberActivityProgress.create({
-            data: {
-              memberId,
-              lessonScheduleId,
-              scheduledActivityId: lessonActivityId,
-              completedAt: isComplete ? new Date() : null,
-            },
-          })
-
-      // Create notes with links
-      const createdNotes: StudyNoteWithLinks[] = []
-      if (notes && notes.length > 0) {
-        for (const noteData of notes) {
-          // Skip empty notes
-          if (!noteData.content || noteData.content.trim() === '') {
-            continue
-          }
-
-          // Create the note
-          const note = await tx.studyNote.create({
-            data: {
-              memberId,
-              type: noteData.type,
-              content: noteData.content,
-            },
-          })
-
-          // Create links for context (lesson/program links only while the
-          // curriculum lesson still exists — orphaned schedules keep the rest)
-          const sourceLesson = scheduledActivity.lessonSchedule.lesson
-
-          const links: Prisma.NoteLinkCreateManyInput[] = [
-            { noteId: note.id, refType: 'SCHEDULED_ACTIVITY', refId: lessonActivityId },
-            { noteId: note.id, refType: LINK_TYPES.LESSON_SCHEDULE, refId: lessonScheduleId },
-            { noteId: note.id, refType: LINK_TYPES.ENROLLMENT, refId: schedule.enrollment.id },
-            { noteId: note.id, refType: LINK_TYPES.GROUP, refId: schedule.enrollment.groupId },
-            ...(sourceLesson
-              ? [
-                  { noteId: note.id, refType: LINK_TYPES.LESSON, refId: sourceLesson.id },
-                  { noteId: note.id, refType: LINK_TYPES.PROGRAM, refId: sourceLesson.studyProgram.id },
-                ]
-              : []),
-          ]
-
-          // Add verse link with metadata if available
-          if (verseMetadata) {
-            links.push({
-              noteId: note.id,
-              refType: LINK_TYPES.VERSE,
-              refId: `${verseMetadata.bookNumber}-${verseMetadata.chapterStart}-${verseMetadata.verseStart}`,
-              metadata: verseMetadata as Prisma.InputJsonValue,
-            })
-          }
-
-          await tx.noteLink.createMany({ data: links })
-
-          // Fetch note with links
-          const noteWithLinks = await tx.studyNote.findUnique({
-            where: { id: note.id },
-            include: { links: true },
-          })
-
-          if (noteWithLinks) {
-            createdNotes.push(noteWithLinks as StudyNoteWithLinks)
-          }
-        }
-      }
-
-      return { progress, notes: createdNotes }
-    })
-
-    // Check and update lesson completion status after saving activity progress
-    await checkAndUpdateLessonCompletion(memberId, lessonScheduleId)
-
-    return {
-      success: true,
-      progress: result.progress,
-      notes: result.notes,
-    }
-  } catch (error) {
-    console.error('Error saving activity progress:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Failed to save progress'
-    return { success: false, error: errorMessage }
-  }
-}
-
-/**
- * Get activity progress for a member
- */
-export async function getActivityProgress(
-  memberId: string,
-  lessonActivityId: string,
-  lessonScheduleId: string
-): Promise<ProgressResult> {
-  try {
-    const progress = await prisma.memberActivityProgress.findFirst({
-      where: {
-        memberId,
-        lessonScheduleId,
-        scheduledActivityId: lessonActivityId,
-      },
-    })
-
-    if (!progress) {
-      return { success: false, error: 'Progress not found' }
-    }
-
-    return { success: true, data: progress }
-  } catch (error) {
-    console.error('Error fetching progress:', error)
-    return { success: false, error: 'Failed to fetch progress' }
-  }
-}
-
-// ============================================================================
-// Server-Side SOAP Activity Step Completion
-// ============================================================================
-
-export interface SubmitActivityResponseData {
-  memberId: string
-  lessonScheduleId: string
-  lessonActivityId: string
-  note?: {
-    type: string
-    content: string
-  }
-  // 'complete' marks a non-input activity (READ/VIDEO/YOUTUBE/EXEGESIS) done once
-  // the member finishes its content. requireResponse only gates USER_INPUT.
-  action?: 'start' | 'skip_to_complete' | 'complete'
-  isGroupLeader?: boolean
-}
-
-export interface SubmitActivityResponseResult {
-  success: boolean
-  lesson?: LessonDetail
-  error?: string
-}
-
-/**
- * Submit an activity response with server-side step completion logic
- *
- * This is the new approach where the server determines step completion:
- * - action: 'start' → Mark READ_SCRIPTURE complete
- * - note provided → Save note, mark corresponding step complete
- * - action: 'skip_to_complete' (only if !requireResponse) → Mark all complete
- *
- * Returns the full lesson state after processing.
- */
-export async function submitActivityResponse(
-  data: SubmitActivityResponseData
-): Promise<SubmitActivityResponseResult> {
-  try {
-    const { memberId, lessonScheduleId, lessonActivityId, note, action, isGroupLeader } = data
-
-    // 1. Try to find as scheduled activity first, then fall back to lesson activity
-    const scheduledActivity = await prisma.scheduledLessonActivity.findUnique({
-      where: { id: lessonActivityId },
-      include: {
-        lessonSchedule: {
-          include: {
-            enrollment: true,
-            lesson: { include: { studyProgram: true } },
-          },
-        },
-      },
-    })
-
-    if (!scheduledActivity) {
-      return { success: false, error: 'Activity not found' }
-    }
-
-    // 2. Get lesson schedule with enrollment for requireResponse setting
-    const schedule = scheduledActivity.lessonSchedule
-
-    if (!schedule) {
-      return { success: false, error: 'Lesson schedule not found' }
-    }
-
-    // 3. Verify member belongs to the group
-    const membership = await prisma.groupMember.findFirst({
-      where: {
-        memberId,
-        groupId: schedule.enrollment.groupId,
-        isActive: true,
-      },
-    })
-
-    if (!membership) {
-      return { success: false, error: 'Member is not part of this group' }
-    }
-
-    // 4. In the new template model, each activity IS a step.
-    // action: 'start' → mark the activity as started (not yet complete)
-    // action: 'complete' → mark a non-input activity (READ/VIDEO/YOUTUBE/EXEGESIS)
-    //   complete once its content is finished. requireResponse only governs
-    //   USER_INPUT activities, so it never blocks these.
-    // action: 'skip_to_complete' → mark the activity as complete (if requireResponse is false)
-    // note provided → save note and mark activity as complete
-    const requireResponse = schedule.enrollment.requireResponse
-    const isUserInput = scheduledActivity.type === 'USER_INPUT'
-    let shouldComplete = false
-
-    if (action === 'complete') {
-      // USER_INPUT activities are completed by submitting a note (or skipping
-      // when responses aren't required), not by a bare 'complete'.
-      if (isUserInput && requireResponse && !isGroupLeader) {
-        return {
-          success: false,
-          error: 'This activity requires a response',
-        }
-      }
-      shouldComplete = true
-    }
-
-    if (action === 'skip_to_complete') {
-      if (requireResponse && !isGroupLeader) {
-        return {
-          success: false,
-          error: 'Cannot skip to complete when responses are required',
-        }
-      }
-      shouldComplete = true
-    }
-
-    // 5. Process note if provided
-    if (note && note.content.trim()) {
-      // Lesson/program links only while the curriculum lesson still exists —
-      // notes on orphaned schedules keep their activity/schedule links
-      const sourceLesson = scheduledActivity.lessonSchedule.lesson
-
-      await prisma.$transaction(async (tx) => {
-        const createdStudyNote = await tx.studyNote.create({
-          data: {
-            memberId,
-            type: note.type,
-            content: note.content,
-          },
-        })
-
-        // Get verse metadata for note links
-        const verseMetadata = await getActivityVerseMetadata(lessonActivityId)
-
-        // Create links for context
-        const links: Prisma.NoteLinkCreateManyInput[] = [
-          { noteId: createdStudyNote.id, refType: 'SCHEDULED_ACTIVITY', refId: lessonActivityId },
-          { noteId: createdStudyNote.id, refType: LINK_TYPES.LESSON_SCHEDULE, refId: lessonScheduleId },
-          { noteId: createdStudyNote.id, refType: LINK_TYPES.ENROLLMENT, refId: schedule.enrollment.id },
-          { noteId: createdStudyNote.id, refType: LINK_TYPES.GROUP, refId: schedule.enrollment.groupId },
-          ...(sourceLesson
-            ? [
-                { noteId: createdStudyNote.id, refType: LINK_TYPES.LESSON, refId: sourceLesson.id },
-                { noteId: createdStudyNote.id, refType: LINK_TYPES.PROGRAM, refId: sourceLesson.studyProgram.id },
-              ]
-            : []),
-        ]
-
-        // Add verse link with metadata if available
-        if (verseMetadata) {
-          links.push({
-            noteId: createdStudyNote.id,
-            refType: LINK_TYPES.VERSE,
-            refId: `${verseMetadata.bookNumber}-${verseMetadata.chapterStart}-${verseMetadata.verseStart}`,
-            metadata: verseMetadata as Prisma.InputJsonValue,
-          })
-        }
-
-        await tx.noteLink.createMany({ data: links })
-      })
-
-      // Submitting a note completes the USER_INPUT activity
-      shouldComplete = true
-    }
-
-    // 6. Update progress record
-    const existingProgress = await prisma.memberActivityProgress.findFirst({
-      where: { memberId, lessonScheduleId, scheduledActivityId: lessonActivityId },
-    })
-
-    if (existingProgress) {
-      await prisma.memberActivityProgress.update({
-        where: { id: existingProgress.id },
-        data: {
-          completedAt: shouldComplete ? new Date() : existingProgress.completedAt,
-          lastUpdatedAt: new Date(),
-        },
-      })
-    } else {
-      await prisma.memberActivityProgress.create({
-        data: {
-          memberId,
-          lessonScheduleId,
-          scheduledActivityId: lessonActivityId,
-          completedAt: shouldComplete ? new Date() : null,
-        },
-      })
-    }
-
-    // 7. Check and update lesson completion status
-    await checkAndUpdateLessonCompletion(memberId, lessonScheduleId)
-
-    // 8. Return full lesson state
-    const lessonResult = await getMemberLessonDetail(memberId, lessonScheduleId)
-
-    if (!lessonResult.success || !lessonResult.data) {
-      return {
-        success: false,
-        error: lessonResult.error || 'Failed to fetch lesson detail',
-      }
-    }
-
-    return {
-      success: true,
-      lesson: lessonResult.data,
-    }
-  } catch (error) {
-    console.error('Error submitting activity response:', error)
-    const errorMessage =
-      error instanceof Error ? error.message : 'Failed to submit activity response'
-    return { success: false, error: errorMessage }
   }
 }
 

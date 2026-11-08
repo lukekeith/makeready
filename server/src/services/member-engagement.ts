@@ -83,22 +83,22 @@ export async function getMemberEngagement(
       id: true,
       studyProgramId: true,
       studyProgram: { select: { name: true, coverImageUrl: true } },
-      lessonSchedules: { where: { removedAt: null }, select: { id: true, scheduledDate: true } },
+      scheduledLessons: { where: { removedAt: null }, select: { id: true, scheduledDate: true } },
     },
     orderBy: [{ startDate: 'desc' }, { id: 'asc' }],
   })
   if (enrollments.length === 0) return { programs: [] }
 
   const enrollmentIds = enrollments.map((e) => e.id)
-  const tied = { lessonSchedule: { enrollmentId: { in: enrollmentIds } } }
-  const [lessons, videos, events] = await Promise.all([
-    prisma.memberLessonProgress.findMany({
+  const tied = { scheduledLesson: { enrollmentId: { in: enrollmentIds } } }
+  const [lessons, activities, events] = await Promise.all([
+    prisma.lessonProgress.findMany({
       where: { memberId, ...tied },
-      select: { lessonScheduleId: true, completedAt: true, lessonSchedule: { select: { enrollmentId: true } } },
+      select: { scheduledLessonId: true, completedAt: true, scheduledLesson: { select: { enrollmentId: true } } },
     }),
-    prisma.memberVideoProgress.findMany({
+    prisma.activityProgress.findMany({
       where: { memberId, ...tied },
-      select: { startedAt: true, lastWatchedAt: true, lessonSchedule: { select: { enrollmentId: true } } },
+      select: { startedAt: true, completedAt: true, scheduledLesson: { select: { enrollmentId: true } } },
     }),
     prisma.clientEvent.findMany({
       where: { memberId, enrollmentId: { in: enrollmentIds } },
@@ -110,12 +110,12 @@ export async function getMemberEngagement(
   const moments: EnrollmentMoment[] = []
   for (const l of lessons) {
     if (!l.completedAt) continue
-    completed.add(l.lessonScheduleId)
-    moments.push({ enrollmentId: l.lessonSchedule.enrollmentId, at: l.completedAt })
+    completed.add(l.scheduledLessonId)
+    moments.push({ enrollmentId: l.scheduledLesson.enrollmentId, at: l.completedAt })
   }
-  for (const v of videos) {
-    moments.push({ enrollmentId: v.lessonSchedule.enrollmentId, at: v.startedAt })
-    moments.push({ enrollmentId: v.lessonSchedule.enrollmentId, at: v.lastWatchedAt })
+  for (const a of activities) {
+    moments.push({ enrollmentId: a.scheduledLesson.enrollmentId, at: a.startedAt })
+    if (a.completedAt) moments.push({ enrollmentId: a.scheduledLesson.enrollmentId, at: a.completedAt })
   }
   for (const e of events) if (e.enrollmentId) moments.push({ enrollmentId: e.enrollmentId, at: e.occurredAt })
 
@@ -128,7 +128,7 @@ export async function getMemberEngagement(
       title: e.studyProgram.name,
       coverImageUrl: e.studyProgram.coverImageUrl ?? null,
       ...summarizeEnrollment(
-        e.lessonSchedules.map((s) => ({ id: s.id, date: storedDate(s.scheduledDate) })),
+        e.scheduledLessons.map((s) => ({ id: s.id, date: storedDate(s.scheduledDate) })),
         completed,
         seconds.get(e.id) ?? 0,
         today

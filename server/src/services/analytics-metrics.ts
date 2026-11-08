@@ -109,7 +109,7 @@ export interface MetricDef {
    * How time windows and time dimensions bucket this metric (home-dashboard-data D14).
    * 'local'       — occurred_at in the query timezone (the default; every event metric).
    * 'stored_date' — the row's stored calendar date (`scheduled_date`, the UTC date part of
-   *                 lesson_schedules.scheduledDate), never shifted by the query timezone.
+   *                 scheduled_lessons.scheduledDate), never shifted by the query timezone.
    * A query cannot mix the two (400).
    */
   dateBucket?: 'local' | 'stored_date'

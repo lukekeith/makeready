@@ -44,6 +44,10 @@ export const FIXTURE_KIND = {
   template: '001f',
   programTag: '0020',
   recent: '0021',
+  // text-activity Task 11: the enrollment layers' version-pointer content.
+  programVersion: '0022',
+  lessonVersion: '0023',
+  contentActivity: '0024',
 } as const
 
 export type FixtureKind = keyof typeof FIXTURE_KIND
@@ -93,6 +97,22 @@ export const FIXTURE_NEW_GROUP_USER_ID = fixtureId('user', 900)
 export const FIXTURE_NEW_GROUP_ORG_ID = fixtureId('organization', 900)
 export const FIXTURE_NEW_GROUP_GROUP_ID = fixtureId('group', 900)
 
+/**
+ * text-activity Task 17: the walk's lessons. The editor's lesson holds a draft only; the player's is published
+ * (version 1, `lessonVersionId`) and also has a draft (`draftVersionId`), so both reads have data (D22).
+ */
+export const ACTIVITIES_EDITOR_IDS = {
+  programId: fixtureId('program', 210),
+  lessonId: fixtureId('lesson', 210_001),
+  lessonVersionId: fixtureId('lessonVersion', 210_001),
+}
+export const ACTIVITIES_PLAYER_IDS = {
+  programId: fixtureId('program', 211),
+  lessonId: fixtureId('lesson', 211_001),
+  lessonVersionId: fixtureId('lessonVersion', 211_001),
+  draftVersionId: fixtureId('lessonVersion', 211_002),
+}
+
 export const FIXTURE_IDS = {
   user: FIXTURE_USER_ID,
   org: FIXTURE_ORG_ID,
@@ -104,4 +124,6 @@ export const FIXTURE_IDS = {
   leaderGroup: FIXTURE_LEADER_GROUP_ID,
   emptyGroup: FIXTURE_EMPTY_GROUP_ID,
   org2: FIXTURE_ORG2_ID,
+  activitiesEditor: ACTIVITIES_EDITOR_IDS,
+  activitiesPlayer: ACTIVITIES_PLAYER_IDS,
 }

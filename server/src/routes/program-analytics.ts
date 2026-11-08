@@ -194,8 +194,8 @@ router.get('/programs/:programId/analytics', requireAuth, async (req, res) => {
                   g.name AS group_name,
                   (SELECT COUNT(*)::int FROM group_members gm
                     WHERE gm."groupId" = e."groupId" AND gm."isActive" = true) AS member_count,
-                  (SELECT COUNT(*)::int FROM lesson_schedules ls
-                    WHERE ls."enrollmentId" = e.id AND ls."removedAt" IS NULL) AS schedule_count
+                  (SELECT COUNT(*)::int FROM scheduled_lessons sl
+                    WHERE sl."enrollmentId" = e.id AND sl."removedAt" IS NULL) AS schedule_count
              FROM enrollments e
              JOIN groups g ON g.id = e."groupId"
             WHERE e."studyProgramId"::text = $1`,
@@ -265,7 +265,7 @@ router.get('/programs/:programId/analytics', requireAuth, async (req, res) => {
         totalEnrollments,
         lessonCompletions: Number(kpis.lesson_completions ?? 0),
         // Registry ratios are 0–1 already; avg_watch_percent is stored 0–100
-        // (member_video_progress.watchPercentage) so normalize to 0–1 here to
+        // (activity_progress.state.watchPercentage) so normalize to 0–1 here to
         // match the contract's 0.83-style values.
         completionRate: kpis.completion_rate === null ? 0 : Number(kpis.completion_rate ?? 0),
         videoCompletions: Number(kpis.video_completions ?? 0),

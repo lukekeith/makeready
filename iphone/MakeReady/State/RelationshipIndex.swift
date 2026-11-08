@@ -50,6 +50,11 @@ class RelationshipIndex {
         index[parentId]?.count ?? 0
     }
 
+    /// The parent whose children contain `childId`, if any.
+    func parent(of childId: String) -> String? {
+        index.first { $0.value.contains(childId) }?.key
+    }
+
     /// Check if a specific child is related to a parent
     func contains(parentId: String, childId: String) -> Bool {
         index[parentId]?.contains(childId) ?? false

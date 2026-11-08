@@ -61,8 +61,8 @@ final class GroupsBrowseDecodingTests: XCTestCase {
         {"success":true,"study":{"id":"s1","code":"ABC-3","dayNumber":3,"scheduledDate":"2026-10-26T00:00:00.000Z",
          "title":"Faith over fear","enrollment":{"id":"e1"},
          "studyProgram":{"id":"p1","name":"Daily Inspiration","description":"30 days","days":30,"coverImageUrl":"https://img/p1.jpg","requireResponse":false},
-         "activities":[{"id":"a1","type":"VIDEO","orderNumber":1,"title":"Watch","videoUrl":null,"sourceReferences":[],"thumbnailUrl":"https://img/a1.jpg"},
-                       {"id":"a2","type":"READ","orderNumber":2,"title":"Read","thumbnailUrl":null}]}}
+         "activities":[{"id":"a1","type":"video","orderNumber":1,"title":"Watch","videoUrl":null,"sourceReferences":[],"thumbnailUrl":"https://img/a1.jpg"},
+                       {"id":"a2","type":"text","orderNumber":2,"title":"Read","thumbnailUrl":null}]}}
         """#)
         let study = try XCTUnwrap(response.study)
         XCTAssertTrue(response.success)
@@ -79,13 +79,13 @@ final class GroupsBrowseDecodingTests: XCTestCase {
     func testNextStudyToleratesAbsentOptionalKeys() throws {
         let response: NextStudyResponse = try decode(#"""
         {"success":true,"study":{"id":"s1","dayNumber":3,"scheduledDate":"2026-10-26T00:00:00.000Z","studyProgram":null,
-         "activities":[{"id":"a1","type":"READ","orderNumber":1}]}}
+         "activities":[{"id":"a1","type":"text","orderNumber":1}]}}
         """#)
         let study = try XCTUnwrap(response.study)
         XCTAssertNil(study.title)
         XCTAssertNil(study.code)
         XCTAssertNil(study.studyProgram)
-        XCTAssertEqual(study.activities, [NextStudyActivity(id: "a1", type: "READ", orderNumber: 1)])
+        XCTAssertEqual(study.activities, [NextStudyActivity(id: "a1", type: "text", orderNumber: 1)])
     }
 
     // MARK: - T12 GroupHistoryEvent

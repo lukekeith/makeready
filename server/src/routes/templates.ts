@@ -1,8 +1,12 @@
 import { Router, Request } from 'express'
 import { z } from 'zod'
+import type { Prisma } from '../generated/prisma/index.js'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth } from '../middleware/auth.js'
 import { trackActivity } from '../services/activity.js'
+import { ACTIVITY_KINDS, documentMediaRefs, parseActivityDocument } from '../services/activity-document.js'
+import { ContentError, sendContentError } from '../services/content-errors.js'
+import { assertDocumentMediaAllowed } from '../services/content-media.service.js'
 
 const router = Router()
 
@@ -118,18 +122,42 @@ router.get('/templates/:id', requireAuth, async (req, res) => {
   }
 })
 
+// ---- Starter activities (SC6, SC9): `kind` is validated text and `document` is checked like a lesson activity's ----
+
+const activityKind = z.enum(ACTIVITY_KINDS)
+const activityDocument = z.record(z.unknown())
+
+/** Adds a zod issue when `document` is not a valid document of `kind` (the same check POST on a lesson version runs). */
+function checkStarterDocument(kind: string, document: unknown, ctx: z.RefinementCtx) {
+  const parsed = parseActivityDocument(document, kind)
+  if (!parsed.ok) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['document'], message: parsed.error })
+}
+
+/** D34: every media and video the starter document names must be usable by the leader. */
+async function assertStarterMediaAllowed(userId: string | null, documents: unknown[]) {
+  if (!userId) throw new ContentError(400, 'VALIDATION', 'User account required')
+  const refs = { mediaIds: [] as string[], videoIds: [] as string[] }
+  for (const doc of documents) {
+    const found = documentMediaRefs(doc)
+    refs.mediaIds.push(...found.mediaIds)
+    refs.videoIds.push(...found.videoIds)
+  }
+  await assertDocumentMediaAllowed(prisma, userId, refs)
+}
+
 const createTemplateSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(500).nullable().optional(),
   activities: z.array(z.object({
-    type: z.enum(['USER_INPUT', 'READ', 'VIDEO', 'YOUTUBE', 'EXEGESIS']),
+    kind: activityKind,
+    document: activityDocument,
     orderNumber: z.number().int().positive(),
     title: z.string().min(1).max(100),
     referenceTitle: z.string().max(200).nullable().optional(),
     helpTitle: z.string().max(200).nullable().optional(),
     helpDescription: z.string().max(1000).nullable().optional(),
     helpAlwaysVisible: z.boolean().optional().default(false),
-  })).min(1),
+  }).strict().superRefine((a, ctx) => checkStarterDocument(a.kind, a.document, ctx))).min(1),
 })
 
 /**
@@ -167,6 +195,8 @@ router.post('/templates', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'User account required to create templates' })
     }
 
+    await assertStarterMediaAllowed(userId, data.activities.map((a) => a.document))
+
     // Look up creator's organization
     const creatorOrg = await prisma.organization.findFirst({
       where: { ownerId: userId },
@@ -182,7 +212,8 @@ router.post('/templates', requireAuth, async (req, res) => {
         organizationId: creatorOrg?.id,
         activities: {
           create: data.activities.map((a) => ({
-            type: a.type,
+            kind: a.kind,
+            document: a.document as Prisma.InputJsonValue,
             orderNumber: a.orderNumber,
             title: a.title,
             referenceTitle: a.referenceTitle ?? null,
@@ -210,6 +241,7 @@ router.post('/templates', requireAuth, async (req, res) => {
 
     res.status(201).json({ template })
   } catch (error) {
+    if (error instanceof ContentError) return sendContentError(res, error)
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid request', details: error.errors })
     }
@@ -387,7 +419,8 @@ router.post('/templates/:id/duplicate', requireAuth, async (req, res) => {
         sourceTemplateId: source.id,
         activities: {
           create: source.activities.map((a) => ({
-            type: a.type,
+            kind: a.kind,
+            document: (a.document ?? undefined) as Prisma.InputJsonValue | undefined,
             orderNumber: a.orderNumber,
             title: a.title,
             referenceTitle: a.referenceTitle,
@@ -417,14 +450,15 @@ router.post('/templates/:id/duplicate', requireAuth, async (req, res) => {
 // ============================================================================
 
 const addActivitySchema = z.object({
-  type: z.enum(['USER_INPUT', 'READ', 'VIDEO', 'YOUTUBE', 'EXEGESIS']),
+  kind: activityKind,
+  document: activityDocument,
   orderNumber: z.number().int().positive(),
   title: z.string().min(1).max(100),
   referenceTitle: z.string().max(200).nullable().optional(),
   helpTitle: z.string().max(200).nullable().optional(),
   helpDescription: z.string().max(1000).nullable().optional(),
   helpAlwaysVisible: z.boolean().optional().default(false),
-})
+}).strict().superRefine((a, ctx) => checkStarterDocument(a.kind, a.document, ctx))
 
 /**
  * @openapi
@@ -461,6 +495,8 @@ router.post('/templates/:id/activities', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Cannot modify this template' })
     }
 
+    await assertStarterMediaAllowed(userId, [data.document])
+
     // Shift existing activities down to make room
     await prisma.lessonTemplateActivity.updateMany({
       where: {
@@ -475,7 +511,8 @@ router.post('/templates/:id/activities', requireAuth, async (req, res) => {
     const activity = await prisma.lessonTemplateActivity.create({
       data: {
         templateId: req.params.id,
-        type: data.type,
+        kind: data.kind,
+        document: data.document as Prisma.InputJsonValue,
         orderNumber: data.orderNumber,
         title: data.title,
         referenceTitle: data.referenceTitle ?? null,
@@ -487,6 +524,7 @@ router.post('/templates/:id/activities', requireAuth, async (req, res) => {
 
     res.status(201).json({ activity })
   } catch (error) {
+    if (error instanceof ContentError) return sendContentError(res, error)
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid request', details: error.errors })
     }
@@ -496,13 +534,14 @@ router.post('/templates/:id/activities', requireAuth, async (req, res) => {
 })
 
 const updateActivitySchema = z.object({
-  type: z.enum(['USER_INPUT', 'READ', 'VIDEO', 'YOUTUBE', 'EXEGESIS']).optional(),
+  kind: activityKind.optional(),
+  document: activityDocument.optional(),
   title: z.string().min(1).max(100).optional(),
   referenceTitle: z.string().max(200).nullable().optional(),
   helpTitle: z.string().max(200).nullable().optional(),
   helpDescription: z.string().max(1000).nullable().optional(),
   helpAlwaysVisible: z.boolean().optional(),
-})
+}).strict()
 
 /**
  * @openapi
@@ -555,10 +594,23 @@ router.patch('/templates/:id/activities/:activityId', requireAuth, async (req, r
       return res.status(404).json({ error: 'Activity not found' })
     }
 
+    // A kind or document change is checked as a pair: the sent half against the stored other half.
+    if (data.kind !== undefined || data.document !== undefined) {
+      const kind = data.kind ?? activity.kind
+      const document = data.document ?? activity.document
+      if (!kind || document == null) {
+        throw new ContentError(400, 'VALIDATION', 'kind and document must be sent together')
+      }
+      const parsed = parseActivityDocument(document, kind)
+      if (!parsed.ok) throw new ContentError(parsed.code === 'TOO_LARGE' ? 413 : 400, parsed.code, parsed.error)
+      await assertStarterMediaAllowed(userId, [document])
+    }
+
     const updated = await prisma.lessonTemplateActivity.update({
       where: { id: req.params.activityId },
       data: {
-        ...(data.type !== undefined && { type: data.type }),
+        ...(data.kind !== undefined && { kind: data.kind }),
+        ...(data.document !== undefined && { document: data.document as Prisma.InputJsonValue }),
         ...(data.title !== undefined && { title: data.title }),
         ...(data.referenceTitle !== undefined && { referenceTitle: data.referenceTitle }),
         ...(data.helpTitle !== undefined && { helpTitle: data.helpTitle }),
@@ -569,6 +621,7 @@ router.patch('/templates/:id/activities/:activityId', requireAuth, async (req, r
 
     res.json({ activity: updated })
   } catch (error) {
+    if (error instanceof ContentError) return sendContentError(res, error)
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid request', details: error.errors })
     }
