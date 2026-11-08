@@ -27,7 +27,7 @@ enum ActivityThumbnail {
     }
 
     /// Renders and caches each canvas-kind activity's thumbnail that is not cached yet, loading its background
-    /// image first (a load that fails leaves the colour alone). Returns whether any landed.
+    /// image first (a load that is cancelled or fails caches nothing, so a later seed retries). Returns whether any landed.
     @MainActor
     static func seed(_ activities: [ActivitySummary], media: [String: MediaMapEntry],
                      fetch: UI2ImageLoader.Fetch = UI2ImageLoader.live, cache: Ui2ImageCache = .shared) async -> Bool {
@@ -36,7 +36,14 @@ enum ActivityThumbnail {
             guard let url = URL(string: key(for: activity)), cache.image(for: url) == nil else { continue }
             var backdrop: UIImage?
             if let imageURL = activity.document.background.image.flatMap({ media[$0.mediaId]?.url }).flatMap(URL.init(string:)) {
-                backdrop = try? await fetch(imageURL, 600)
+                do {
+                    backdrop = try await fetch(imageURL, 600)
+                } catch {
+                    // A colour-only page must never be cached under the document's key: it would stand in for the
+                    // image for the session. Cancellation ends the pass; a failed load skips this one for a later seed.
+                    if UI2ImageLoader.isCancellation(error) { return seeded }
+                    continue
+                }
             }
             guard let image = render(activity.document, backgroundImage: backdrop) else { continue }
             cache.seed(image, for: url)
