@@ -381,6 +381,9 @@ struct ActivitiesEditorScreen: View {
         }
         // §2 item 5: the 76pt bar is tall enough for the home indicator, so it runs to the bottom.
         .ignoresSafeArea(.container, edges: .bottom)
+        // §2 item 6: the container's resting bottom is this column's bottom. Measured here, outside the
+        // container's keyboard offset — measured inside it, the offset fed back and cancelled itself.
+        .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { containerBottom = $0 }
     }
 
     /// §2 item 3: page furniture drawn in points from wu, fixed to the screen: the Selection row
@@ -679,7 +682,6 @@ struct ActivitiesEditorScreen: View {
         }
         // The container states its own height; the canvas takes what is left (§2).
         .fixedSize(horizontal: false, vertical: true)
-        .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { containerBottom = $0 }
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { containerHeight = $0 }
         .offset(y: -keyboardOverlap)
     }
