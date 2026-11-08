@@ -188,19 +188,19 @@ the member rebuild adds it), the themes routes, the member-lesson routes, study 
 | # | ADD/EDIT/RENAME/REMOVE | Model.field | Wire | Reason | Status |
 |---|---|---|---|---|---|
 | SC1 | ADD | `LessonVersion`, `ContentActivity` (D29), `ProgramVersion`, `ProgramVersionLesson`, `ScheduledLesson`, `LessonProgress`, `ActivityProgress` | §Contract | `05` §2 | landed 20261107175230 |
-| SC2 | EDIT | `Lesson`: `studyProgramId` → `programId`, `dayNumber` → `position`, drop `title`, `estimatedMinutes` | `GET /api/programs/:id` | Content moves to versions | todo |
-| SC3 | EDIT | `Enrollment.syncedProgramVersionNumber` → `programVersionId` | sync endpoints | Pointer | todo |
-| SC4 | EDIT | `StudyProgram.currentVersionNumber` → `currentVersionId` | `GET /api/programs/:id` | Pointer | todo |
-| SC5 | EDIT | `Event`, `AiLessonSummary`: FK to `ScheduledLesson` | none | Renamed parent | todo |
-| SC6 | EDIT | `LessonTemplateActivity`: add `kind`, `document` | templates routes | Starter documents | todo |
+| SC2 | EDIT | `Lesson`: `studyProgramId` → `programId`, `dayNumber` → `position`, drop `title`, `estimatedMinutes` | `GET /api/programs/:id` | Content moves to versions | landed 20261107175230 (additive) + cutover/20261107233000 (drops, owner-applied per CUTOVER.md) |
+| SC3 | EDIT | `Enrollment.syncedProgramVersionNumber` → `programVersionId` | sync endpoints | Pointer | landed 20261107175230 (additive) + cutover/20261107233000 (drops, owner-applied per CUTOVER.md) |
+| SC4 | EDIT | `StudyProgram.currentVersionNumber` → `currentVersionId` | `GET /api/programs/:id` | Pointer | landed 20261107175230 (additive) + cutover/20261107233000 (drops, owner-applied per CUTOVER.md) |
+| SC5 | EDIT | `Event`, `AiLessonSummary`: FK to `ScheduledLesson` | none | Renamed parent | landed 20261107175230 (additive) + cutover/20261107233000 (drops, owner-applied per CUTOVER.md) |
+| SC6 | EDIT | `LessonTemplateActivity`: add `kind`, `document` | templates routes | Starter documents | landed 20261107175230 (additive) + cutover/20261107233000 (drops, owner-applied per CUTOVER.md) |
 | SC7 | EDIT | `MediaUsage`: rows with `usageType: 'ACTIVITY'` (a string, no migration), `resourceId` = `activityKey`, derived on save (D34) | media and video delete return 409 `IN_USE` | JSON can't hold an FK; protects media from delete | landed (Task 3, c817427e — no migration) |
-| SC8 | REMOVE | `LessonActivity`, `ScheduledLessonActivity`, `ActivityReadBlock`, `ContentHighlight`, `ActivitySourceReference`, `TextTheme`, `LessonSchedule`, `LessonScheduleVersion`, `MemberActivityProgress`, `MemberVideoProgress`, `MemberLessonProgress`, `StudyProgramVersion`, `EnrollmentSyncRun` | The ~40 mirrored activity endpoints, theme routes, member-lesson routes, study preview | Replaced | todo |
-| SC9 | REMOVE | `TemplateActivityType` | `kind` is validated text | A new kind needs no migration | todo |
+| SC8 | REMOVE | `LessonActivity`, `ScheduledLessonActivity`, `ActivityReadBlock`, `ContentHighlight`, `ActivitySourceReference`, `TextTheme`, `LessonSchedule`, `LessonScheduleVersion`, `MemberActivityProgress`, `MemberVideoProgress`, `MemberLessonProgress`, `StudyProgramVersion`, `EnrollmentSyncRun` | The ~40 mirrored activity endpoints, theme routes, member-lesson routes, study preview | Replaced | landed cutover/20261107233000 (owner-applied per CUTOVER.md) |
+| SC9 | REMOVE | `TemplateActivityType` | `kind` is validated text | A new kind needs no migration | landed cutover/20261107233000 (owner-applied per CUTOVER.md) |
 | SC10 | ADD | `Lesson.deletedAt`; `ScheduledLesson.smsSentAt`, `templateId` | program and enrollment reads | D36; the SMS edit lock and template name survive | landed 20261107175230 |
-| SC11 | EDIT | `ClientEvent.lessonScheduleId` → `scheduledLessonId`, `scheduledActivityId` → `activityKey`, `activityType` → `kind` | client event ingestion | D42 | todo |
+| SC11 | EDIT | `ClientEvent.lessonScheduleId` → `scheduledLessonId`, `scheduledActivityId` → `activityKey`, `activityType` → `kind` | client event ingestion | D42 | landed 20261107175230 (additive) + cutover/20261107233000 (drops, owner-applied per CUTOVER.md) |
 | SC12 | EDIT | `analytics_events` materialized view (hand migration, copied from `20261025200000.sql` and its arms rewritten on `ScheduledLesson`, `activityKey` and the new progress tables); search GIN indexes from `20261104000602` rewritten on version titles and document text, with `master-search-text.ts` constants matched | none | The view and indexes aren't in the YAML | landed 20261107221726 + 20261107224949 |
 | SC13 | ADD | Partial unique index: one `DRAFT` `LessonVersion` per `(lessonId, enrollmentId)`, `NULLS NOT DISTINCT`; hand migration skipped in `atlas.hcl` | `GET /draft` | D31 | landed 20261107175258 |
-| SC14 | EDIT | Back-relations on `Video`, `User`, `Organization` and `LessonTemplate` to removed models; `NoteLink`/`PreviewState` rows deleted (D42) | none | SC8 dependents | todo |
+| SC14 | EDIT | Back-relations on `Video`, `User`, `Organization` and `LessonTemplate` to removed models; `NoteLink`/`PreviewState` rows deleted (D42) | none | SC8 dependents | landed 20261107175230 (additive) + cutover/20261107233000 (drops, owner-applied per CUTOVER.md) |
 
 **Data plan:** Migrations are generated by atlas from `server/schema/schema.yaml`, then the new
 tables' DDL is hand-wrapped in the TEXT `id_type` DO-block (`20261103120000_master_search_recents.sql:3-7`)
