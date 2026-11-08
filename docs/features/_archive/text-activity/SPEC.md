@@ -1,5 +1,5 @@
 # text-activity — spec
-> 🤖 AGENT SIGNED OFF 2026-11-08 — deb7cbb7 · agent walk round 3 · not human-tested · evidence: .builder/text-activity/agent-walk/round-3/
+> ✅ SHIPPED 2026-11-08 — merged into feature/text-activity · no ticket · 🤖 agent signed off (walk round 3), not human-tested · quick-checked
 > lg · no ticket
 
 ## Idea
@@ -380,6 +380,7 @@ group's enrollment home on the iPhone shows the new version.
 | F17 | stale: viewer views, C-086 unavailable tiles and the program-lesson-add-activity merge were described as future work | Corrected in place (§Idea, D15, D21, D28, §iphone) |
 | F18 | The analytics view and search indexes are hand SQL outside the YAML; their rewrite is the largest unscoped server item | SC12; build-time risk: the server task that rewrites them diffs the old and new view column lists and runs `analytics-metrics` tests |
 | F19 | Pass 2 (scoped to the contracts this pass changed) was not run | build-time risk: the server phase's contract tests and the iPhone phase's decoder tests settle the new rows |
+| L1 | lesson for §Standing traps: an iPhone overlay that lifts itself by a manual keyboard offset must also `.ignoresSafeArea(.keyboard)` and measure its bottom on un-offset chrome — otherwise SwiftUI keyboard avoidance lifts it a second time (or the lift cancels itself), pushing headers off screen | proposed |
 
 ## Fixes
 
