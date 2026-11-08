@@ -193,8 +193,14 @@ struct ActivitiesEditorContainer: View {
             let app = app ?? .shared
             guard phase == .loading else { return }
             let lesson: (id: String, key: String)? = {
-                if let activity = app.activities[activityId], let version = app.lessonVersions[activity.lessonVersionId] {
-                    return (version.lessonId, activity.activityKey)
+                if let activity = app.activities[activityId] {
+                    if let version = app.lessonVersions[activity.lessonVersionId] {
+                        return (version.lessonId, activity.activityKey)
+                    }
+                    // A new activity on a draft that was never loaded: only the program read's draft id names its lesson.
+                    if let lesson = app.lessons.all.first(where: { $0.draftVersionId == activity.lessonVersionId }) {
+                        return (lesson.id, activity.activityKey)
+                    }
                 }
                 for lesson in app.lessons.all {
                     if let slide = lesson.activities.first(where: { $0.id == activityId }) { return (lesson.id, slide.activityKey) }

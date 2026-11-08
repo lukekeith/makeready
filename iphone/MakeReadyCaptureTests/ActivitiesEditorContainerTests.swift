@@ -144,6 +144,25 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         XCTAssertEqual(actions.savedIds, [])
     }
 
+    /// Fix E1 (agent walk round 1): Add → Text on a lesson whose draft was never loaded — the created activity
+    /// names a version that isn't in state, and only the program read's `draftVersionId` ties it to its lesson.
+    func testLoadFindsTheLessonOfANewActivityFromTheLessonsDraftId() async {
+        let app = AppState()
+        var lesson = Lesson(id: "l1", studyProgramId: nil, position: 1)
+        lesson.draftVersionId = "v2"
+        app.lessons.upsert(lesson)
+        app.activities.upsert(ContentActivity(id: "a2", lessonVersionId: "v2", activityKey: "k1", position: 0, kind: "text",
+                                              title: "Text", document: ActivityNewContainer.textDocument(title: "Text"),
+                                              estimatedSeconds: nil))
+        let actions = ScriptedActivityActions(draft: .withActivity(id: "a2", key: "k1"))
+        let model = ActivitiesEditorContainer.Model(activityId: "a2", activityKey: "", phase: .loading, actions: actions,
+                                                    log: { _, _ in })
+        await model.load(app: app)
+        XCTAssertEqual(model.phase, .ready)
+        XCTAssertEqual(model.lessonId, "l1")
+        XCTAssertEqual(model.activityId, "a2")
+    }
+
     func testLoadFailsWhenTheLessonIsUnknown() async {
         let actions = ScriptedActivityActions(draft: .withActivity(id: "a2", key: "k1"))
         let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "", phase: .loading, actions: actions,

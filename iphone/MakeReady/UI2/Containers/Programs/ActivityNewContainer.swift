@@ -94,7 +94,11 @@ struct ActivityNewContainer: View {
         static var live: Actions {
             Actions(
                 draftVersionId: { lessonId in
-                    if let id = AppState.shared.draftVersionId(forLesson: lessonId) { return id }
+                    // The program read names the draft without loading it; a draft not in state is loaded first, so
+                    // the created activity's version is known (the rail refreshes and the editor opens from cache).
+                    if let id = AppState.shared.draftVersionId(forLesson: lessonId), AppState.shared.lessonVersions[id] != nil {
+                        return id
+                    }
                     try await ActivityActions().loadDraft(lessonId: lessonId)
                     guard let id = AppState.shared.draftVersionId(forLesson: lessonId) else { throw MissingDraft() }
                     return id
