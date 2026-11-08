@@ -234,6 +234,10 @@ struct UI2Shell: View {
         case .mediaHome: MediaHomeContainer(mode: .pushed)   // master-search D9: a video result's exit
         case .programsHome: ProgramsHomeHost()                // master-search D27: a template result's exit
         case let .activityNew(programId, lessonId): ActivityNewContainer(programId: programId, lessonId: lessonId)  // program-lesson-add-activity D2
+        case let .activitiesEditor(activityId): ActivitiesEditorContainer(activityId: activityId)  // text-activity D39
+        case let .activityViewer(lessonVersionId, activityId):
+            ActivityViewerContainer(lessonVersionId: lessonVersionId, activityId: activityId)  // text-activity D39
+        case let .chooseActivityBackground(activityId): MediaHomeContainer(mode: .pickActivityBackground(activityId: activityId))  // D40
         }
     }
 

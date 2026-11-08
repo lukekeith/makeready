@@ -56,7 +56,7 @@ final class StudyProgramHomeMapperTests: XCTestCase {
     }
 
     /// D6: one card per lesson by position; "N mins" from `ceil(seconds / 60)` (D11); slides in
-    /// position order with the background image, poster and YouTube thumbnail as their images.
+    /// position order; a canvas kind's image is its rendered page (D26), a YouTube clip's its thumbnail.
     func testLessons() {
         let withImage = summary("a2", position: 1, title: "Read: Romans 1",
             document: ##"{"schemaVersion":1,"kind":"text","background":{"color":"#000000","image":{"mediaId":"m1"}},"content":{"type":"canvas","objects":[]}}"##)
@@ -76,7 +76,9 @@ final class StudyProgramHomeMapperTests: XCTestCase {
         XCTAssertEqual(s.lessonNumbers, [1, 2])
         XCTAssertEqual(s.lessonTitles, ["First", "Second"])
         XCTAssertEqual(s.lessonDurations, ["12 mins", "0 mins"])
-        XCTAssertEqual(s.lessonSlideImages, [["https://img.youtube.com/vi/abc/hqdefault.jpg", "https://cdn/m1.jpg", ""], []])
+        XCTAssertEqual(s.lessonSlideImages, [["https://img.youtube.com/vi/abc/hqdefault.jpg",
+                                              ActivityThumbnail.key(for: withImage), ActivityThumbnail.key(for: plain)], []])
+        XCTAssertTrue(s.lessonSlideImages[0][1].hasPrefix("activity-thumbnail://"))
         XCTAssertEqual(s.lessonSlideLabels, [["Clip", "Read: Romans 1", "Plain"], []])
     }
 

@@ -165,4 +165,23 @@ final class MediaHomeContainerTests: XCTestCase {
         XCTAssertEqual(MediaHomeContainer.timeWindow(saved: [MediaHomeMapper.TimeWindow.last7.rawValue]), .last7)
         XCTAssertEqual(MediaHomeContainer.timeWindow(saved: ["nonsense"]), .all)
     }
+
+    /// text-activity D40: the background pick sits under its own header, never uploads, and a tap picks.
+    func testTheActivityBackgroundPickModeBehavesAsAPicker() {
+        let mode = MediaHomeContainer.Mode.pickActivityBackground(activityId: "a")
+        XCTAssertFalse(MediaHomeContainer.allowsUpload(mode))
+        XCTAssertFalse(MediaHomeContainer.opensViewer(mode))
+        XCTAssertTrue(MediaHomeContainer.drawsHeader(mode))
+        XCTAssertTrue(UI2Destination.chooseActivityBackground(activityId: "a").isFullScreen)
+    }
+
+    /// D40: the pick lands with its caller keyed by activity, once, and is taken (cleared) when read.
+    func testTheBackgroundPickIsHandedToItsCallerOnce() {
+        let pick = ActivityBackgroundPick()
+        XCTAssertNil(pick.take(for: "a"))
+        pick.deliver(mediaId: "m1", for: "a")
+        XCTAssertNil(pick.take(for: "b"))
+        XCTAssertEqual(pick.take(for: "a"), "m1")
+        XCTAssertNil(pick.take(for: "a"))
+    }
 }

@@ -72,10 +72,11 @@ enum StudyProgramHomeMapper {
         return AgeRange(min: program.ageRangeMin, max: program.ageRangeMax)
     }
 
-    /// A slide's thumbnail URL: the page's background image, else a video's poster, else a YouTube
-    /// clip's thumbnail; "" = the themed placeholder. D26's viewer-mode render replaces this in Task 24.
+    /// A slide's thumbnail URL: a canvas kind's rendered page (D26, the `ActivityThumbnail` key), else a video's
+    /// poster, else a YouTube clip's thumbnail; "" = the themed placeholder.
     static func slideImage(_ activity: ActivitySummary, media: [String: MediaMapEntry]) -> String {
-        if let mediaId = activity.document.background.image?.mediaId, let url = media[mediaId]?.url { return url }
+        let rendered = ActivityThumbnail.key(for: activity)
+        if !rendered.isEmpty { return rendered }
         switch activity.document.renderable {
         case .video(let video):
             return video.posterMediaId.flatMap { media[$0]?.posterUrl ?? media[$0]?.url } ?? ""
