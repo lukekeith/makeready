@@ -43,6 +43,13 @@ final class ActivityThumbnailTests: XCTestCase {
 
     private struct Offline: Error {}
 
+    private static var pixel: UIImage {
+        UIGraphicsImageRenderer(size: CGSize(width: 4, height: 4)).image { context in
+            UIColor.red.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 4, height: 4))
+        }
+    }
+
     func testAFailedOrCancelledBackgroundFetchCachesNothing() async throws {
         let activity = summary("fail-\(UUID().uuidString)", imageId: "m1")
         let url = try XCTUnwrap(URL(string: ActivityThumbnail.key(for: activity)))
@@ -55,7 +62,7 @@ final class ActivityThumbnailTests: XCTestCase {
         XCTAssertFalse(cancelled)
         XCTAssertNil(Ui2ImageCache.shared.image(for: url))
         // A later seed with a working fetch renders it.
-        let ok = await ActivityThumbnail.seed([activity], media: media, fetch: { _, _ in UIImage() })
+        let ok = await ActivityThumbnail.seed([activity], media: media, fetch: { _, _ in Self.pixel })
         XCTAssertTrue(ok)
         XCTAssertNotNil(Ui2ImageCache.shared.image(for: url))
     }
