@@ -3518,7 +3518,8 @@ private func buildScreenActivitiesPlayer(_ fixture: CaptureFixture) throws -> An
             sheetTitle: c.sheetTitle ?? "",
             sheetBodyText: c.sheetBodyText ?? "",
             sheetPrompt: c.sheetPrompt ?? "",
-            animationStart: nil                       // §3: Reduce Motion's rest pose — a still
+            animationStart: nil,                      // §3: Reduce Motion's rest pose — a still
+            loadFailed: c.loadFailed ?? sample.loadFailed  // §3 Load failed (the editor's key)
         )
     )
     // The canvas is the harness's (CaptureRunner's `screen.*` branch), but `.sizeThatFits` proposes
@@ -3935,13 +3936,7 @@ private func buildScreenActivitiesEditor(_ fixture: CaptureFixture) throws -> An
             objectRotations: c.objectRotations ?? sample.objectRotations,
             objectWidths: c.objectWidths ?? sample.objectWidths,
             objectHeights: c.objectHeights ?? sample.objectHeights,
-            draftText: c.draftText ?? sample.draftText,
-            draftFont: c.draftFont ?? sample.draftFont,
-            draftColor: c.draftColor ?? sample.draftColor,
-            draftWeight: c.draftWeight ?? sample.draftWeight,
-            draftSize: c.draftSize ?? sample.draftSize,
-            draftAlignment: c.draftAlignment ?? sample.draftAlignment,
-            draftWidth: c.draftWidth ?? sample.draftWidth,
+            editingIndex: c.editingIndex ?? sample.editingIndex,
             pageColorHex: c.pageColorHex ?? sample.pageColorHex,
             pageImageURL: pageImageURL,
             pageImageFocalX: c.pageImageFocalX ?? sample.pageImageFocalX,
@@ -3964,7 +3959,8 @@ private func buildScreenActivitiesEditor(_ fixture: CaptureFixture) throws -> An
             centerGuide: c.centerGuide ?? sample.centerGuide,
             deleteTargetShown: c.deleteTargetShown ?? sample.deleteTargetShown,
             saving: c.saving ?? sample.saving,
-            saveFailed: c.saveFailed ?? sample.saveFailed
+            saveFailed: c.saveFailed ?? sample.saveFailed,
+            loadFailed: c.loadFailed ?? sample.loadFailed
         )
     )
     .safeAreaPadding(.top, device.safeArea.top)

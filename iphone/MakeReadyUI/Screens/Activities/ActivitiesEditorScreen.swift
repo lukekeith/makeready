@@ -29,7 +29,7 @@ import SwiftUI
 struct ActivitiesEditorScreen: View {
 
     /// One §3 state's inputs. Every §3 state is reachable by these alone.
-    struct State {
+    struct State: Equatable {
         /// §3 Modes: `idle` · `editing` · `highlighting` · `manipulating`.
         var editorMode: String
         /// The tool open at first (§3 Tools): a panel — `color` · `font` · `animation` — a sheet —
@@ -45,11 +45,12 @@ struct ActivitiesEditorScreen: View {
         var slideLabels: [String]
         /// C-081 `activeID` — this activity's slide.
         var activeID: String
-        /// The committed C-092 objects (§3: one or more), as parallel arrays: text, font key,
-        /// swatch colour name, weight (`regular` · `medium` · `bold`), size in wu, alignment, list
-        /// style, first list number, centre in wu, scale, rotation in degrees and layout width in
-        /// wu (0 = the 392 wu edit slot). A short array takes the §3 default. The edited object is
-        /// not here.
+        /// `State.objects` (§9.1): the C-092 objects the container passes in and the screen
+        /// displays, as parallel arrays: text, font key, colour `#RRGGBB` (§9.2; "" = the §3
+        /// default), weight (`regular` · `medium` · `bold`), size in wu, alignment, list style,
+        /// first list number, centre in wu, scale, rotation in degrees and layout width in wu
+        /// (0 = the 392 wu edit slot). A short array takes the §3 default. The edited object is
+        /// one of them (`editingIndex`).
         var objectTexts: [String]
         var objectFonts: [String]
         var objectColors: [String]
@@ -66,15 +67,9 @@ struct ActivitiesEditorScreen: View {
         /// Each object's measured height in wu, seeding `contentExtent`: a capture renders in one
         /// layout pass, before the screen's own measurement can land. Live, the measurement wins.
         var objectHeights: [Double]
-        /// The edited object in Editing: text ("" shows the placeholder, OQ-014), font key, swatch
-        /// colour name, weight, size in wu, alignment and layout width in wu (0 = the edit slot).
-        var draftText: String
-        var draftFont: String
-        var draftColor: String
-        var draftWeight: String
-        var draftSize: Double
-        var draftAlignment: String
-        var draftWidth: Double
+        /// §3 Editing (§9.1): the index in `objects` of the edited object, drawn alone at the edit
+        /// slot (text "" shows the placeholder, OQ-014); −1 = none.
+        var editingIndex: Int
         /// `background` (§2 item 3, D4): page colour #rrggbb ("" = `color-background-alt`), image
         /// URL ("" = none), its `focal` 0–1, and the wash colour #rrggbb and opacity.
         var pageColorHex: String
@@ -110,6 +105,52 @@ struct ActivitiesEditorScreen: View {
         var saving: Bool
         /// §3 Error: the save failed and the "Couldn't save activity" alert is up.
         var saveFailed: Bool
+        /// §9.4 Load-failed: the container could not load the activity — the Idle header (back
+        /// only), no canvas, no bottom container; the banner, then back after 2 s.
+        var loadFailed: Bool
+    }
+
+    /// §9.1 (D33): one user action's edit of one object — only the fields that changed are
+    /// non-nil. Adding and deleting an object are not edits (§8, OQ-activities-editor-031).
+    struct ObjectEdit: Equatable {
+        /// The object's centre, scale and rotation — wu, wu, unitless, degrees.
+        struct Transform: Equatable {
+            var x: CGFloat
+            var y: CGFloat
+            var scale: CGFloat
+            var rotation: CGFloat
+        }
+
+        /// The object's position in `State.objects`.
+        var index: Int
+        var text: String?
+        /// The C-092 key: `display` · `sans` · `serif` · `mono`.
+        var font: String?
+        /// 400 · 500 · 700.
+        var weight: Int?
+        /// wu.
+        var size: CGFloat?
+        /// `#RRGGBB`.
+        var color: String?
+        /// `center` · `left` · `right`.
+        var alignment: String?
+        /// wu, `transform.width`.
+        var width: CGFloat?
+        var transform: Transform?
+
+        init(index: Int, text: String? = nil, font: String? = nil, weight: Int? = nil,
+             size: CGFloat? = nil, color: String? = nil, alignment: String? = nil,
+             width: CGFloat? = nil, transform: Transform? = nil) {
+            self.index = index
+            self.text = text
+            self.font = font
+            self.weight = weight
+            self.size = size
+            self.color = color
+            self.alignment = alignment
+            self.width = width
+            self.transform = transform
+        }
     }
 
     /// §3 Tools — the tool row, order 1–7.
@@ -145,7 +186,13 @@ struct ActivitiesEditorScreen: View {
     var onAdd: () -> Void = {}
     var onTapEmpty: (CGPoint) -> Void = { _ in }
     var onTapObject: (Int) -> Void = { _ in }
-    var onTransformObject: (Int, CanvasTextObject.Transform) -> Void = { _, _ in }
+    /// §9.1: one callback per user action that edits an object.
+    var onEditObject: (ObjectEdit) -> Void = { _ in }
+    /// §9.3 (D22): the Idle header's play glyph — the container opens `activities-player`.
+    var onPlay: () -> Void = {}
+    /// §9.4: Load-failed raises the top error banner with this message; the error channel is the
+    /// app's, so the container routes it there.
+    var onLoadFailed: (String) -> Void = { _ in }
     var onPickImage: () -> Void = {}
     var onChangeBackground: (ActivityCanvas<AnyView>.Background) -> Void = { _ in }
     var onChangeActions: ([PageAction]) -> Void = { _ in }
@@ -156,15 +203,9 @@ struct ActivitiesEditorScreen: View {
     var onRetry: () -> Void = {}
     var onDiscard: () -> Void = {}
 
-    // §3 Editing: the edited object is an in-flight edit buffer (R-31), seeded from `State`;
-    // every tool writes it and Done / Cancel leave through the closures.
-    @SwiftUI.State private var draftText: String
-    @SwiftUI.State private var draftFont: CanvasTextObject.Font
-    @SwiftUI.State private var draftColor: String
-    @SwiftUI.State private var draftWeight: CanvasTextObject.Weight
-    @SwiftUI.State private var draftSize: Double
-    @SwiftUI.State private var draftAlignment: CanvasTextObject.Alignment
-    @SwiftUI.State private var draftWidth: CGFloat?
+    // §9.1: the screen's display state of `State.objects` — an edit applies here and is reported
+    // through `onEditObject`, without waiting for the container's echo; a new `State` re-seeds it.
+    @SwiftUI.State private var shownObjects: [CommittedObject]
     @SwiftUI.State private var draftAnimation: CanvasTextObject.Animation = .none
     @SwiftUI.State private var draftEffect: CanvasTextObject.Effect = .none
     @SwiftUI.State private var draftAnimationStart: Date?
@@ -207,7 +248,9 @@ struct ActivitiesEditorScreen: View {
         onAdd: @escaping () -> Void = {},
         onTapEmpty: @escaping (CGPoint) -> Void = { _ in },
         onTapObject: @escaping (Int) -> Void = { _ in },
-        onTransformObject: @escaping (Int, CanvasTextObject.Transform) -> Void = { _, _ in },
+        onEditObject: @escaping (ObjectEdit) -> Void = { _ in },
+        onPlay: @escaping () -> Void = {},
+        onLoadFailed: @escaping (String) -> Void = { _ in },
         onPickImage: @escaping () -> Void = {},
         onChangeBackground: @escaping (ActivityCanvas<AnyView>.Background) -> Void = { _ in },
         onChangeActions: @escaping ([PageAction]) -> Void = { _ in },
@@ -226,7 +269,9 @@ struct ActivitiesEditorScreen: View {
         self.onAdd = onAdd
         self.onTapEmpty = onTapEmpty
         self.onTapObject = onTapObject
-        self.onTransformObject = onTransformObject
+        self.onEditObject = onEditObject
+        self.onPlay = onPlay
+        self.onLoadFailed = onLoadFailed
         self.onPickImage = onPickImage
         self.onChangeBackground = onChangeBackground
         self.onChangeActions = onChangeActions
@@ -236,13 +281,7 @@ struct ActivitiesEditorScreen: View {
         self.onAddNote = onAddNote
         self.onRetry = onRetry
         self.onDiscard = onDiscard
-        _draftText = SwiftUI.State(initialValue: state.draftText)
-        _draftFont = SwiftUI.State(initialValue: Self.font(state.draftFont))
-        _draftColor = SwiftUI.State(initialValue: state.draftColor)
-        _draftWeight = SwiftUI.State(initialValue: Self.weight(state.draftWeight))
-        _draftSize = SwiftUI.State(initialValue: state.draftSize)
-        _draftAlignment = SwiftUI.State(initialValue: Self.alignment(state.draftAlignment))
-        _draftWidth = SwiftUI.State(initialValue: state.draftWidth > 0 ? CGFloat(state.draftWidth) : nil)
+        _shownObjects = SwiftUI.State(initialValue: Self.committedObjects(state))
         _pageColor = SwiftUI.State(initialValue: Self.hexColor(state.pageColorHex) ?? Token.backgroundAlt)
         _pageFocal = SwiftUI.State(initialValue: CGPoint(x: state.pageImageFocalX, y: state.pageImageFocalY))
         _pageWashColor = SwiftUI.State(initialValue: Self.hexColor(state.pageWashHex) ?? Token.black)
@@ -266,9 +305,33 @@ struct ActivitiesEditorScreen: View {
 
     /// Editing and Highlighting swap the header to Cancel · Done and the container to the tool
     /// row (§2 items 2 + 4).
-    private var isToolMode: Bool { mode == .editing || mode == .highlighting }
+    private var isToolMode: Bool { !state.loadFailed && (mode == .editing || mode == .highlighting) }
 
     var body: some View {
+        if state.loadFailed {
+            loadFailedPage
+        } else {
+            editorPage
+        }
+    }
+
+    /// §9.4 Load-failed: the ground under the Idle header (back only), no canvas, no bottom
+    /// container. The banner is raised through `onLoadFailed`; 2 s later the back closure pops.
+    private var loadFailedPage: some View {
+        VStack(spacing: 0) {
+            header
+            Spacer(minLength: 0)
+        }
+        .background(Token.layoutBackground)                 // §9.4: `color-layout-background`
+        .task {
+            onLoadFailed(Self.loadFailedMessage)
+            try? await Task.sleep(for: Self.loadFailedDelay)
+            guard !Task.isCancelled else { return }
+            onBack()
+        }
+    }
+
+    private var editorPage: some View {
         // §2: back to front — the page, then fixed furniture, then the header and the bottom
         // container, opaque on top of it. The system status bar (deviation 1) is the harness's.
         GeometryReader { screen in
@@ -297,6 +360,8 @@ struct ActivitiesEditorScreen: View {
             SwiftUI.Button(Self.retryLabel, action: onRetry)
             SwiftUI.Button(Self.discardLabel, role: .destructive, action: onDiscard)
         }
+        // §9.1: `State.objects` is the source — a new State from the container re-seeds the display.
+        .onChange(of: state) { _, next in shownObjects = Self.committedObjects(next) }
     }
 
     // MARK: - §2 z-order: fixed furniture and the bars
@@ -362,15 +427,35 @@ struct ActivitiesEditorScreen: View {
         }
         // §2: opaque over the page, up through the status bar.
         .background(Token.layoutBackground.ignoresSafeArea(.container, edges: .top))
+        .ui2Element("C-040 PageHeader")
+        // §9.3 (D22): the play glyph in the Idle header's trailing slot — drawn by the screen,
+        // since C-040's trailing slot takes only C-021 glyphs. Not in Load-failed (§9.4).
+        .overlay(alignment: .trailing) {
+            if !isToolMode && !state.loadFailed {
+                IconButton(
+                    glyph: .play,
+                    tone: .default,
+                    style: .plain,
+                    selected: false,
+                    accessibilityLabel: Self.playLabel,
+                    onTap: onPlay
+                )
+                // FLAGGED LITERAL — activities-editor §9.3: 32×32 visual in a 44×44 hit area.
+                .frame(width: Self.toolSize, height: Self.toolSize)
+                .ui2Element("C-102 IconButton")
+                .padding(Self.playHitOutset)
+                .contentShape(Rectangle())
+                .padding(.trailing, Token.Space.pageMargin - Self.playHitOutset)
+            }
+        }
         // §3 Manipulating: chrome hidden (fades out); the layout keeps its place.
         .opacity(mode == .manipulating ? 0 : 1)
-        .ui2Element("C-040 PageHeader")
     }
 
     // MARK: - §2 item 3: the canvas
 
     private func canvas(unit: CGFloat, viewport: CGFloat, safeTop: CGFloat) -> some View {
-        let objects = self.objects
+        let objects = shownObjects
         // §2: fixed at drag start, so neither the page nor any object re-places under the finger.
         let extent = dragExtent ?? measuredExtent(objects)
         let headerBottom = (safeTop + Self.headerHeight) / unit
@@ -405,7 +490,9 @@ struct ActivitiesEditorScreen: View {
                 // §2 item 3 handle / thumb separation (1): C-091 draws its handles above its slot,
                 // so the slider sits over the canvas — above them in hit order, and fixed to the
                 // viewport. Centred on the edit slot, clamped between the header and the container.
-                TextSizeSlider(value: sliderValue, onChange: { draftSize = Self.size(forSlider: $0) })
+                TextSizeSlider(value: sliderValue, onChange: { value in
+                    if let editedIndex { apply(.init(index: editedIndex, size: CGFloat(Self.size(forSlider: value)))) }
+                })
                     .ui2Element("C-093 TextSizeSlider")
                     // FLAGGED LITERAL — activities-editor §2: slider 20×263.5 at x 11.
                     .offset(x: Self.sliderX,
@@ -421,10 +508,12 @@ struct ActivitiesEditorScreen: View {
     private func canvasContent(_ objects: [CommittedObject], unit: CGFloat) -> some View {
         ZStack(alignment: .topLeading) {
             ForEach(objects.indices, id: \.self) { index in
-                committedObject(objects[index], index: index, unit: unit, extent: measuredExtent(objects))
+                if index != editedIndex {
+                    committedObject(objects[index], index: index, unit: unit, extent: measuredExtent(objects))
+                }
             }
-            if mode == .editing {
-                editedObject(objectCount: objects.count)
+            if let editedIndex, let edited {
+                editedObject(edited, index: editedIndex)
             }
             actionPreviews(objects)
         }
@@ -474,20 +563,49 @@ struct ActivitiesEditorScreen: View {
         dragged = (index, transform)
         var next = transform
         next.position.y += dragScroll
-        onTransformObject(index, next)
+        apply(.init(index: index, transform: .init(x: next.position.x, y: next.position.y,
+                                                   scale: next.scale, rotation: next.rotation.degrees)))
     }
+
+    /// §9.1: applies one edit to the display state, then reports it — no wait for the echo.
+    private func apply(_ edit: ObjectEdit) {
+        guard shownObjects.indices.contains(edit.index) else { return }
+        var object = shownObjects[edit.index]
+        if let text = edit.text { object.text = text }
+        if let font = edit.font { object.font = Self.font(font) }
+        if let weight = edit.weight { object.weight = Self.weight(code: weight) }
+        if let size = edit.size { object.size = size }
+        if let color = edit.color { object.colorHex = color }
+        if let alignment = edit.alignment { object.alignment = Self.alignment(alignment) }
+        if let width = edit.width { object.transform.width = width }
+        if let transform = edit.transform {
+            object.transform.position = CGPoint(x: transform.x, y: transform.y)
+            object.transform.scale = transform.scale
+            object.transform.rotation = .degrees(transform.rotation)
+        }
+        shownObjects[edit.index] = object
+        onEditObject(edit)
+    }
+
+    /// §3 Editing: the edited object's index in `State.objects`, while Editing.
+    private var editedIndex: Int? {
+        guard mode == .editing, shownObjects.indices.contains(state.editingIndex) else { return nil }
+        return state.editingIndex
+    }
+
+    private var edited: CommittedObject? { editedIndex.map { shownObjects[$0] } }
 
     /// §2 item 3 + §3 Editing: the edited object alone at the edit slot, centred on 478 wu before
     /// C-091's offset; alignment anchors a narrower block 24 wu from the canvas edge (tool 3).
-    private func editedObject(objectCount: Int) -> some View {
+    private func editedObject(_ object: CommittedObject, index: Int) -> some View {
         CanvasTextObject(
-            text: draftText,
-            onChange: { draftText = $0 },
-            font: draftFont,
-            weight: draftWeight,
-            size: CGFloat(draftSize),
-            color: Self.swatch(draftColor),
-            alignment: draftAlignment,
+            text: object.text,
+            onChange: { apply(.init(index: index, text: $0)) },
+            font: object.font,
+            weight: object.weight,
+            size: object.size,
+            color: object.color,
+            alignment: object.alignment,
             animation: draftAnimation,
             animationStart: draftAnimationStart,
             effect: draftEffect,
@@ -495,9 +613,7 @@ struct ActivitiesEditorScreen: View {
         )
         .frame(width: draftLayoutWidth)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { measuredDraftHeight = $0 }
-        .ui2Element(objectCount == 0
-                    ? "C-092 CanvasTextObject"
-                    : "C-092 CanvasTextObject \(objectCount + 1)")
+        .ui2Element(index == 0 ? "C-092 CanvasTextObject" : "C-092 CanvasTextObject \(index + 1)")
         .position(x: draftCentreX, y: Self.editSlotY)
     }
 
@@ -576,12 +692,16 @@ struct ActivitiesEditorScreen: View {
             case .color:
                 // §3 tool 1: C-094 — the well shows the object's colour, the equal swatch is
                 // outlined (OQ-011); pages 2–3 are undesigned (04-color.md OQ-04-1) and empty.
+                // §9.2: a tap resolves to its preset's hex; a colour no preset holds outlines none.
                 TextColorPalette(
-                    currentColor: Self.swatch(draftColor),
+                    currentColor: edited?.color ?? Token.textPrimary,
                     swatches: Self.palettePages,
                     page: palettePage,
                     onSelect: { picked in
-                        draftColor = Self.swatchNames.first { Self.swatch($0) == picked } ?? draftColor
+                        guard let editedIndex,
+                              let preset = Self.swatchPresets.first(where: { Self.hexColor($0.hex) == picked })
+                        else { return }
+                        apply(.init(index: editedIndex, color: preset.hex))
                     },
                     onPageChange: { palettePage = $0 },
                     onWellTap: onEyedropper,
@@ -593,11 +713,15 @@ struct ActivitiesEditorScreen: View {
                 // §3 tool 4: the weight row above the font strip. C-106 is 8 + 36 + 8 tall, so the
                 // two share one 8pt inset and the panel is §2's 96.
                 VStack(spacing: -Token.Space.elementGap) {
-                    ChipStrip(items: Self.weightItems, selectedID: Self.weightID(draftWeight),
-                              onSelect: { draftWeight = Self.weight($0) })
+                    ChipStrip(items: Self.weightItems, selectedID: Self.weightID(edited?.weight ?? .bold),
+                              onSelect: { id in
+                                  if let editedIndex { apply(.init(index: editedIndex, weight: Self.weightCode(Self.weight(id)))) }
+                              })
                         .ui2Element("C-106 ChipStrip")
-                    ChipStrip(items: Self.fontItems, selectedID: Self.fontID(draftFont),
-                              onSelect: { draftFont = Self.font($0) })
+                    ChipStrip(items: Self.fontItems, selectedID: Self.fontID(edited?.font ?? .sans),
+                              onSelect: { id in
+                                  if let editedIndex { apply(.init(index: editedIndex, font: id)) }
+                              })
                         .ui2Element("C-106 ChipStrip 2")
                 }
             case .animation where state.showsEffectsTool:
@@ -679,11 +803,14 @@ struct ActivitiesEditorScreen: View {
         switch tool {
         case .alignment:
             // §3 tool 3: center → left → right → center, no panel.
+            guard let editedIndex else { return }
+            let next: String
             switch draftAlignment {
-            case .center: draftAlignment = .left
-            case .left: draftAlignment = .right
-            case .right: draftAlignment = .center
+            case .center: next = "left"
+            case .left: next = "right"
+            case .right: next = "center"
             }
+            apply(.init(index: editedIndex, alignment: next))
         case .highlight:
             onToggleHighlight()
         case .background, .actions:
@@ -770,33 +897,37 @@ struct ActivitiesEditorScreen: View {
         var font: CanvasTextObject.Font
         var weight: CanvasTextObject.Weight
         var size: CGFloat
-        var color: Color
+        /// §9.2: `#RRGGBB`; "" = the §3 default `color-text-primary`.
+        var colorHex: String
         var alignment: CanvasTextObject.Alignment
         var listStyle: CanvasTextObject.ListStyle
         var startNumber: Int
         var transform: CanvasTextObject.Transform
         var highlights: [CanvasTextObject.TextRange]
+
+        var color: Color { ActivitiesEditorScreen.hexColor(colorHex) ?? Token.textPrimary }
     }
 
-    private var objects: [CommittedObject] {
+    /// `State.objects`, resolved with §3's defaults — the seed of the display state (§9.1).
+    private static func committedObjects(_ state: State) -> [CommittedObject] {
         var result = state.objectTexts.indices.map { index in
             CommittedObject(
                 text: state.objectTexts[index],
-                font: Self.font(element(state.objectFonts, index, "")),
-                weight: Self.weight(element(state.objectWeights, index, "")),
-                size: CGFloat(element(state.objectSizes, index, Self.defaultSize)),
-                color: Self.swatch(element(state.objectColors, index, "")),
-                alignment: Self.alignment(element(state.objectAlignments, index, "")),
-                listStyle: Self.listStyle(element(state.objectListStyles, index, "")),
+                font: font(element(state.objectFonts, index, "")),
+                weight: weight(element(state.objectWeights, index, "")),
+                size: CGFloat(element(state.objectSizes, index, defaultSize)),
+                colorHex: element(state.objectColors, index, ""),
+                alignment: alignment(element(state.objectAlignments, index, "")),
+                listStyle: listStyle(element(state.objectListStyles, index, "")),
                 startNumber: element(state.objectStartNumbers, index, 1),
                 transform: .init(
-                    position: CGPoint(x: element(state.objectXs, index, Double(Self.referenceWidth / 2)),
-                                      y: element(state.objectYs, index, Double(Self.editSlotY))),
+                    position: CGPoint(x: element(state.objectXs, index, Double(referenceWidth / 2)),
+                                      y: element(state.objectYs, index, Double(editSlotY))),
                     scale: CGFloat(element(state.objectScales, index, 1)),
                     rotation: .degrees(element(state.objectRotations, index, 0)),
-                    width: objectWidth(index)
+                    width: objectWidth(state, index)
                 ),
-                highlights: highlights(forObject: index)
+                highlights: highlights(state, forObject: index)
             )
         }
         if !state.verseTexts.isEmpty {
@@ -805,25 +936,25 @@ struct ActivitiesEditorScreen: View {
                 text: state.verseTexts.joined(separator: "\n"),
                 font: .sans,
                 weight: .regular,
-                size: Self.passageSize,
-                color: Token.textPrimary,
+                size: passageSize,
+                colorHex: "",
                 alignment: .left,
                 listStyle: .bibleVerse,
                 startNumber: state.firstVerse,
-                transform: .init(position: CGPoint(x: Self.referenceWidth / 2, y: Self.editSlotY),
+                transform: .init(position: CGPoint(x: referenceWidth / 2, y: editSlotY),
                                  scale: 1, rotation: .zero, width: nil),
-                highlights: highlights(forObject: state.objectTexts.count)
+                highlights: highlights(state, forObject: state.objectTexts.count)
             ))
         }
         return result
     }
 
-    private func objectWidth(_ index: Int) -> CGFloat? {
+    private static func objectWidth(_ state: State, _ index: Int) -> CGFloat? {
         let width = element(state.objectWidths, index, 0)
         return width > 0 ? CGFloat(width) : nil
     }
 
-    private func highlights(forObject index: Int) -> [CanvasTextObject.TextRange] {
+    private static func highlights(_ state: State, forObject index: Int) -> [CanvasTextObject.TextRange] {
         let count = [state.highlightObjects.count, state.highlightStarts.count, state.highlightEnds.count].min() ?? 0
         return (0..<count).compactMap { i in
             guard state.highlightObjects[i] == index, state.highlightStarts[i] <= state.highlightEnds[i] else { return nil }
@@ -844,7 +975,7 @@ struct ActivitiesEditorScreen: View {
     private func measuredExtent(_ objects: [CommittedObject]) -> ClosedRange<CGFloat>? {
         var top = CGFloat.infinity
         var bottom = -CGFloat.infinity
-        for (index, object) in objects.enumerated() {
+        for (index, object) in objects.enumerated() where index != editedIndex {
             let radians = object.transform.rotation.radians
             let width = (object.transform.width ?? Self.editSlotWidth) * object.transform.scale
             let height = objectHeight(object, index: index) * object.transform.scale
@@ -864,7 +995,7 @@ struct ActivitiesEditorScreen: View {
     private func objectsBottom(_ objects: [CommittedObject]) -> CGFloat {
         guard !objects.isEmpty || mode == .editing else { return Self.editSlotY }
         var bottom = mode == .editing ? Self.editSlotY + draftHeight / 2 : -CGFloat.infinity
-        for (index, object) in objects.enumerated() {
+        for (index, object) in objects.enumerated() where index != editedIndex {
             let radians = object.transform.rotation.radians
             let width = (object.transform.width ?? Self.editSlotWidth) * object.transform.scale
             let height = objectHeight(object, index: index) * object.transform.scale
@@ -888,10 +1019,13 @@ struct ActivitiesEditorScreen: View {
     }
 
     private var draftHeight: CGFloat {
-        measuredDraftHeight ?? CGFloat(draftSize) * Self.lineHeightFactor
+        measuredDraftHeight ?? draftSize * Self.lineHeightFactor
     }
 
-    private var draftLayoutWidth: CGFloat { draftWidth ?? Self.editSlotWidth }
+    // The edited object's style and width (§3 Editing), or the §3 defaults while none is.
+    private var draftSize: CGFloat { edited?.size ?? CGFloat(Self.defaultSize) }
+    private var draftAlignment: CanvasTextObject.Alignment { edited?.alignment ?? .center }
+    private var draftLayoutWidth: CGFloat { edited?.transform.width ?? Self.editSlotWidth }
 
     /// §3 tool 3: the edit slot re-anchors 24 wu from the canvas edge.
     private var draftCentreX: CGFloat {
@@ -920,8 +1054,9 @@ struct ActivitiesEditorScreen: View {
 
     /// §2 item 3: `onResizeWidth` reports the handles' width; the inset goes back on, then clamps.
     private func resizeDraft(_ handleWidth: CGFloat) {
+        guard let editedIndex else { return }
         let width = handleWidth + 2 * handleInset
-        draftWidth = min(max(width, Self.minObjectWidth), Self.editSlotWidth)
+        apply(.init(index: editedIndex, width: min(max(width, Self.minObjectWidth), Self.editSlotWidth)))
     }
 
     /// C-081 `slides`: every slide is a C-061 chip — `image` nil (§1 deviation 10, D52).
@@ -931,7 +1066,7 @@ struct ActivitiesEditorScreen: View {
 
     /// C-093 `value`: the object's `size` along the track (OQ-015: 12–64 wu, linear, top = 64).
     private var sliderValue: CGFloat {
-        CGFloat((draftSize - Self.minSize) / (Self.maxSize - Self.minSize))
+        (draftSize - CGFloat(Self.minSize)) / CGFloat(Self.maxSize - Self.minSize)
     }
 
     private var animationSelectedID: String {
@@ -954,7 +1089,7 @@ struct ActivitiesEditorScreen: View {
     }
 
     /// One element of a parallel array, or `fallback` when the array is short.
-    private func element<Value>(_ values: [Value], _ index: Int, _ fallback: Value) -> Value {
+    private static func element<Value>(_ values: [Value], _ index: Int, _ fallback: Value) -> Value {
         index < values.count ? values[index] : fallback
     }
 
@@ -1000,6 +1135,23 @@ struct ActivitiesEditorScreen: View {
         }
     }
 
+    /// §9.1 `ObjectEdit.weight`: 400 · 500 · 700.
+    private static func weightCode(_ weight: CanvasTextObject.Weight) -> Int {
+        switch weight {
+        case .regular: return 400
+        case .medium: return 500
+        case .bold: return 700
+        }
+    }
+
+    private static func weight(code: Int) -> CanvasTextObject.Weight {
+        switch code {
+        case 400: return .regular
+        case 500: return .medium
+        default: return .bold
+        }
+    }
+
     private static func weightID(_ weight: CanvasTextObject.Weight) -> String {
         switch weight {
         case .regular: return "regular"
@@ -1025,35 +1177,32 @@ struct ActivitiesEditorScreen: View {
         }
     }
 
-    /// §2 item 4 / deviation 5: the nine swatch hues, in order. White and black are tokens; the
-    /// other seven have no colour token. An unknown name is the default `color-text-primary`.
-    private static func swatch(_ name: String) -> Color {
-        switch name {
-        case "black": return Token.black
+    /// §2 item 4 / deviation 5 + §9.2: the nine C-094 presets, in order, as (name, hex) pairs —
+    /// the name is for accessibility only; a tap resolves to the hex, which is what `State` and
+    /// `ObjectEdit` carry. White and black are `color-white-100` and `color-black`'s values.
+    private static let swatchPresets: [(name: String, hex: String)] = [
+        ("White", "#FFFFFF"),
+        ("Black", "#000000"),
         // FLAGGED LITERAL — activities-editor §1 deviation 5: swatch hues, no colour token.
-        case "blue": return Color(red: 0x50 / 255, green: 0x9C / 255, blue: 0xEF / 255)
-        case "green": return Color(red: 0x76 / 255, green: 0xC2 / 255, blue: 0x57 / 255)
-        case "yellow": return Color(red: 0xF6 / 255, green: 0xCB / 255, blue: 0x61 / 255)
-        case "orange": return Color(red: 0xEF / 255, green: 0x8F / 255, blue: 0x3B / 255)
-        case "red": return Color(red: 0xEA / 255, green: 0x4F / 255, blue: 0x5E / 255)
-        case "pink": return Color(red: 0xD4 / 255, green: 0x35 / 255, blue: 0x70 / 255)
-        case "purple": return Color(red: 0xA9 / 255, green: 0x2B / 255, blue: 0xBD / 255)
-        case "white": return Token.white100
-        default: return Token.textPrimary                   // §3: default `color-text-primary`
-        }
-    }
-
-    private static let swatchNames = ["white", "black", "blue", "green", "yellow", "orange", "red", "pink", "purple"]
+        ("Blue", "#509CEF"),
+        ("Green", "#76C257"),
+        ("Yellow", "#F6CB61"),
+        ("Orange", "#EF8F3B"),
+        ("Red", "#EA4F5E"),
+        ("Pink", "#D43570"),
+        ("Purple", "#A92BBD")
+    ]
 
     /// C-094 `swatches`: page 1 as drawn; pages 2–3 undesigned (04-color.md OQ-04-1), empty so
-    /// C-097 still draws the three designed dots.
+    /// C-097 still draws the three designed dots. The outlined swatch is the one whose hex equals
+    /// the current colour (§9.2); a colour no preset holds outlines none.
     private static let palettePages: [[TextColorPalette.NamedColor]] = [
-        swatchNames.map { TextColorPalette.NamedColor(name: $0.capitalized, color: swatch($0)) },
+        swatchPresets.map { TextColorPalette.NamedColor(name: $0.name, color: hexColor($0.hex) ?? Token.textPrimary) },
         [],
         []
     ]
 
-    /// A page colour or wash is the leader's data, decoded from its #rrggbb (data, not style).
+    /// A colour is the leader's data, decoded from its #rrggbb (data, not style; §9.2).
     private static func hexColor(_ hex: String) -> Color? {
         let digits = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
         guard digits.count == 6, let rgb = UInt32(digits, radix: 16) else { return nil }
@@ -1125,6 +1274,10 @@ struct ActivitiesEditorScreen: View {
     private static let deleteHighlightLabel = "Delete highlight"
     private static let addNoteLabel = "Add note"
     private static let closeSheetLabel = "Close"
+    private static let playLabel = "Play"
+    // §9.4 Load-failed copy and the banner's 2 s before the pop.
+    private static let loadFailedMessage = "Couldn't load this activity."
+    private static let loadFailedDelay = Duration.seconds(2)
     // §3 Error copy (proposed).
     private static let errorTitle = "Couldn't save activity"
     private static let retryLabel = "Retry"
@@ -1155,6 +1308,8 @@ struct ActivitiesEditorScreen: View {
     private static let minToolPitch: CGFloat = 40
     /// FLAGGED LITERAL — activities-editor §2: 32pt tools.
     private static let toolSize: CGFloat = 32
+    /// FLAGGED LITERAL — activities-editor §9.3: the play glyph's 44 hit area around its 32 visual.
+    private static let playHitOutset: CGFloat = (44 - 32) / 2
     /// GAP — activities-editor §2 item 2: the 1px hairline.
     private static let hairline: CGFloat = 1
     /// activities-editor §2 item 3: the edit slot — 392 wu wide (440 − 2 × 24), centred on 478 wu.
@@ -1478,6 +1633,9 @@ extension ActivitiesEditorScreen.State {
     private static let frameSlideLabels = ["Activity 1", "Activity 2"]
     /// §1 deviation 10: "Text I just added" is the frames' sample copy.
     private static let sampleText = "Text I just added"
+    /// §9.2: colours are hex — the White and Blue presets.
+    private static let white = "#FFFFFF"
+    private static let blue = "#509CEF"
     /// §1 deviation 10: the frame's Genesis 1 sample text.
     private static let genesisVerses = [
         "In the beginning God created the heavens and the earth.",
@@ -1498,15 +1656,15 @@ extension ActivitiesEditorScreen.State {
         objectTexts: [], objectFonts: [], objectColors: [], objectWeights: [], objectSizes: [],
         objectAlignments: [], objectListStyles: [], objectStartNumbers: [],
         objectXs: [], objectYs: [], objectScales: [], objectRotations: [], objectWidths: [], objectHeights: [],
-        draftText: "", draftFont: "sans", draftColor: "white", draftWeight: "bold", draftSize: 38,
-        draftAlignment: "center", draftWidth: 0,
+        editingIndex: -1,
         pageColorHex: "", pageImageURL: "", pageImageFocalX: 0.5, pageImageFocalY: 0.5,
         pageWashHex: "", pageWashOpacity: 0,
         verseTexts: [], firstVerse: 1,
         highlightIDs: [], highlightObjects: [], highlightStarts: [], highlightEnds: [],
         selectedHighlightID: "",
         actionIDs: [], actionKinds: [], actionLabels: [], actionPlacements: [], actionValues: [], actionBodies: [],
-        centerGuide: false, deleteTargetShown: false, saving: false, saveFailed: false
+        centerGuide: false, deleteTargetShown: false, saving: false, saveFailed: false,
+        loadFailed: false
     )
 
     /// One committed object centred on the edit slot's 478 wu, scale 1 (§2 item 3).
@@ -1515,7 +1673,7 @@ extension ActivitiesEditorScreen.State {
         var s = base
         s.objectTexts = [sampleText]
         s.objectFonts = ["sans"]
-        s.objectColors = ["white"]
+        s.objectColors = [white]
         s.objectWeights = ["bold"]
         s.objectSizes = [38]
         s.objectXs = [x]
@@ -1536,23 +1694,22 @@ extension ActivitiesEditorScreen.State {
         s.objectHeights = [1600]
         return s
     }()
-    /// §3 Editing-new — a canvas tap: placeholder, the font panel on Inter (OQ-014).
-    static let editingNew: Self = {
-        var s = base
+    /// The object the edit slot shows (§9.1: one of `objects`, at `editingIndex`).
+    private static func editing(_ text: String, color: String = white, tool: String) -> Self {
+        var s = committed()
+        s.objectTexts = [text]
+        s.objectColors = [color]
         s.editorMode = "editing"
-        s.openTool = "font"
+        s.openTool = tool
+        s.editingIndex = 0
         return s
-    }()
+    }
+
+    /// §3 Editing-new — a canvas tap: placeholder, the font panel on Inter (OQ-014).
+    static let editingNew = editing("", tool: "font")
     /// §3 Editing-existing — the frozen frame `edit-text`: the object re-opened, the colour
     /// panel open with blue picked (the well and the outlined swatch, OQ-011).
-    static let editingExisting: Self = {
-        var s = base
-        s.editorMode = "editing"
-        s.openTool = "color"
-        s.draftText = sampleText
-        s.draftColor = "blue"
-        return s
-    }()
+    static let editingExisting = editing(sampleText, color: blue, tool: "color")
     /// §3 Highlighting — the frozen frame `edit-highlights`: a passage C-092 over an image with a
     /// #141F6B wash at 0.80 (§4 C-091), a highlight selected so the actions show (OQ-012).
     static let highlighting: Self = {
@@ -1565,7 +1722,7 @@ extension ActivitiesEditorScreen.State {
         s.pageWashOpacity = 0.8
         s.objectTexts = [genesisVerses.joined(separator: "\n")]
         s.objectFonts = ["sans"]
-        s.objectColors = ["white"]
+        s.objectColors = [white]
         s.objectWeights = ["regular"]
         s.objectSizes = [17]
         s.objectAlignments = ["left"]
@@ -1614,11 +1771,7 @@ extension ActivitiesEditorScreen.State {
     }()
     /// §6 Background sheet (D4) over an image, its focal point and wash set.
     static let backgroundSheet: Self = {
-        var s = committed()
-        s.editorMode = "editing"
-        s.openTool = "background"
-        s.objectTexts = []
-        s.draftText = sampleText
+        var s = editing(sampleText, tool: "background")
         s.pageColorHex = "#141F6B"
         s.pageImageURL = "http://localhost:5961/api/projects/makeready/images/genesis-abram-stars"
         s.pageImageFocalX = 0.7
@@ -1629,11 +1782,7 @@ extension ActivitiesEditorScreen.State {
     }()
     /// §3 Actions / §6 Actions sheet (D8): one inline and one pinned action.
     static let actionsSheet: Self = {
-        var s = committed()
-        s.editorMode = "editing"
-        s.openTool = "actions"
-        s.objectTexts = []
-        s.draftText = sampleText
+        var s = editing(sampleText, tool: "actions")
         s.actionIDs = ["action-1", "action-2"]
         s.actionKinds = ["addToPrayerList", "nextLesson"]
         s.actionLabels = ["Add to Prayer List", "Next lesson"]
@@ -1655,11 +1804,14 @@ extension ActivitiesEditorScreen.State {
     }()
     /// §3 tool 6 — the effects strip, shown by `showsEffectsTool` (§2 item 5).
     static let effectsStrip: Self = {
-        var s = base
-        s.editorMode = "editing"
-        s.openTool = "animation"
+        var s = editing(sampleText, tool: "animation")
         s.showsEffectsTool = true
-        s.draftText = sampleText
+        return s
+    }()
+    /// §9.4 Load-failed — the container could not load the activity.
+    static let loadFailed: Self = {
+        var s = base
+        s.loadFailed = true
         return s
     }()
 }
@@ -1744,6 +1896,12 @@ extension ActivitiesEditorScreen.State {
 
 #Preview("Actions on page") {
     ActivitiesEditorScreen(state: .actionsOnPage)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Load-failed") {
+    ActivitiesEditorScreen(state: .loadFailed)
         .safeAreaPadding(.top, 59)
         .frame(width: 440, height: 956, alignment: .top)
 }

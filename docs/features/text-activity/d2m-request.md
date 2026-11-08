@@ -21,5 +21,19 @@ Out of scope: `showsHighlightTool`, `showsEffectsTool`, `showsEyedropper` stay a
 
 ## Result
 
-Change id: (filled when d2m returns)
-Returned names: (filled when d2m returns)
+Change ids: editor `cmw73admc0003v05pnqf5e0ki` (done), player `cmw73vfxl000ov05pfs8ktiv6` (done; the
+first request did not touch the player, so a second request covered it). d2m wrote its edits into the
+main checkout, uncommitted; they were copied into this branch (same base) with the test.
+
+Returned names, for Tasks 24-27:
+
+- `ActivitiesEditorScreen.onEditObject: (ObjectEdit) -> Void`, replacing `onTransformObject`.
+  `ObjectEdit { index: Int; text: String?; font: String? (display|sans|serif|mono); weight: Int? (400|500|700);
+  size: CGFloat? (wu); color: String? (#RRGGBB); alignment: String? (center|left|right); width: CGFloat?;
+  transform: Transform? { x, y, scale, rotation } }`, only changed fields non-nil. Add and delete are not edits.
+- `State`: parallel arrays `objectTexts/Fonts/Colors/Weights/Sizes/Alignments/ListStyles/StartNumbers/Xs/Ys/
+  Scales/Rotations/Widths/Heights`; `objectColors` are `#RRGGBB` ("" = default); `editingIndex: Int` (-1 none)
+  replaces the `draft*` fields; `loadFailed: Bool`. Preview states: `.idlePopulated`, `.idleEmpty`, `.idleLong`.
+- `onPlay: () -> Void`: C-102 play glyph in the Idle header.
+- Load-failed: `onLoadFailed: (String) -> Void` called with "Couldn't load this activity.", then `onBack`
+  after 2 s (editor). `ActivitiesPlayerScreen.State.loadFailed` + `onLoadFailed`, then `onClose` after 2 s.
