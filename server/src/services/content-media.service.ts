@@ -95,7 +95,7 @@ export async function syncActivityMediaUsage(tx: Tx, activityKey: string): Promi
   }
 }
 
-/** The `MediaMap` for every media id and every video's media id the documents name. */
+/** The `MediaMap` for every media id the documents name; a video-linked row is also keyed by its `videoId` (D47). */
 export async function buildMediaMap(tx: Tx, documents: unknown[]): Promise<MediaMap> {
   const mediaIds = new Set<string>()
   const videoIds = new Set<string>()
@@ -123,6 +123,7 @@ export async function buildMediaMap(tx: Tx, documents: unknown[]): Promise<Media
     if (m.uploader?.name) entry.uploaderName = m.uploader.name
     if (m.video?.playbackUrl) entry.playbackUrl = m.video.playbackUrl
     map[m.id] = entry
+    if (m.videoId) map[m.videoId] = entry
   }
   return map
 }

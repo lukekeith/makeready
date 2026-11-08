@@ -93,4 +93,19 @@ describe('media in activity documents (D34)', () => {
     expect(map[m.id]).toMatchObject({ kind: 'video', playbackUrl: `https://stream.test/${vMap}.m3u8` })
     expect(map[m.id].uploaderName).toEqual(expect.any(String))
   })
+
+  it('the media map also keys a video entry by its videoId', async () => {
+    const vid = randomUUID()
+    const m = await createMedia(w.orgId, { videoId: vid })
+    const doc = { ...EXAMPLE_TEXT, kind: 'video', content: { type: 'video', videoId: vid } }
+    const map = await prisma.$transaction(tx => buildMediaMap(tx, [doc]))
+    expect(map[vid]).toEqual(map[m.id])
+    expect(map[vid]).toMatchObject({ kind: 'video', playbackUrl: `https://stream.test/${vid}.m3u8` })
+  })
+
+  it('an image entry gets no second key', async () => {
+    const m = await createMedia(w.orgId)
+    const map = await prisma.$transaction(tx => buildMediaMap(tx, [withImage(EXAMPLE_TEXT, m.id)]))
+    expect(Object.keys(map)).toEqual([m.id])
+  })
 })
