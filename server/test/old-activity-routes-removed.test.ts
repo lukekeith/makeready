@@ -2,20 +2,18 @@
  * text-activity SC8: the 1.0 activity, theme, member-lesson, study-preview and scheduled-activity routes
  * are gone. A removed route falls through to Express's own 404 (an empty JSON body under supertest), so a
  * handler that is still mounted and answers its own 404 JSON ("Activity not found") fails these cases.
+ *
+ * Sent with no credentials: a still-mounted handler behind requireAuth answers 401, which fails the 404
+ * check just as surely, and a removed route never reaches auth. (A bearer key made the case depend on the
+ * key lookup — the merge tier saw one request of ~70 answer 401 on it.)
  */
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import request from 'supertest'
 import { app } from '../src/index.js'
-import { bearer } from './helpers/api-auth.js'
-import { createContentWorld, destroyContentWorld, type ContentWorld } from './helpers/content-world.js'
 
 const ID = '00000000-0000-4000-8000-000000000000'
 
 describe('the removed routes are gone', () => {
-  let w: ContentWorld
-  beforeAll(async () => { w = await createContentWorld() })
-  afterAll(async () => { await destroyContentWorld(w) })
-
   it.each([
     // themes.ts
     ['get', '/api/themes'],
@@ -88,7 +86,7 @@ describe('the removed routes are gone', () => {
     ['post', `/api/preview/sometoken/state/note/${ID}`],
     ['post', `/api/preview/sometoken/state/lesson-complete/${ID}`],
   ])('%s %s is gone', async (method, path) => {
-    const res = await (request(app) as any)[method](path).set('Authorization', bearer(w.leader.token))
+    const res = await (request(app) as any)[method](path)
     expect(res.status).toBe(404)
     expect(res.body).toEqual({})
   })
