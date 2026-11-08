@@ -2,46 +2,11 @@
 //  ThemeModels.swift
 //  MakeReady
 //
-//  Generic JSON value and text theme models.
+//  Text theme models (JSONValue lives in JSONValue.swift).
 //  Phase 5.7 — code motion from State/Models.swift.
 //
 
 import Foundation
-
-// MARK: - Generic JSON Value
-
-/// A type-erased JSON value for decoding arbitrary JSON structures.
-enum JSONValue: Codable {
-    case string(String)
-    case number(Double)
-    case bool(Bool)
-    case object([String: JSONValue])
-    case array([JSONValue])
-    case null
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        if let v = try? container.decode(Bool.self) { self = .bool(v) }
-        else if let v = try? container.decode(Double.self) { self = .number(v) }
-        else if let v = try? container.decode(String.self) { self = .string(v) }
-        else if let v = try? container.decode([String: JSONValue].self) { self = .object(v) }
-        else if let v = try? container.decode([JSONValue].self) { self = .array(v) }
-        else if container.decodeNil() { self = .null }
-        else { throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unsupported JSON value") }
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        switch self {
-        case .string(let v): try container.encode(v)
-        case .number(let v): try container.encode(v)
-        case .bool(let v): try container.encode(v)
-        case .object(let v): try container.encode(v)
-        case .array(let v): try container.encode(v)
-        case .null: try container.encodeNil()
-        }
-    }
-}
 
 // MARK: - Text Theme Models
 
