@@ -274,3 +274,4 @@ as test data.
   before writing "missing".
 - **NEVER quote the user's prompt as spec content.** Operationalize it into acceptance criteria:
   closed lists, measured values, enumerated deviations.
+- An iPhone overlay that lifts itself by a manual keyboard offset must also `.ignoresSafeArea(.keyboard)` and measure its bottom on un-offset chrome — otherwise SwiftUI keyboard avoidance lifts it a second time (or the lift cancels itself), pushing headers off screen (text-activity, 2026-11-08)
