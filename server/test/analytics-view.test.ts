@@ -97,8 +97,9 @@ describe('the analytics_events view on the new model', () => {
     expect(row).toMatchObject({
       scheduledLessonId: s.scheduledLessonIds[0], activityKey, kind: 'text', enrollmentId: s.enrollmentId,
       studyProgramId: s.programId, lessonId: s.lessonIds[0], dayNumber: 2,
-      lessonScheduleId: null, scheduledActivityId: null, activityType: null,
     })
+    // The 1.0 key columns were dropped at the cutover (SC11/D42): the row holds the new keys only.
+    for (const old of ['lessonScheduleId', 'scheduledActivityId', 'activityType']) expect(row).not.toHaveProperty(old)
   })
 
   it('a client event names the kind the activity really has, whatever the client sent', async () => {

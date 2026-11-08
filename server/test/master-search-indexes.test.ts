@@ -96,6 +96,10 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('master-search indexes', () => {
       const { Client } = await import('pg')
       const client = new Client({ connectionString: url }); await client.connect()
       try {
+        // The final model has no old lesson tables; the 1.0 migration indexes them, so give it the columns it names.
+        await client.query(`ALTER TABLE "lessons" ADD COLUMN IF NOT EXISTS "title" text;
+          CREATE TABLE IF NOT EXISTS "lesson_activities" ("id" text PRIMARY KEY, "title" text, "readContent" text, "helpTitle" text, "helpDescription" text);
+          CREATE TABLE IF NOT EXISTS "activity_read_blocks" ("id" text PRIMARY KEY, "title" text, "content" text, "lessonActivityId" text)`)
         await client.query(readMigration('_master_search_indexes.sql'))
         await client.query(readMigration('_text_activity_search_indexes.sql'))
         const r = await client.query(`SELECT indexname FROM pg_indexes WHERE indexname IN ('posts_search_idx', 'lesson_versions_search_idx', 'content_activities_search_idx', 'lessons_search_idx')`)
