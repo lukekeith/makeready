@@ -873,8 +873,9 @@ struct ActivitiesEditorScreen: View {
     /// and Done stay on screen while the body scrolls. `available` is the overlay's height below the
     /// safe top.
     static func sheetLayout(available: CGFloat, keyboardOverlap: CGFloat) -> (maxHeight: CGFloat, lift: CGFloat) {
-        let lift = max(keyboardOverlap, 0)
-        return (max(available - sheetTopGap - lift, 0), lift)
+        let room = max(available - sheetTopGap, 0)
+        let lift = min(max(keyboardOverlap, 0), room)
+        return (room - lift, lift)
     }
 
     private var backgroundSheet: some View {

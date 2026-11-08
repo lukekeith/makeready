@@ -48,7 +48,7 @@ final class ActivitiesEditorScreenContractTests: XCTestCase {
         let available: CGFloat = 956 - 62           // overlay height below the safe top, 440×956
         for overlap: CGFloat in [0, 336, 900] {
             let layout = ActivitiesEditorScreen.sheetLayout(available: available, keyboardOverlap: overlap)
-            XCTAssertEqual(layout.lift, overlap, "lifted exactly once, by the keyboard's overlap")
+            XCTAssertEqual(layout.lift, min(overlap, available - 16), "lifted once, by the keyboard's overlap")
             let top = available - layout.lift - layout.maxHeight
             XCTAssertGreaterThanOrEqual(top, 16, "the sheet's header stays below the top gap at overlap \(overlap)")
             XCTAssertGreaterThanOrEqual(layout.maxHeight, 0)
