@@ -5,7 +5,7 @@ import XCTest
 @MainActor
 final class ActivityThumbnailTests: XCTestCase {
     private func summary(_ id: String, kind: String = "text", text: String = "Hello", imageId: String? = nil) -> ActivitySummary {
-        let image = imageId.map { ##",\"image\":{\"mediaId\":\"\##($0)\"}"## } ?? ""
+        let image = imageId.map { ##","image":{"mediaId":"\##($0)"}"## } ?? ""
         let json = ##"{"id":"\##(id)","activityKey":"k","position":0,"kind":"\##(kind)","title":"T","document":{"schemaVersion":1,"kind":"\##(kind)","background":{"color":"#0E4A4D"\##(image)},"content":{"type":"canvas","verticalAnchor":"center","objects":[{"id":"o1","text":"\##(text)","font":"serif","weight":700,"size":26,"color":"#FFFFFF","alignment":"center","transform":{"x":220,"y":478,"width":392,"scale":1,"rotation":0}}]},"actions":[]}}"##
         return try! JSONDecoder.apiDecoder.decode(ActivitySummary.self, from: Data(json.utf8))
     }
