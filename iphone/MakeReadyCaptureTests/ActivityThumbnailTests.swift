@@ -62,7 +62,8 @@ final class ActivityThumbnailTests: XCTestCase {
         XCTAssertFalse(cancelled)
         XCTAssertNil(Ui2ImageCache.shared.image(for: url))
         // A later seed with a working fetch renders it.
-        let ok = await ActivityThumbnail.seed([activity], media: media, fetch: { _, _ in Self.pixel })
+        let pixel = Self.pixel
+        let ok = await ActivityThumbnail.seed([activity], media: media, fetch: { _, _ in pixel })
         XCTAssertTrue(ok)
         XCTAssertNotNil(Ui2ImageCache.shared.image(for: url))
     }
