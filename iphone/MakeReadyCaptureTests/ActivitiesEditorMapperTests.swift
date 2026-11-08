@@ -97,6 +97,19 @@ final class ActivitiesEditorMapperTests: XCTestCase {
         XCTAssertEqual(actions[0]["futureField"] as? String, "kept")
         XCTAssertEqual(actions[1]["kind"] as? String, "teleport")
     }
+
+    /// The server requires `payload` on every action: a new action of each kind, Next lesson included, carries one.
+    func testEveryNewActionCarriesAPayloadObject() throws {
+        let edited = ActivitiesEditorScreen.PageAction.Kind.allCases.enumerated().map { index, kind in
+            ActivitiesEditorScreen.PageAction(id: "new\(index)", kind: kind, label: "Go", placement: .inline, value: "", body: "")
+        }
+        let json = try ActivitiesEditorMapper.applyActions(edited, to: ActivityNewContainer.textDocument(title: "Text")).jsonObject()
+        let actions = try XCTUnwrap(json.root["actions"] as? [[String: Any]])
+        XCTAssertEqual(actions.count, edited.count)
+        for action in actions {
+            XCTAssertNotNil(action["payload"] as? [String: Any], "\(action["kind"] ?? "?") has no payload object")
+        }
+    }
 }
 
 // MARK: - Fixtures

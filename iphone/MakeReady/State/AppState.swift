@@ -653,13 +653,13 @@ final class AppState {
         activities.all.filter { $0.lessonVersionId == versionId }.sorted { $0.position < $1.position }
     }
 
-    /// The program draft of a lesson (the one an edit writes to): a loaded version first, else the
-    /// id the program read carried. Nil when the lesson has no draft yet.
+    /// The program draft of a lesson (the one an edit writes to): the id on the lesson row, which a
+    /// program read or a draft load keeps fresh, else the newest loaded draft. Nil when it has none yet.
     func draftVersionId(forLesson lessonId: String) -> String? {
-        let loaded = lessonVersions.all.first {
-            $0.lessonId == lessonId && $0.status == .draft && $0.enrollmentId == nil
-        }
-        return loaded?.id ?? lessons[lessonId]?.draftVersionId
+        if let id = lessons[lessonId]?.draftVersionId { return id }
+        return lessonVersions.all
+            .filter { $0.lessonId == lessonId && $0.status == .draft && $0.enrollmentId == nil }
+            .max { $0.number < $1.number }?.id
     }
 
     /// Fold a loaded or written version's media into `mediaMap`.

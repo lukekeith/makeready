@@ -102,6 +102,19 @@ extension ProgramActions {
 }
 
 extension ProgramActions {
+    /// The `isPublished` flip runs the publish service, which freezes or deletes each lesson's draft: the
+    /// loaded versions and the lesson rows' draft ids go, and the next write reloads the draft (D46).
+    @MainActor
+    func forgetProgramDrafts(programId: String) {
+        for lessonId in state.programLessonIndex.get(programId) {
+            forgetLessonVersions(lessonId: lessonId)
+            if var lesson = state.lessons[lessonId] {
+                lesson.draftVersionId = nil
+                state.lessons.upsert(lesson)
+            }
+        }
+    }
+
     /// Drop a lesson's loaded versions and their activities from the stores (the lesson is gone).
     @MainActor
     func forgetLessonVersions(lessonId: String) {

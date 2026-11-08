@@ -219,6 +219,8 @@ enum ActivitiesEditorMapper {
             value[path: ["kind"]] = .string(action.kind.rawValue)
             value[path: ["label"]] = .string(action.label)
             value[path: ["placement"]] = .string(action.placement.rawValue)
+            // The server requires `payload` on every action, Next lesson's included.
+            if case .object? = value[path: ["payload"]] {} else { value[path: ["payload"]] = .object([:]) }
             switch action.kind {
             case .addToPrayerList:
                 value[path: ["payload", "title"]] = .string(action.value)

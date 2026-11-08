@@ -46,4 +46,19 @@ final class ProgramActionsPublishTests: XCTestCase {
         XCTAssertNil(state.lessonVersions["v1"])
         XCTAssertEqual(state.lessons["l1"]?.publishedVersionId, "v1")
     }
+
+    /// D41: the `isPublished` flip runs the same publish service, so the lessons' loaded drafts are frozen
+    /// or deleted on the server; they leave the stores and the Text tile reloads the draft.
+    func testPublishingThroughTheFlipForgetsTheProgramsLoadedDrafts() async throws {
+        let state = AppState()
+        state.lessons.upsert(Lesson(id: "l1", position: 1, title: "One", draftVersionId: "v1"))
+        state.programLessonIndex.add(parentId: "p1", childId: "l1")
+        state.lessonVersions.upsert(LessonVersion(id: "v1", lessonId: "l1", enrollmentId: nil, number: 1,
+                                                  status: .draft, title: nil, estimatedSeconds: nil, publishedAt: nil))
+        api.stub("PATCH", "/api/programs/p1",
+                 json: #"{"success":true,"program":{"id":"p1","title":"Walk","isPublished":true,"createdAt":"2026-10-28T00:00:00Z","updatedAt":"2026-10-28T00:00:00Z"}}"#)
+        _ = try await ProgramActions(api: api, state: state).updateProgram(id: "p1", isPublished: true)
+        XCTAssertNil(state.lessonVersions["v1"])
+        XCTAssertNil(state.draftVersionId(forLesson: "l1"))
+    }
 }

@@ -86,6 +86,8 @@ struct ActivityNewContainer: View {
     struct Actions {
         /// The lesson's draft version id, loading the draft first when it is not in state.
         var draftVersionId: @MainActor (_ lessonId: String) async throws -> String
+        /// D46: reloads the lesson's draft from the server and returns its id (a cached one was frozen).
+        var reloadDraftVersionId: @MainActor (_ lessonId: String) async throws -> String = { _ in throw MissingDraft() }
         /// `POST /api/lesson-versions/:id/activities` → the created activity's id.
         var create: @MainActor (_ versionId: String, _ kind: String, _ title: String, _ document: ActivityDocument) async throws -> String
 
@@ -93,6 +95,11 @@ struct ActivityNewContainer: View {
             Actions(
                 draftVersionId: { lessonId in
                     if let id = AppState.shared.draftVersionId(forLesson: lessonId) { return id }
+                    try await ActivityActions().loadDraft(lessonId: lessonId)
+                    guard let id = AppState.shared.draftVersionId(forLesson: lessonId) else { throw MissingDraft() }
+                    return id
+                },
+                reloadDraftVersionId: { lessonId in
                     try await ActivityActions().loadDraft(lessonId: lessonId)
                     guard let id = AppState.shared.draftVersionId(forLesson: lessonId) else { throw MissingDraft() }
                     return id
@@ -137,7 +144,15 @@ struct ActivityNewContainer: View {
             defer { isCreating = false }
             do {
                 let versionId = try await actions.draftVersionId(lessonId)
-                let id = try await actions.create(versionId, "text", Self.textTitle, ActivityNewContainer.textDocument(title: Self.textTitle))
+                let document = ActivityNewContainer.textDocument(title: Self.textTitle)
+                let id: String
+                do {
+                    id = try await actions.create(versionId, "text", Self.textTitle, document)
+                } catch ActivityActionsError.notDraft {
+                    // D46: the cached draft was frozen by a publish made elsewhere; reload it and post once more.
+                    let fresh = try await actions.reloadDraftVersionId(lessonId)
+                    id = try await actions.create(fresh, "text", Self.textTitle, document)
+                }
                 navigator?.replace(with: .activitiesEditor(activityId: id))
             } catch {
                 if UI2ImageLoader.isCancellation(error) { return }

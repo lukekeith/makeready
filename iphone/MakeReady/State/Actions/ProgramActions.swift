@@ -258,6 +258,7 @@ let api: APIClientProtocol
         }
 
         state.programs.upsert(program)
+        if isPublished == true { forgetProgramDrafts(programId: id) }
         state.persist()
 
         NSLog("📚 ProgramActions: Updated program '\(program.name)'")

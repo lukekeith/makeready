@@ -117,6 +117,17 @@ final class ActivityActionsTests: XCTestCase {
         }
     }
 
+    /// D46: a no-change publish deleted the draft with its activities, so the PUT is a 404.
+    func testSaveOfADeletedActivityThrowsGone() async {
+        api.errorFor = { _, _ in APIHTTPError(status: 404, message: "Not found", details: ["code": "NOT_FOUND"]) }
+        do {
+            try await actions.save(activityId: "a", title: nil, document: emptyText)
+            XCTFail("expected a throw")
+        } catch {
+            XCTAssertEqual(error as? ActivityActionsError, .gone)
+        }
+    }
+
     func testSaveReplacesTheActivityAndOmitsAnUnchangedTitle() async throws {
         try seed("a1", position: 0)
         api.stub("PUT", "/api/content-activities/a1", json: Fixture.createResponse.replacingOccurrences(of: #""title":"Text""#, with: #""title":"Renamed""#))
@@ -134,6 +145,29 @@ final class ActivityActionsTests: XCTestCase {
         try await actions.loadDraft(lessonId: "l1")
         XCTAssertEqual(state.activities(forVersion: "v1").map(\.id), ["a1"])
         XCTAssertEqual(state.draftVersionId(forLesson: "l1"), "v1")
+    }
+
+    /// A loaded draft replaces the lesson's other program drafts (frozen by a publish made elsewhere), so the
+    /// stale one can't be picked as the draft again.
+    func testLoadDraftDropsTheLessonsOtherProgramDrafts() async throws {
+        try seedLesson()
+        try seed("old", position: 0)
+        let newDraft = Fixture.version("v2").replacingOccurrences(of: #""number":1"#, with: #""number":2"#)
+        api.stub("GET", "/api/lessons/l1/draft",
+                 json: #"{"version":\#(newDraft),"activities":[\#(Fixture.activity("a2", position: 0, version: "v2"))],"media":{}}"#)
+        try await actions.loadDraft(lessonId: "l1")
+        XCTAssertNil(state.lessonVersions["v1"])
+        XCTAssertNil(state.activities["old"])
+        XCTAssertEqual(state.draftVersionId(forLesson: "l1"), "v2")
+    }
+
+    /// The program read's draft id is the freshest: it wins over a loaded draft another leader has since published.
+    func testDraftVersionIdPrefersTheLessonRowsDraftId() throws {
+        try seedLesson()
+        var lesson = try XCTUnwrap(state.lessons["l1"])
+        lesson.draftVersionId = "v3"
+        state.lessons.upsert(lesson)
+        XCTAssertEqual(state.draftVersionId(forLesson: "l1"), "v3")
     }
 
     func testLoadVersionStoresAPublishedVersion() async throws {

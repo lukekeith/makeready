@@ -330,7 +330,7 @@ struct ActivitiesEditorContainer: View {
             }
         }
 
-        /// The PUT, with D46's one refetch-and-remap on 409 `NOT_DRAFT`.
+        /// The PUT, with D46's one refetch-and-remap on 409 `NOT_DRAFT` or a 404 (the draft was deleted).
         private func put(_ snapshot: ActivityDocument) async -> Bool {
             isSaving = true
             defer { isSaving = false }
@@ -338,6 +338,9 @@ struct ActivitiesEditorContainer: View {
                 do {
                     try await actions.save(activityId: activityId, title: nil, document: snapshot)
                 } catch ActivityActionsError.notDraft {
+                    try await remapToTheNewDraft()
+                    try await actions.save(activityId: activityId, title: nil, document: snapshot)
+                } catch ActivityActionsError.gone {
                     try await remapToTheNewDraft()
                     try await actions.save(activityId: activityId, title: nil, document: snapshot)
                 }
@@ -392,7 +395,9 @@ struct ActivitiesEditorContainer: View {
         /// The rail's add opens the type picker for this lesson in place.
         func addActivity(app: AppState? = nil) async {
             let app = app ?? .shared
-            guard let programId = app.lessons[lessonId]?.studyProgramId else { return }
+            // The program read's lesson rows carry no program id: the index knows the parent.
+            guard let programId = app.lessons[lessonId]?.studyProgramId
+                    ?? app.programLessonIndex.parent(of: lessonId) else { return }
             guard await leave() else { return }
             navigator?.replace(with: .activityNew(programId: programId, lessonId: lessonId))
         }

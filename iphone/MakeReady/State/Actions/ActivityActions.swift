@@ -14,6 +14,8 @@ import Foundation
 enum ActivityActionsError: Error, Equatable {
     /// 409 `NOT_DRAFT`: another leader published, so the version is frozen (D46).
     case notDraft
+    /// 404 on a draft write: a publish with no changes deleted the draft and its activities (D46).
+    case gone
 }
 
 /// What the activity editor calls (text-activity Task 25), so its save and back-out paths can be
@@ -143,14 +145,16 @@ struct ActivityActions {
         return try JSONDecoder.apiDecoder.decode(WriteResponse.self, from: data)
     }
 
-    /// The status-keeping request, with a 409 `NOT_DRAFT` turned into `ActivityActionsError.notDraft`.
-    /// Every other failure (a 409 `CONFLICT`, a 404, a 413) is thrown as the status error it is.
+    /// The status-keeping request, with a 409 `NOT_DRAFT` turned into `ActivityActionsError.notDraft` and a
+    /// 404 on a PUT into `.gone`. Every other failure (a 409 `CONFLICT`, a 413) is thrown as the status error.
     @MainActor
     private func send(_ endpoint: String, method: String, body: [String: Any]?) async throws -> Data {
         do {
             return try await api.requestWithStatus(endpoint: endpoint, method: method, body: body)
         } catch let error as APIHTTPError where error.status == 409 && error.details["code"] == "NOT_DRAFT" {
             throw ActivityActionsError.notDraft
+        } catch let error as APIHTTPError where error.status == 404 && method == "PUT" {
+            throw ActivityActionsError.gone
         }
     }
 
@@ -158,7 +162,18 @@ struct ActivityActions {
     /// elsewhere drops, then refresh the lesson row.
     @MainActor
     private func apply(_ payload: LessonVersionPayload) {
-        let stale = state.activities.all.filter { $0.lessonVersionId == payload.version.id }.map(\.id)
+        // A loaded program draft replaces the lesson's other program drafts: a publish made elsewhere froze
+        // or deleted them, and a stale one must not be picked as the draft again (D46).
+        var replaced = [payload.version.id]
+        if payload.version.status == .draft && payload.version.enrollmentId == nil {
+            let others = state.lessonVersions.all.filter {
+                $0.lessonId == payload.version.lessonId && $0.status == .draft && $0.enrollmentId == nil
+                    && $0.id != payload.version.id
+            }.map(\.id)
+            state.lessonVersions.removeMany(others)
+            replaced += others
+        }
+        let stale = state.activities.all.filter { replaced.contains($0.lessonVersionId) }.map(\.id)
         state.activities.removeMany(stale)
         state.activities.upsertMany(payload.activities)
         state.lessonVersions.upsert(payload.version)

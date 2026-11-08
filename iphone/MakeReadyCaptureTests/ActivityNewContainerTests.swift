@@ -75,6 +75,24 @@ final class ActivityNewContainerTests: XCTestCase {
         XCTAssertEqual(model.pendingType, "")
     }
 
+    /// D46: the cached draft was frozen by a publish made elsewhere; the tile reloads the draft and posts once more.
+    func testANotDraftCreateReloadsTheDraftAndPostsOnceMore() async {
+        let nav = RecordingNavigator()
+        var versions: [String] = []
+        let actions = ActivityNewContainer.Actions(
+            draftVersionId: { _ in "stale" },
+            reloadDraftVersionId: { _ in "fresh" },
+            create: { version, _, _, _ in
+                versions.append(version)
+                if version == "stale" { throw ActivityActionsError.notDraft }
+                return "new1"
+            })
+        let model = ActivityNewContainer.Model(lessonId: "l1", actions: actions, navigator: nav, report: { _ in XCTFail("reported") })
+        await model.selectText()
+        XCTAssertEqual(versions, ["stale", "fresh"])
+        XCTAssertEqual(nav.replaced, [.activitiesEditor(activityId: "new1")])
+    }
+
     func testThePendingTypeNamesTheTextTileWhileCreating() async {
         var during: String?
         var model: ActivityNewContainer.Model!
@@ -111,10 +129,10 @@ final class ActivityNewContainerTests: XCTestCase {
 
 extension ActivityNewContainer.Actions {
     static func stub(createdId: String) -> Self {
-        Self(draftVersionId: { _ in "draft" }, create: { _, _, _, _ in createdId })
+        Self(draftVersionId: { _ in "draft" }, reloadDraftVersionId: { _ in "draft" }, create: { _, _, _, _ in createdId })
     }
 
     static func stub(failing error: Error) -> Self {
-        Self(draftVersionId: { _ in "draft" }, create: { _, _, _, _ in throw error })
+        Self(draftVersionId: { _ in "draft" }, reloadDraftVersionId: { _ in "draft" }, create: { _, _, _, _ in throw error })
     }
 }

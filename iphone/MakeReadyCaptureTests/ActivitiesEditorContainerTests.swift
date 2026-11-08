@@ -12,6 +12,28 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         XCTAssertEqual(actions.savedIds, ["a1", "a2"]); XCTAssertNil(model.saveError)
     }
 
+    /// D46: another leader's no-change publish deleted the draft, so the PUT is a 404; it remaps the same way.
+    func testGoneActivityRefetchesRemapsAndRePutsOnce() async {
+        let actions = ScriptedActivityActions(save: [.failure(.gone), .success], draft: .withActivity(id: "a2", key: "k1"))
+        let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "k1", actions: actions)
+        await model.done()
+        XCTAssertEqual(actions.savedIds, ["a1", "a2"]); XCTAssertNil(model.saveError)
+        XCTAssertEqual(model.activityId, "a2")
+    }
+
+    /// The rail's "+": the program read's lesson rows carry no program id, so the program comes from the index.
+    func testAddOpensTheTypePickerWithTheProgramFromTheLessonIndex() async {
+        let app = AppState()
+        app.lessons.upsert(Lesson(id: "l1", studyProgramId: nil, position: 1))
+        app.programLessonIndex.add(parentId: "p1", childId: "l1")
+        let nav = RecordingEditorNavigator()
+        let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "k1", lessonId: "l1",
+                                                    actions: ScriptedActivityActions())
+        model.navigator = nav
+        await model.addActivity(app: app)
+        XCTAssertEqual(nav.replaced, [.activityNew(programId: "p1", lessonId: "l1")])
+    }
+
     func testSecondFailureShowsRetryAndDiscard() async {
         let actions = ScriptedActivityActions(save: [.failure(.notDraft), .failure(.notDraft)], draft: .withActivity(id: "a2", key: "k1"))
         let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "k1", actions: actions)
@@ -171,7 +193,7 @@ final class RecordingEditorNavigator: ActivitiesEditorNavigating {
 /// The editor's Actions, scripted: each `save` takes the next step; `reloadDraft` returns `draft`.
 @MainActor
 final class ScriptedActivityActions: ActivityActionsProtocol {
-    enum Failure { case notDraft, other }
+    enum Failure { case notDraft, gone, other }
     enum Step { case success, failure(Failure) }
 
     private struct Other: Error {}
@@ -208,6 +230,7 @@ final class ScriptedActivityActions: ActivityActionsProtocol {
         switch step {
         case .success: savedDocuments.append(document)
         case .failure(.notDraft): throw ActivityActionsError.notDraft
+        case .failure(.gone): throw ActivityActionsError.gone
         case .failure(.other): throw Other()
         }
     }
