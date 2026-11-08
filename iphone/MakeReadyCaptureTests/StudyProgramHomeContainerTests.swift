@@ -13,11 +13,14 @@ final class StudyProgramHomeContainerTests: XCTestCase {
         XCTAssertEqual(StudyProgramHomeContainer.loadFailure(for: APIHTTPError(status: 500, message: nil)), .failed)
     }
 
-    /// program-lesson-add-activity D10/D17: the picker's strip — activities by order, then the placeholder, active.
+    /// program-lesson-add-activity D10/D17: the picker's strip — activities by position, then the placeholder, active.
     func testActivityNewStripListsActivitiesThenThePlaceholder() {
-        let lesson = Lesson(id: "l1", dayNumber: 1, title: "A",
-                            activities: [StudyActivity(id: "a2", type: .read, orderNumber: 2, title: "Second"),
-                                         StudyActivity(id: "a1", type: .video, orderNumber: 1, title: "First")])
+        func summary(_ id: String, _ position: Int, _ title: String) -> ActivitySummary {
+            let json = #"{"id":"\#(id)","activityKey":"k","position":\#(position),"kind":"text","title":"\#(title)","document":{"schemaVersion":1,"kind":"text"}}"#
+            return try! JSONDecoder.apiDecoder.decode(ActivitySummary.self, from: Data(json.utf8))
+        }
+        let lesson = Lesson(id: "l1", position: 1, title: "A",
+                            activities: [summary("a2", 1, "Second"), summary("a1", 0, "First")])
         let s = ActivityNewMapper.state(lesson: lesson)
         XCTAssertEqual(s.slideIDs, ["a1", "a2", "placeholder"])
         XCTAssertEqual(s.slideLabels, ["First", "Second", "New activity"])
@@ -107,7 +110,7 @@ final class StudyProgramHomeContainerTests: XCTestCase {
 
     /// D16: the index the screen sends maps to the right lesson by day order.
     func testLessonIDFollowsDayOrder() {
-        let lessons = [Lesson(id: "l2", dayNumber: 2, title: ""), Lesson(id: "l1", dayNumber: 1, title: "")]
+        let lessons = [Lesson(id: "l2", position: 2, title: ""), Lesson(id: "l1", position: 1, title: "")]
         XCTAssertEqual(StudyProgramHomeContainer.lessonID(at: 0, in: lessons), "l1")
         XCTAssertEqual(StudyProgramHomeContainer.lessonID(at: 1, in: lessons), "l2")
         XCTAssertNil(StudyProgramHomeContainer.lessonID(at: 2, in: lessons))

@@ -60,7 +60,7 @@ struct StudyProgramHomeContainer: View {
         let app = AppState.shared
         let mapped = StudyProgramHomeMapper.state(
             .init(name: name, program: app.programs[programId], lessons: app.lessonsFor(programId: programId),
-                  enrollments: app.programEnrollmentsFor(programId: programId), failed: failed, activeDay: activeDay),
+                  enrollments: app.programEnrollmentsFor(programId: programId), failed: failed, activeDay: activeDay, media: app.mediaMap),
             timeZone: .current
         )
         let _ = imagesSeeded
@@ -146,7 +146,7 @@ struct StudyProgramHomeContainer: View {
                 },
                 onDone: { closeLessonMenu() },
                 menuTitle: heldLessonId.flatMap { AppState.shared.lessons[$0] }.map {
-                    Self.lessonMenuTitle(dayNumber: $0.dayNumber, title: $0.title)
+                    Self.lessonMenuTitle(dayNumber: $0.position, title: $0.title)
                 }
             )
         }
@@ -394,7 +394,7 @@ struct StudyProgramHomeContainer: View {
 
     /// D16: the id at a screen index — the screen's lesson arrays run in `dayNumber` order.
     static func lessonID(at index: Int, in lessons: [Lesson]) -> String? {
-        let ordered = lessons.sorted { $0.dayNumber < $1.dayNumber }
+        let ordered = lessons.sorted { $0.position < $1.position }
         return ordered.indices.contains(index) ? ordered[index].id : nil
     }
 

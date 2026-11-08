@@ -96,60 +96,40 @@ final class ModelDecodingTests: XCTestCase {
 
     // MARK: - Lesson
 
-    func testLessonDecodesNewAPIFormat() throws {
+    func testLessonDecodesTheContractRow() throws {
         let lesson: Lesson = try decodeModel("""
-        {"id":"l1","programId":"p1","orderIndex":3,"title":"Day 3","description":"Overview",
-         "estimatedMinutes":12,
-         "activities":[{"id":"a1","activityType":"READ","orderNumber":1}],
+        {"id":"l1","programId":"p1","position":3,"dayNumber":3,"title":"Day 3","estimatedSeconds":90,
+         "draftVersionId":"v2","publishedVersionId":"v1",
+         "activities":[{"id":"a1","activityKey":"k1","position":0,"kind":"text","title":"Text",
+                        "document":{"schemaVersion":1,"kind":"text"}}],
          "createdAt":"\(isoDate)","updatedAt":"\(isoDate)"}
         """)
         XCTAssertEqual(lesson.studyProgramId, "p1")          // "programId" wins
-        XCTAssertEqual(lesson.dayNumber, 3)                  // "orderIndex" wins
-        XCTAssertEqual(lesson.lessonDescription, "Overview") // JSON key "description"
-        XCTAssertEqual(lesson.estimatedMinutes, 12)
-        XCTAssertEqual(lesson.activities.count, 1)
-        XCTAssertEqual(lesson.activities.first?.type, .read)
+        XCTAssertEqual(lesson.position, 3)
+        XCTAssertEqual(lesson.dayNumber, 3)                  // the alias reads position
+        XCTAssertEqual(lesson.estimatedSeconds, 90)
+        XCTAssertEqual(lesson.draftVersionId, "v2")
+        XCTAssertEqual(lesson.publishedVersionId, "v1")
+        XCTAssertEqual(lesson.activities.map(\.kind), ["text"])
+    }
+
+    func testLessonPositionFallsBackToDayNumber() throws {
+        let lesson: Lesson = try decodeModel("""
+        {"id":"l1","dayNumber":4,"createdAt":"\(isoDate)","updatedAt":"\(isoDate)"}
+        """)
+        XCTAssertEqual(lesson.position, 4)
     }
 
     func testLessonOptionalFieldAbsence() throws {
         let lesson: Lesson = try decodeModel("""
         {"id":"l2","createdAt":"\(isoDate)","updatedAt":"\(isoDate)"}
         """)
-        XCTAssertEqual(lesson.dayNumber, 1)         // QUIRK: missing orderIndex/dayNumber → 1
+        XCTAssertEqual(lesson.position, 1)          // QUIRK: missing position/dayNumber → 1
         XCTAssertTrue(lesson.activities.isEmpty)    // missing activities → []
         XCTAssertNil(lesson.studyProgramId)
         XCTAssertNil(lesson.title)
-    }
-
-    // MARK: - StudyActivity
-
-    func testStudyActivityDecodesNewAPIFormat() throws {
-        let activity: StudyActivity = try decodeModel("""
-        {"id":"a1","activityType":"READ","title":"Scripture","isHelpEnabled":true,
-         "helpTitle":"How to read","readContent":"# Read this","orderNumber":2,
-         "estimatedSeconds":90,
-         "readBlocks":[{"id":"rb1","content":"In the beginning"}]}
-        """)
-        XCTAssertEqual(activity.type, .read)             // "activityType" preferred
-        XCTAssertEqual(activity.status, .pending)        // QUIRK: missing status → .pending
-        XCTAssertEqual(activity.orderNumber, 2)
-        XCTAssertEqual(activity.readContent, "# Read this")
-        XCTAssertEqual(activity.readBlocks?.first?.orderNumber, 1)   // block default
-        XCTAssertEqual(activity.readBlocks?.first?.isLocked, false)  // block default
-        XCTAssertNil(activity.createdAt)
-    }
-
-    func testStudyActivityDecodesLegacyFormatWithDefaults() throws {
-        let activity: StudyActivity = try decodeModel("""
-        {"id":"a2","lessonId":"l1","type":"SOAP","status":"COMPLETE",
-         "passageReference":"Romans 1:1-5"}
-        """)
-        XCTAssertEqual(activity.type, .soap)             // legacy "type" fallback
-        XCTAssertEqual(activity.status, .complete)
-        XCTAssertEqual(activity.orderNumber, 1)          // QUIRK: missing orderNumber → 1
-        XCTAssertEqual(activity.passageReference, "Romans 1:1-5")
-        XCTAssertNil(activity.title)
-        XCTAssertNil(activity.readBlocks)
+        XCTAssertNil(lesson.draftVersionId)
+        XCTAssertNil(lesson.publishedVersionId)
     }
 
     // MARK: - EnrollmentWithProgram

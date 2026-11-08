@@ -14,14 +14,6 @@
 
 import Foundation
 
-/// Distinguishes between program-side data (StudyActivity in `state.activities`)
-/// and enrollment-side data (ScheduledActivity inside `state.scheduledLessons`).
-/// Used by helper methods that return data for either context.
-enum LessonContext {
-    case program
-    case enrollment
-}
-
 /// A recorded, user-relevant failure. Top-level (not nested in AppState)
 /// so the type itself carries no actor isolation.
 /// Rendering these is a deliberate no-op until the error-surface UI is
@@ -101,8 +93,16 @@ final class AppState {
     /// Lessons (loaded per-program)
     let lessons = EntityStore<Lesson>()
 
-    /// Study activities (within lessons)
-    let activities = EntityStore<StudyActivity>()
+    /// Content activities (within lesson versions), loaded by `ActivityActions`. Read them per
+    /// version through `activities(forVersion:)`.
+    let activities = EntityStore<ContentActivity>()
+
+    /// Lesson versions (drafts and published) the leader has opened.
+    let lessonVersions = EntityStore<LessonVersion>()
+
+    /// The media a loaded document names, keyed by media id (§Contract `MediaMap`); merged on every
+    /// load and save, cleared with the session.
+    var mediaMap: [String: MediaMapEntry] = [:]
 
     /// Scheduled lessons (the per-enrollment, dated copies of program lessons).
     /// Holds the **whole** LessonWithActivities aggregate — every read block,
@@ -120,19 +120,6 @@ final class AppState {
 
     /// Media library items
     let mediaLibrary = EntityStore<MediaLibraryItem>()
-
-    /// Leader-authored highlights on locked read blocks, across BOTH activity
-    /// contexts (03 §2). Server data with identity, read by the Read editor,
-    /// the Exegesis editor and the note editor — so it lives here rather than
-    /// in any one view's `@State` (highlighting phase 4.8).
-    ///
-    /// **Deliberately NOT persisted to disk.** Highlights are fetched when an
-    /// editor opens, and a stale cached span renders a wash over the wrong
-    /// words. Keeping them memory-only also settles 09 §X-f outright: there is
-    /// no old-shape cached payload to fail decoding, so no schema-version bump
-    /// is needed. `ContentHighlight` still defaults a missing `style` on decode,
-    /// which covers the API side of the same risk.
-    let contentHighlights = EntityStore<ContentHighlight>()
 
     /// Organization ID (needed for media library API). Mirrors the first
     /// entry of `userOrganizations` for callers that only need the primary org.
@@ -250,25 +237,6 @@ final class AppState {
     /// is added server-side, this array grows without UI changes.
     var userOrganizations: [OrganizationData] = []
 
-    /// Preview URL template returned by GET /api/themes.
-    /// Contains the literal `{activityId}` placeholder the app substitutes
-    /// when opening the canonical web preview inside a WKWebView.
-    /// e.g. `https://app.makeready.org/preview/activity/{activityId}`
-    var previewUrlTemplate: String?
-
-    /// Text themes available for read-block rendering. Loaded once at
-    /// startup (`loadInitialData`) and persisted so downstream UI — theme
-    /// picker, Edit Theme page, swatches — can read synchronously without
-    /// each surface paying for a network round-trip on first open.
-    /// Ordered: "No Theme" (slug "none") first, then alphabetical by name.
-    var textThemes: [TextTheme] = []
-
-    /// Lookup a theme by id. O(n), but n is small (~6 themes).
-    func theme(id: String?) -> TextTheme? {
-        guard let id else { return nil }
-        return textThemes.first { $0.id == id }
-    }
-
     /// Total media count from server (for pagination)
     var mediaLibraryTotal: Int = 0
 
@@ -311,9 +279,6 @@ final class AppState {
 
     /// Program ID → Lesson IDs
     let programLessonIndex = RelationshipIndex()
-
-    /// Lesson ID → Activity IDs
-    let lessonActivityIndex = RelationshipIndex()
 
     /// Program ID → ProgramEnrollment IDs (enrollments with group details)
     let programProgramEnrollmentIndex = RelationshipIndex()
@@ -686,23 +651,44 @@ final class AppState {
     /// Get lessons for a specific program (ordered by day number)
     func lessonsFor(programId: String) -> [Lesson] {
         let lessonIds = programLessonIndex.get(programId)
-        return lessons.getMany(lessonIds).sorted { $0.dayNumber < $1.dayNumber }
+        return lessons.getMany(lessonIds).sorted { $0.position < $1.position }
     }
 
-    /// Get program activities for a specific lesson (ordered by orderNumber)
-    func programActivitiesFor(lessonId: String) -> [StudyActivity] {
-        let activityIds = lessonActivityIndex.get(lessonId)
-        return activities.getMany(activityIds).sorted { $0.orderNumber < $1.orderNumber }
+    /// The activities of one lesson version, in `position` order.
+    func activities(forVersion versionId: String) -> [ContentActivity] {
+        activities.all.filter { $0.lessonVersionId == versionId }.sorted { $0.position < $1.position }
     }
 
-    /// Find the program-lesson id that contains the given activity id by scanning
-    /// the lesson→activity index. Used when only an activity id is in hand and the
-    /// activity's own `lessonId` field is unreliable (it's often nil in the store —
-    /// the relationship lives in the index, not on the entity).
-    func lessonIdContaining(activityId: String) -> String? {
-        lessonActivityIndex.allParentIds.first {
-            lessonActivityIndex.contains(parentId: $0, childId: activityId)
+    /// The program draft of a lesson (the one an edit writes to): a loaded version first, else the
+    /// id the program read carried. Nil when the lesson has no draft yet.
+    func draftVersionId(forLesson lessonId: String) -> String? {
+        let loaded = lessonVersions.all.first {
+            $0.lessonId == lessonId && $0.status == .draft && $0.enrollmentId == nil
         }
+        return loaded?.id ?? lessons[lessonId]?.draftVersionId
+    }
+
+    /// Fold a loaded or written version's media into `mediaMap`.
+    func mergeMedia(_ media: [String: MediaMapEntry]) {
+        mediaMap.merge(media) { _, new in new }
+    }
+
+    /// Rebuild what a lesson row derives from its version's activities: the rail summaries, the
+    /// estimate, the title and the draft id. A mutating Action calls this in the same call.
+    func refreshLessonSummary(versionId: String) {
+        guard let version = lessonVersions[versionId], var lesson = lessons[version.lessonId] else { return }
+        let rows = activities(forVersion: versionId)
+        lesson.activities = rows.map {
+            ActivitySummary(id: $0.id, activityKey: $0.activityKey, position: $0.position,
+                            kind: $0.kind, title: $0.title, document: $0.document)
+        }
+        let seconds = rows.compactMap(\.estimatedSeconds).reduce(0, +)
+        lesson.estimatedSeconds = seconds > 0 ? seconds : version.estimatedSeconds
+        if version.status == .draft {
+            lesson.draftVersionId = version.id
+            lesson.title = version.title ?? lesson.title
+        }
+        lessons.upsert(lesson)
     }
 
     /// Get scheduled activities for a specific scheduled lesson (ordered by orderNumber).
@@ -745,55 +731,6 @@ final class AppState {
     func replaceScheduledActivity(_ activity: ScheduledActivity) -> Bool {
         return mutateScheduledActivity(activityId: activity.id) { existing in
             existing = activity
-        }
-    }
-
-    /// Compute the union of Bible passages currently used in a lesson, derived
-    /// from the lesson aggregate. For multi-block READ activities, only verses
-    /// that are anchored to a live `readBlock.sourceReferenceId` count — bare
-    /// `sourceReferences` without a block are treated as dangling and ignored.
-    /// This matches the user mental model: a verse "exists" only if there's a
-    /// block for it. Used by the Bible reader to highlight already-used verses.
-    func passagesUsedIn(lessonId: String, context: LessonContext) -> [PassageData] {
-        switch context {
-        case .program:
-            return programActivitiesFor(lessonId: lessonId).flatMap { activity -> [PassageData] in
-                var results: [PassageData] = []
-                // Legacy single-passage activities (SOAP, OIA, etc.)
-                if let pd = activity.passageData {
-                    results.append(pd)
-                }
-                // Multi-block READ activities: only verses anchored to a block.
-                results.append(contentsOf: passagesFromBlocks(
-                    blocks: activity.readBlocks,
-                    references: activity.sourceReferences
-                ))
-                return results
-            }
-        case .enrollment:
-            return scheduledActivitiesFor(lessonId: lessonId).flatMap { activity -> [PassageData] in
-                passagesFromBlocks(
-                    blocks: activity.readBlocks,
-                    references: activity.sourceReferences
-                )
-            }
-        }
-    }
-
-    /// Resolve verses from read blocks by following each block's
-    /// `sourceReferenceId` to the matching `ActivitySourceReference`. Blocks
-    /// without a source ref id (e.g. editable text blocks) are skipped, and
-    /// references not pointed to by any block are ignored — that's how we drop
-    /// dangling refs left over from a previous delete.
-    private func passagesFromBlocks(
-        blocks: [ActivityReadBlock]?,
-        references: [ActivitySourceReference]?
-    ) -> [PassageData] {
-        guard let blocks, !blocks.isEmpty else { return [] }
-        let refsById = Dictionary(uniqueKeysWithValues: (references ?? []).map { ($0.id, $0) })
-        return blocks.compactMap { block -> PassageData? in
-            guard let refId = block.sourceReferenceId, let ref = refsById[refId] else { return nil }
-            return PassageData(from: ref)
         }
     }
 
@@ -899,12 +836,10 @@ final class AppState {
         }
         lessons.replaceAll(allLessons)
 
-        // Restore activities
-        var allActivities: [StudyActivity] = []
-        for (_, lessonActivities) in persisted.activitiesByLesson {
-            allActivities.append(contentsOf: lessonActivities)
-        }
-        activities.replaceAll(allActivities)
+        // Restore activities, their versions and the media they name
+        activities.replaceAll(persisted.activities)
+        lessonVersions.replaceAll(persisted.lessonVersions)
+        mediaMap = persisted.mediaMap
 
         // Restore scheduled lessons (full aggregates with their activities inline).
         scheduledLessons.replaceAll(persisted.scheduledLessons)
@@ -921,7 +856,6 @@ final class AppState {
 
         // Restore media library
         mediaLibrary.replaceAll(persisted.mediaLibrary)
-        textThemes = persisted.textThemes
         organizationId = persisted.organizationId
         dashboard = persisted.dashboard
 
@@ -929,7 +863,6 @@ final class AppState {
         programEnrollmentIndex.loadFromDictionary(persisted.programEnrollmentIndex)
         groupEnrollmentIndex.loadFromDictionary(persisted.groupEnrollmentIndex)
         programLessonIndex.loadFromDictionary(persisted.programLessonIndex)
-        lessonActivityIndex.loadFromDictionary(persisted.lessonActivityIndex)
         programProgramEnrollmentIndex.loadFromDictionary(persisted.programProgramEnrollmentIndex)
 
         // Rebuild post and member indexes from data
@@ -1007,11 +940,12 @@ final class AppState {
         members.clear()
         lessons.clear()
         activities.clear()
+        lessonVersions.clear()
+        mediaMap = [:]
         programEnrollments.clear()
         templates.clear()
         notifications.clear()
         mediaLibrary.clear()
-        contentHighlights.clear()
         memberGroupCardsById = [:]
         nonMembersByOrgId = [:]
         organizationId = nil
@@ -1054,7 +988,6 @@ final class AppState {
         programEnrollmentIndex.clear()
         groupEnrollmentIndex.clear()
         programLessonIndex.clear()
-        lessonActivityIndex.clear()
         programProgramEnrollmentIndex.clear()
         groupPostIndex.clear()
         groupMemberIndex.clear()
@@ -1081,10 +1014,6 @@ final class AppState {
         enrollmentFeed = [:]
         enrollmentHomes = [:]
         enrollmentDraftBaselines = [:]
-        // Pre-existing leak, fixed here deliberately (not collateral): themes
-        // are org-scoped too and were never cleared.
-        textThemes = []
-
         calendarEvents = [:]
         calendarEventsLoaded = false
         lessonScheduleMap = [:]
@@ -1127,9 +1056,8 @@ final class AppState {
         async let notificationsTask: () = loadUnreadNotificationCount()
         async let orgTask: () = loadOrganization(generation: generation)
         async let translationsTask: () = loadBibleTranslations()
-        async let themesTask: () = loadTextThemes()
 
-        _ = await (programsTask, templatesTask, notificationsTask, orgTask, translationsTask, themesTask)
+        _ = await (programsTask, templatesTask, notificationsTask, orgTask, translationsTask)
 
         NSLog("📦 AppState: Initial data load complete")
     }
@@ -1208,17 +1136,6 @@ final class AppState {
         organizationId = orgs.first?.id
         userOrganizations = orgs
         if let id = orgs.first?.id { Log.state.info("adopted role-held organization \(id, privacy: .public)") }
-    }
-
-    private func loadTextThemes() async {
-        // Populate `textThemes` at startup so the Edit Theme page, theme
-        // picker, and swatches render synchronously — previously each
-        // surface re-fetched on first open, producing a visible flash.
-        do {
-            _ = try await ThemeActions().loadThemes()
-        } catch {
-            recordError(error, context: "AppState.loadTextThemes")
-        }
     }
 
     private func loadBibleTranslations() async {

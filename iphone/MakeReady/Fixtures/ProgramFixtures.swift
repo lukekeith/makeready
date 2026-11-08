@@ -63,42 +63,16 @@ struct ProgramFixtures {
         )
     ]
 
-    // Sample Lesson models (5 days with SOAP activities)
+    // Sample Lesson models (5 days, no activities)
     static let sampleLessons: [Lesson] = {
         let now = Date()
         let programId = "sample-program"
 
-        return (1...5).map { dayNumber in
-            let lessonId = "sample-lesson-\(dayNumber)"
-            return Lesson(
-                id: lessonId,
+        return (1...5).map { position in
+            Lesson(
+                id: "sample-lesson-\(position)",
                 studyProgramId: programId,
-                dayNumber: dayNumber,
-                activities: [
-                    StudyActivity(
-                        id: "sample-activity-\(dayNumber)",
-                        lessonId: lessonId,
-                        type: .soap,
-                        status: .pending,
-                        orderNumber: 1,
-                        createdAt: now,
-                        updatedAt: now,
-                        videoId: nil,
-                        videoUrl: nil,
-                        video: nil,
-                        passageReference: nil,
-                        bookNumber: nil,
-                        bookName: nil,
-                        chapterStart: nil,
-                        chapterEnd: nil,
-                        verseStart: nil,
-                        verseEnd: nil,
-                        startElementId: nil,
-                        startOffset: nil,
-                        endElementId: nil,
-                        endOffset: nil
-                    )
-                ],
+                position: position,
                 createdAt: now,
                 updatedAt: now
             )

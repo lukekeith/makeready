@@ -18,16 +18,16 @@ struct ActivityNewContainer: View {
     }
 }
 
-/// The picker's strip: the lesson's activities by `orderNumber`, then one placeholder chip, active (D17).
+/// The picker's strip: the lesson's activities by `position`, then one placeholder chip, active (D17).
 enum ActivityNewMapper {
     static let placeholderID = "placeholder"
     static let placeholderLabel = "New activity"
 
     static func state(lesson: Lesson?) -> ActivityNewScreen.State {
-        let activities = (lesson?.activities ?? []).sorted { $0.orderNumber < $1.orderNumber }
+        let activities = (lesson?.activities ?? []).sorted { $0.position < $1.position }
         return ActivityNewScreen.State(
             slideIDs: activities.map(\.id) + [placeholderID],
-            slideLabels: activities.map { $0.title ?? "" } + [placeholderLabel],
+            slideLabels: activities.map(\.title) + [placeholderLabel],
             activeID: placeholderID,
             pendingType: "",
             createFailed: false

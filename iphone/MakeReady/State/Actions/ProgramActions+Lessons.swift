@@ -44,9 +44,7 @@ extension ProgramActions {
         }
 
         // Remove from state
-        let activityIds = state.lessonActivityIndex.get(lessonId)
-        state.activities.removeMany(activityIds)
-        state.lessonActivityIndex.removeAll(parentId: lessonId)
+        forgetLessonVersions(lessonId: lessonId)
         state.lessons.remove(lessonId)
         state.programLessonIndex.remove(parentId: programId, childId: lessonId)
         state.persist()
@@ -58,6 +56,7 @@ extension ProgramActions {
         struct Response: Decodable {
             let success: Bool
             let lesson: Lesson?
+            let media: [String: MediaMapEntry]?
             let error: String?
         }
 
@@ -73,9 +72,10 @@ extension ProgramActions {
 
         state.lessons.upsert(lesson)
         state.programLessonIndex.add(parentId: programId, childId: lesson.id)
+        state.mergeMedia(response.media ?? [:])
         state.persist()
 
-        NSLog("📚 ProgramActions: Added lesson day \(lesson.dayNumber) to program \(programId)")
+        Log.state.info("added lesson \(lesson.position, privacy: .public) to a program")
         return lesson
     }
 
@@ -98,5 +98,16 @@ extension ProgramActions {
         state.persist()
 
         return program
+    }
+}
+
+extension ProgramActions {
+    /// Drop a lesson's loaded versions and their activities from the stores (the lesson is gone).
+    @MainActor
+    func forgetLessonVersions(lessonId: String) {
+        let versionIds = state.lessonVersions.all.filter { $0.lessonId == lessonId }.map(\.id)
+        let activityIds = state.activities.all.filter { versionIds.contains($0.lessonVersionId) }.map(\.id)
+        state.activities.removeMany(activityIds)
+        state.lessonVersions.removeMany(versionIds)
     }
 }

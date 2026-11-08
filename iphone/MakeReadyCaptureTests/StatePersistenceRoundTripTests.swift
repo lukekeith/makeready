@@ -55,22 +55,22 @@ final class StatePersistenceRoundTripTests: XCTestCase {
             createdAt: date, updatedAt: date
         )]
         state.lessonsByProgram = ["p1": [Lesson(
-            id: "l1", studyProgramId: "p1", dayNumber: 1, title: "Day 1",
+            id: "l1", studyProgramId: "p1", position: 1, title: "Day 1",
             createdAt: date, updatedAt: date
         )]]
-        state.activitiesByLesson = ["l1": [StudyActivity(
-            id: "a1", lessonId: "l1", type: .read, status: .pending,
-            orderNumber: 1, title: "Scripture", readContent: "# Read Genesis 1"
-        )]]
+        state.activities = [ContentActivity(
+            id: "a1", lessonVersionId: "v1", activityKey: "k1", position: 0, kind: "text", title: "Scripture",
+            document: ActivityDocument(raw: .object(["schemaVersion": .number(1), "kind": .string("text")])),
+            estimatedSeconds: 30
+        )]
         state.programLessonIndex = ["p1": ["l1"]]
-        state.lessonActivityIndex = ["l1": ["a1"]]
         state.groupEnrollmentIndex = ["g1": ["e1"]]
         state.programEnrollmentIndex = ["p1": ["e1"]]
         state.organizationId = "org-1"
         state.homeTotalMembers = 42
         state.homeTotalGroups = 7
         state.persistedAt = date
-        state.schemaVersion = 1
+        state.schemaVersion = PersistedState.currentSchemaVersion
         return state
     }
 
@@ -127,15 +127,14 @@ final class StatePersistenceRoundTripTests: XCTestCase {
 
         // Lessons / activities keyed by parent
         XCTAssertEqual(decoded.lessonsByProgram["p1"]?.first?.id, "l1")
-        XCTAssertEqual(decoded.lessonsByProgram["p1"]?.first?.dayNumber, 1)
-        XCTAssertEqual(decoded.activitiesByLesson["l1"]?.first?.id, "a1")
-        XCTAssertEqual(decoded.activitiesByLesson["l1"]?.first?.type, .read)
-        XCTAssertEqual(decoded.activitiesByLesson["l1"]?.first?.status, .pending)
-        XCTAssertEqual(decoded.activitiesByLesson["l1"]?.first?.readContent, "# Read Genesis 1")
+        XCTAssertEqual(decoded.lessonsByProgram["p1"]?.first?.position, 1)
+        XCTAssertEqual(decoded.activities.first?.id, "a1")
+        XCTAssertEqual(decoded.activities.first?.kind, "text")
+        XCTAssertEqual(decoded.activities.first?.lessonVersionId, "v1")
+        XCTAssertEqual(decoded.activities.first?.estimatedSeconds, 30)
 
         // Indexes
         XCTAssertEqual(decoded.programLessonIndex, ["p1": ["l1"]])
-        XCTAssertEqual(decoded.lessonActivityIndex, ["l1": ["a1"]])
         XCTAssertEqual(decoded.groupEnrollmentIndex, ["g1": ["e1"]])
         XCTAssertEqual(decoded.programEnrollmentIndex, ["p1": ["e1"]])
 
@@ -144,7 +143,7 @@ final class StatePersistenceRoundTripTests: XCTestCase {
         XCTAssertEqual(decoded.homeTotalMembers, 42)
         XCTAssertEqual(decoded.homeTotalGroups, 7)
         XCTAssertEqual(decoded.persistedAt, date)
-        XCTAssertEqual(decoded.schemaVersion, 1)
+        XCTAssertEqual(decoded.schemaVersion, PersistedState.currentSchemaVersion)
 
         // Empty collections survive
         XCTAssertTrue(decoded.scheduledLessons.isEmpty)
@@ -176,14 +175,14 @@ final class StatePersistenceRoundTripTests: XCTestCase {
     func testDecodingMissingOptionalFieldsFallsBackToDefaults() throws {
         let decoded = try makeDecoder().decode(PersistedState.self, from: Data(minimalJSON.utf8))
         // Backwards-compat optionals default rather than throw:
-        XCTAssertTrue(decoded.activitiesByLesson.isEmpty)
+        XCTAssertTrue(decoded.activities.isEmpty)
+        XCTAssertTrue(decoded.lessonVersions.isEmpty)
+        XCTAssertTrue(decoded.mediaMap.isEmpty)
         XCTAssertTrue(decoded.scheduledLessons.isEmpty)
-        XCTAssertEqual(decoded.lessonActivityIndex, [:])
         XCTAssertTrue(decoded.programEnrollmentsByProgram.isEmpty)
         XCTAssertEqual(decoded.programProgramEnrollmentIndex, [:])
         XCTAssertTrue(decoded.templates.isEmpty)
         XCTAssertTrue(decoded.mediaLibrary.isEmpty)
-        XCTAssertTrue(decoded.textThemes.isEmpty)
         XCTAssertNil(decoded.organizationId)
         XCTAssertTrue(decoded.homeHeatmapData.isEmpty)
         XCTAssertTrue(decoded.homeWeeklyActivity.isEmpty)
@@ -210,5 +209,33 @@ final class StatePersistenceRoundTripTests: XCTestCase {
         XCTAssertThrowsError(
             try makeDecoder().decode(PersistedState.self, from: Data(missingVideos.utf8))
         )
+    }
+
+    // MARK: - D44: a cache from another schema version is discarded
+
+    func testAVersionOneDiskCacheIsDiscardedAtLaunch() {
+        let persistence = StatePersistence.shared
+        persistence.clear()
+        defer { persistence.clear() }
+
+        var old = PersistedState()
+        old.schemaVersion = 1
+        persistence.saveImmediately(old)
+        waitForTheCacheFile(persistence)
+        XCTAssertNil(persistence.load())
+        XCTAssertFalse(persistence.getFileInfo().exists, "the stale file is deleted")
+
+        persistence.saveImmediately(PersistedState())
+        waitForTheCacheFile(persistence)
+        XCTAssertEqual(persistence.load()?.schemaVersion, PersistedState.currentSchemaVersion)
+    }
+
+    /// `saveImmediately` writes on a background queue; wait for the file before reading it back.
+    private func waitForTheCacheFile(_ persistence: StatePersistence) {
+        let deadline = Date().addingTimeInterval(5)
+        while !persistence.getFileInfo().exists && Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.02))
+        }
+        XCTAssertTrue(persistence.getFileInfo().exists)
     }
 }

@@ -128,12 +128,10 @@ final class ProgramActionsTests: XCTestCase {
     func testForgetClearsTheProgramItsLessonsAndItsEnrollmentsIndex() {
         state.programs.upsert(StudyProgram(id: "p1", name: "Walk"))
         state.programLessonIndex.add(parentId: "p1", childId: "l1")
-        state.lessonActivityIndex.add(parentId: "l1", childId: "a1")
         state.programEnrollmentIndex.add(parentId: "p1", childId: "e1")
         actions.forgetProgram(id: "p1")
         XCTAssertNil(state.programs["p1"])
         XCTAssertTrue(state.programLessonIndex.get("p1").isEmpty)
-        XCTAssertTrue(state.lessonActivityIndex.get("l1").isEmpty)
         XCTAssertTrue(state.programEnrollmentIndex.get("p1").isEmpty)
     }
 
@@ -149,7 +147,7 @@ final class ProgramActionsTests: XCTestCase {
     // MARK: - Every lesson page (D5)
 
     private func lessonJSON(_ id: String, day: Int) -> String {
-        #"{"id":"\#(id)","programId":"p1","dayNumber":\#(day),"title":"Day \#(day)","activities":[],"createdAt":"2026-10-28T00:00:00Z","updatedAt":"2026-10-28T00:00:00Z"}"#
+        #"{"id":"\#(id)","programId":"p1","position":\#(day),"title":"Day \#(day)","activities":[],"createdAt":"2026-10-28T00:00:00Z","updatedAt":"2026-10-28T00:00:00Z"}"#
     }
 
     func testLoadProgramPagesByHasMoreAndReplacesTheLessonIndex() async throws {
@@ -181,13 +179,14 @@ final class ProgramActionsTests: XCTestCase {
 
     private func seedTwoLessons() {
         for (id, day) in [("l1", 1), ("l2", 2)] {
-            let json = #"{"id":"\#(id)","programId":"p1","dayNumber":\#(day),"title":"Day \#(day)","activities":[],"createdAt":"2026-10-28T00:00:00Z","updatedAt":"2026-10-28T00:00:00Z"}"#
+            let json = #"{"id":"\#(id)","programId":"p1","position":\#(day),"title":"Day \#(day)","activities":[],"createdAt":"2026-10-28T00:00:00Z","updatedAt":"2026-10-28T00:00:00Z"}"#
             state.lessons.upsert(try! JSONDecoder.apiDecoder.decode(Lesson.self, from: Data(json.utf8)))
             state.programLessonIndex.add(parentId: "p1", childId: id)
         }
-        let activity = #"{"id":"a1","lessonId":"l1","type":"READ","orderNumber":1}"#
-        state.activities.upsert(try! JSONDecoder.apiDecoder.decode(StudyActivity.self, from: Data(activity.utf8)))
-        state.lessonActivityIndex.add(parentId: "l1", childId: "a1")
+        let version = #"{"id":"v1","lessonId":"l1","enrollmentId":null,"number":1,"status":"DRAFT","title":null,"estimatedSeconds":null,"publishedAt":null}"#
+        state.lessonVersions.upsert(try! JSONDecoder.apiDecoder.decode(LessonVersion.self, from: Data(version.utf8)))
+        let activity = #"{"id":"a1","lessonVersionId":"v1","activityKey":"k","position":0,"kind":"text","title":"Text","document":{"schemaVersion":1,"kind":"text"},"estimatedSeconds":null}"#
+        state.activities.upsert(try! JSONDecoder.apiDecoder.decode(ContentActivity.self, from: Data(activity.utf8)))
     }
 
     func testDeleteLessonRemovesItAndSendsNoRefresh() async throws {
@@ -196,7 +195,8 @@ final class ProgramActionsTests: XCTestCase {
         try await actions.deleteLesson(programId: "p1", lessonId: "l1")
         XCTAssertEqual(state.lessonsFor(programId: "p1").map(\.id), ["l2"])
         XCTAssertNil(state.activities["a1"])
-        XCTAssertTrue(state.programActivitiesFor(lessonId: "l1").isEmpty)
+        XCTAssertNil(state.lessonVersions["v1"])
+        XCTAssertTrue(state.activities(forVersion: "v1").isEmpty)
         XCTAssertEqual(api.calls.filter { $0.method == "GET" }.count, 0)
     }
 

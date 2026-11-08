@@ -289,31 +289,37 @@ struct ProgramCount: Codable, Hashable {
     let enrollments: Int?
 }
 
-/// A single day/lesson within a study program
-///
-/// Supports both the new API format (programId, orderIndex, title, description) and
-/// legacy cached data (studyProgramId, dayNumber).
+/// A single lesson (day) within a study program, as `GET /api/programs/:id` carries it
+/// (SPEC §Contract): its position, the title and estimate of the version shown (the draft, else the
+/// latest published), both version ids, and that version's activities as rail summaries.
 struct Lesson: Codable, Identifiable, Equatable {
     static func == (lhs: Lesson, rhs: Lesson) -> Bool {
-        lhs.id == rhs.id && lhs.dayNumber == rhs.dayNumber && lhs.title == rhs.title && lhs.updatedAt == rhs.updatedAt && lhs.activities.count == rhs.activities.count
+        lhs.id == rhs.id && lhs.position == rhs.position && lhs.title == rhs.title
+            && lhs.estimatedSeconds == rhs.estimatedSeconds && lhs.draftVersionId == rhs.draftVersionId
+            && lhs.publishedVersionId == rhs.publishedVersionId && lhs.updatedAt == rhs.updatedAt
+            && lhs.activities == rhs.activities
     }
 
     let id: String
     var studyProgramId: String?  // Optional when nested in program response
-    var dayNumber: Int
-    var title: String?           // New API: lesson title
-    var lessonDescription: String?  // New API: lesson description
-    var estimatedMinutes: Int?   // Calculated time estimate in minutes
-    var activities: [StudyActivity]
+    var position: Int
+    var title: String?
+    var estimatedSeconds: Int?
+    var draftVersionId: String?
+    var publishedVersionId: String?
+    var activities: [ActivitySummary]
     let createdAt: Date
     var updatedAt: Date
+
+    /// The 1.0 name for `position`, kept for readers that label a lesson "Day N".
+    var dayNumber: Int { position }
 
     // MARK: - CodingKeys
 
     enum CodingKeys: String, CodingKey {
         case id, studyProgramId, programId
-        case dayNumber, orderIndex
-        case title, description, estimatedMinutes
+        case position, dayNumber
+        case title, estimatedSeconds, draftVersionId, publishedVersionId
         case activities, createdAt, updatedAt
     }
 
@@ -323,25 +329,22 @@ struct Lesson: Codable, Identifiable, Equatable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
         id = try container.decode(String.self, forKey: .id)
-
-        // studyProgramId: try "programId" (new API) first, fall back to "studyProgramId" (cached)
         if let pid = try container.decodeIfPresent(String.self, forKey: .programId) {
             studyProgramId = pid
         } else {
             studyProgramId = try container.decodeIfPresent(String.self, forKey: .studyProgramId)
         }
-
-        // dayNumber: try "orderIndex" (new API) first, fall back to "dayNumber" (cached)
-        if let idx = try container.decodeIfPresent(Int.self, forKey: .orderIndex) {
-            dayNumber = idx
+        // The server sends `position` and, for older readers, the same number as `dayNumber`.
+        if let value = try container.decodeIfPresent(Int.self, forKey: .position) {
+            position = value
         } else {
-            dayNumber = try container.decodeIfPresent(Int.self, forKey: .dayNumber) ?? 1
+            position = try container.decodeIfPresent(Int.self, forKey: .dayNumber) ?? 1
         }
-
         title = try container.decodeIfPresent(String.self, forKey: .title)
-        lessonDescription = try container.decodeIfPresent(String.self, forKey: .description)
-        estimatedMinutes = try container.decodeIfPresent(Int.self, forKey: .estimatedMinutes)
-        activities = try container.decodeIfPresent([StudyActivity].self, forKey: .activities) ?? []
+        estimatedSeconds = try container.decodeIfPresent(Int.self, forKey: .estimatedSeconds)
+        draftVersionId = try container.decodeIfPresent(String.self, forKey: .draftVersionId)
+        publishedVersionId = try container.decodeIfPresent(String.self, forKey: .publishedVersionId)
+        activities = try container.decodeIfPresent([ActivitySummary].self, forKey: .activities) ?? []
         createdAt = try container.decode(Date.self, forKey: .createdAt)
         updatedAt = try container.decode(Date.self, forKey: .updatedAt)
     }
@@ -350,15 +353,13 @@ struct Lesson: Codable, Identifiable, Equatable {
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-
         try container.encode(id, forKey: .id)
-        try container.encodeIfPresent(studyProgramId, forKey: .programId)  // New format
-        try container.encodeIfPresent(studyProgramId, forKey: .studyProgramId)  // Cache compat
-        try container.encode(dayNumber, forKey: .orderIndex)  // New format
-        try container.encode(dayNumber, forKey: .dayNumber)   // Cache compat
+        try container.encodeIfPresent(studyProgramId, forKey: .programId)
+        try container.encode(position, forKey: .position)
         try container.encodeIfPresent(title, forKey: .title)
-        try container.encodeIfPresent(lessonDescription, forKey: .description)
-        try container.encodeIfPresent(estimatedMinutes, forKey: .estimatedMinutes)
+        try container.encodeIfPresent(estimatedSeconds, forKey: .estimatedSeconds)
+        try container.encodeIfPresent(draftVersionId, forKey: .draftVersionId)
+        try container.encodeIfPresent(publishedVersionId, forKey: .publishedVersionId)
         try container.encode(activities, forKey: .activities)
         try container.encode(createdAt, forKey: .createdAt)
         try container.encode(updatedAt, forKey: .updatedAt)
@@ -369,39 +370,25 @@ struct Lesson: Codable, Identifiable, Equatable {
     init(
         id: String,
         studyProgramId: String? = nil,
-        dayNumber: Int = 1,
+        position: Int = 1,
         title: String? = nil,
-        lessonDescription: String? = nil,
-        estimatedMinutes: Int? = nil,
-        activities: [StudyActivity] = [],
+        estimatedSeconds: Int? = nil,
+        draftVersionId: String? = nil,
+        publishedVersionId: String? = nil,
+        activities: [ActivitySummary] = [],
         createdAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
         self.id = id
         self.studyProgramId = studyProgramId
-        self.dayNumber = dayNumber
+        self.position = position
         self.title = title
-        self.lessonDescription = lessonDescription
-        self.estimatedMinutes = estimatedMinutes
+        self.estimatedSeconds = estimatedSeconds
+        self.draftVersionId = draftVersionId
+        self.publishedVersionId = publishedVersionId
         self.activities = activities
         self.createdAt = createdAt
         self.updatedAt = updatedAt
-    }
-
-    /// Whether this lesson is ready (has at least one activity and all activities are configured)
-    var isReady: Bool {
-        guard !activities.isEmpty else { return false }
-        return activities.allSatisfy { $0.isConfigured }
-    }
-
-    /// Total estimated minutes for this lesson, computed from activity estimates.
-    /// Falls back to the server-provided `estimatedMinutes` if no activity has an estimate.
-    var totalEstimatedMinutes: Int? {
-        let totalSeconds = activities.compactMap(\.estimatedSeconds).reduce(0, +)
-        if totalSeconds > 0 {
-            return max(1, Int(round(Double(totalSeconds) / 60.0)))
-        }
-        return estimatedMinutes
     }
 }
 
@@ -609,346 +596,6 @@ struct ActivityReadBlock: Codable, Identifiable {
     }
 }
 
-/// An activity within a lesson (e.g., study prompt, reading content, or video)
-/// Named StudyActivity to avoid conflict with LessonActivity view component
-///
-/// Supports both the legacy API format (type/status/passageReference) and the new format
-/// (activityType/title/helpTitle/readContent/sourceReferences).
-struct StudyActivity: Codable, Identifiable {
-    let id: String
-    let lessonId: String?  // Optional when nested in lesson response
-    var type: ActivityType
-    var status: ActivityStatus
-    var orderNumber: Int
-    let createdAt: Date?   // Optional when nested in lesson response
-    var updatedAt: Date?   // Optional when nested in lesson response
-
-    // New API fields
-    var title: String?             // Human-readable activity title from API (e.g., "Scripture", "Observation")
-    var isHelpEnabled: Bool?       // Whether context help is enabled
-    var helpTitle: String?         // Helper text title
-    var helpDescription: String?   // Helper text body
-    var helpAlwaysVisible: Bool?   // Show helper expanded
-    var helpIcon: String?          // Icon identifier
-    var placeholder: String?       // Custom placeholder text for USER_INPUT activities
-    var readContent: String?       // Markdown content for READ activities
-    var sourceReferences: [ActivitySourceReference]?  // Source references
-    var readBlocks: [ActivityReadBlock]?              // Read blocks for multi-block READ activities
-
-    // Theme override (applies to all read blocks in this activity)
-    var themeId: String?
-
-    // Video reference (for VIDEO type activities)
-    var videoId: String?           // Reference to Video record
-    var videoUrl: String?          // Cloudflare Stream playback URL
-    var video: EmbeddedVideo?      // Full video object with thumbnailUrl
-
-    // YouTube reference (for YOUTUBE type activities)
-    var youtubeUrl: String?           // Full YouTube URL
-    var youtubeVideoId: String?       // Extracted YouTube video ID
-    var youtubeStartSeconds: Int?     // Start time in seconds
-    var youtubeEndSeconds: Int?       // End time in seconds
-    var youtubeThumbnailUrl: String?  // Thumbnail URL from oEmbed
-
-    // Legacy passage fields (kept for backward compat with cached data)
-    var passageReference: String?  // "Romans 1:1-5" or "Romans 1:28 - 2:4"
-    var bookNumber: Int?           // 1-66
-    var bookName: String?          // "Romans"
-    var chapterStart: Int?         // Starting chapter
-    var chapterEnd: Int?           // Ending chapter (nil if same as start)
-    var verseStart: Int?           // Starting verse
-    var verseEnd: Int?             // Ending verse
-    var startElementId: String?    // "45-1-1" (bookNum-chapter-verse)
-    var startOffset: Int?          // Character offset in start verse
-    var endElementId: String?      // "45-1-5"
-    var endOffset: Int?            // Character offset in end verse (exclusive)
-
-    // Time estimate
-    var estimatedSeconds: Int?     // Calculated time estimate in seconds
-
-    // MARK: - CodingKeys
-
-    enum CodingKeys: String, CodingKey {
-        case id, lessonId, type, activityType, status, orderNumber
-        case createdAt, updatedAt
-        case title, isHelpEnabled, helpTitle, helpDescription, helpAlwaysVisible, helpIcon, placeholder
-        case readContent, sourceReferences, readBlocks
-        case themeId
-        case videoId, videoUrl, video
-        case youtubeUrl, youtubeVideoId, youtubeStartSeconds, youtubeEndSeconds, youtubeThumbnailUrl
-        case passageReference, bookNumber, bookName
-        case chapterStart, chapterEnd, verseStart, verseEnd
-        case startElementId, startOffset, endElementId, endOffset
-        case estimatedSeconds
-    }
-
-    // MARK: - Custom Decoder
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        id = try container.decode(String.self, forKey: .id)
-        lessonId = try container.decodeIfPresent(String.self, forKey: .lessonId)
-        orderNumber = try container.decodeIfPresent(Int.self, forKey: .orderNumber) ?? 1
-
-        // Handle activityType (new API) vs type (legacy/cached data)
-        if let activityType = try container.decodeIfPresent(ActivityType.self, forKey: .activityType) {
-            type = activityType
-        } else {
-            type = try container.decode(ActivityType.self, forKey: .type)
-        }
-
-        // Status defaults to .pending when not present (new API doesn't include it)
-        status = try container.decodeIfPresent(ActivityStatus.self, forKey: .status) ?? .pending
-
-        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt)
-        updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt)
-
-        // New API fields
-        title = try container.decodeIfPresent(String.self, forKey: .title)
-        isHelpEnabled = try container.decodeIfPresent(Bool.self, forKey: .isHelpEnabled)
-        helpTitle = try container.decodeIfPresent(String.self, forKey: .helpTitle)
-        helpDescription = try container.decodeIfPresent(String.self, forKey: .helpDescription)
-        helpAlwaysVisible = try container.decodeIfPresent(Bool.self, forKey: .helpAlwaysVisible)
-        helpIcon = try container.decodeIfPresent(String.self, forKey: .helpIcon)
-        placeholder = try container.decodeIfPresent(String.self, forKey: .placeholder)
-        readContent = try container.decodeIfPresent(String.self, forKey: .readContent)
-        sourceReferences = try container.decodeIfPresent([ActivitySourceReference].self, forKey: .sourceReferences)
-        readBlocks = try container.decodeIfPresent([ActivityReadBlock].self, forKey: .readBlocks)
-
-        // Theme override
-        themeId = try container.decodeIfPresent(String.self, forKey: .themeId)
-
-        // Video fields
-        videoId = try container.decodeIfPresent(String.self, forKey: .videoId)
-        videoUrl = try container.decodeIfPresent(String.self, forKey: .videoUrl)
-        video = try container.decodeIfPresent(EmbeddedVideo.self, forKey: .video)
-
-        // YouTube fields
-        youtubeUrl = try container.decodeIfPresent(String.self, forKey: .youtubeUrl)
-        youtubeVideoId = try container.decodeIfPresent(String.self, forKey: .youtubeVideoId)
-        youtubeStartSeconds = try container.decodeIfPresent(Int.self, forKey: .youtubeStartSeconds)
-        youtubeEndSeconds = try container.decodeIfPresent(Int.self, forKey: .youtubeEndSeconds)
-        youtubeThumbnailUrl = try container.decodeIfPresent(String.self, forKey: .youtubeThumbnailUrl)
-
-        // Legacy passage fields
-        passageReference = try container.decodeIfPresent(String.self, forKey: .passageReference)
-        bookNumber = try container.decodeIfPresent(Int.self, forKey: .bookNumber)
-        bookName = try container.decodeIfPresent(String.self, forKey: .bookName)
-        chapterStart = try container.decodeIfPresent(Int.self, forKey: .chapterStart)
-        chapterEnd = try container.decodeIfPresent(Int.self, forKey: .chapterEnd)
-        verseStart = try container.decodeIfPresent(Int.self, forKey: .verseStart)
-        verseEnd = try container.decodeIfPresent(Int.self, forKey: .verseEnd)
-        startElementId = try container.decodeIfPresent(String.self, forKey: .startElementId)
-        startOffset = try container.decodeIfPresent(Int.self, forKey: .startOffset)
-        endElementId = try container.decodeIfPresent(String.self, forKey: .endElementId)
-        endOffset = try container.decodeIfPresent(Int.self, forKey: .endOffset)
-        estimatedSeconds = try container.decodeIfPresent(Int.self, forKey: .estimatedSeconds)
-    }
-
-    // MARK: - Custom Encoder
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-
-        try container.encode(id, forKey: .id)
-        try container.encodeIfPresent(lessonId, forKey: .lessonId)
-        try container.encode(type, forKey: .activityType)  // Always encode as activityType
-        try container.encode(status, forKey: .status)
-        try container.encode(orderNumber, forKey: .orderNumber)
-        try container.encodeIfPresent(createdAt, forKey: .createdAt)
-        try container.encodeIfPresent(updatedAt, forKey: .updatedAt)
-
-        // New API fields
-        try container.encodeIfPresent(title, forKey: .title)
-        try container.encodeIfPresent(isHelpEnabled, forKey: .isHelpEnabled)
-        try container.encodeIfPresent(helpTitle, forKey: .helpTitle)
-        try container.encodeIfPresent(helpDescription, forKey: .helpDescription)
-        try container.encodeIfPresent(helpAlwaysVisible, forKey: .helpAlwaysVisible)
-        try container.encodeIfPresent(helpIcon, forKey: .helpIcon)
-        try container.encodeIfPresent(readContent, forKey: .readContent)
-        try container.encodeIfPresent(sourceReferences, forKey: .sourceReferences)
-        try container.encodeIfPresent(readBlocks, forKey: .readBlocks)
-
-        // Theme override
-        try container.encodeIfPresent(themeId, forKey: .themeId)
-
-        // Video fields
-        try container.encodeIfPresent(videoId, forKey: .videoId)
-        try container.encodeIfPresent(videoUrl, forKey: .videoUrl)
-        try container.encodeIfPresent(video, forKey: .video)
-
-        // YouTube fields
-        try container.encodeIfPresent(youtubeUrl, forKey: .youtubeUrl)
-        try container.encodeIfPresent(youtubeVideoId, forKey: .youtubeVideoId)
-        try container.encodeIfPresent(youtubeStartSeconds, forKey: .youtubeStartSeconds)
-        try container.encodeIfPresent(youtubeEndSeconds, forKey: .youtubeEndSeconds)
-        try container.encodeIfPresent(youtubeThumbnailUrl, forKey: .youtubeThumbnailUrl)
-
-        // Legacy passage fields
-        try container.encodeIfPresent(passageReference, forKey: .passageReference)
-        try container.encodeIfPresent(bookNumber, forKey: .bookNumber)
-        try container.encodeIfPresent(bookName, forKey: .bookName)
-        try container.encodeIfPresent(chapterStart, forKey: .chapterStart)
-        try container.encodeIfPresent(chapterEnd, forKey: .chapterEnd)
-        try container.encodeIfPresent(verseStart, forKey: .verseStart)
-        try container.encodeIfPresent(verseEnd, forKey: .verseEnd)
-        try container.encodeIfPresent(startElementId, forKey: .startElementId)
-        try container.encodeIfPresent(startOffset, forKey: .startOffset)
-        try container.encodeIfPresent(endElementId, forKey: .endElementId)
-        try container.encodeIfPresent(endOffset, forKey: .endOffset)
-        try container.encodeIfPresent(estimatedSeconds, forKey: .estimatedSeconds)
-    }
-
-    // MARK: - Memberwise Init (for previews and programmatic creation)
-
-    init(
-        id: String,
-        lessonId: String? = nil,
-        type: ActivityType,
-        status: ActivityStatus = .pending,
-        orderNumber: Int,
-        createdAt: Date? = nil,
-        updatedAt: Date? = nil,
-        title: String? = nil,
-        isHelpEnabled: Bool? = nil,
-        helpTitle: String? = nil,
-        helpDescription: String? = nil,
-        helpAlwaysVisible: Bool? = nil,
-        helpIcon: String? = nil,
-        placeholder: String? = nil,
-        readContent: String? = nil,
-        sourceReferences: [ActivitySourceReference]? = nil,
-        readBlocks: [ActivityReadBlock]? = nil,
-        themeId: String? = nil,
-        videoId: String? = nil,
-        videoUrl: String? = nil,
-        video: EmbeddedVideo? = nil,
-        passageReference: String? = nil,
-        bookNumber: Int? = nil,
-        bookName: String? = nil,
-        chapterStart: Int? = nil,
-        chapterEnd: Int? = nil,
-        verseStart: Int? = nil,
-        verseEnd: Int? = nil,
-        startElementId: String? = nil,
-        startOffset: Int? = nil,
-        endElementId: String? = nil,
-        endOffset: Int? = nil
-    ) {
-        self.id = id
-        self.lessonId = lessonId
-        self.type = type
-        self.status = status
-        self.orderNumber = orderNumber
-        self.createdAt = createdAt
-        self.updatedAt = updatedAt
-        self.title = title
-        self.isHelpEnabled = isHelpEnabled
-        self.helpTitle = helpTitle
-        self.helpDescription = helpDescription
-        self.helpAlwaysVisible = helpAlwaysVisible
-        self.helpIcon = helpIcon
-        self.placeholder = placeholder
-        self.readContent = readContent
-        self.sourceReferences = sourceReferences
-        self.readBlocks = readBlocks
-        self.themeId = themeId
-        self.videoId = videoId
-        self.videoUrl = videoUrl
-        self.video = video
-        self.passageReference = passageReference
-        self.bookNumber = bookNumber
-        self.bookName = bookName
-        self.chapterStart = chapterStart
-        self.chapterEnd = chapterEnd
-        self.verseStart = verseStart
-        self.verseEnd = verseEnd
-        self.startElementId = startElementId
-        self.startOffset = startOffset
-        self.endElementId = endElementId
-        self.endOffset = endOffset
-    }
-
-    // MARK: - Computed Properties
-
-    // Computed property for backward compatibility
-    var passageData: PassageData? {
-        guard let bookNumber = bookNumber,
-              let bookName = bookName,
-              let chapterStart = chapterStart,
-              let verseStart = verseStart,
-              let verseEnd = verseEnd else {
-            return nil
-        }
-        return PassageData(
-            bookNumber: bookNumber,
-            bookName: bookName,
-            chapterStart: chapterStart,
-            chapterEnd: chapterEnd,
-            verseStart: verseStart,
-            verseEnd: verseEnd
-        )
-    }
-
-    // Computed property for highlight range
-    var highlightRange: HighlightRange? {
-        guard let startElementId = startElementId,
-              let startOffset = startOffset,
-              let endElementId = endElementId,
-              let endOffset = endOffset else {
-            return nil
-        }
-        return HighlightRange(
-            startElementId: startElementId,
-            startOffset: startOffset,
-            endElementId: endElementId,
-            endOffset: endOffset
-        )
-    }
-
-    /// Whether this activity has the required content assigned
-    /// - VIDEO type requires a videoId
-    /// - READ type is configured if it has readContent
-    /// - USER_INPUT type is always considered configured (users fill in during study)
-    /// - Legacy study types (SOAP, OIA, DBS, HEAR) require a passageReference
-    var isConfigured: Bool {
-        switch type {
-        case .video:
-            return (videoId != nil && !videoId!.isEmpty) || (videoUrl != nil && !videoUrl!.isEmpty)
-        case .youtube:
-            return youtubeUrl != nil && !youtubeUrl!.isEmpty
-        case .read:
-            // When the payload carries the block list (even an empty array),
-            // block content is the only readiness signal: a read activity with
-            // zero blocks is the intentional "incomplete" state the server now
-            // allows (it blocks publishing but renders the not-ready border).
-            // Stale `readContent` is left behind when the last block is deleted,
-            // so it can't be trusted once blocks are present. Fall back to
-            // legacy `readContent` only for older cached data that predates the
-            // `readBlocks` field (decoded as nil, not an empty array).
-            if let blocks = readBlocks {
-                return blocks.contains { ($0.content ?? "").isEmpty == false }
-            }
-            return readContent != nil && !readContent!.isEmpty
-        case .exegesis:
-            guard let t = title, !t.isEmpty else { return false }
-            guard let blocks = readBlocks,
-                  let locked = blocks.first(where: { $0.isLocked }),
-                  let content = locked.content, !content.isEmpty else {
-                return false
-            }
-            // Highlights are derived from EXEGESIS highlight rows and cached
-            // as block.selections for rendering.
-            return (locked.selections ?? []).isEmpty == false
-        case .userInput:
-            return title != nil && !title!.isEmpty
-        case .soap, .oia, .dbs, .hear:
-            return passageReference != nil && !passageReference!.isEmpty
-        }
-    }
-}
-
 // MARK: - Activity Enums
 
 /// Types of study activities
@@ -1074,25 +721,6 @@ struct PassageData: Codable, Equatable {
 
 }
 
-// MARK: - Highlight Range
-
-// `HighlightRange` moved to Services/Highlighting/HighlightRange.swift
-// (2026-08-04) so the highlighting service owns both coordinate systems and the
-// conversion between them. Same name, same fields, same Codable shape.
-
-// MARK: - Program Activity Context
-
-/// Context for an activity within a program, used for showing all highlights in the reader
-/// Includes the day number for display in the reader
-struct ProgramActivityContext: Identifiable {
-    let activityId: String
-    let dayNumber: Int
-    let passageData: PassageData
-    let highlightRange: HighlightRange
-
-    var id: String { activityId }
-}
-
 // MARK: - Pagination Models
 
 /// Pagination metadata returned with paginated responses
@@ -1112,6 +740,8 @@ struct CreateProgramResponse: Codable {
     let program: StudyProgram?
     /// Pagination info (only present when fetching single program with paginated lessons)
     let pagination: PaginationInfo?
+    /// `GET /api/programs/:id` (§Contract): the media the lessons' documents name.
+    let media: [String: MediaMapEntry]?
     let error: String?
 }
 
@@ -1119,13 +749,6 @@ struct CreateProgramResponse: Codable {
 struct ListProgramsResponse: Codable {
     let success: Bool
     let programs: [StudyProgram]?
-    let error: String?
-}
-
-/// Response from PATCH /api/activities/:id and POST /api/.../activities
-struct UpdateActivityResponse: Codable {
-    let success: Bool
-    let activity: StudyActivity?
     let error: String?
 }
 

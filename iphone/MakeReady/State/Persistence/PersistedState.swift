@@ -35,8 +35,14 @@ struct PersistedState: Codable {
     /// Lessons (keyed by programId) - for loaded program details
     var lessonsByProgram: [String: [Lesson]]
 
-    /// Activities (keyed by lessonId) - for lesson details
-    var activitiesByLesson: [String: [StudyActivity]]
+    /// Content activities of the lesson versions the leader opened
+    var activities: [ContentActivity]
+
+    /// The lesson versions those activities belong to
+    var lessonVersions: [LessonVersion]
+
+    /// The media their documents name, keyed by media id
+    var mediaMap: [String: MediaMapEntry]
 
     /// Scheduled lessons (full aggregates with their activities + readBlocks +
     /// sourceReferences inlined). The single source of truth for scheduled-side
@@ -51,11 +57,6 @@ struct PersistedState: Codable {
 
     /// Media library items
     var mediaLibrary: [MediaLibraryItem]
-
-    /// Text themes available for read-block rendering. Persisted so the
-    /// theme picker + Edit Theme page can render from cache on next launch
-    /// before the network refresh lands.
-    var textThemes: [TextTheme]
 
     /// Organization ID
     var organizationId: String?
@@ -73,9 +74,6 @@ struct PersistedState: Codable {
 
     /// Program ID → Lesson IDs
     var programLessonIndex: [String: [String]]
-
-    /// Lesson ID → Activity IDs
-    var lessonActivityIndex: [String: [String]]
 
     /// Program ID → ProgramEnrollment IDs
     var programProgramEnrollmentIndex: [String: [String]]
@@ -104,8 +102,12 @@ struct PersistedState: Codable {
     /// When this state was persisted
     var persistedAt: Date
 
-    /// Schema version for future migrations
+    /// Schema version. A cache written under any other version is discarded at launch (D44).
     var schemaVersion: Int
+
+    /// 2: lessons carry rail summaries, `activities` is `[ContentActivity]`, themes and the
+    /// lesson→activity index are gone (text-activity D44).
+    static let currentSchemaVersion = 2
 
     // MARK: - Initialization
 
@@ -118,18 +120,18 @@ struct PersistedState: Codable {
         self.postsByGroup = [:]
         self.membersByGroup = [:]
         self.lessonsByProgram = [:]
-        self.activitiesByLesson = [:]
+        self.activities = []
+        self.lessonVersions = []
+        self.mediaMap = [:]
         self.scheduledLessons = []
         self.programEnrollmentsByProgram = [:]
         self.templates = []
         self.mediaLibrary = []
-        self.textThemes = []
         self.organizationId = nil
         self.dashboard = DashboardSnapshot()
         self.programEnrollmentIndex = [:]
         self.groupEnrollmentIndex = [:]
         self.programLessonIndex = [:]
-        self.lessonActivityIndex = [:]
         self.programProgramEnrollmentIndex = [:]
         self.homeHeatmapData = []
         self.homeWeeklyActivity = []
@@ -137,7 +139,7 @@ struct PersistedState: Codable {
         self.homeTotalGroups = 0
         self.calendarEvents = [:]
         self.persistedAt = Date()
-        self.schemaVersion = 1
+        self.schemaVersion = Self.currentSchemaVersion
     }
 
     /// Create from current AppState. Main-actor isolated because it reads
@@ -172,13 +174,9 @@ struct PersistedState: Codable {
         }
         self.lessonsByProgram = lessons
 
-        // Activities are stored per-lesson
-        var activities: [String: [StudyActivity]] = [:]
-        for lessonId in appState.lessonActivityIndex.allParentIds {
-            let activityIds = appState.lessonActivityIndex.get(lessonId)
-            activities[lessonId] = activityIds.compactMap { appState.activities[$0] }
-        }
-        self.activitiesByLesson = activities
+        self.activities = appState.activities.all
+        self.lessonVersions = appState.lessonVersions.all
+        self.mediaMap = appState.mediaMap
 
         // Scheduled lessons are stored as full aggregates with their activities,
         // readBlocks, and sourceReferences inline.
@@ -211,7 +209,6 @@ struct PersistedState: Codable {
             self.mediaLibrary.count,
             MediaActions.libraryPageSize
         )
-        self.textThemes = appState.textThemes
         self.organizationId = appState.organizationId
         self.dashboard = appState.dashboard
 
@@ -219,7 +216,6 @@ struct PersistedState: Codable {
         self.programEnrollmentIndex = appState.programEnrollmentIndex.toDictionary()
         self.groupEnrollmentIndex = appState.groupEnrollmentIndex.toDictionary()
         self.programLessonIndex = appState.programLessonIndex.toDictionary()
-        self.lessonActivityIndex = appState.lessonActivityIndex.toDictionary()
         self.programProgramEnrollmentIndex = appState.programProgramEnrollmentIndex.toDictionary()
 
         self.homeHeatmapData = appState.homeHeatmapData
@@ -230,7 +226,7 @@ struct PersistedState: Codable {
         self.calendarEvents = appState.calendarEvents
 
         self.persistedAt = Date()
-        self.schemaVersion = 1
+        self.schemaVersion = Self.currentSchemaVersion
     }
 
     // MARK: - Coding Keys
@@ -243,18 +239,18 @@ struct PersistedState: Codable {
         case postsByGroup
         case membersByGroup
         case lessonsByProgram
-        case activitiesByLesson
+        case activities
+        case lessonVersions
+        case mediaMap
         case scheduledLessons
         case programEnrollmentsByProgram
         case templates
         case mediaLibrary
-        case textThemes
         case organizationId
         case dashboard
         case programEnrollmentIndex
         case groupEnrollmentIndex
         case programLessonIndex
-        case lessonActivityIndex
         case programProgramEnrollmentIndex
         case homeHeatmapData
         case homeWeeklyActivity
@@ -285,16 +281,16 @@ struct PersistedState: Codable {
         self.schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
 
         // Optional fields (for backwards compatibility with older persisted states)
-        self.activitiesByLesson = try container.decodeIfPresent([String: [StudyActivity]].self, forKey: .activitiesByLesson) ?? [:]
+        self.activities = try container.decodeIfPresent([ContentActivity].self, forKey: .activities) ?? []
+        self.lessonVersions = try container.decodeIfPresent([LessonVersion].self, forKey: .lessonVersions) ?? []
+        self.mediaMap = try container.decodeIfPresent([String: MediaMapEntry].self, forKey: .mediaMap) ?? [:]
         self.scheduledLessons = try container.decodeIfPresent([LessonWithActivities].self, forKey: .scheduledLessons) ?? []
-        self.lessonActivityIndex = try container.decodeIfPresent([String: [String]].self, forKey: .lessonActivityIndex) ?? [:]
         self.programEnrollmentsByProgram = try container.decodeIfPresent([String: [ProgramEnrollment]].self, forKey: .programEnrollmentsByProgram) ?? [:]
         self.programProgramEnrollmentIndex = try container.decodeIfPresent([String: [String]].self, forKey: .programProgramEnrollmentIndex) ?? [:]
         self.templates = try container.decodeIfPresent([LessonTemplate].self, forKey: .templates) ?? []
 
         // Media library (optional for backwards compatibility)
         self.mediaLibrary = try container.decodeIfPresent([MediaLibraryItem].self, forKey: .mediaLibrary) ?? []
-        self.textThemes = try container.decodeIfPresent([TextTheme].self, forKey: .textThemes) ?? []
         self.organizationId = try container.decodeIfPresent(String.self, forKey: .organizationId)
         // A malformed dashboard is only a cache miss; it never discards the rest of the snapshot.
         self.dashboard = (try? container.decodeIfPresent(DashboardSnapshot.self, forKey: .dashboard)) ?? DashboardSnapshot()

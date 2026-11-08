@@ -199,36 +199,6 @@ struct ScheduledActivity: Codable, Identifiable {
             return true
         }
     }
-
-    /// Convert to StudyActivity for use with the shared activity editors
-    /// (EditReadActivityPage, EditYouTubeActivityPage, EditExegesisActivityPage).
-    func toStudyActivity() -> StudyActivity {
-        let activityType = ActivityType(rawValue: type) ?? .read
-        var activity = StudyActivity(
-            id: id,
-            lessonId: lessonId,
-            type: activityType,
-            status: .complete,
-            orderNumber: orderNumber,
-            title: title,
-            isHelpEnabled: isHelpEnabled,
-            helpTitle: helpTitle,
-            helpDescription: helpDescription,
-            helpIcon: helpIcon,
-            readContent: readContent,
-            sourceReferences: sourceReferences,
-            readBlocks: readBlocks,
-            themeId: themeId,
-            videoId: videoId,
-            passageReference: passageReference
-        )
-        activity.youtubeUrl = youtubeUrl
-        activity.youtubeVideoId = youtubeVideoId
-        activity.youtubeStartSeconds = youtubeStartSeconds
-        activity.youtubeEndSeconds = youtubeEndSeconds
-        activity.youtubeThumbnailUrl = youtubeThumbnailUrl
-        return activity
-    }
 }
 
 /// Lesson with its activities (API model)

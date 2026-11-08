@@ -83,6 +83,11 @@ final class StatePersistence {
         do {
             let data = try Data(contentsOf: url)
             let state = try decoder.decode(PersistedState.self, from: data)
+            guard state.schemaVersion == PersistedState.currentSchemaVersion else {
+                Log.state.info("discarding the disk cache of schema version \(state.schemaVersion, privacy: .public)")
+                try? FileManager.default.removeItem(at: url)
+                return nil
+            }
             NSLog("💾 StatePersistence: Loaded state (persisted at \(state.persistedAt))")
             NSLog("   Programs: \(state.programs.count), Groups: \(state.groups.count), Enrollments: \(state.enrollments.count)")
             return state
