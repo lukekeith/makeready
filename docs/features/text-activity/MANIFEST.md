@@ -1,7 +1,7 @@
 size: lg
-state: planned
+state: building
 next: /builder:resume --path docs/features/text-activity
-head: d18c120d
+head: 01ad38da
 ticket: none
 branch: builder/text-activity
 pr: none
@@ -13,7 +13,7 @@ tests: walk=risk review=slice
 target: feature/text-activity
 walk: none
 verify: none
-ready: none
+ready: pending "dev env (fleet walk lane)"
 ui2: none
 auto: off
 blocked: none
