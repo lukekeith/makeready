@@ -80,6 +80,80 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         await model.play()
         XCTAssertEqual(nav.pushed, [.activityViewer(lessonVersionId: "v1", activityId: "a1")])
     }
+
+    // MARK: - Load
+
+    /// An activity opened outside a loaded draft: its lesson is known, its draft is not.
+    private func appWithActivityOutsideADraft() -> AppState {
+        let app = AppState()
+        app.lessonVersions.upsert(LessonVersion(id: "v1", lessonId: "l1", enrollmentId: nil, number: 1, status: .published,
+                                                title: nil, estimatedSeconds: nil, publishedAt: nil))
+        app.activities.upsert(ContentActivity(id: "a1", lessonVersionId: "v1", activityKey: "k1", position: 0, kind: "text",
+                                              title: "Text", document: ActivityNewContainer.textDocument(title: "Text"),
+                                              estimatedSeconds: nil))
+        return app
+    }
+
+    func testLoadTakesTheDraftActivityWithTheSameKey() async {
+        let actions = ScriptedActivityActions(draft: .withActivity(id: "a2", key: "k1"))
+        let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "", phase: .loading, actions: actions,
+                                                    log: { _, _ in })
+        await model.load(app: appWithActivityOutsideADraft())
+        XCTAssertEqual(model.phase, .ready)
+        XCTAssertEqual(model.activityId, "a2")
+        XCTAssertEqual(model.lessonVersionId, "v2")
+    }
+
+    /// A failed load shows the screen's Load-failed state, then back pops (nothing is deleted or saved).
+    func testFailedLoadShowsLoadFailedAndBackPops() async {
+        let actions = ScriptedActivityActions(reloadFails: true)
+        let nav = RecordingEditorNavigator()
+        var logged: [String] = []
+        let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "", phase: .loading, actions: actions,
+                                                    log: { _, context in logged.append(context) })
+        model.navigator = nav
+        await model.load(app: appWithActivityOutsideADraft())
+        XCTAssertEqual(model.phase, .failed)
+        XCTAssertEqual(logged, [ActivitiesEditorContainer.loadContext])
+        XCTAssertTrue(ActivitiesEditorContainer.screenState(model, app: AppState()).loadFailed)
+        await model.back()
+        XCTAssertEqual(nav.pops, 1)
+        XCTAssertEqual(actions.deletedIds, [])
+        XCTAssertEqual(actions.savedIds, [])
+    }
+
+    func testLoadFailsWhenTheLessonIsUnknown() async {
+        let actions = ScriptedActivityActions(draft: .withActivity(id: "a2", key: "k1"))
+        let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "", phase: .loading, actions: actions,
+                                                    log: { _, _ in })
+        await model.load(app: AppState())
+        XCTAssertEqual(model.phase, .failed)
+    }
+
+    func testLoadFailsOnADocumentTheEditorCannotEdit() async {
+        let row = ContentActivity(id: "a2", lessonVersionId: "v2", activityKey: "k1", position: 0, kind: "video", title: "Video",
+                                  document: ActivityDocument(raw: .object([:])), estimatedSeconds: nil)
+        let actions = ScriptedActivityActions(draft: [row])
+        let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "", phase: .loading, actions: actions,
+                                                    log: { _, _ in })
+        await model.load(app: appWithActivityOutsideADraft())
+        XCTAssertEqual(model.phase, .failed)
+    }
+
+    // MARK: - One save at a time
+
+    /// Three saves started together run one after another: never two PUTs at once.
+    func testConcurrentSavesRunOneAtATime() async {
+        let actions = ScriptedActivityActions(saveDelayNanoseconds: 20_000_000)
+        let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "k1", actions: actions)
+        let first = Task { await model.done() }
+        let second = Task { await model.done() }
+        let third = Task { await model.done() }
+        await first.value; await second.value; await third.value
+        XCTAssertEqual(actions.savedIds.count, 3)
+        XCTAssertEqual(actions.maxConcurrentSaves, 1)
+        XCTAssertFalse(model.isSaving)
+    }
 }
 
 // MARK: - Doubles
@@ -104,19 +178,32 @@ final class ScriptedActivityActions: ActivityActionsProtocol {
 
     private var steps: [Step]
     private let draft: [ContentActivity]
+    private let reloadFails: Bool
+    private let saveDelayNanoseconds: UInt64
+    private var activeSaves = 0
+    private(set) var maxConcurrentSaves = 0
     private(set) var savedIds: [String] = []
     private(set) var savedDocuments: [ActivityDocument] = []
     private(set) var deletedIds: [String] = []
 
-    init(save: [Step] = [], draft: [ContentActivity] = []) {
+    init(save: [Step] = [], draft: [ContentActivity] = [], reloadFails: Bool = false, saveDelayNanoseconds: UInt64 = 0) {
         steps = save
         self.draft = draft
+        self.reloadFails = reloadFails
+        self.saveDelayNanoseconds = saveDelayNanoseconds
     }
 
-    func reloadDraft(lessonId: String) async throws -> [ContentActivity] { draft }
+    func reloadDraft(lessonId: String) async throws -> [ContentActivity] {
+        if reloadFails { throw Other() }
+        return draft
+    }
 
     func save(activityId: String, title: String?, document: ActivityDocument) async throws {
         savedIds.append(activityId)
+        activeSaves += 1
+        maxConcurrentSaves = max(maxConcurrentSaves, activeSaves)
+        defer { activeSaves -= 1 }
+        if saveDelayNanoseconds > 0 { try? await Task.sleep(nanoseconds: saveDelayNanoseconds) }
         let step = steps.isEmpty ? .success : steps.removeFirst()
         switch step {
         case .success: savedDocuments.append(document)

@@ -310,14 +310,24 @@ struct ActivitiesEditorContainer: View {
             screenGeneration += 1
         }
 
-        /// One save at a time: a save waits for the one in flight, then PUTs the buffer as it is now.
+        /// One save at a time: a save waits until no save is in flight, then PUTs the buffer as it is now.
         private func commit() async -> Bool {
-            if let inFlight { _ = await inFlight.value }
+            await waitForSaves()
             let task = Task { await self.put(self.document) }
             inFlight = task
             let saved = await task.value
-            inFlight = nil
+            // Another caller may have started its save once this one finished; that one stays guarded.
+            if inFlight == task { inFlight = nil }
             return saved
+        }
+
+        /// Waits out every save in flight, including one started by another waiter as the last ended
+        /// (each waiter resumes on its own, so a single `await` could see a newer save begin).
+        private func waitForSaves() async {
+            while let task = inFlight {
+                _ = await task.value
+                if inFlight == task { inFlight = nil }
+            }
         }
 
         /// The PUT, with D46's one refetch-and-remap on 409 `NOT_DRAFT`.
@@ -391,7 +401,7 @@ struct ActivitiesEditorContainer: View {
         /// leader still leaves); a changed one must save.
         private func leave() async -> Bool {
             guard phase == .ready else { return true }
-            if let inFlight { _ = await inFlight.value }
+            await waitForSaves()
             if ActivitiesEditorMapper.isUntouched(document) {
                 do {
                     try await actions.delete(activityId: activityId)
@@ -404,7 +414,7 @@ struct ActivitiesEditorContainer: View {
         }
 
         private func saveIfChanged() async -> Bool {
-            if let inFlight { _ = await inFlight.value }
+            await waitForSaves()
             guard document != savedDocument else { return saveError == nil }
             return await commit()
         }

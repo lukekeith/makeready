@@ -143,6 +143,21 @@ final class ActivityActionsTests: XCTestCase {
         XCTAssertNil(state.draftVersionId(forLesson: "l1"))
     }
 
+    /// D46: after another leader published, the store still holds the old draft and may hold a
+    /// group's enrollment draft of the same lesson; the refetch reads the newest program draft.
+    func testReloadDraftReturnsTheNewestProgramDraft() async throws {
+        try seedLesson()
+        try seed("old", position: 0)
+        state.lessonVersions.upsert(LessonVersion(id: "e9", lessonId: "l1", enrollmentId: "en1", number: 9, status: .draft,
+                                                  title: nil, estimatedSeconds: nil, publishedAt: nil))
+        try seed("group", position: 0, version: "e9")
+        let newDraft = Fixture.version("v2").replacingOccurrences(of: #""number":1"#, with: #""number":2"#)
+        api.stub("GET", "/api/lessons/l1/draft",
+                 json: #"{"version":\#(newDraft),"activities":[\#(Fixture.activity("a2", position: 0, version: "v2"))],"media":{}}"#)
+        let rows = try await actions.reloadDraft(lessonId: "l1")
+        XCTAssertEqual(rows.map(\.id), ["a2"])
+    }
+
     // MARK: - Reorder
 
     func testReorderStoresTheServersOrder() async throws {
