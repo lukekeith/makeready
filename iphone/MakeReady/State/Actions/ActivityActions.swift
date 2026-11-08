@@ -16,6 +16,16 @@ enum ActivityActionsError: Error, Equatable {
     case notDraft
 }
 
+/// What the activity editor calls (text-activity Task 25), so its save and back-out paths can be
+/// tested over a scripted double.
+@MainActor
+protocol ActivityActionsProtocol {
+    /// Reloads the lesson's draft into state and returns its activities (D46's refetch).
+    func reloadDraft(lessonId: String) async throws -> [ContentActivity]
+    func save(activityId: String, title: String?, document: ActivityDocument) async throws
+    func delete(activityId: String) async throws
+}
+
 struct ActivityActions {
 
     let api: APIClientProtocol
@@ -46,6 +56,17 @@ struct ActivityActions {
         let payload: LessonVersionPayload = try await api.get("/api/lesson-versions/\(id)",
                                                               responseType: LessonVersionPayload.self)
         apply(payload)
+    }
+
+    /// `GET /api/lessons/:id/draft`, then the reloaded draft's activities. The newest program draft
+    /// is read by `number`: a draft another leader published stays in the store until it is reloaded.
+    @MainActor
+    func reloadDraft(lessonId: String) async throws -> [ContentActivity] {
+        try await loadDraft(lessonId: lessonId)
+        let draft = state.lessonVersions.all
+            .filter { $0.lessonId == lessonId && $0.status == .draft && $0.enrollmentId == nil }
+            .max { $0.number < $1.number }
+        return draft.map { state.activities(forVersion: $0.id) } ?? []
     }
 
     // MARK: - Writes
@@ -157,6 +178,10 @@ struct ActivityActions {
         try JSONSerialization.jsonObject(with: JSONEncoder().encode(document), options: [.fragmentsAllowed])
     }
 }
+
+/// In an extension, so the protocol's `@MainActor` isn't inferred onto the whole struct (its init
+/// stays callable from any context; every method it names is `@MainActor` already).
+extension ActivityActions: ActivityActionsProtocol {}
 
 private extension ContentActivity {
     func moved(to position: Int) -> ContentActivity {
