@@ -14,10 +14,12 @@ final class ViewerEngineTests: XCTestCase {
     func testSettleCurveIsCriticallyDampedWithoutOvershoot() {
         var e = ViewerEngine.fixture(pages: [956, 956], viewport: 956)
         e.touchBegan(); _ = e.touchMoved(dy: 500); _ = e.touchEnded(velocity: 0)
-        var maxDrag = 0.0, t = 0.0
-        while e.settle != nil, t < 2 { _ = e.tick(dt: 1.0 / 60); maxDrag = max(maxDrag, e.drag); t += 1.0 / 60 }
+        var maxDrag = 0.0, ticks = 0
+        while e.settle != nil, ticks < 120 { _ = e.tick(dt: 1.0 / 60); maxDrag = max(maxDrag, e.drag); ticks += 1 }
+        XCTAssertNil(e.settle)
         XCTAssertLessThanOrEqual(maxDrag, 956.0001); XCTAssertEqual(e.anchor, 1)
-        XCTAssertGreaterThan(t, 0.3); XCTAssertLessThan(t, 0.5)
+        // Tick counts, not summed seconds: 30 ticks of 1/60 sum to 0.49999999999999994. See the vectors' F4 note.
+        XCTAssertGreaterThan(ticks, 18); XCTAssertLessThanOrEqual(ticks, 30)
     }
 }
 

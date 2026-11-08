@@ -77,7 +77,8 @@
         "commitStarted:1",
         "settled:1"
       ]
-    }
+    },
+    "note": "F4 retune input: this from-rest settle over 456 pt ends at about 0.49 s (30 ticks of 1/60) under endEpsilon 0.5 / endSpeed 5, above walk item 6's 0.3 to 0.45 s. omega 20 kept; retune on device."
   },
   {
     "name": "flick from rest commits next",
@@ -594,7 +595,8 @@
       "anchor": 1,
       "owner": "pager",
       "settling": false,
-      "active": 1
+      "active": 1,
+      "drag": -70.4918
     }
   },
   {
@@ -772,6 +774,225 @@
     },
     "expect": {
       "noThumb": true
+    }
+  },
+  {
+    "name": "inner lift carries momentum forward and decays at 0.998 per ms",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        1856,
+        956,
+        956
+      ],
+      "anchor": 0,
+      "drag": 0,
+      "owner": "inner",
+      "inner": [
+        300,
+        0,
+        0
+      ]
+    },
+    "input": {
+      "kind": "lift",
+      "velocity": 1000,
+      "ticks": 10
+    },
+    "expect": {
+      "inner": [
+        439.3609,
+        0,
+        0
+      ],
+      "owner": "inner",
+      "drag": 0,
+      "settling": false,
+      "outputs": []
+    }
+  },
+  {
+    "name": "inner lift against the reading direction carries momentum back",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        1856,
+        956,
+        956
+      ],
+      "anchor": 0,
+      "drag": 0,
+      "owner": "inner",
+      "inner": [
+        300,
+        0,
+        0
+      ]
+    },
+    "input": {
+      "kind": "lift",
+      "velocity": -1000,
+      "ticks": 10
+    },
+    "expect": {
+      "inner": [
+        160.6391,
+        0,
+        0
+      ],
+      "owner": "inner"
+    }
+  },
+  {
+    "name": "momentum stops below 5 pt/s before any limit",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        1856,
+        956,
+        956
+      ],
+      "anchor": 0,
+      "drag": 0,
+      "owner": "inner",
+      "inner": [
+        300,
+        0,
+        0
+      ]
+    },
+    "input": {
+      "kind": "lift",
+      "velocity": 30,
+      "ticks": 120
+    },
+    "expect": {
+      "inner": [
+        312.3049,
+        0,
+        0
+      ],
+      "owner": "none",
+      "drag": 0
+    }
+  },
+  {
+    "name": "inner lift under 5 pt/s starts no momentum",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        1856,
+        956,
+        956
+      ],
+      "anchor": 0,
+      "drag": 0,
+      "owner": "inner",
+      "inner": [
+        300,
+        0,
+        0
+      ]
+    },
+    "input": {
+      "kind": "lift",
+      "velocity": 3,
+      "ticks": 5
+    },
+    "expect": {
+      "inner": [
+        300,
+        0,
+        0
+      ],
+      "owner": "none"
+    }
+  },
+  {
+    "name": "inner lift never settles the pager",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        1856,
+        956,
+        956
+      ],
+      "anchor": 0,
+      "drag": 300,
+      "owner": "inner",
+      "inner": [
+        300,
+        0,
+        0
+      ]
+    },
+    "input": {
+      "kind": "lift",
+      "velocity": 0,
+      "ticks": 5
+    },
+    "expect": {
+      "drag": 300,
+      "anchor": 0,
+      "settling": false,
+      "outputs": []
+    }
+  },
+  {
+    "name": "pager lift at drag 0 does not settle",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        1856,
+        956,
+        956
+      ],
+      "anchor": 1,
+      "drag": 0,
+      "owner": "pager",
+      "inner": [
+        0,
+        0,
+        0
+      ]
+    },
+    "input": {
+      "kind": "lift",
+      "velocity": 500,
+      "ticks": 5
+    },
+    "expect": {
+      "drag": 0,
+      "anchor": 1,
+      "settling": false,
+      "outputs": []
+    }
+  },
+  {
+    "name": "touch during a return settle before the midline keeps the anchor",
+    "start": {
+      "viewportHeight": 956,
+      "pageHeights": [
+        956,
+        956,
+        956
+      ],
+      "anchor": 0,
+      "drag": 300,
+      "owner": "pager"
+    },
+    "input": {
+      "kind": "lift",
+      "velocity": 0,
+      "ticks": 5,
+      "interrupt": true
+    },
+    "expect": {
+      "anchor": 0,
+      "drag": 151.1005,
+      "owner": "pager",
+      "settling": false,
+      "active": 0
     }
   }
 ]
