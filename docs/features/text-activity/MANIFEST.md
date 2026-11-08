@@ -1,7 +1,7 @@
 size: lg
 state: built
-next: /builder:resume --path docs/features/text-activity
-head: 2d45c6c0
+next: /builder:agent-walk --path docs/features/text-activity
+head: 3ec30c72
 ticket: none
 branch: builder/text-activity
 pr: none
@@ -13,7 +13,7 @@ tests: walk=risk review=slice
 target: feature/text-activity
 walk: none
 verify: none
-ready: yes 2026-11-08 60699ac9
+ready: pending "dev env (fleet walk lane)"
 ui2: none
 auto: off
 blocked: none
