@@ -40,4 +40,20 @@ final class ActivitiesEditorScreenContractTests: XCTestCase {
         screen.onLoadFailed("Couldn't load this activity.")
         XCTAssertEqual(message, "Couldn't load this activity.")
     }
+
+    /// §2 items 4 + 6 (agent walk round 2, item 10): with the keyboard up, a sheet stands on the
+    /// keyboard's top edge — lifted once, by the overlap — and its cap shrinks by that overlap, so
+    /// its header and Done stay on screen (top ≥ the 16pt gap below the safe top).
+    func testSheetRidesTheKeyboardOnceAndKeepsItsHeaderOnScreen() {
+        let available: CGFloat = 956 - 62           // overlay height below the safe top, 440×956
+        for overlap: CGFloat in [0, 336, 900] {
+            let layout = ActivitiesEditorScreen.sheetLayout(available: available, keyboardOverlap: overlap)
+            XCTAssertEqual(layout.lift, overlap, "lifted exactly once, by the keyboard's overlap")
+            let top = available - layout.lift - layout.maxHeight
+            XCTAssertGreaterThanOrEqual(top, 16, "the sheet's header stays below the top gap at overlap \(overlap)")
+            XCTAssertGreaterThanOrEqual(layout.maxHeight, 0)
+        }
+        let resting = ActivitiesEditorScreen.sheetLayout(available: available, keyboardOverlap: 0)
+        XCTAssertEqual(resting.maxHeight, available - 16, "no keyboard: the cap is the screen minus the safe top and 16pt")
+    }
 }

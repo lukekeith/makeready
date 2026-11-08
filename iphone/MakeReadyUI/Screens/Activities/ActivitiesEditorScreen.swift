@@ -853,12 +853,28 @@ struct ActivitiesEditorScreen: View {
                             )
                         }
                     }
-                    .frame(maxHeight: screen.size.height - Self.sheetTopGap, alignment: .bottom)
-                    .offset(y: -keyboardOverlap)
+                    .frame(maxHeight: sheetLayout(screen).maxHeight, alignment: .bottom)
+                    .offset(y: -sheetLayout(screen).lift)
                 }
             }
-            .ignoresSafeArea(.container, edges: .bottom)
+            // §2 item 6: the keyboard lifts a sheet ONCE, by `keyboardOverlap`. The overlay sits outside
+            // the page's `.ignoresSafeArea(.keyboard)`, so without `.keyboard` here SwiftUI's avoidance
+            // lifted it too, and the double lift put its header and Done off the top (walk round 2).
+            .ignoresSafeArea([.container, .keyboard], edges: .bottom)
         }
+    }
+
+    private func sheetLayout(_ screen: GeometryProxy) -> (maxHeight: CGFloat, lift: CGFloat) {
+        Self.sheetLayout(available: screen.size.height, keyboardOverlap: keyboardOverlap)
+    }
+
+    /// §2 items 4 + 6: a sheet stands on the keyboard's top edge — lifted by the overlap, once — and
+    /// its cap (the screen minus the safe top and 16pt) shrinks by that overlap, so its fixed header
+    /// and Done stay on screen while the body scrolls. `available` is the overlay's height below the
+    /// safe top.
+    static func sheetLayout(available: CGFloat, keyboardOverlap: CGFloat) -> (maxHeight: CGFloat, lift: CGFloat) {
+        let lift = max(keyboardOverlap, 0)
+        return (max(available - sheetTopGap - lift, 0), lift)
     }
 
     private var backgroundSheet: some View {
