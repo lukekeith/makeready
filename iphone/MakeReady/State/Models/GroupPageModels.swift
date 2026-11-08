@@ -26,14 +26,14 @@ extension NextStudyResponse {
     }
 }
 
-/// The group's next scheduled lesson (a `LessonSchedule`). `scheduledDate` stays the wire's ISO
+/// The group's next scheduled lesson (a `ScheduledLesson`). `scheduledDate` stays the wire's ISO
 /// string (the ui2-members F7 rule): the mapper reads its UTC calendar date (D17).
 struct NextStudy: Codable, Equatable {
     var id: String = ""
     var code: String?
     var dayNumber: Int = 0
     var scheduledDate: String = ""
-    /// SC5: `LessonSchedule.title`; nil → the card shows "Day «dayNumber»" (D17).
+    /// SC5: `ScheduledLesson.title`; nil → the card shows "Day «dayNumber»" (D17).
     var title: String?
     var studyProgram: NextStudyProgram?
     var activities: [NextStudyActivity] = []
@@ -69,8 +69,8 @@ extension NextStudyProgram {
     }
 }
 
-/// One scheduled activity of the next lesson. SC5: `thumbnailUrl` = the YouTube / video
-/// thumbnail, else a READ activity's first image, else nil.
+/// One activity of the next lesson's version; `type` is its kind. `thumbnailUrl` comes from the
+/// document's background or poster, else nil.
 struct NextStudyActivity: Codable, Equatable {
     var id: String = ""
     var type: String = ""

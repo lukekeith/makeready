@@ -273,7 +273,7 @@ struct EnrollmentDetails: Codable, Identifiable {
     var createdAt: Date?
     var updatedAt: Date?
     let studyProgram: StudyProgramSummary?
-    var lessonSchedules: [LessonSchedule]
+    var lessonSchedules: [ScheduledLesson]
     private var _isActive: Bool?
 
     enum CodingKeys: String, CodingKey {
@@ -322,7 +322,7 @@ struct EnrollmentDetails: Codable, Identifiable {
         createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt)
         updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt)
         studyProgram = try container.decodeIfPresent(StudyProgramSummary.self, forKey: .studyProgram)
-        lessonSchedules = try container.decodeIfPresent([LessonSchedule].self, forKey: .lessonSchedules) ?? []
+        lessonSchedules = try container.decodeIfPresent([ScheduledLesson].self, forKey: .lessonSchedules) ?? []
         _isActive = try container.decodeIfPresent(Bool.self, forKey: .isActive)
     }
 
@@ -366,7 +366,7 @@ struct EnrollmentDetails: Codable, Identifiable {
         createdAt: Date? = nil,
         updatedAt: Date? = nil,
         studyProgram: StudyProgramSummary? = nil,
-        lessonSchedules: [LessonSchedule] = [],
+        lessonSchedules: [ScheduledLesson] = [],
         isActive: Bool? = nil
     ) {
         self.id = id
@@ -586,6 +586,33 @@ struct EnrollmentSyncStatus: Codable, Equatable {
     let currentVersionNumber: Int?
     let hasDrift: Bool
     let pendingVersions: [ProgramPendingVersion]
+}
+
+/// `POST /api/enrollments/:id/sync/apply`. The two version numbers are `ProgramVersion.number`s;
+/// `skippedCustomizedLessonIds` lists the lessons the group customized, which a sync never
+/// overwrites (D5). Every field is optional so an older server still decodes.
+struct EnrollmentSyncResult: Decodable, Equatable {
+    let syncedProgramVersionNumber: Int?
+    let currentVersionNumber: Int?
+    let skippedCustomizedLessonIds: [String]
+
+    private enum CodingKeys: String, CodingKey {
+        case syncedProgramVersionNumber, currentVersionNumber, skippedCustomizedLessonIds
+    }
+
+    init(syncedProgramVersionNumber: Int? = nil, currentVersionNumber: Int? = nil,
+         skippedCustomizedLessonIds: [String] = []) {
+        self.syncedProgramVersionNumber = syncedProgramVersionNumber
+        self.currentVersionNumber = currentVersionNumber
+        self.skippedCustomizedLessonIds = skippedCustomizedLessonIds
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        syncedProgramVersionNumber = try c.decodeIfPresent(Int.self, forKey: .syncedProgramVersionNumber)
+        currentVersionNumber = try c.decodeIfPresent(Int.self, forKey: .currentVersionNumber)
+        skippedCustomizedLessonIds = try c.decodeIfPresent([String].self, forKey: .skippedCustomizedLessonIds) ?? []
+    }
 }
 
 /// One published program version an enrollment hasn't received yet.

@@ -44,10 +44,8 @@ struct PersistedState: Codable {
     /// The media their documents name, keyed by media id
     var mediaMap: [String: MediaMapEntry]
 
-    /// Scheduled lessons (full aggregates with their activities + readBlocks +
-    /// sourceReferences inlined). The single source of truth for scheduled-side
-    /// data — keyed by `LessonWithActivities.id`.
-    var scheduledLessons: [LessonWithActivities]
+    /// Scheduled lessons with the rail summaries of the versions they point at
+    var scheduledLessons: [ScheduledLesson]
 
     /// Program enrollments (keyed by programId) - for program detail views
     var programEnrollmentsByProgram: [String: [ProgramEnrollment]]
@@ -178,8 +176,6 @@ struct PersistedState: Codable {
         self.lessonVersions = appState.lessonVersions.all
         self.mediaMap = appState.mediaMap
 
-        // Scheduled lessons are stored as full aggregates with their activities,
-        // readBlocks, and sourceReferences inline.
         self.scheduledLessons = appState.scheduledLessons.all
 
         // Program enrollments are stored per-program
@@ -284,7 +280,7 @@ struct PersistedState: Codable {
         self.activities = try container.decodeIfPresent([ContentActivity].self, forKey: .activities) ?? []
         self.lessonVersions = try container.decodeIfPresent([LessonVersion].self, forKey: .lessonVersions) ?? []
         self.mediaMap = try container.decodeIfPresent([String: MediaMapEntry].self, forKey: .mediaMap) ?? [:]
-        self.scheduledLessons = try container.decodeIfPresent([LessonWithActivities].self, forKey: .scheduledLessons) ?? []
+        self.scheduledLessons = try container.decodeIfPresent([ScheduledLesson].self, forKey: .scheduledLessons) ?? []
         self.programEnrollmentsByProgram = try container.decodeIfPresent([String: [ProgramEnrollment]].self, forKey: .programEnrollmentsByProgram) ?? [:]
         self.programProgramEnrollmentIndex = try container.decodeIfPresent([String: [String]].self, forKey: .programProgramEnrollmentIndex) ?? [:]
         self.templates = try container.decodeIfPresent([LessonTemplate].self, forKey: .templates) ?? []

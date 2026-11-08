@@ -63,6 +63,14 @@ final class StatePersistenceRoundTripTests: XCTestCase {
             document: ActivityDocument(raw: .object(["schemaVersion": .number(1), "kind": .string("text")])),
             estimatedSeconds: 30
         )]
+        state.scheduledLessons = [ScheduledLesson(
+            id: "s1", enrollmentId: "e1", lessonId: "l1", scheduledDate: date, title: "Day 1",
+            currentVersionId: "v1", dayNumber: 1,
+            activities: [ActivitySummary(
+                id: "a1", activityKey: "k1", position: 0, kind: "text", title: "Scripture",
+                document: ActivityDocument(raw: .object(["schemaVersion": .number(1), "kind": .string("text")]))
+            )]
+        )]
         state.programLessonIndex = ["p1": ["l1"]]
         state.groupEnrollmentIndex = ["g1": ["e1"]]
         state.programEnrollmentIndex = ["p1": ["e1"]]
@@ -145,8 +153,12 @@ final class StatePersistenceRoundTripTests: XCTestCase {
         XCTAssertEqual(decoded.persistedAt, date)
         XCTAssertEqual(decoded.schemaVersion, PersistedState.currentSchemaVersion)
 
+        // Scheduled lessons keep their version pointer and rail summaries
+        let scheduled = try XCTUnwrap(decoded.scheduledLessons.first)
+        XCTAssertEqual(scheduled.currentVersionId, "v1")
+        XCTAssertEqual(scheduled.activities.map(\.kind), ["text"])
+
         // Empty collections survive
-        XCTAssertTrue(decoded.scheduledLessons.isEmpty)
         XCTAssertTrue(decoded.templates.isEmpty)
         XCTAssertTrue(decoded.mediaLibrary.isEmpty)
         XCTAssertTrue(decoded.calendarEvents.isEmpty)
@@ -169,7 +181,7 @@ final class StatePersistenceRoundTripTests: XCTestCase {
     {"programs":[],"groups":[],"enrollments":[],"videos":[],
      "postsByGroup":{},"membersByGroup":{},"lessonsByProgram":{},
      "programEnrollmentIndex":{},"groupEnrollmentIndex":{},"programLessonIndex":{},
-     "persistedAt":"2026-01-01T00:00:00Z","schemaVersion":1}
+     "persistedAt":"2026-01-01T00:00:00Z","schemaVersion":2}
     """
 
     func testDecodingMissingOptionalFieldsFallsBackToDefaults() throws {
@@ -189,16 +201,16 @@ final class StatePersistenceRoundTripTests: XCTestCase {
         XCTAssertEqual(decoded.homeTotalMembers, 0)
         XCTAssertEqual(decoded.homeTotalGroups, 0)
         XCTAssertTrue(decoded.calendarEvents.isEmpty)
-        XCTAssertEqual(decoded.schemaVersion, 1)
+        XCTAssertEqual(decoded.schemaVersion, 2)
     }
 
     func testDecodingIgnoresUnknownExtraKeys() throws {
         let withExtras = minimalJSON.replacingOccurrences(
-            of: "\"schemaVersion\":1}",
-            with: "\"schemaVersion\":1,\"someFutureField\":{\"a\":1},\"anotherUnknown\":[1,2,3]}"
+            of: "\"schemaVersion\":2}",
+            with: "\"schemaVersion\":2,\"someFutureField\":{\"a\":1},\"anotherUnknown\":[1,2,3]}"
         )
         let decoded = try makeDecoder().decode(PersistedState.self, from: Data(withExtras.utf8))
-        XCTAssertEqual(decoded.schemaVersion, 1)
+        XCTAssertEqual(decoded.schemaVersion, 2)
     }
 
     func testDecodingMissingRequiredKeyThrows() {

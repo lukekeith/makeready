@@ -20,7 +20,6 @@ struct StudyProgram: Codable, Identifiable, Hashable {
     let id: String
     var name: String
     var description: String?
-    var defaultActivity: ActivityType?
     var days: Int
     var coverImageUrl: String?
     var creatorId: String?
@@ -55,7 +54,7 @@ struct StudyProgram: Codable, Identifiable, Hashable {
     // MARK: - CodingKeys
 
     enum CodingKeys: String, CodingKey {
-        case id, name, title, description, defaultActivity
+        case id, name, title, description
         case days, lessonCount, coverImageUrl
         case creatorId, isActive, isPublished
         case createdAt, updatedAt, lessons
@@ -83,7 +82,6 @@ struct StudyProgram: Codable, Identifiable, Hashable {
         }
 
         description = try container.decodeIfPresent(String.self, forKey: .description)
-        defaultActivity = try container.decodeIfPresent(ActivityType.self, forKey: .defaultActivity)
 
         // days: try "days" (cached) first, then "lessonCount" (new API), then 0
         if let d = try container.decodeIfPresent(Int.self, forKey: .days) {
@@ -148,7 +146,6 @@ struct StudyProgram: Codable, Identifiable, Hashable {
         try container.encode(name, forKey: .title)  // Always encode as "title" (new format)
         try container.encode(name, forKey: .name)    // Also write "name" for cache compat
         try container.encodeIfPresent(description, forKey: .description)
-        try container.encodeIfPresent(defaultActivity, forKey: .defaultActivity)
         try container.encode(days, forKey: .days)
         try container.encodeIfPresent(coverImageUrl, forKey: .coverImageUrl)
         try container.encodeIfPresent(creatorId, forKey: .creatorId)
@@ -182,7 +179,6 @@ struct StudyProgram: Codable, Identifiable, Hashable {
         id: String,
         name: String,
         description: String? = nil,
-        defaultActivity: ActivityType? = nil,
         days: Int = 0,
         coverImageUrl: String? = nil,
         creatorId: String? = nil,
@@ -212,7 +208,6 @@ struct StudyProgram: Codable, Identifiable, Hashable {
         self.id = id
         self.name = name
         self.description = description
-        self.defaultActivity = defaultActivity
         self.days = days
         self.coverImageUrl = coverImageUrl
         self.creatorId = creatorId
@@ -390,335 +385,6 @@ struct Lesson: Codable, Identifiable, Equatable {
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
-}
-
-/// Embedded video data returned with activities
-struct EmbeddedVideo: Codable {
-    let id: String
-    var cloudflareUid: String?  // Optional: not always returned by API
-    let playbackUrl: String
-    var thumbnailUrl: String?
-    var title: String?
-    var duration: Int?
-    var status: String
-
-    /// Formatted duration string (e.g., "1:30")
-    var formattedDuration: String? {
-        guard let duration = duration else { return nil }
-        let minutes = duration / 60
-        let seconds = duration % 60
-        return String(format: "%d:%02d", minutes, seconds)
-    }
-}
-
-/// A source reference attached to an activity (e.g., a Bible passage row).
-///
-/// **Invariant:** A source reference is "live" only when at least one
-/// `ActivityReadBlock.sourceReferenceId` points to it. The bare
-/// `activity.sourceReferences` array can — and historically does — accumulate
-/// dangling rows the server failed to clean up after a block delete.
-///
-/// **Never** read this array directly to answer "what verses does this activity
-/// use?" Always go through the read blocks via `AppState.passagesUsedIn(...)`,
-/// which uses `passagesFromBlocks` to resolve `block.sourceReferenceId →
-/// ActivitySourceReference`. That is the single source of truth, and it makes
-/// us immune to dangling rows by construction.
-struct ActivitySourceReference: Codable, Identifiable {
-    let id: String
-    let lessonActivityId: String?
-    var sourceType: String?
-    var passageReference: String?
-    var bookNumber: Int?
-    var bookName: String?
-    var chapterStart: Int?
-    var chapterEnd: Int?
-    var verseStart: Int?
-    var verseEnd: Int?
-    let createdAt: Date?
-    var updatedAt: Date?
-}
-
-/// An author-defined styled span within a read block. Offsets index into the
-/// stripped plain-text representation of `ActivityReadBlock.content` (see
-/// `stripBlockContentToPlain`). The `style` value is opaque to storage —
-/// renderers wrap matching ranges with `[[ ]]` markers; unknown styles fall
-/// back to plain text.
-struct ReadBlockSelection: Codable, Identifiable, Equatable {
-    var id: String { "\(start)-\(end)-\(style)" }
-    let start: Int
-    let end: Int
-    let style: String
-}
-
-/// A leader-authored highlight + markdown note on a locked read block.
-///
-/// Renamed from `ExegesisHighlight` (2026-08-04, highlighting phase 4.7): the
-/// same rows now back READ activities as well as EXEGESIS, matching the server's
-/// `ContentHighlight` / `content_highlights` (03 §1.1). Offsets index into the
-/// stripped plain text of `ActivityReadBlock.content`, the same coordinate
-/// system as `ReadBlockSelection`.
-struct ContentHighlight: Codable, Identifiable, Equatable {
-    let id: String
-    let readBlockId: String
-    var orderNumber: Int
-    let start: Int
-    let end: Int
-    /// `highlight` | `bold` (03 §1.1). `bold` renders as font weight only, no
-    /// background wash.
-    var style: String
-    var noteMarkdown: String
-    let createdAt: Date?
-    var updatedAt: Date?
-
-    init(
-        id: String,
-        readBlockId: String,
-        orderNumber: Int,
-        start: Int,
-        end: Int,
-        style: String = ContentHighlight.defaultStyle,
-        noteMarkdown: String,
-        createdAt: Date? = nil,
-        updatedAt: Date? = nil
-    ) {
-        self.id = id
-        self.readBlockId = readBlockId
-        self.orderNumber = orderNumber
-        self.start = start
-        self.end = end
-        self.style = style
-        self.noteMarkdown = noteMarkdown
-        self.createdAt = createdAt
-        self.updatedAt = updatedAt
-    }
-
-    static let defaultStyle = "highlight"
-
-    /// Hand-written so a **disk cache written by an older build**, which has no
-    /// `style` key at all, degrades to the default instead of failing the whole
-    /// decode and wiping the cached state (09 §X-f). Swift's synthesised
-    /// decoder treats a missing key as an error even when the property has a
-    /// default, so this cannot be left to synthesis.
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(String.self, forKey: .id)
-        readBlockId = try container.decode(String.self, forKey: .readBlockId)
-        orderNumber = try container.decode(Int.self, forKey: .orderNumber)
-        start = try container.decode(Int.self, forKey: .start)
-        end = try container.decode(Int.self, forKey: .end)
-        style = try container.decodeIfPresent(String.self, forKey: .style) ?? Self.defaultStyle
-        noteMarkdown = try container.decodeIfPresent(String.self, forKey: .noteMarkdown) ?? ""
-        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt)
-        updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt)
-    }
-}
-
-/// A read block within a READ activity (verse or editable content section)
-struct ActivityReadBlock: Codable, Identifiable {
-    let id: String
-    let lessonActivityId: String?
-    var orderNumber: Int
-    var title: String?
-    var content: String?
-    var isLocked: Bool
-    var sourceReferenceId: String?
-    var themeId: String?
-    var contentFormat: String?
-    var backgroundImageUrl: String?
-    var backgroundColor: String?
-    var backgroundOverlayOpacity: Double?
-    var fontSize: String?
-    var selections: [ReadBlockSelection]?
-    let createdAt: Date?
-    var updatedAt: Date?
-
-    enum CodingKeys: String, CodingKey {
-        case id, lessonActivityId, orderNumber, title, content
-        case isLocked, sourceReferenceId, themeId, contentFormat
-        case backgroundImageUrl, backgroundColor, backgroundOverlayOpacity
-        case fontSize, selections, createdAt, updatedAt
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(String.self, forKey: .id)
-        lessonActivityId = try container.decodeIfPresent(String.self, forKey: .lessonActivityId)
-        orderNumber = try container.decodeIfPresent(Int.self, forKey: .orderNumber) ?? 1
-        title = try container.decodeIfPresent(String.self, forKey: .title)
-        content = try container.decodeIfPresent(String.self, forKey: .content)
-        isLocked = try container.decodeIfPresent(Bool.self, forKey: .isLocked) ?? false
-        sourceReferenceId = try container.decodeIfPresent(String.self, forKey: .sourceReferenceId)
-        themeId = try container.decodeIfPresent(String.self, forKey: .themeId)
-        contentFormat = try container.decodeIfPresent(String.self, forKey: .contentFormat)
-        backgroundImageUrl = try container.decodeIfPresent(String.self, forKey: .backgroundImageUrl)
-        backgroundColor = try container.decodeIfPresent(String.self, forKey: .backgroundColor)
-        backgroundOverlayOpacity = try container.decodeIfPresent(Double.self, forKey: .backgroundOverlayOpacity)
-        fontSize = try container.decodeIfPresent(String.self, forKey: .fontSize)
-        selections = try container.decodeIfPresent([ReadBlockSelection].self, forKey: .selections)
-        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt)
-        updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt)
-    }
-
-    init(
-        id: String,
-        lessonActivityId: String? = nil,
-        orderNumber: Int = 1,
-        title: String? = nil,
-        content: String? = nil,
-        isLocked: Bool = false,
-        sourceReferenceId: String? = nil,
-        themeId: String? = nil,
-        contentFormat: String? = nil,
-        backgroundImageUrl: String? = nil,
-        backgroundColor: String? = nil,
-        backgroundOverlayOpacity: Double? = nil,
-        fontSize: String? = nil,
-        selections: [ReadBlockSelection]? = nil,
-        createdAt: Date? = nil,
-        updatedAt: Date? = nil
-    ) {
-        self.id = id
-        self.lessonActivityId = lessonActivityId
-        self.orderNumber = orderNumber
-        self.title = title
-        self.content = content
-        self.isLocked = isLocked
-        self.sourceReferenceId = sourceReferenceId
-        self.themeId = themeId
-        self.contentFormat = contentFormat
-        self.backgroundImageUrl = backgroundImageUrl
-        self.backgroundColor = backgroundColor
-        self.backgroundOverlayOpacity = backgroundOverlayOpacity
-        self.fontSize = fontSize
-        self.selections = selections
-        self.createdAt = createdAt
-        self.updatedAt = updatedAt
-    }
-}
-
-// MARK: - Activity Enums
-
-/// Types of study activities
-/// Supports both legacy values (SOAP, OIA, DBS, HEAR) and new API values (USER_INPUT, READ, VIDEO)
-enum ActivityType: String, Codable, CaseIterable {
-    case soap = "SOAP"
-    case oia = "OIA"
-    case dbs = "DBS"
-    case hear = "HEAR"
-    case video = "VIDEO"
-    case youtube = "YOUTUBE"
-    case userInput = "USER_INPUT"
-    case read = "READ"
-    case exegesis = "EXEGESIS"
-
-    var displayName: String {
-        switch self {
-        case .userInput: return "Study"
-        case .read: return "Read"
-        case .youtube: return "YouTube"
-        case .exegesis: return "Exegesis"
-        default: return rawValue
-        }
-    }
-
-    var description: String {
-        switch self {
-        case .soap:
-            return "Read Scripture, make Observations, note Application, and close with Prayer."
-        case .oia:
-            return "Observe the text, Interpret its meaning, then Apply it to life."
-        case .dbs:
-            return "Look back, look up (read Scripture), look in, look forward, and pray together."
-        case .hear:
-            return "Highlight verses, Explain the meaning, Apply personally, and Respond in prayer."
-        case .video:
-            return "Record a video message or select a video from your library."
-        case .youtube:
-            return "Add a YouTube video for members to watch."
-        case .userInput:
-            return "Answer a question or write a reflection."
-        case .read:
-            return "Read the provided content."
-        case .exegesis:
-            return "Highlight a passage and attach notes for members to review."
-        }
-    }
-
-    /// Whether this activity type is a Bible study method (vs video)
-    var isStudyType: Bool {
-        switch self {
-        case .video:
-            return false
-        default:
-            return true
-        }
-    }
-}
-
-/// Status of an activity
-enum ActivityStatus: String, Codable {
-    case pending = "PENDING"
-    case complete = "COMPLETE"
-}
-
-// MARK: - Passage Data
-
-/// Structured Bible passage data for storage and API
-struct PassageData: Codable, Equatable {
-    let bookNumber: Int       // 1-66
-    let bookName: String      // "Romans"
-    let chapterStart: Int     // Starting chapter
-    let chapterEnd: Int?      // Ending chapter (nil if same as start)
-    let verseStart: Int       // Starting verse
-    let verseEnd: Int         // Ending verse
-
-    /// Build from an `ActivitySourceReference`. Returns nil if any required
-    /// field is missing on the reference.
-    init?(from ref: ActivitySourceReference) {
-        guard let bookNumber = ref.bookNumber,
-              let bookName = ref.bookName,
-              let chapterStart = ref.chapterStart,
-              let verseStart = ref.verseStart,
-              let verseEnd = ref.verseEnd else { return nil }
-        self.bookNumber = bookNumber
-        self.bookName = bookName
-        self.chapterStart = chapterStart
-        self.chapterEnd = ref.chapterEnd
-        self.verseStart = verseStart
-        self.verseEnd = verseEnd
-    }
-
-    /// Memberwise init (Swift loses the synthesized one once a custom init is added).
-    init(
-        bookNumber: Int,
-        bookName: String,
-        chapterStart: Int,
-        chapterEnd: Int? = nil,
-        verseStart: Int,
-        verseEnd: Int
-    ) {
-        self.bookNumber = bookNumber
-        self.bookName = bookName
-        self.chapterStart = chapterStart
-        self.chapterEnd = chapterEnd
-        self.verseStart = verseStart
-        self.verseEnd = verseEnd
-    }
-
-    /// Human-readable reference string
-    var reference: String {
-        if let chapterEnd = chapterEnd, chapterEnd != chapterStart {
-            // Cross-chapter: "Romans 1:28 - 2:4"
-            return "\(bookName) \(chapterStart):\(verseStart) - \(chapterEnd):\(verseEnd)"
-        } else if verseStart == verseEnd {
-            // Single verse: "Romans 1:1"
-            return "\(bookName) \(chapterStart):\(verseStart)"
-        } else {
-            // Same chapter range: "Romans 1:1-5"
-            return "\(bookName) \(chapterStart):\(verseStart)-\(verseEnd)"
-        }
-    }
-
 }
 
 // MARK: - Pagination Models

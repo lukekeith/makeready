@@ -77,75 +77,6 @@ private let api: APIClientProtocol
         self.stateOverride = state
     }
 
-    // MARK: - Centralized State Sync
-    //
-    // The single source of truth for scheduled-side data is `state.scheduledLessons`.
-    // Each lesson holds its activities, readBlocks, and sourceReferences inline.
-    // Every mutation here goes through `state.replaceScheduledActivity(_:)` or
-    // `state.mutateScheduledActivity(activityId:_:)`, which find the lesson
-    // aggregate, mutate the activity in place, and upsert the lesson — one write,
-    // every observer notified.
-
-    /// Replace a scheduled activity in its lesson aggregate, then patch the
-    /// legacy `lessonScheduleMap` (still used by calendar/home cards) and
-    /// persist. Used after API responses that return the canonical activity.
-    @MainActor
-    private func syncScheduledActivityToState(_ updated: ScheduledActivity) {
-        state.replaceScheduledActivity(updated)
-        patchLegacyScheduleMap(activityId: updated.id) { activities, idx in
-            activities[idx] = updated
-        }
-        state.persist()
-    }
-
-    /// Remove a scheduled activity from its lesson aggregate and the legacy map.
-    @MainActor
-    private func removeScheduledActivityFromState(activityId: String) {
-        if let lessonId = state.scheduledLessonContaining(activityId: activityId),
-           var lesson = state.scheduledLessons[lessonId] {
-            lesson.activities.removeAll { $0.id == activityId }
-            state.scheduledLessons.upsert(lesson)
-        }
-        patchLegacyScheduleMap(activityId: activityId) { activities, idx in
-            activities.remove(at: idx)
-        }
-        state.persist()
-    }
-
-    /// Apply a mutation to the legacy `lessonScheduleMap` for any schedule
-    /// containing the given activity. Calendar/home cards still read from
-    /// this map until they migrate to `state.scheduledLessons` directly.
-    @MainActor
-    private func patchLegacyScheduleMap(
-        activityId: String,
-        _ mutate: (inout [ScheduledActivity], Int) -> Void
-    ) {
-        var map = state.lessonScheduleMap
-        var didChange = false
-        for (key, entry) in map {
-            guard let idx = entry.schedule.lesson.activities.firstIndex(where: { $0.id == activityId }) else { continue }
-            var schedule = entry.schedule
-            mutate(&schedule.lesson.activities, idx)
-            map[key] = (schedule: schedule, studyName: entry.studyName, enrollmentId: entry.enrollmentId)
-            didChange = true
-            break
-        }
-        if didChange {
-            state.lessonScheduleMap = map
-        }
-    }
-
-    /// Resolve the scheduled-lesson aggregate id for a schedule WITHOUT the
-    /// legacy `lessonScheduleMap` (only Home/Calendar loading warms that map;
-    /// the Group → enrollment path warms `enrollmentDetailsById` +
-    /// `scheduledLessons` instead — monday#12628423737).
-    @MainActor
-    private func scheduledLessonId(enrollmentId: String, scheduleId: String) -> String? {
-        state.enrollmentDetailsById[enrollmentId]?.lessonSchedules
-            .first { $0.id == scheduleId }?.lesson.id
-            ?? state.lessonScheduleMap[scheduleId]?.schedule.lesson.id
-    }
-
     // MARK: - Load Enrollments for Group
 
     /// Load enrollments for a specific group
@@ -215,12 +146,10 @@ private let api: APIClientProtocol
             throw APIError.serverError(response.error ?? "Failed to fetch enrollment details")
         }
 
-        // Promote each scheduled lesson aggregate (with its activities,
-        // readBlocks, and sourceReferences inline) into the lesson store. The
-        // editor and Bible reader read directly from this for any lesson, not
-        // just today+future.
+        // Promote each scheduled lesson, with the rail summaries of the version it points at,
+        // into the scheduled-lesson store.
         for schedule in enrollment.lessonSchedules {
-            state.scheduledLessons.upsert(schedule.lesson)
+            state.scheduledLessons.upsert(schedule)
         }
         state.enrollmentDetailsById[id] = enrollment
         state.persist()
@@ -721,14 +650,31 @@ private let api: APIClientProtocol
     /// restricts to the approved lessons (Review Changes toggles); nil applies
     /// everything. Partial approvals leave the enrollment drifted so the
     /// leader can approve more later. Members who completed a lesson stay
-    /// pinned to the version they finished.
+    /// pinned to the version they finished. Lessons the group customized are
+    /// skipped (D5) and named in the result.
     @MainActor
-    func applySyncUpdates(enrollmentId: String, lessonKeys: [String]? = nil) async throws {
+    @discardableResult
+    func applySyncUpdates(enrollmentId: String, lessonKeys: [String]? = nil) async throws -> EnrollmentSyncResult {
+        /// The route answers `{ success, ...outcome }`, so the result decodes from the same object.
+        struct Response: Decodable {
+            let success: Bool
+            let error: String?
+            let result: EnrollmentSyncResult
+
+            private enum CodingKeys: String, CodingKey { case success, error }
+
+            init(from decoder: Decoder) throws {
+                let c = try decoder.container(keyedBy: CodingKeys.self)
+                success = try c.decode(Bool.self, forKey: .success)
+                error = try c.decodeIfPresent(String.self, forKey: .error)
+                result = try EnrollmentSyncResult(from: decoder)
+            }
+        }
         let body: [String: Any] = lessonKeys.map { ["lessonKeys": $0] } ?? [:]
-        let response: APISuccessResponse = try await api.post(
+        let response: Response = try await api.post(
             "/api/enrollments/\(enrollmentId)/sync/apply",
             body: body,
-            responseType: APISuccessResponse.self
+            responseType: Response.self
         )
         guard response.success else {
             throw APIError.serverError(response.error ?? "Failed to apply updates")
@@ -737,273 +683,7 @@ private let api: APIClientProtocol
         // pending changes so the next visits refetch.
         state.enrollmentDetailsById[enrollmentId] = nil
         state.enrollmentPendingChangesById[enrollmentId] = nil
-    }
-
-    // MARK: - Scheduled Activity Operations
-
-    /// Toggle help visibility on a scheduled activity
-    @MainActor
-    func toggleScheduledActivityHelp(activityId: String, isHelpEnabled: Bool) async throws -> ScheduledActivity {
-        struct Response: Decodable {
-            let success: Bool
-            let scheduledActivity: ScheduledActivity?
-            let error: String?
-        }
-        let response: Response = try await api.patch(
-            "/api/scheduled-activities/\(activityId)",
-            body: ["isHelpEnabled": isHelpEnabled],
-            responseType: Response.self
-        )
-        guard response.success, let activity = response.scheduledActivity else {
-            throw APIError.serverError(response.error ?? "Failed to update scheduled activity")
-        }
-        syncScheduledActivityToState(activity)
-        return activity
-    }
-
-    /// Update scheduled activity fields
-    @MainActor
-    func updateScheduledActivity(activityId: String, title: String?, helpTitle: String?, helpDescription: String?) async throws -> ScheduledActivity {
-        struct Response: Decodable {
-            let success: Bool
-            let scheduledActivity: ScheduledActivity?
-            let error: String?
-        }
-        var body: [String: Any] = [:]
-        if let title = title { body["title"] = title }
-        if let helpTitle = helpTitle { body["helpTitle"] = helpTitle }
-        if let helpDescription = helpDescription { body["helpDescription"] = helpDescription }
-
-        let response: Response = try await api.patch(
-            "/api/scheduled-activities/\(activityId)",
-            body: body,
-            responseType: Response.self
-        )
-        guard response.success, let activity = response.scheduledActivity else {
-            throw APIError.serverError(response.error ?? "Failed to update scheduled activity")
-        }
-        syncScheduledActivityToState(activity)
-        return activity
-    }
-
-    /// Delete a scheduled activity
-    @MainActor
-    func deleteScheduledActivity(enrollmentId: String, scheduleId: String, activityId: String) async throws {
-        let response: APISuccessResponse = try await api.delete(
-            "/api/scheduled-activities/\(activityId)",
-            responseType: APISuccessResponse.self
-        )
-        guard response.success else {
-            throw APIError.serverError(response.error ?? "Failed to delete scheduled activity")
-        }
-        removeScheduledActivityFromState(activityId: activityId)
-        NSLog("📅 EnrollmentActions: Deleted scheduled activity \(activityId)")
-    }
-
-    /// Add a scheduled activity to a lesson schedule
-    @MainActor
-    func addScheduledActivity(
-        enrollmentId: String,
-        scheduleId: String,
-        type: String,
-        title: String? = nil,
-        helpTitle: String? = nil,
-        helpDescription: String? = nil,
-        videoId: String? = nil
-    ) async throws -> ScheduledActivity {
-        struct Response: Decodable {
-            let success: Bool
-            let scheduledActivity: ScheduledActivity?
-            let error: String?
-        }
-        var body: [String: Any] = [
-            "type": type,
-            "title": title ?? type.capitalized
-        ]
-        if let helpTitle = helpTitle { body["helpTitle"] = helpTitle }
-        if let helpDescription = helpDescription { body["helpDescription"] = helpDescription }
-        if let videoId = videoId { body["videoId"] = videoId }
-
-        let response: Response = try await api.post(
-            "/api/enrollments/\(enrollmentId)/schedules/\(scheduleId)/activities",
-            body: body,
-            responseType: Response.self
-        )
-        guard response.success, let activity = response.scheduledActivity else {
-            throw APIError.serverError(response.error ?? "Failed to add scheduled activity")
-        }
-
-        // Append to the parent lesson aggregate UNCONDITIONALLY — the day
-        // editor renders from state.scheduledLessons, and the old guard on the
-        // legacy map silently skipped this whole write on the Group →
-        // enrollment path (monday#12628423737: activity created server-side
-        // but never shown until re-entry).
-        if let lessonId = scheduledLessonId(enrollmentId: enrollmentId, scheduleId: scheduleId),
-           var lesson = state.scheduledLessons[lessonId] {
-            lesson.activities.append(activity)
-            state.scheduledLessons.upsert(lesson)
-        }
-        // Legacy schedule map (calendar/home cards): patch only when present.
-        if let entry = state.lessonScheduleMap[scheduleId] {
-            var schedule = entry.schedule
-            schedule.lesson.activities.append(activity)
-            state.lessonScheduleMap[scheduleId] = (schedule: schedule, studyName: entry.studyName, enrollmentId: entry.enrollmentId)
-        }
-        state.persist()
-
-        return activity
-    }
-
-    /// Reorder scheduled activities via drag-and-drop
-    @MainActor
-    func reorderScheduledActivities(enrollmentId: String, scheduleId: String, activityIds: [String]) async throws {
-        let body: [String: Any] = ["activityOrder": activityIds]
-        let response: APISuccessResponse = try await api.post(
-            "/api/enrollments/\(enrollmentId)/schedules/\(scheduleId)/reorder-activities",
-            body: body,
-            responseType: APISuccessResponse.self
-        )
-        guard response.success else {
-            throw APIError.serverError(response.error ?? "Failed to reorder scheduled activities")
-        }
-
-        // Apply the new orderNumber in the lesson aggregate UNCONDITIONALLY
-        // (same conditional-write defect as addScheduledActivity —
-        // monday#12628423737), then patch the legacy schedule map only when
-        // an entry exists.
-        let lessonId = scheduledLessonId(enrollmentId: enrollmentId, scheduleId: scheduleId)
-        if let lessonId, var lesson = state.scheduledLessons[lessonId] {
-            let byId = Dictionary(uniqueKeysWithValues: lesson.activities.map { ($0.id, $0) })
-            var reordered: [ScheduledActivity] = []
-            for (i, activityId) in activityIds.enumerated() {
-                if var a = byId[activityId] {
-                    a.orderNumber = i + 1
-                    reordered.append(a)
-                }
-            }
-            for a in lesson.activities where !activityIds.contains(a.id) {
-                reordered.append(a)
-            }
-            lesson.activities = reordered
-            state.scheduledLessons.upsert(lesson)
-        }
-        if let entry = state.lessonScheduleMap[scheduleId] {
-            var schedule = entry.schedule
-            schedule.lesson.activities = lessonId.flatMap { state.scheduledLessons[$0]?.activities }
-                ?? schedule.lesson.activities
-            state.lessonScheduleMap[scheduleId] = (schedule: schedule, studyName: entry.studyName, enrollmentId: entry.enrollmentId)
-        }
-        state.persist()
-
-        NSLog("📅 EnrollmentActions: Reordered activities for schedule \(scheduleId)")
-    }
-
-    /// Reset a scheduled activity (clear content, video, source references, read blocks)
-    @MainActor
-    func clearScheduledActivity(activityId: String) async throws -> ScheduledActivity {
-        struct Response: Decodable {
-            let success: Bool
-            let scheduledActivity: ScheduledActivity?
-            let error: String?
-        }
-        let response: Response = try await api.post(
-            "/api/scheduled-activities/\(activityId)/reset",
-            body: [:] as [String: Any],
-            responseType: Response.self
-        )
-        guard response.success, let activity = response.scheduledActivity else {
-            throw APIError.serverError(response.error ?? "Failed to reset scheduled activity")
-        }
-        syncScheduledActivityToState(activity)
-        return activity
-    }
-
-    /// Update a scheduled activity's video
-    @MainActor
-    func updateScheduledActivityVideo(activityId: String, videoId: String, videoUrl: String) async throws -> ScheduledActivity {
-        struct Response: Decodable {
-            let success: Bool
-            let scheduledActivity: ScheduledActivity?
-            let error: String?
-        }
-        let body: [String: Any] = ["videoId": videoId, "videoUrl": videoUrl]
-        let response: Response = try await api.patch(
-            "/api/scheduled-activities/\(activityId)",
-            body: body,
-            responseType: Response.self
-        )
-        guard response.success, let activity = response.scheduledActivity else {
-            throw APIError.serverError(response.error ?? "Failed to update scheduled activity video")
-        }
-        syncScheduledActivityToState(activity)
-        return activity
-    }
-
-    /// Remove video from a scheduled activity
-    @MainActor
-    func removeScheduledActivityVideo(activityId: String) async throws -> ScheduledActivity {
-        struct Response: Decodable {
-            let success: Bool
-            let scheduledActivity: ScheduledActivity?
-            let error: String?
-        }
-        let body: [String: Any] = ["videoId": NSNull(), "videoUrl": NSNull()]
-        let response: Response = try await api.patch(
-            "/api/scheduled-activities/\(activityId)",
-            body: body,
-            responseType: Response.self
-        )
-        guard response.success, let activity = response.scheduledActivity else {
-            throw APIError.serverError(response.error ?? "Failed to remove scheduled activity video")
-        }
-        syncScheduledActivityToState(activity)
-        return activity
-    }
-
-    /// Update a scheduled YOUTUBE activity with URL and optional time bounds.
-    /// Mirrors ProgramActions.updateActivityYouTube for the enrollment context.
-    @MainActor
-    func updateScheduledActivityYouTube(
-        activityId: String,
-        title: String,
-        youtubeUrl: String,
-        startSeconds: Int? = nil,
-        endSeconds: Int? = nil
-    ) async throws -> ScheduledActivity {
-        struct Response: Decodable {
-            let success: Bool
-            let scheduledActivity: ScheduledActivity?
-            let error: String?
-        }
-        var body: [String: Any] = [
-            "title": title,
-            "youtubeUrl": youtubeUrl
-        ]
-        if let startSeconds = startSeconds { body["youtubeStartSeconds"] = startSeconds }
-        if let endSeconds = endSeconds { body["youtubeEndSeconds"] = endSeconds }
-
-        let response: Response = try await api.patch(
-            "/api/scheduled-activities/\(activityId)",
-            body: body,
-            responseType: Response.self
-        )
-        guard response.success, var activity = response.scheduledActivity else {
-            throw APIError.serverError(response.error ?? "Failed to update YouTube activity")
-        }
-
-        // Ensure the fields are present on the synced activity in case the
-        // server response doesn't echo them back
-        if (activity.youtubeUrl ?? "").isEmpty {
-            activity.youtubeUrl = youtubeUrl
-        }
-        if (activity.title ?? "").isEmpty {
-            activity.title = title
-        }
-        if let startSeconds = startSeconds { activity.youtubeStartSeconds = startSeconds }
-        if let endSeconds = endSeconds { activity.youtubeEndSeconds = endSeconds }
-
-        syncScheduledActivityToState(activity)
-        return activity
+        return response.result
     }
 }
 

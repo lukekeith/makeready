@@ -348,6 +348,7 @@
 		57899623A414D127086279DC /* TextSizeSlider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 945CD8F5027766163F905527 /* TextSizeSlider.swift */; };
 		5795AF1BFCB3B80245934C32 /* EnrollSelectScheduleContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C6EB66A48971EA702D1C34D /* EnrollSelectScheduleContainer.swift */; };
 		57A46C41971B59BDF53F17C8 /* VideoActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = ST5FADD273F9B744E7BBF2 /* VideoActions.swift */; };
+		5876067E06A0D9CE2261FA6E /* PersistedStateVersionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8BAD795766933EB914B6AE /* PersistedStateVersionTests.swift */; };
 		589E9599A707D63B2212A90A /* TimelineEventRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE1AEDD2E2C46C48B197043C /* TimelineEventRow.swift */; };
 		58A5CC1BF855C0C5CF9DF83B /* EnrollmentDraftActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B6C9817AA09A4DB1B0249A7 /* EnrollmentDraftActions.swift */; };
 		58C40CC484383E6EEEA23413 /* ProgramCoverTapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BBFE29D75523E5B6747F741 /* ProgramCoverTapTests.swift */; };
@@ -782,6 +783,7 @@
 		C95EC6D5D0CCDE65C3E457B2 /* InvitationDetailActionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1772EB13A48844C5DA612FBD /* InvitationDetailActionsTests.swift */; };
 		C9759C44984D0C311D1EB57A /* SearchHomeMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 180FFAA3DF567F5062535F5F /* SearchHomeMapper.swift */; };
 		C9ECBA77A9C5D1E4D1B11272 /* SearchFilterHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = E33610C52A228DFF75C6E7FA /* SearchFilterHeader.swift */; };
+		CA3C7DE97C886FA21AD67FEC /* EnrollmentSyncDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0759483163640D5634662EE1 /* EnrollmentSyncDecodingTests.swift */; };
 		CA70A5D6677714326AFAFD72 /* StudyProgramsMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 733709303184C26949D6515C /* StudyProgramsMapper.swift */; };
 		CA815F47BD922CE8CA2FA644 /* EditProgramCoverContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6432D73C37B7477E5BAA56B2 /* EditProgramCoverContainer.swift */; };
 		CA865DD52F2D2C4059E9620C /* EditMemberAvatarContainerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D29BF82B15BA13EA5F67398 /* EditMemberAvatarContainerTests.swift */; };
@@ -1124,6 +1126,7 @@
 		07027FBD477ADE8CD195562E /* PullDownRefresh.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PullDownRefresh.swift; sourceTree = "<group>"; };
 		0728B6A50C391B9911677EE6 /* JSONValue.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = JSONValue.swift; sourceTree = "<group>"; };
 		072A3D7764A43A5B4953912C /* ActivitySpinner.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ActivitySpinner.swift; sourceTree = "<group>"; };
+		0759483163640D5634662EE1 /* EnrollmentSyncDecodingTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnrollmentSyncDecodingTests.swift; sourceTree = "<group>"; };
 		0861A5A9123E5C6F3093FF0D /* LoginOutcome.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LoginOutcome.swift; path = Containers/Auth/LoginOutcome.swift; sourceTree = "<group>"; };
 		08A8A478788BD222F0213D3D /* MakeReadyCaptureUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MakeReadyCaptureUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0907331286C16D8F62173775 /* VideoPage.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VideoPage.swift; sourceTree = "<group>"; };
@@ -1531,6 +1534,7 @@
 		C91B1CE3E660CE68CA31F598 /* AISuggestionsBlock.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AISuggestionsBlock.swift; sourceTree = "<group>"; };
 		C96FFB99B33BBCE3586DFDF3 /* EditGroupCoverContainer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EditGroupCoverContainer.swift; path = Containers/Groups/EditGroupCoverContainer.swift; sourceTree = "<group>"; };
 		CA4EDD5274781FBF3D270F88 /* ProgramDecodingTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProgramDecodingTests.swift; sourceTree = "<group>"; };
+		CA8BAD795766933EB914B6AE /* PersistedStateVersionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PersistedStateVersionTests.swift; sourceTree = "<group>"; };
 		CACHIMG0002000000000001 /* CachedAsyncImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedAsyncImage.swift; sourceTree = "<group>"; };
 		CAL_BAR00000000000001 /* CalendarBottomBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarBottomBar.swift; sourceTree = "<group>"; };
 		CAL_CTL00000000000001 /* SplitMonthCalendarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitMonthCalendarController.swift; sourceTree = "<group>"; };
@@ -2358,6 +2362,8 @@
 				38E11E1C116D7EB94A4166D6 /* ContentActivityDecodingTests.swift */,
 				111DF2911D8A4CDA71F71191 /* ActivityActionsTests.swift */,
 				ADCD0C37A11323600B9B6C92 /* ProgramActionsPublishTests.swift */,
+				CA8BAD795766933EB914B6AE /* PersistedStateVersionTests.swift */,
+				0759483163640D5634662EE1 /* EnrollmentSyncDecodingTests.swift */,
 			);
 			path = MakeReadyCaptureTests;
 			sourceTree = SOURCE_ROOT;
@@ -3592,6 +3598,8 @@
 				8AC8644A3A8D1BB2CA74D7AA /* ContentActivityDecodingTests.swift in Sources */,
 				90DD36FF32695842A81CDA86 /* ActivityActionsTests.swift in Sources */,
 				AC0FC994B873FEF12586E5BF /* ProgramActionsPublishTests.swift in Sources */,
+				5876067E06A0D9CE2261FA6E /* PersistedStateVersionTests.swift in Sources */,
+				CA3C7DE97C886FA21AD67FEC /* EnrollmentSyncDecodingTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

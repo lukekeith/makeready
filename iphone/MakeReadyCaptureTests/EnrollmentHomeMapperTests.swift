@@ -16,8 +16,8 @@ final class EnrollmentHomeMapperTests: XCTestCase {
                  {"scheduleId":"s2","date":"2035-01-09","percent":65.4,"lessonCount":2,"plannedMinutes":30}],
          "lessons":[{"scheduleId":"s1","dayNumber":1,"title":"It is evident","date":"2035-01-08","progress":1,"activities":[]},
                     {"scheduleId":"s2","dayNumber":2,"title":"In the beginning","date":"2035-01-09","progress":0.69,
-                     "activities":[{"id":"a1","type":"READ","title":"Romans 1","thumbnailUrl":"https://x/a1.png"},
-                                   {"id":"a2","type":"VIDEO","title":null,"thumbnailUrl":null}]},
+                     "activities":[{"id":"a1","type":"text","title":"Romans 1","thumbnailUrl":"https://x/a1.png"},
+                                   {"id":"a2","type":"video","title":null,"thumbnailUrl":null}]},
                     {"scheduleId":"s3","dayNumber":3,"title":null,"date":"2035-01-10","progress":0,"activities":[]},
                     {"scheduleId":"s4","dayNumber":4,"title":"Later","date":"2035-01-22","progress":null,"activities":[]}]}
         """#.utf8))
@@ -65,7 +65,7 @@ final class EnrollmentHomeMapperTests: XCTestCase {
         XCTAssertEqual(s.lessonMetaLabels, ["Jan 8", "Today", "Tomorrow", "Jan 22"])
         XCTAssertEqual(s.lessonProgress, [nil, 0.69, nil, nil])                 // §2.5: today's card only
         XCTAssertEqual(s.lessonSlideImages, [[], ["https://x/a1.png", ""], [], []])
-        XCTAssertEqual(s.lessonSlideLabels, [[], ["Read: Romans 1", "Video"], [], []])
+        XCTAssertEqual(s.lessonSlideLabels, [[], ["Text: Romans 1", "Video"], [], []])
     }
 
     func testInviteTimeFormat() {                                                // T8

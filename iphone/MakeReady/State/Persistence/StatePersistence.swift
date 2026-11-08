@@ -31,6 +31,7 @@ final class StatePersistence {
         case .staging: return "app_state_staging.json"
         }
     }
+    private let fileURLOverride: URL?
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
 
@@ -51,7 +52,9 @@ final class StatePersistence {
 
     // MARK: - Initialization
 
-    private init() {
+    /// - Parameter fileURL: pins the cache file (tests); nil resolves the per-environment file.
+    init(fileURL: URL? = nil) {
+        fileURLOverride = fileURL
         encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
 
@@ -63,6 +66,7 @@ final class StatePersistence {
 
     /// Get the file URL for the state file
     private var fileURL: URL {
+        if let fileURLOverride { return fileURLOverride }
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         return documentsPath.appendingPathComponent(fileName)
     }
@@ -82,12 +86,15 @@ final class StatePersistence {
 
         do {
             let data = try Data(contentsOf: url)
-            let state = try decoder.decode(PersistedState.self, from: data)
-            guard state.schemaVersion == PersistedState.currentSchemaVersion else {
-                Log.state.info("discarding the disk cache of schema version \(state.schemaVersion, privacy: .public)")
+            // The version is read on its own first: a cache of another version is discarded
+            // whole (D44), never decoded leniently, however much of it would still parse.
+            let version = try? decoder.decode(SchemaProbe.self, from: data).schemaVersion
+            guard version == PersistedState.currentSchemaVersion else {
+                Log.state.info("discarding the disk cache of schema version \(version ?? -1, privacy: .public)")
                 try? FileManager.default.removeItem(at: url)
                 return nil
             }
+            let state = try decoder.decode(PersistedState.self, from: data)
             NSLog("💾 StatePersistence: Loaded state (persisted at \(state.persistedAt))")
             NSLog("   Programs: \(state.programs.count), Groups: \(state.groups.count), Enrollments: \(state.enrollments.count)")
             return state
@@ -97,6 +104,11 @@ final class StatePersistence {
             try? FileManager.default.removeItem(at: url)
             return nil
         }
+    }
+
+    /// Just the schema version of a cache file.
+    private struct SchemaProbe: Decodable {
+        let schemaVersion: Int
     }
 
     // MARK: - Save (Asynchronous)
@@ -164,6 +176,11 @@ final class StatePersistence {
                 }
             }
         }
+    }
+
+    /// Blocks until every write already handed to the write queue has landed.
+    func waitForPendingWrites() {
+        writeQueue.sync {}
     }
 
     /// Cancel any scheduled debounced write and discard its snapshot.

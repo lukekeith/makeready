@@ -104,13 +104,10 @@ final class AppState {
     /// load and save, cleared with the session.
     var mediaMap: [String: MediaMapEntry] = [:]
 
-    /// Scheduled lessons (the per-enrollment, dated copies of program lessons).
-    /// Holds the **whole** LessonWithActivities aggregate — every read block,
-    /// every source reference, every order number is owned here. Mutations
-    /// happen by reading this lesson, mutating its `activities[]` inline, and
-    /// upserting back. This is the single source of truth for everything
-    /// scheduled-side: editor screens, calendar cards, Bible reader highlights.
-    let scheduledLessons = EntityStore<LessonWithActivities>()
+    /// Scheduled lessons: the per-enrollment, dated lessons, each pointing at the lesson version its
+    /// group reads. Their activities are the version's rail summaries, written by
+    /// `EnrollmentActions.getEnrollmentDetails`.
+    let scheduledLessons = EntityStore<ScheduledLesson>()
 
     /// Program enrollments (enrollments viewed from program perspective, includes group details)
     let programEnrollments = EntityStore<ProgramEnrollment>()
@@ -591,9 +588,6 @@ final class AppState {
     /// Whether calendar events have been loaded at least once
     var calendarEventsLoaded: Bool = false
 
-    /// Lesson schedules keyed by schedule ID (for action menus)
-    var lessonScheduleMap: [String: (schedule: LessonSchedule, studyName: String, enrollmentId: String)] = [:]
-
     // MARK: - Upload Progress
 
     /// Current video upload progress (if any)
@@ -689,49 +683,6 @@ final class AppState {
             lesson.title = version.title ?? lesson.title
         }
         lessons.upsert(lesson)
-    }
-
-    /// Get scheduled activities for a specific scheduled lesson (ordered by orderNumber).
-    /// Reads from the lesson aggregate — the activities live inline on the lesson value.
-    func scheduledActivitiesFor(lessonId: String) -> [ScheduledActivity] {
-        guard let lesson = scheduledLessons[lessonId] else { return [] }
-        return lesson.activities.sorted { $0.orderNumber < $1.orderNumber }
-    }
-
-    /// Find the scheduled lesson id that contains the given activity id, by walking
-    /// the small set of cached scheduled lessons. Used by EnrollmentActions write
-    /// methods that only know an activity id but need to mutate the lesson aggregate.
-    func scheduledLessonContaining(activityId: String) -> String? {
-        for lesson in scheduledLessons.all {
-            if lesson.activities.contains(where: { $0.id == activityId }) {
-                return lesson.id
-            }
-        }
-        return nil
-    }
-
-    /// Mutate a scheduled activity by id. Finds the lesson aggregate it lives on,
-    /// applies the mutation to the activity in place, and upserts the lesson back.
-    /// This is the single write path for any scheduled-activity change.
-    @discardableResult
-    func mutateScheduledActivity(activityId: String, _ mutate: (inout ScheduledActivity) -> Void) -> Bool {
-        guard let lessonId = scheduledLessonContaining(activityId: activityId),
-              var lesson = scheduledLessons[lessonId],
-              let idx = lesson.activities.firstIndex(where: { $0.id == activityId }) else {
-            return false
-        }
-        mutate(&lesson.activities[idx])
-        scheduledLessons.upsert(lesson)
-        return true
-    }
-
-    /// Replace a scheduled activity wholesale (e.g. with a fresh API response).
-    /// Updates the lesson aggregate it lives on. Returns false if not found.
-    @discardableResult
-    func replaceScheduledActivity(_ activity: ScheduledActivity) -> Bool {
-        return mutateScheduledActivity(activityId: activity.id) { existing in
-            existing = activity
-        }
     }
 
     /// Get posts for a specific group (ordered by most recent)
@@ -941,6 +892,7 @@ final class AppState {
         lessons.clear()
         activities.clear()
         lessonVersions.clear()
+        scheduledLessons.clear()
         mediaMap = [:]
         programEnrollments.clear()
         templates.clear()
@@ -1016,7 +968,6 @@ final class AppState {
         enrollmentDraftBaselines = [:]
         calendarEvents = [:]
         calendarEventsLoaded = false
-        lessonScheduleMap = [:]
 
         searchRecents = []
         searchRecentsFilters = SearchFilters()
