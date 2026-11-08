@@ -1,3 +1,4 @@
+import SwiftUI
 import XCTest
 @testable import MakeReady
 
@@ -104,6 +105,18 @@ private extension LessonVersionPayload {
 }
 
 private extension ViewerEngine {
+    /// Agent walk round 1 (Close under the status bar): the viewer ignores the safe area, so its proxy reads 0;
+    /// the window's insets win, edge by edge, and with no window the proxy's stand.
+    func testViewerInsetsTakeTheWindowsWhenTheProxyReadsZero() {
+        let insets = ActivityViewerContainer.viewerInsets(proxy: EdgeInsets(),
+                                                          window: UIEdgeInsets(top: 62, left: 0, bottom: 34, right: 0))
+        XCTAssertEqual(insets.top, 62)
+        XCTAssertEqual(insets.bottom, 34)
+        let proxyOnly = ActivityViewerContainer.viewerInsets(proxy: EdgeInsets(top: 59, leading: 0, bottom: 34, trailing: 0),
+                                                             window: nil)
+        XCTAssertEqual(proxyOnly.top, 59)
+    }
+
     /// `pages` viewport-tall pages on the 956 pt reference viewport, resting on the first.
     static func fixture(pages: Int) -> ViewerEngine {
         ViewerEngine(viewportHeight: 956, pageHeights: Array(repeating: 956, count: pages))

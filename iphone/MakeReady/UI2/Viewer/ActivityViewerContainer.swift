@@ -29,8 +29,9 @@ struct ActivityViewerContainer: View {
     var body: some View {
         GeometryReader { proxy in
             let size = proxy.size
+            let insets = Self.viewerInsets(proxy: proxy.safeAreaInsets, window: Self.windowSafeAreaInsets)
             ActivitiesPlayerScreen(
-                state: model.screenState(width: Double(size.width), insets: proxy.safeAreaInsets),
+                state: model.screenState(width: Double(size.width), insets: insets),
                 videoSlot: { index in model.videoSlot(index) },
                 youtubeSlot: { index in model.youtubeSlot(index) },
                 onClose: { close() },
@@ -48,6 +49,8 @@ struct ActivityViewerContainer: View {
                 onSheetBodyTextChange: { model.sheet?.body = $0 },
                 onLoadFailed: { Self.surfaceLoadFailure($0) }
             )
+            // The viewer's canvases take no hits (C-091 `.viewer`), so without a shape the pan never sees a touch.
+            .contentShape(Rectangle())
             .gesture(ViewerPan(
                 mayBegin: { point, velocity in model.panMayBegin(at: point, velocity: velocity) },
                 onTouchDown: { model.touchDown() },
@@ -55,14 +58,27 @@ struct ActivityViewerContainer: View {
                 onMove: { dy in model.panMoved(dy) },
                 onEnd: { velocity in model.panEnded(velocity: velocity) }
             ))
-            .onAppear { model.layout(size: size, insets: proxy.safeAreaInsets) }
-            .onChange(of: size) { model.layout(size: size, insets: proxy.safeAreaInsets) }
+            .onAppear { model.layout(size: size, insets: insets) }
+            .onChange(of: size) { model.layout(size: size, insets: insets) }
             .onChange(of: model.activeVideoPlaying) { model.activePlaybackChanged() }
         }
         .ignoresSafeArea()
         .background(Token.layoutBackground.ignoresSafeArea())
         .task { await model.load() }
         .onDisappear { model.stop() }
+    }
+
+    /// The insets the chrome, the rail and the bottom controls clear. This view ignores the safe area, so its
+    /// own proxy reads 0 on every edge; the window's insets are the device's (agent walk round 1: Close was
+    /// drawn under the status bar). Each edge takes the larger of the two.
+    static func viewerInsets(proxy: EdgeInsets, window: UIEdgeInsets?) -> EdgeInsets {
+        guard let window else { return proxy }
+        return EdgeInsets(top: max(proxy.top, window.top), leading: max(proxy.leading, window.left),
+                          bottom: max(proxy.bottom, window.bottom), trailing: max(proxy.trailing, window.right))
+    }
+
+    private static var windowSafeAreaInsets: UIEdgeInsets? {
+        (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.keyWindow?.safeAreaInsets
     }
 
     private func close() {
