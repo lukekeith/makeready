@@ -157,6 +157,21 @@ describe('content export and import', () => {
     expect(c.warnings).toEqual([])
   })
 
+  it('lists every lesson of a program missing from the target, in the result and the report', async () => {
+    const dump = await seedOldModelDump()
+    const bundlePath = await exportFrom(dump)
+    const b = JSON.parse(readFileSync(bundlePath, 'utf8'))
+    const missing = '00000000-0000-4000-8000-000000000000'
+    b.programs = b.programs.filter((p: { id: string }) => p.id === dump.programId).map((p: object) => ({ ...p, id: missing }))
+    writeFileSync(bundlePath, JSON.stringify(b))
+    const r = await runImport(url, bundlePath, {})
+    const line = r.skipped.find((s) => s.startsWith(`lesson ${dump.lessonId}`))
+    expect(line).toContain(`program ${missing} is not in the target database`)
+    expect(line).toContain('the cutover deletes it')
+    const report = readFileSync(join(bundlePath, '..', 'import-report.md'), 'utf8')
+    expect(report).toContain(`- lesson ${dump.lessonId}`)
+  })
+
   it('writes a report with counts by old type and new kind', async () => {
     const dump = await seedOldModelDump()
     const out = mkdtempSync(join(tmpdir(), 'content-report-'))

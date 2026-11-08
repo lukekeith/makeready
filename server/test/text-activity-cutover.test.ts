@@ -3,7 +3,8 @@
  * database that has every committed migration plus an import run.
  */
 import { randomBytes } from 'node:crypto'
-import { mkdtempSync, readdirSync, readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { cpSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -23,6 +24,20 @@ const readAllMigrations = () =>
 const readCutover = () =>
   readdirSync(CUTOVER).filter((f) => f.endsWith('.sql')).map((f) => readFileSync(join(CUTOVER, f), 'utf8')).join('\n')
 
+/**
+ * Applies the cutover exactly as CUTOVER.md steps 7-8 do: the file moved into the migrations directory, `migrate hash`,
+ * then `migrate apply` (atlas runs each file in its own transaction). A copy of the directory, so the repo stays as is.
+ */
+function applyCutoverWithAtlas(url: string): void {
+  const dir = mkdtempSync(join(tmpdir(), 'cutover-migrations-'))
+  cpSync(MIGRATIONS, dir, { recursive: true })
+  for (const f of readdirSync(CUTOVER).filter((f) => f.endsWith('.sql'))) cpSync(join(CUTOVER, f), join(dir, f))
+  const atlas = (args: string[]) =>
+    execFileSync(join(SERVER, 'scripts/atlas.sh'), args, { cwd: join(SERVER, 'atlas'), stdio: 'pipe', timeout: 180_000 })
+  atlas(['migrate', 'hash', '--dir', `file://${dir}`])
+  atlas(['migrate', 'apply', '--url', `${url}?sslmode=disable`, '--dir', `file://${dir}`])
+}
+
 describe('cutover drop (static)', () => {
   it('the drop lives only under cutover/', () => {
     const live = readAllMigrations()
@@ -38,12 +53,16 @@ describe('cutover drop (static)', () => {
       'member_lesson_progress', 'study_program_versions', 'enrollment_sync_runs',
     ]) expect(sql).toMatch(new RegExp(`DROP TABLE "${t}" CASCADE;`))
     expect(sql).toContain('DROP TYPE IF EXISTS "TemplateActivityType";')
-    expect(sql.trim()).toMatch(/COMMIT;$/)
+  })
+
+  it('leaves the transaction to atlas: no BEGIN or COMMIT of its own', () => {
+    const sql = readCutover()
+    expect(sql).not.toMatch(/^\s*(BEGIN|COMMIT|ROLLBACK)\b/im)
   })
 })
 
 describe('cutover drop (live)', () => {
-  it('the cutover applies to a migrated and imported database', async () => {
+  it('the cutover applies through atlas migrate apply to a migrated and imported database', async () => {
     await withMigratedScratchDb(async (url) => {
       const stamp = randomBytes(4).toString('hex')
       const { Client } = await import('pg')
@@ -73,7 +92,9 @@ describe('cutover drop (live)', () => {
           data: { enrollmentId: enrollment.id, lessonId: dump.lessonId, currentVersionId: enrolledVersion.id, scheduledDate: new Date() },
         })
 
-        await pg.query(readCutover())
+        applyCutoverWithAtlas(url)
+        const revision = await pg.query(`SELECT version FROM atlas_schema_revisions.atlas_schema_revisions WHERE version = '20261107233000'`)
+        expect(revision.rows).toHaveLength(1)
         expect(await c.enrollment.count()).toBe(0)
         expect(await c.scheduledLesson.count()).toBe(0)
         expect(await c.lessonVersion.count({ where: { enrollmentId: { not: null } } })).toBe(0)

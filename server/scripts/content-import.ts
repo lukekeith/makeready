@@ -161,6 +161,11 @@ async function importProgram(tx: Tx, program: BundleProgram, ledger: Ledger, res
   const row = await tx.studyProgram.findUnique({ where: { id: program.id }, select: { id: true, currentVersionId: true } })
   if (!row) {
     result.skipped.push(`program ${program.id}: not in the target database`)
+    // Its lessons keep a NULL programId, and the cutover deletes those: name each one so the loss is never silent.
+    for (const lesson of program.lessons) {
+      result.skipped.push(
+        `lesson ${lesson.id} ("${lesson.title}"): its program ${program.id} is not in the target database; not imported, and the cutover deletes it`)
+    }
     return
   }
   const published: { lessonId: string; lessonVersionId: string; position: number }[] = []

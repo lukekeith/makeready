@@ -1,7 +1,8 @@
 -- text-activity cutover. Applied ONLY by the owner's runbook (docs/features/text-activity/CUTOVER.md), after a verified pg_dump.
 -- It lives outside atlas/migrations/ on purpose: boot runs `migrate apply`, so a drop in that folder would run on the next
 -- deploy instead of from the runbook (SPEC D27, D30). The undo is the pg_dump restore.
-BEGIN;
+-- No BEGIN/COMMIT here: `atlas migrate apply` runs each file in its own transaction, and an in-file COMMIT makes it fail
+-- ("unexpected transaction status idle"). test/text-activity-cutover.test.ts applies it through atlas.
 
 -- D42: rows that name old lesson, schedule or activity ids
 DELETE FROM "note_links" WHERE "refType" IN ('LESSON_ACTIVITY','SCHEDULED_ACTIVITY','LESSON_SCHEDULE');
@@ -46,5 +47,3 @@ ALTER TABLE "client_events" DROP COLUMN "lessonScheduleId", DROP COLUMN "schedul
 
 -- SC9
 DROP TYPE IF EXISTS "TemplateActivityType";
-
-COMMIT;
