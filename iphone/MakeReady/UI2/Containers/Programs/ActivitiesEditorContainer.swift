@@ -268,7 +268,8 @@ struct ActivitiesEditorContainer: View {
             // Owner 2026-11-08: the Idle header's Done saves, then leaves the editor. A failed save
             // stays on the page with the alert, so the edits are not lost.
             guard editingIndex >= 0 else {
-                guard phase == .ready, await saveIfChanged() else { return }
+                // Nothing to save → nothing happens (the header's Done is muted then anyway).
+                guard phase == .ready, document != savedDocument, await saveIfChanged() else { return }
                 navigator?.pop()
                 return
             }

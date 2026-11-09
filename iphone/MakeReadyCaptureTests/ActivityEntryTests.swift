@@ -19,7 +19,8 @@ final class ActivityEntryTests: XCTestCase {
 
     func testViewerIsFullScreen() {
         XCTAssertTrue(UI2Destination.activityViewer(lessonVersionId: "v", activityId: "a").isFullScreen)
-        XCTAssertFalse(UI2Destination.activitiesEditor(activityId: "a").isFullScreen)
+        // Owner 2026-11-08 (device walk): the editor is full screen too — no TabBar under its own bars.
+        XCTAssertTrue(UI2Destination.activitiesEditor(activityId: "a").isFullScreen)
     }
 
     /// D39: a tap that cannot edit pushes nothing and reports the message through the banner channel.
