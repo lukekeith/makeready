@@ -2025,13 +2025,11 @@ struct ActivitiesEditorScreen: View {
         ("Purple", "#A92BBD")
     ]
 
-    /// C-094 `swatches`: page 1 as drawn; pages 2–3 undesigned (04-color.md OQ-04-1), empty so
-    /// C-097 still draws the three designed dots. The outlined swatch is the one whose hex equals
-    /// the current colour (§9.2); a colour no preset holds outlines none.
+    /// C-094 `swatches`: only pages that hold colours (owner walk round 9) — today the one page of
+    /// nine presets, so C-097 draws no dots and the row does not page. The outlined swatch is the
+    /// one whose hex equals the current colour (§9.2); a colour no preset holds outlines none.
     private static let palettePages: [[TextColorPalette.NamedColor]] = [
-        swatchPresets.map { TextColorPalette.NamedColor(name: $0.name, color: hexColor($0.hex) ?? Token.textPrimary) },
-        [],
-        []
+        swatchPresets.map { TextColorPalette.NamedColor(name: $0.name, color: hexColor($0.hex) ?? Token.textPrimary) }
     ]
 
     /// A colour is the leader's data, decoded from its #rrggbb (data, not style; §9.2).
