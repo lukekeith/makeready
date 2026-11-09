@@ -1125,6 +1125,8 @@ struct CaptureComponent: Codable {
     let readOnlyKind: String?                  // video · youtube · write · poll
     let readOnlyTitle: String?                 // "" = the kind's C-086 title
     let readOnlyPosterURL: String?             // the read-only page's image; "" = none
+    // activities-editor §15.2 (chat change 2026-11-09, D30). Additive:
+    let sliderDocked: Bool?                    // C-093 drawn docked at the left edge
     // OQ-C-081-6 (restored 2026-11-09): each chip's screenshot URL, parallel to `slideIDs`; "" = none.
     let slideImages: [String]?
     let showsHighlightTool: Bool?

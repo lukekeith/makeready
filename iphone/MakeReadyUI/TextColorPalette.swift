@@ -41,6 +41,10 @@ struct TextColorPalette: View {
     /// C-094 §4 `showsWell` — false: the C-095 well is not drawn at all and the swatches lay out
     /// without it, centred in the row.
     var showsWell: Bool = true
+    /// OQ-activities-editor-46 (owner, 2026-11-09; activities-editor §15.1 D29): the dark blur
+    /// material behind each swatch, for a palette floating over a canvas. Defaults off — every
+    /// other palette draws exactly as before.
+    var swatchMaterial: Bool = false
 
     /// R-02: the swipe's finger-tracked offset is an animation phase, never a prop. It settles
     /// back on release with the ruled slide (OQ-C-094-002).
@@ -163,6 +167,16 @@ struct TextColorPalette: View {
                         selected: swatch.color == currentColor,
                         onTap: { onSelect(swatch.color) }
                     )
+                    .background {
+                        if swatchMaterial {
+                            // FLAGGED LITERAL — activities-editor §15.1: the system dark
+                            // ultra-thin material (no `material` token family), in C-096's
+                            // `radius-card-sm` tile shape.
+                            RoundedRectangle(cornerRadius: Token.Radius.cardSm)
+                                .fill(.ultraThinMaterial)
+                                .environment(\.colorScheme, .dark)
+                        }
+                    }
                     .ui2Element("Swatch \(slot + 1)")
                 } else {
                     Color.clear.frame(width: Geometry.swatch, height: Geometry.swatch)

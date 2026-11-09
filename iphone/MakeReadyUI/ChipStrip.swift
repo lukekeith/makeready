@@ -41,6 +41,10 @@ struct ChipStrip: View {
     let selectedID: String
     /// §4 #3 — a chip tap with the tapped item's `id`. No render effect; no-op default (R-03).
     var onSelect: (String) -> Void = { _ in }
+    /// OQ-activities-editor-46 (owner, 2026-11-09; activities-editor §15.1 D29): the dark blur
+    /// material behind each chip, for a strip floating over a canvas. Defaults off — every other
+    /// strip draws exactly as before.
+    var chipMaterial: Bool = false
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -86,6 +90,15 @@ struct ChipStrip: View {
             // C-035 names its Font-type action `onSelect`, not `onTap`.
             onSelect: { onSelect(item.id) }
         )
+        .background {
+            if chipMaterial {
+                // FLAGGED LITERAL — activities-editor §15.1: the system dark ultra-thin material
+                // (no `material` token family), in C-035's `radius-card` shape.
+                RoundedRectangle(cornerRadius: Token.Radius.card)
+                    .fill(.ultraThinMaterial)
+                    .environment(\.colorScheme, .dark)
+            }
+        }
     }
 
     /// OQ-C-106-002 (owner): the selected chip is scrolled the MINIMUM distance into full view —

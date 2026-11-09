@@ -147,6 +147,9 @@ struct ActivitiesEditorScreen: View {
         var readOnlyTitle: String = ""
         /// §14.3 `readOnly`: the poster drawn as the page's image; "" = none.
         var readOnlyPosterURL: String = ""
+        /// §15.2 (D30): C-093 drawn docked at the screen's left edge when the edit opens (the
+        /// slider-docked preview). The live view docks it itself after 2 s untouched.
+        var sliderDocked: Bool = false
 
         /// §10.8 `gradient`: `base` `#RRGGBB`, `blobs`, `hidden`.
         struct Gradient: Equatable {
@@ -353,6 +356,13 @@ struct ActivitiesEditorScreen: View {
     @SwiftUI.State private var moveBase: CGPoint = .zero
     @SwiftUI.State private var scaleBase: CGFloat = 1
     @SwiftUI.State private var rotationBase: Double = 0
+    // §15.2 (D30): C-093 docked half off the left edge; a finger on it; and the dock timer's
+    // generation — bumping it cancels the running 2 s task and starts a new one (no `asyncAfter`).
+    @SwiftUI.State private var sliderDocked: Bool
+    @SwiftUI.State private var sliderTouching = false
+    @SwiftUI.State private var sliderDockTimer = 0
+    // §15.2: Reduce Motion cuts between docked and full.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(
         state: State,
@@ -411,6 +421,7 @@ struct ActivitiesEditorScreen: View {
         _openTool = SwiftUI.State(initialValue: Tool(rawValue: state.openTool))
         _focusedField = SwiftUI.State(initialValue: state.focusedActionField.isEmpty ? nil : state.focusedActionField)
         _alertPresented = SwiftUI.State(initialValue: state.saveFailed)
+        _sliderDocked = SwiftUI.State(initialValue: state.sliderDocked)
     }
 
     /// §14.1: the editable canvas shows — `typeGrid` and `readOnly` have no edit mode and no
@@ -503,6 +514,11 @@ struct ActivitiesEditorScreen: View {
         // §10.6 (round 2): a text edit opens with no rail open, and ending it closes every rail —
         // a page rail closing through `setOpenTool`, so `onPageRailsClosed` fires (D19).
         .onChange(of: mode) { previous, next in
+            // §15.2 (D30): when an edit begins C-093 first appears in full.
+            if next == .editing && previous != .editing {
+                sliderDocked = state.sliderDocked
+                sliderTouching = false
+            }
             let wasEditing = previous == .editing || previous == .highlighting
             let isEditing = next == .editing || next == .highlighting
             guard wasEditing != isEditing, openTool != nil else { return }
@@ -715,13 +731,65 @@ struct ActivitiesEditorScreen: View {
                     if let editedIndex { apply(.init(index: editedIndex, size: CGFloat(Self.size(forSlider: value)))) }
                 })
                     .ui2Element("C-093 TextSizeSlider")
-                    // FLAGGED LITERAL — activities-editor §2: slider 20×263.5 at x 11.
-                    .offset(x: Self.sliderX,
+                    // §15.2: a finger on the full slider holds it out; lifting restarts the 2 s.
+                    .simultaneousGesture(
+                        // pan-ok: observes C-093's own vertical drag to hold the dock timer
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { _ in beginSliderTouch() }
+                            .onEnded { _ in endSliderTouch() }
+                    )
+                    // §15.2: docked, a touch on its visible half only brings it back — the overlay
+                    // takes the touch so the thumb does not jump.
+                    .overlay {
+                        if sliderDocked {
+                            Color.clear
+                                // FLAGGED LITERAL — C-093 §2 / OQ-C-093-002: the 44pt hit strip.
+                                .frame(width: Self.sliderHitWidth)
+                                .contentShape(Rectangle())
+                                .gesture(
+                                    // pan-ok: a touch-down on the docked slider, not a sideways drag
+                                    DragGesture(minimumDistance: 0)
+                                        .onChanged { _ in beginSliderTouch() }
+                                        .onEnded { _ in endSliderTouch() }
+                                )
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    // FLAGGED LITERAL — activities-editor §2: slider 20×263.5 at x 11; §15.2 (D30)
+                    // docked: its centre line on the screen's left edge, only its right half shows.
+                    .offset(x: sliderDocked ? -Self.sliderWidth / 2 : Self.sliderX,
                             y: max(min(Self.editSlotY + offset - Self.sliderHeight / 2, containerTop - Self.sliderHeight),
                                    headerBottom))
                     .scaleEffect(unit, anchor: .topLeading)
+                    // §15.2: the dock timer is a cancellable task owned by this view — restarted
+                    // when a touch on C-093 ends, cancelled when the edit ends (the slider leaves).
+                    .task(id: sliderDockTimer) {
+                        guard !sliderTouching, !sliderDocked else { return }
+                        try? await Task.sleep(for: Self.sliderDockDelay)
+                        guard !Task.isCancelled, !sliderTouching else { return }
+                        setSliderDocked(true)
+                    }
             }
         }
+    }
+
+    // MARK: - §15.2 (D30): the docking size slider
+
+    private func beginSliderTouch() {
+        guard !sliderTouching else { return }
+        sliderTouching = true
+        sliderDockTimer += 1                                 // cancels a running dock timer
+        if sliderDocked { setSliderDocked(false) }
+    }
+
+    private func endSliderTouch() {
+        sliderTouching = false
+        sliderDockTimer += 1                                 // restarts the 2 s
+    }
+
+    /// §15.2: one ease-out, ≈ 250 ms, both ways; Reduce Motion cuts.
+    private func setSliderDocked(_ docked: Bool) {
+        withAnimation(reduceMotion ? nil : Self.sliderDockAnimation) { sliderDocked = docked }
     }
 
     /// C-091's `content` slot, laid out in wu: the committed objects at their transforms, the
@@ -1024,8 +1092,10 @@ struct ActivitiesEditorScreen: View {
 
     /// §10.1 (round 2): two forms swapped by mode. Idle is the chips rail (C-081) alone; editing
     /// is the tool stack covering it — bottom → top the tool row, the middle rail (the open tool's
-    /// choices) and the top rail (the pick's details). One surface on `color-layout-background`, no
-    /// hairlines; it rides the keyboard as one unit, so the tool row stays visible.
+    /// choices) and the top rail (the pick's details). §15.1 (D29): the editing stack has no
+    /// surface — the canvas shows through between controls, each of which carries its own blur;
+    /// the Idle chips rail keeps `color-layout-background`. No hairlines; it rides the keyboard as
+    /// one unit, so the tool row stays visible.
     private var railStack: some View {
         VStack(spacing: 0) {
             if isToolMode {
@@ -1042,7 +1112,8 @@ struct ActivitiesEditorScreen: View {
                     .ui2Element("C-081 ActivityNavBar")
             }
         }
-        .background(Token.layoutBackground)
+        // §15.1 (D29): nothing opaque spans the width while editing; the chips rail is unchanged.
+        .background { if !isToolMode { Token.layoutBackground } }
         // The stack states its own height; the canvas takes what is left (§2).
         .fixedSize(horizontal: false, vertical: true)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { containerHeight = $0 }
@@ -1069,7 +1140,9 @@ struct ActivitiesEditorScreen: View {
                 onPageChange: { palettePage = $0 },
                 onWellTap: onEyedropper,
                 // §2 item 5: hidden, not disabled — no well unless the eyedropper is shown.
-                showsWell: state.showsEyedropper
+                showsWell: state.showsEyedropper,
+                // §15.1 (OQ-activities-editor-46): the blur behind each swatch.
+                swatchMaterial: true
             )
             .ui2Element("C-094 TextColorPalette")
         case .font where mode == .editing:
@@ -1077,22 +1150,23 @@ struct ActivitiesEditorScreen: View {
             ChipStrip(items: Self.fontItems, selectedID: Self.fontID(edited?.font ?? .sans),
                       onSelect: { id in
                           if let editedIndex { apply(.init(index: editedIndex, font: id)) }
-                      })
+                      }, chipMaterial: true)
                 .ui2Element("C-106 ChipStrip 2")
         case .animation where mode == .editing && state.showsEffectsTool:
             // §3 tool 6 (OQ-007): one combined strip — none, the animations, the effects.
             // C-106 has one `selectedID`, so it shows the animation when one is set, else the
             // effect (gap: two independent selections, one selected chip).
             ChipStrip(items: Self.animationItems, selectedID: animationSelectedID,
-                      onSelect: selectAnimation)
+                      onSelect: selectAnimation, chipMaterial: true)
                 .ui2Element("C-106 ChipStrip")
         case .background:
             // §10.3: Gradient · Colour · Image; the selected option is derived.
-            ChipStrip(items: Self.backgroundItems, selectedID: backgroundOption, onSelect: selectBackgroundOption)
+            ChipStrip(items: Self.backgroundItems, selectedID: backgroundOption, onSelect: selectBackgroundOption,
+                      chipMaterial: true)
                 .ui2Element("C-106 ChipStrip")
         case .actions:
             // §10.4: the page's actions, then + Add.
-            ChipStrip(items: actionItems, selectedID: selectedActionID ?? "", onSelect: selectAction)
+            ChipStrip(items: actionItems, selectedID: selectedActionID ?? "", onSelect: selectAction, chipMaterial: true)
                 .ui2Element("C-106 ChipStrip 3")
         default:
             // Tools 3 and 5 have no rail.
@@ -1110,7 +1184,7 @@ struct ActivitiesEditorScreen: View {
             ChipStrip(items: Self.weightItems, selectedID: Self.weightID(edited?.weight ?? .bold),
                       onSelect: { id in
                           if let editedIndex { apply(.init(index: editedIndex, weight: Self.weightCode(Self.weight(id)))) }
-                      })
+                      }, chipMaterial: true)
                 .ui2Element("C-106 ChipStrip")
                 .padding(.bottom, -Token.Space.elementGap)
         case .background:
@@ -1152,6 +1226,8 @@ struct ActivitiesEditorScreen: View {
                 HStack(spacing: Token.Space.elementGap) {
                     IconButton(glyph: .refreshCw, tone: .default, style: .outlined, selected: false,
                                accessibilityLabel: Self.shuffleLabel, onTap: { onBackground(.shuffle) })
+                        // §15.1: each rail control carries the blur (C-102's box is `radius-card-sm`).
+                        .floatingControlMaterial(cornerRadius: Token.Radius.cardSm)
                         .ui2Element("C-102 IconButton \(visibleTools.count + 1)")
                     ForEach(Array(state.palettes.enumerated()), id: \.offset) { index, palette in
                         paletteTile(palette, index: index)
@@ -1176,6 +1252,8 @@ struct ActivitiesEditorScreen: View {
                             onBackground(.moreImages)
                             onPickImage()
                         })
+                        // §15.1: the blur behind "More…" (C-035's `radius-card`).
+                        .floatingControlMaterial(cornerRadius: Token.Radius.card)
                         .ui2Element("C-035 FilterChip")
                     }
                     .padding(.horizontal, Token.Space.pageMargin)
@@ -1188,7 +1266,8 @@ struct ActivitiesEditorScreen: View {
                                          guard let hex = Self.presetHex(picked) else { return }
                                          onBackground(.wash(color: hex, opacity: state.pageWashOpacity))
                                      },
-                                     showsWell: false)
+                                     showsWell: false,
+                                     swatchMaterial: true)
                         .ui2Element("C-094 TextColorPalette 2")
                     // activities-editor §3 tool 2: undrawn default, the system slider (no registry row).
                     SwiftUI.Slider(value: Binding(get: { state.pageWashOpacity },
@@ -1212,7 +1291,9 @@ struct ActivitiesEditorScreen: View {
                     onBackground(.colour(hex))
                 },
                 onPageChange: { palettePage = $0 },
-                showsWell: false
+                showsWell: false,
+                // §15.1 (OQ-activities-editor-46): the blur behind each swatch.
+                swatchMaterial: true
             )
             .ui2Element("C-094 TextColorPalette")
         }
@@ -1238,6 +1319,8 @@ struct ActivitiesEditorScreen: View {
             }
         }
         .buttonStyle(.plain)
+        // §15.1: the blur behind each palette tile.
+        .floatingControlMaterial(cornerRadius: Token.Radius.card)
         .accessibilityLabel("Palette \(index + 1)")
         .accessibilityAddTraits(index == selectedPaletteIndex ? [.isButton, .isSelected] : .isButton)
         .ui2Element("Palette chip \(index + 1)")
@@ -1259,6 +1342,8 @@ struct ActivitiesEditorScreen: View {
             .clipShape(RoundedRectangle(cornerRadius: Token.Radius.card))
         }
         .buttonStyle(.plain)
+        // §15.1: the blur behind each thumbnail.
+        .floatingControlMaterial(cornerRadius: Token.Radius.card)
         .accessibilityLabel("Library image \(index + 1)")
         .ui2Element("Thumbnail \(index + 1)")
     }
@@ -1303,7 +1388,7 @@ struct ActivitiesEditorScreen: View {
             ChipStrip(items: Self.kindItems, selectedID: action.kind.rawValue, onSelect: { id in
                 endField()
                 updateAction(action.id) { $0.kind = PageAction.Kind(rawValue: id) ?? $0.kind }
-            })
+            }, chipMaterial: true)
             .ui2Element("C-106 ChipStrip")
             field("label", placeholder: "Label", text: action.label, kind: .single) { text in
                 updateAction(action.id) { $0.label = text }
@@ -1311,7 +1396,7 @@ struct ActivitiesEditorScreen: View {
             ChipStrip(items: Self.placementItems, selectedID: action.placement.rawValue, onSelect: { id in
                 endField()
                 setPlacement(PageAction.Placement(rawValue: id) ?? action.placement, of: action.id)
-            })
+            }, chipMaterial: true)
             .ui2Element("C-106 ChipStrip 2")
             prefill(action)
             if !newActionIDs.contains(action.id) {
@@ -1373,6 +1458,8 @@ struct ActivitiesEditorScreen: View {
             },
             editing: .init(onSubmit: submit)
         )
+        // §15.1: the blur behind each C-045 field (its box is `radius-card-sm`).
+        .floatingControlMaterial(cornerRadius: Token.Radius.cardSm)
         .padding(.horizontal, Token.Space.pageMargin)
         .id(key)
         .ui2Element("C-045 TextInput \(placeholder)")
@@ -1439,40 +1526,31 @@ struct ActivitiesEditorScreen: View {
     }
 
     /// §2 item 5: plain C-102 IconButtons the screen lays out itself (owner ruling 2026-10-10),
-    /// 32pt, left to right, centred in the span and vertically centred in the 76pt row (y +22).
-    /// The pitch fits any number of visible tools to the width given.
+    /// 32pt, left to right. §15.1 (D29, supersedes the pitch layout): the visible tools sit in ONE
+    /// container centred horizontally — 4pt padding, 8pt radius, 16pt gap, the dark blur material —
+    /// hugging its contents, vertically centred in the 76pt row.
     private var toolRow: some View {
-        GeometryReader { proxy in
-            HStack(spacing: Self.toolPitch(width: proxy.size.width, count: visibleTools.count) - Self.toolSize) {
-                ForEach(Array(visibleTools.enumerated()), id: \.element) { index, tool in
-                    IconButton(
-                        glyph: Self.glyph(for: tool),
-                        tone: .default,
-                        style: .plain,
-                        selected: isSelected(tool),
-                        accessibilityLabel: Self.toolLabel(tool),
-                        onTap: { tap(tool) }
-                    )
-                    // FLAGGED LITERAL — activities-editor §2: 32pt tools.
-                    .frame(width: Self.toolSize, height: Self.toolSize)
-                    .ui2Element(index == 0 ? "C-102 IconButton" : "C-102 IconButton \(index + 1)")
-                }
+        HStack(spacing: Self.toolRowGap) {
+            ForEach(Array(visibleTools.enumerated()), id: \.element) { index, tool in
+                IconButton(
+                    glyph: Self.glyph(for: tool),
+                    tone: .default,
+                    style: .plain,
+                    selected: isSelected(tool),
+                    accessibilityLabel: Self.toolLabel(tool),
+                    onTap: { tap(tool) }
+                )
+                // FLAGGED LITERAL — activities-editor §2: 32pt tools.
+                .frame(width: Self.toolSize, height: Self.toolSize)
+                .ui2Element(index == 0 ? "C-102 IconButton" : "C-102 IconButton \(index + 1)")
             }
-            .frame(width: proxy.size.width, height: proxy.size.height)
         }
+        .padding(Self.toolRowPadding)
+        .floatingControlMaterial(cornerRadius: Self.toolRowRadius)
+        .ui2Element("Tool row")
+        .frame(maxWidth: .infinity)
         // GAP — activities-editor §2 item 5: the 76pt row, no spacing token.
         .frame(height: Self.barHeight)
-    }
-
-    /// §2 item 5: `min(64, (W − 2 × 44 − 32) ÷ (n − 1))` — 64 whenever it fits, an even shrink when
-    /// not. Under 40 the side inset relaxes from 44 toward 16 before the pitch shrinks further.
-    private static func toolPitch(width: CGFloat, count: Int) -> CGFloat {
-        let maxPitch = toolSize + Token.Space.toolbarGap
-        guard count > 1 else { return maxPitch }
-        let gaps = CGFloat(count - 1)
-        let fitted = (width - 2 * toolRowInset - toolSize) / gaps
-        if fitted >= minToolPitch { return min(maxPitch, fitted) }
-        return min(minToolPitch, (width - 2 * Token.Space.pageMargin - toolSize) / gaps)
     }
 
     /// §3 Tools: category tools take `selected` while their rails are open; 3 is never selected;
@@ -2075,9 +2153,11 @@ struct ActivitiesEditorScreen: View {
     private static let screenSpace = "ActivitiesEditorScreen.canvas"
     /// GAP — activities-editor §2 item 5: the tool row, 76pt.
     private static let barHeight: CGFloat = 76
-    /// FLAGGED LITERAL — activities-editor §2 item 5: the 44 inset and the 40 pitch floor.
-    private static let toolRowInset: CGFloat = 44
-    private static let minToolPitch: CGFloat = 40
+    /// FLAGGED LITERAL — activities-editor §15.1 (D29; no `material` token family): the tool-row
+    /// container's 4pt padding, 8pt radius and 16pt gap.
+    private static let toolRowPadding: CGFloat = 4
+    private static let toolRowRadius: CGFloat = 8
+    private static let toolRowGap: CGFloat = 16
     /// FLAGGED LITERAL — activities-editor §2: 32pt tools.
     private static let toolSize: CGFloat = 32
     /// GAP — activities-editor §2 item 2: the 1px hairline (also the palette chip's outline).
@@ -2106,6 +2186,13 @@ struct ActivitiesEditorScreen: View {
     /// ends at frame x 38; the handles' 14 wu inset.
     private static let sliderX: CGFloat = 11
     private static let sliderHeight: CGFloat = 263.5
+    /// FLAGGED LITERAL — C-093 §2: the 20pt track and its 44pt hit strip (§15.2 docks it by half).
+    private static let sliderWidth: CGFloat = 20
+    private static let sliderHitWidth: CGFloat = 44
+    /// FLAGGED LITERAL — activities-editor §15.2 (D30): docks after 2 s untouched, one ease-out
+    /// ≈ 250 ms (no `motion-*` token holds either).
+    private static let sliderDockDelay: Duration = .seconds(2)
+    private static let sliderDockAnimation = Animation.easeOut(duration: 0.25)
     private static let sliderColumn: CGFloat = 38
     private static let handleInsetWhenCrowded: CGFloat = 14
     /// FLAGGED LITERAL — activities-editor §2: Selection row 8 wu above the container.
@@ -2398,6 +2485,20 @@ extension ActivitiesEditorScreen.State {
         s.focusedActionField = "label"
         return s
     }()
+    /// §15.3 editing-rails-gradient (D29) — editing over a gradient page with the font tool open:
+    /// the weight and font rails and the tool-row container float with no rail background.
+    static let editingRailsGradient: Self = {
+        var s = pageRail("font", option: "gradient")
+        s.objectTexts = [sampleText]
+        return s
+    }()
+    /// §15.3 slider-docked (D30) — editing, C-093 docked: only its right half shows at the
+    /// screen's left edge.
+    static let sliderDocked: Self = {
+        var s = editing(sampleText, tool: "font")
+        s.sliderDocked = true
+        return s
+    }()
     /// §9.4 Load-failed — the container could not load the activity.
     static let loadFailed: Self = {
         var s = base
@@ -2524,6 +2625,33 @@ extension ActivitiesEditorScreen.State {
     ActivitiesEditorScreen(state: .rails375)
         .safeAreaPadding(.top, 59)
         .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Editing rails gradient") {
+    ActivitiesEditorScreen(state: .editingRailsGradient)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Slider docked") {
+    ActivitiesEditorScreen(state: .sliderDocked)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+// MARK: - §15.1 (D29): the floating controls' material
+
+private extension View {
+    /// §15.1: the dark blur material behind one floating control (or the tool-row container),
+    /// blurring the canvas behind it. FLAGGED LITERAL — the system dark ultra-thin material; no
+    /// `material` token family exists. The dark scheme is scoped to the material, not the control.
+    func floatingControlMaterial(cornerRadius: CGFloat) -> some View {
+        background {
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(.ultraThinMaterial)
+                .environment(\.colorScheme, .dark)
+        }
+    }
 }
 
 // MARK: - §10.10: the canvas-wide manipulation recognizers (UIKit bridge)
