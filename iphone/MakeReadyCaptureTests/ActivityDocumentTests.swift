@@ -87,14 +87,7 @@ final class ActivityDocumentTests: XCTestCase {
         XCTAssertNil(obj.utf16Range(start: 3, end: 99))
         XCTAssertNil(obj.utf16Range(start: 1, end: 3))
     }
-}
 
-extension TextObject {
-    static func fixture(text: String) -> TextObject {
-        TextObject(id: "o1", text: text, font: "sans", weight: 400, size: 16, lineHeight: 1.2, color: "#FFFFFF",
-                   alignment: "left", transform: .init(x: 220, y: 478, width: 392, scale: 1, rotation: 0),
-                   marks: [], highlights: [])
-    }
     // MARK: - text-activity-v2: background.gradient
 
     private func background(_ json: String) throws -> ActivityDocument {
@@ -130,5 +123,14 @@ extension TextObject {
                                                    blobs: [.init(x: 0.1, y: 0.2, r: 0.5, color: "#3B4BA8")])
         let doc = ActivityDocument(raw: .object(["background": .object(["color": .string("#1B1F4A"), "gradient": gradient.jsonValue])]))
         XCTAssertEqual(doc.background.gradient, gradient)
+    }
+
+}
+
+extension TextObject {
+    static func fixture(text: String) -> TextObject {
+        TextObject(id: "o1", text: text, font: "sans", weight: 400, size: 16, lineHeight: 1.2, color: "#FFFFFF",
+                   alignment: "left", transform: .init(x: 220, y: 478, width: 392, scale: 1, rotation: 0),
+                   marks: [], highlights: [])
     }
 }

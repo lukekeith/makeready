@@ -125,16 +125,6 @@ final class ActivityNewContainerTests: XCTestCase {
         XCTAssertEqual(s.pendingType, "text")
         XCTAssertEqual(Set(s.unavailableTypes), Set(ActivityNewContainer.unavailableTypes))
     }
-}
-
-extension ActivityNewContainer.Actions {
-    static func stub(createdId: String) -> Self {
-        Self(draftVersionId: { _ in "draft" }, reloadDraftVersionId: { _ in "draft" }, create: { _, _, _, _ in createdId })
-    }
-
-    static func stub(failing error: Error) -> Self {
-        Self(draftVersionId: { _ in "draft" }, reloadDraftVersionId: { _ in "draft" }, create: { _, _, _, _ in throw error })
-    }
 
     /// text-activity-v2 D5/D17: the starter's background is a blob gradient whose base is the page colour.
     func testTheStarterCarriesABlobGradient() throws {
@@ -152,5 +142,16 @@ extension ActivityNewContainer.Actions {
         var a = SeededRandom(seed: 9), b = SeededRandom(seed: 9)
         XCTAssertEqual(ActivityNewContainer.textDocument(title: "T", palette: nil, rng: &a),
                        ActivityNewContainer.textDocument(title: "T", palette: nil, rng: &b))
+    }
+
+}
+
+extension ActivityNewContainer.Actions {
+    static func stub(createdId: String) -> Self {
+        Self(draftVersionId: { _ in "draft" }, reloadDraftVersionId: { _ in "draft" }, create: { _, _, _, _ in createdId })
+    }
+
+    static func stub(failing error: Error) -> Self {
+        Self(draftVersionId: { _ in "draft" }, reloadDraftVersionId: { _ in "draft" }, create: { _, _, _, _ in throw error })
     }
 }
