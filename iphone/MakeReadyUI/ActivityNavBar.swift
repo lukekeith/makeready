@@ -18,7 +18,8 @@ import SwiftUI
 struct ActivityNavBar: View {
 
     /// §4 `slides` element (R-36, nested). `image` is the activity's screenshot, already
-    /// resolved by the screen (OQ-C-061-6; R-19, R-32); `label` is VoiceOver-only.
+    /// resolved by the screen (OQ-C-061-6; R-19, R-32): non-nil renders the filled chip, nil the
+    /// empty C-061 chip (OQ-C-081-6). `label` is VoiceOver-only.
     struct Slide {
         let id: String
         let image: Image?
@@ -27,7 +28,8 @@ struct ActivityNavBar: View {
 
     /// §4 #1 — "One per activity, in lesson order." Required (R-07).
     let slides: [Slide]
-    /// §4 #2 — "The slide drawn with C-061 `active=true`. nil means none is outlined."
+    /// §4 #2 — "The slide drawn active (C-061 `active=true`, or the filled chip's outline). nil
+    /// means none is outlined."
     /// Required (R-07: no default is designed).
     let activeID: String?
     /// §4 #3 — "Extra space added below the chips and the add button, inside the bar's frame:
@@ -157,18 +159,18 @@ struct ActivityNavBar: View {
     /// §2: "The fade length is 40 = `space-page-margin` + the add button's 24 visual."
     private static let fadeLength: CGFloat = Token.Space.pageMargin + addVisual
 
-    /// §3: "Which part renders a slide is decided by `image` alone (OQ-C-081-6): nil → C-061,
-    /// non-nil → the filled chip."
+    /// §3: "Each slide renders the filled chip when its `image` is non-nil and the empty C-061
+    /// chip when it is nil (OQ-C-081-6, restored 2026-11-09, superseding D52)."
     @ViewBuilder
     private func slideView(_ slide: Slide) -> some View {
-        if slide.image == nil {
-            // C-061 carries its own button, VoiceOver label, `.isSelected` and the 0.6 press
-            // dim (OQ-C-081-003) — §4 Accessibility is satisfied by the part itself.
-            ActivitySlide(active: slide.id == activeID, label: slide.label) {
+        if let image = slide.image {
+            FilledChip(image: image, active: slide.id == activeID, label: slide.label) {
                 onSelectSlide(slide.id)
             }
         } else {
-            FilledChipStub(active: slide.id == activeID, label: slide.label) {
+            // C-061 carries its own button, VoiceOver label, `.isSelected` and the 0.6 press
+            // dim (OQ-C-081-003) — §4 Accessibility is satisfied by the part itself.
+            ActivitySlide(active: slide.id == activeID, label: slide.label) {
                 onSelectSlide(slide.id)
             }
         }
@@ -194,52 +196,60 @@ struct ActivityNavBar: View {
     private static let addClearance: CGFloat = Token.Space.pageMargin + addVisual + Token.Space.metaGap
 }
 
-// MARK: - Filled chip (stub)
+// MARK: - Filled chip
 
-// STUB — filled chip, not a linked component. OQ-C-081-6 rules it "a new registry row: a
-// 33×44 filled chip showing the activity's screenshot (aspect-fill, top-aligned, clipped to
-// radius-card) with C-061's 1pt active outline". The row is not minted, so there is no
-// contract to build its visuals from: this holds the correct 33×44 slot, the tap, the
-// VoiceOver label and the active outline, and paints an obviously unfinished dashed fill
-// instead of the screenshot. Replace it with the real row once it is specced, built and
-// linked to C-081's §5.
-private struct FilledChipStub: View {
+/// §2 Slide strip, filled chip (OQ-C-081-6, restored 2026-11-09, superseding D52): "a slide whose
+/// `image` is non-nil renders the screenshot, built **inside this row** (no registry row): the
+/// image aspect-fill, top-aligned, filling the 33×44 chip, clipped to `radius-card`, with C-061's
+/// 1 pt active outline (same stroke, colour and inset) when the slide's `id` is `activeID`.
+/// Pressed, it dims to 0.6 like every slide (OQ-C-081-003)."
+private struct FilledChip: View {
+    let image: Image
     let active: Bool
     let label: String
     var onTap: () -> Void = {}
 
     var body: some View {
         SwiftUI.Button(action: onTap) {
-            RoundedRectangle(cornerRadius: Token.Radius.card)
-                .fill(Token.screenshotPlaceholder)
-                // STUB — the unfinished marker: a dashed border no contract designs.
-                .overlay {
-                    RoundedRectangle(cornerRadius: Token.Radius.card)
-                        .strokeBorder(Token.textSecondary, style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
+            // §2: "aspect-fill, top-aligned, filling the 33×44 chip". The clear frame fixes the
+            // footprint; the overlay fills it and pins the picture's top edge.
+            Color.clear
+                .frame(width: ActivityNavBar.slideWidth, height: ActivityNavBar.slideHeight)
+                .overlay(alignment: .top) {
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: ActivityNavBar.slideWidth, height: ActivityNavBar.slideHeight,
+                               alignment: .top)
+                        .ui2Element("Screenshot")
                 }
-                // OQ-C-081-6: "C-061's 1pt active outline" — C-061 §2: 1pt `color-white-100`,
-                // stroked inside the frame edge.
+                // §2: "clipped to `radius-card`".
+                .clipShape(RoundedRectangle(cornerRadius: Token.Radius.card))
+                // §2: "C-061's 1 pt active outline (same stroke, colour and inset)" — C-061 §2:
+                // 1pt `color-white-100`, stroked inside the frame edge, no geometry change.
                 .overlay {
                     if active {
                         RoundedRectangle(cornerRadius: Token.Radius.card)
-                            .strokeBorder(Token.white100, lineWidth: 1)
+                            .strokeBorder(Token.white100, lineWidth: Self.outlineWidth)
                             .ui2Element("Active outline")
                     }
                 }
-                .frame(width: ActivityNavBar.slideWidth, height: ActivityNavBar.slideHeight)
-                .clipShape(RoundedRectangle(cornerRadius: Token.Radius.card))
+                .contentShape(RoundedRectangle(cornerRadius: Token.Radius.card))
         }
         .buttonStyle(PressedDim())
         // §4 Accessibility (R-17): "each slide is a button labelled `label`, with
-        // `.isSelected` when it is active."
+        // `.isSelected` when it is active, whichever chip it renders."
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
         .accessibilityAddTraits(active ? [.isButton, .isSelected] : .isButton)
-        .ui2Element("Filled chip (stub)")
+        .ui2Element("Filled chip")
     }
 
-    /// OQ-C-081-003 (ratified): "the pressed slide at 0.6 opacity with no geometry change".
-    /// Ephemeral, owned by the button (R-02).
+    /// C-061 §2 Active outline: "1pt".
+    private static let outlineWidth: CGFloat = 1
+
+    /// OQ-C-081-003: "the pressed slide at 0.6 opacity with no geometry change". Ephemeral,
+    /// owned by the button (R-02).
     private struct PressedDim: ButtonStyle {
         func makeBody(configuration: Configuration) -> some View {
             configuration.label.opacity(configuration.isPressed ? 0.6 : 1)

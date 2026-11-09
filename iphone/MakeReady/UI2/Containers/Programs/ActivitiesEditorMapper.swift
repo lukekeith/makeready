@@ -39,6 +39,7 @@ enum ActivitiesEditorMapper {
             showsEyedropper: false,
             slideIDs: ordered.map(\.id),
             slideLabels: ordered.map(\.title),
+            slideImages: slideImages(slides, media: media),
             activeID: activeID,
             objectTexts: objects.map(\.text),
             objectFonts: objects.map { fontKey($0.font) },

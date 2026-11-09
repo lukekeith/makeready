@@ -3922,6 +3922,15 @@ private func buildScreenActivitiesEditor(_ fixture: CaptureFixture) throws -> An
             MakeReadyUI.Ui2ImageCache.shared.seed(picture, for: url)
         }
     }
+    // OQ-C-081-6: the chips' screenshots, seeded the same way (the screen reads the cache only).
+    let slideImages = c.slideImages ?? sample.slideImages
+    for raw in slideImages {
+        if let url = URL(string: raw), url.scheme?.hasPrefix("http") == true,
+           MakeReadyUI.Ui2ImageCache.shared.image(for: url) == nil,
+           let data = try? Data(contentsOf: url), let picture = UIImage(data: data) {
+            MakeReadyUI.Ui2ImageCache.shared.seed(picture, for: url)
+        }
+    }
     let gradient = c.gradient.map { payload in
         MakeReadyUI.ActivitiesEditorScreen.State.Gradient(
             base: payload.base,
@@ -3945,6 +3954,7 @@ private func buildScreenActivitiesEditor(_ fixture: CaptureFixture) throws -> An
             showsEyedropper: c.showsEyedropper ?? sample.showsEyedropper,
             slideIDs: c.slideIDs ?? sample.slideIDs,
             slideLabels: c.slideLabels ?? sample.slideLabels,
+            slideImages: slideImages,
             activeID: c.activeID ?? sample.activeID,
             objectTexts: c.objectTexts ?? sample.objectTexts,
             objectFonts: c.objectFonts ?? sample.objectFonts,
