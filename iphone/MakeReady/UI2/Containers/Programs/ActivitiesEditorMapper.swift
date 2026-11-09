@@ -170,6 +170,22 @@ enum ActivitiesEditorMapper {
         return string(objects[index], "text")
     }
 
+    // MARK: - text-activity-v2 round 6: the chips' screenshots
+
+    /// The editor's chips, as the program-home rail sees them: each activity in lesson order as a summary.
+    static func slideSummaries(_ slides: [ContentActivity]) -> [ActivitySummary] {
+        slides.sorted { $0.position < $1.position }.map {
+            ActivitySummary(id: $0.id, activityKey: $0.activityKey, position: $0.position, kind: $0.kind,
+                            title: $0.title, document: $0.document)
+        }
+    }
+
+    /// Each chip's screenshot URL, parallel to the chips ("" = none): the rendered thumbnail for a canvas
+    /// kind, the poster for a video, the still for YouTube — the program-home rail's own rule.
+    static func slideImages(_ slides: [ContentActivity], media: [String: MediaMapEntry]) -> [String] {
+        slideSummaries(slides).map { StudyProgramHomeMapper.slideImage($0, media: media) }
+    }
+
     // MARK: - text-activity-v2: the Background rail's state (D13, D14, D22)
 
     /// The Background rail's fields on top of `state()`: the selected option, the gradient (hidden

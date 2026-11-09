@@ -100,6 +100,23 @@ final class ActivitiesEditorMapperTests: XCTestCase {
         }
     }
 
+    // MARK: - text-activity-v2 round 6: chip screenshots
+
+    func testChipImagesFollowTheProgramHomeRailRule() {
+        let text = ContentActivity(id: "t1", lessonVersionId: "v1", activityKey: "k1", position: 1, kind: "text",
+                                   title: "Text", document: ActivityNewContainer.textDocument(title: "Text"), estimatedSeconds: nil)
+        let clip = ContentActivity(id: "y1", lessonVersionId: "v1", activityKey: "k2", position: 0, kind: "youtube",
+                                   title: "Clip", document: ActivityDocument(raw: .object([
+                                       "schemaVersion": .number(1), "kind": .string("youtube"),
+                                       "background": .object(["color": .string("#000000")]),
+                                       "content": .object(["type": .string("youtube"), "youtubeVideoId": .string("abc")])])),
+                                   estimatedSeconds: nil)
+        let images = ActivitiesEditorMapper.slideImages([text, clip], media: [:])
+        XCTAssertEqual(images.count, 2)
+        XCTAssertEqual(images[0], "https://img.youtube.com/vi/abc/hqdefault.jpg")   // lesson order: position 0 first
+        XCTAssertTrue(images[1].hasPrefix("activity-thumbnail://"))
+    }
+
     // MARK: - text-activity-v2: the Background rail's state (D13, D14, D22)
 
     func testStateDerivesTheBackgroundRail() throws {

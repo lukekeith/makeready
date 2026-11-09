@@ -68,9 +68,24 @@ struct ActivitiesEditorContainer: View {
         }
         .task { await model.load() }
         .task { await model.loadImages() }
+        // Round 6: the chips' screenshots — rendered thumbnails for canvas kinds, posters and stills otherwise.
+        .task(id: chipImageKey) {
+            let app = AppState.shared
+            let slides = app.activities(forVersion: model.lessonVersionId)
+            var seeded = await ActivityThumbnail.seed(ActivitiesEditorMapper.slideSummaries(slides), media: app.mediaMap)
+            let others = ActivitiesEditorMapper.slideImages(slides, media: app.mediaMap).filter { $0.hasPrefix("http") }
+            if await UI2ImageLoader.seed(others, context: "ActivitiesEditorContainer.chips") { seeded = true }
+            if seeded { imagesSeeded += 1 }
+        }
         .task(id: state.pageImageURL) {
             if await UI2ImageLoader.seed([state.pageImageURL], context: "ActivitiesEditorContainer") { imagesSeeded += 1 }
         }
+    }
+
+    /// Changes whenever a chip's screenshot could: a saved document, an added activity, a new poster.
+    private var chipImageKey: [String] {
+        ActivitiesEditorMapper.slideImages(AppState.shared.activities(forVersion: model.lessonVersionId),
+                                           media: AppState.shared.mediaMap)
     }
 
     /// The screen's state: the buffer mapped over the version's slides, plus the mode and flags.
