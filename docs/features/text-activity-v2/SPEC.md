@@ -67,13 +67,15 @@ one document field.
   - two specs, rails then gradients (the Gradient option lives in the rails, and both rebuild the
     same d2m screen)
 
-[^1]: `iphone/MakeReadyUI/Screens/Activities/ActivitiesEditorScreen.swift:711-755`
-[^2]: same file `:293`, `:646`, `:755`
-[^3]: same file `:684-700`
+[^1]: `iphone/MakeReadyUI/Screens/Activities/ActivitiesEditorScreen.swift:709-759`
+[^2]: same file `:293`, `:646`, `:755`; the sheet itself is `sheetOverlay` `:848-897`
+[^3]: same file `:684-705`
 [^4]: `docs/features/activity-viewer/02-content-schema.md` §5
-[^5]: `server/src/services/activity-document.ts:153-165` (`.passthrough()`)
-[^6]: `iphone/MakeReady/UI2/Containers/Programs/ActivityNewContainer.swift:71`
-[^7]: `iphone/MakeReady/UI2/Containers/Programs/ActivitiesEditorContainer.swift:238`
+[^5]: `server/src/services/activity-document.ts:153-166` (`.passthrough()`)
+[^6]: `iphone/MakeReady/UI2/Containers/Programs/ActivityNewContainer.swift:71`, and the untouched check's
+    `starterBackground` at `ActivitiesEditorMapper.swift:11`
+[^7]: `iphone/MakeReady/UI2/Containers/Programs/ActivitiesEditorContainer.swift:238`; the gate is C-091's
+    `ActivityCanvas.swift:385` (`isEnabled: mode == .idle`)
 
 ## Apps
 
@@ -81,19 +83,23 @@ one document field.
 |---|---|---|---|
 | server | ✅ | Validates the new optional `background.gradient` in the activity document zod schema; `02-content-schema.md` §5 documents it | §server |
 | client | ⬜ | No client code reads activity documents. The member rebuild is out of scope (text-activity D6), and it reads the documented field when it comes | — |
-| iphone | ✅ | Gradient generator + palettes, new-activity starter, gradient in the mapper and decoder; the editor's rails, Idle tools, tap-off commit and chips padding (d2m screen + C-091 render, then container wiring) | §iphone |
+| iphone | ✅ | Gradient generator + palettes, new-activity starter, untouched rule, gradient in the decoder, editor mapper, viewer mapper and rail thumbnails; the editor's rails, Idle tools, tap-off commit and chips padding (d2m: editor screen, player screen, C-091, C-102, C-081; then container wiring) | §iphone |
 
 **Sequencing:** contract settled (the document field, §Contract) → server validates it and verifies
 (contract FREEZES) → iphone's first task files the d2m requests (D12) → iphone wires the generator,
 mapper and container against what d2m returns → the walk.
 
 **Backward compatibility:** the field is additive and optional. An installed TestFlight build decodes
-the envelope leniently and keeps unknown fields (text-activity D11), so it shows `background.color`,
-the gradient's base colour, and re-saves the gradient untouched. No transition is needed.
+the envelope leniently and keeps unknown fields at every level, `background` included (edits patch
+the raw JSON by path, `ActivityDocument.swift:211-221`), so it shows `background.color`, the
+gradient's base colour, and re-saves the gradient untouched. One visible quirk: a colour picked on an
+old build changes `background.color` without setting `hidden`, so a new build then shows the gradient
+again (over that colour, D17). No transition is needed.
 
 **Blast radius:**
-- every reader of an activity document's background: the iPhone editor and viewer (C-091), the
-  rail's slide thumbnails (C-092 viewer mode, text-activity D26) and the server's validator
+- every reader of an activity document's background: the iPhone editor (C-091), the viewer
+  (`ActivityViewerMapper` → `ActivitiesPlayerScreen` → C-091), the rail's slide thumbnails
+  (`ActivityThumbnail.Page`, hand-drawn in the app, not C-091) and the server's validator
 - server search and summaries read only text, so they're unaffected
 
 ## Decisions
@@ -115,21 +121,29 @@ the gradient's base colour, and re-saves the gradient untouched. No transition i
 
 | # | Decision | Ruling | Who / date |
 |---|---|---|---|
-| D1 | Gradient storage | `background.gradient` = `{ style: "blobs", blobs: [{ x, y, r, color }] }` with 3–5 blobs; `background.color` stays required and is the gradient's base and every renderer's fallback. Draw order: `color`, `gradient`, `image`, `wash`, content. Rejected: a seed (every platform must share one generator forever); a rendered image (an upload and a library row per activity, not reshufflable) | owner 2026-11-08 |
-| D2 | Blob geometry | `x`, `y` are the blob centre and `r` its radius, each a fraction 0–1 of the background box's **width** (the box is the page: `pageHeight` under `scroll`, the viewport under `fixed`), so `y` may exceed 1 on a tall page and the picture is identical at any width. Each blob is a radial gradient from `color` at the centre to fully transparent at `r`, composited with normal blending over `color`. Rejected: wu (the same picture, but a fraction survives a future reference-width change) | (assumed at spec) 2026-11-08 |
+| D1 | Gradient storage | `background.gradient` = `{ style: "blobs", blobs: [{ x, y, r, color }] }` with 1–8 blobs (the generator writes 4, D3; readers draw any count the server accepts); `background.color` stays required and is the gradient's base and every renderer's fallback. Draw order: `color`, `gradient`, `image`, `wash`, content. Rejected: a seed (every platform must share one generator forever); a rendered image (an upload and a library row per activity, not reshufflable) | owner 2026-11-08 |
+| D2 | Blob geometry | `x`, `y` are the blob centre and `r` its radius, each a fraction of the background box's **width** (the box is C-091's page: `pageHeight` from `placement()`, `ActivityCanvas.swift:311-333`, viewport-tall when the content fits; `motion` is not drawn by any renderer today, so every mode uses that box; the thumbnails use their fixed 440×956 reference page), so `y` may exceed 1 on a tall page and the picture is identical at any width. Each blob is a radial gradient from `color` at the centre to fully transparent at `r`, composited with normal blending over `color`. Rejected: wu (the same picture, but a fraction survives a future reference-width change) | (assumed at spec) 2026-11-08 |
 | D3 | Generator | A new activity picks one of the curated palettes at random. The palette's darkest colour becomes `color`, and 4 blobs are drawn from its other colours: `x` uniform 0–1, `y` uniform 0–1.6, `r` uniform 0.45–0.8. A pure Swift function `ActivityBackgroundGenerator.make(palette:rng:)` with an injectable RNG so tests are deterministic. Rejected: a random hue with a harmony rule (unpredictable, some dull) | owner 2026-11-08 (palettes); (assumed at spec) the numbers |
 | D4 | Palettes | 12 palettes of 4–5 hex colours, in one Swift data file. Every colour meets 4.5:1 contrast against white text (`#FFFFFF`), enforced by a unit test over every palette colour. The owner tunes them after the walk. Rejected: the organization's brand colour (orgs store none; a separate decision) | owner 2026-11-08 |
 | D5 | Which activities | Only activities created from now on get a generated gradient: the Text tile's starter document (`ActivityNewContainer.textDocument`) and every future kind's starter. Existing, imported and fixture activities keep their backgrounds. Rejected: also fixtures (decide after seeing the result); converting white 1.0 content (changes authors' content unasked) | owner 2026-11-08 |
-| D6 | The rail stack | The editor's bottom area is one stack on `Token.layoutBackground` with no hairlines between rails, bottom to top: chips rail (Idle only), tool row, middle rail, top rail. The tool row is on screen in every mode except Load-failed. No tool presents a sheet, modal, menu or alert: the Background sheet and the Actions sheet are removed. The save-failure alert ("Couldn't save activity", text-activity D46) is not a tool and stays. Rejected: tools only while editing (Background is page-level and was unreachable without a text edit) | owner 2026-11-08 |
+| D6 | The rail stack | The editor's bottom area is one stack on `Token.layoutBackground` with no hairlines between rails, bottom to top: chips rail (Idle only), tool row, middle rail, top rail. The tool row is on screen in every mode except Load-failed. No tool presents a sheet, modal, menu or alert: the Background sheet, the Actions sheet and the editor's pushed media-pick page (subject to D22) are removed. The save-failure alert ("Couldn't save activity", text-activity D46) is not a tool and stays. Rejected: tools only while editing (Background is page-level and was unreachable without a text edit) | owner 2026-11-08 |
 | D7 | What each tool opens | The full map is in §iphone · Rails. Middle rail = the tool's choices; top rail = the picked choice's details, shown only when it has some. Tapping the open tool again closes its rails. Rejected: one rail paging through settings with a back arrow (more taps, Actions cramped) | owner 2026-11-08 |
-| D8 | Typing in a rail | A field typed in a rail (an action's label, URL, prayer title and body, write prompt) is a C-045 TextInput in the top rail. The keyboard lifts the whole stack, and the tool row stays visible above the keyboard. Return or a tap on the canvas ends the field and keeps its value. Rejected: a sheet for fields (the rule is no modals) | (assumed at spec) 2026-11-08 |
+| D8 | Typing in a rail | A field typed in a rail (an action's label, URL, prayer title and body, write prompt) is a C-045 TextInput in the top rail. The keyboard lifts the whole stack, and the tool row stays visible above the keyboard. A single-line field ends on Return; every field (multiline included — the prayer body and the write prompt, where Return types a newline) ends on a canvas tap or a tool tap, and keeps its value. A canvas tap that ends a field does nothing else (D21). Rejected: a sheet for fields (the rule is no modals) | (assumed at spec) 2026-11-08 |
 | D9 | Tools in Idle | In Idle the tool row sits above the chips rail. Background (🖼) and Actions (⚡) act on the page and are enabled; colour (🎨), alignment (≡) and font (Aa) act on a selected text object, so they're drawn at the disabled tone and take no tap until one is being edited. While editing text the chips rail hides and all five tools are enabled. Rejected: page tools only in Idle (the row would change shape between modes) | owner 2026-11-08 |
 | D10 | Tap off the text | While a text object is being edited, a tap on the canvas outside it ends the edit the same way Done does: an added object left empty is dropped, otherwise the edit is kept and the document saves (one PUT). The editor stays open in Idle. Cancel is the only action that restores the document from before the edit. Rejected: tap-off doing nothing (today; edits needed Done) | owner 2026-11-08; staying in the editor (assumed at brainstorm) |
-| D11 | Chips rail padding | C-081 ActivityNavBar gets 16pt of extra bottom inset inside the editor, below its chips and ＋, on top of the safe area. Rejected: relying on the safe area alone (today; the curved corners still clip the end chips and ＋) | owner 2026-11-08 |
-| D12 | Who builds the screen | The rails, the Idle tools, tap-off on the canvas, the padding and C-091's gradient drawing are d2m's (`activities-editor` screen and C-091, handover lane). iPhone's first task files one `request_project_change` per subject with this spec as the reference; the container and mapper code against what d2m returns. Rejected: editing the d2m views in place (handover rule) | (assumed at spec) 2026-11-08 |
+| D11 | Chips rail padding | C-081 ActivityNavBar gains a bottom-inset prop (it has none; fixed height, `ActivityNavBar.swift:56`), and the editor passes 16pt, so its chips and ＋ sit 16pt higher than today. The editor chrome ignores the bottom safe area (`ActivitiesEditorScreen.swift:388-389`), so the 16pt is measured from today's position, not added to a safe-area inset. ActivityNewScreen's C-081 per D23. Rejected: relying on the safe area alone (today; the curved corners still clip the end chips and ＋) | owner 2026-11-08 |
+| D12 | Who builds the screen | The rails, the Idle tools, tap-off on the canvas, the padding and the gradient drawing are d2m's, handover lane, in five subjects: the `activities-editor` screen, the `activities-player` screen (gradient fields in its per-page background `State`), C-091 (draws `gradient`), C-102 IconButton (a new disabled state — it has none, OQ-C-102-5) and C-081 (the bottom-inset prop). The rail thumbnails (`ActivityThumbnail.Page`) are app code, not d2m. iPhone's first task files one `request_project_change` per subject with this spec as the reference; the container and mapper code against what d2m returns. Rejected: editing the d2m views in place (handover rule) | (assumed at spec) 2026-11-08 |
 | D13 | The Gradient option's controls | Top rail: a ↻ Shuffle button (a new `blobs` layout from the current palette) followed by the 12 palettes as swatch chips (a palette tap regenerates with that palette). The document remembers the palette by its colours, not an id, so palettes can be retuned without breaking documents. Rejected: shuffle only (no colour choice); dragging individual blobs (a new canvas mode) | owner 2026-11-08 |
-| D14 | Switching background kinds | Picking **Colour** keeps `gradient` stored but sets `background.gradient.hidden = true`, so the solid colour shows and Gradient brings it back unchanged. Picking a colour sets `background.color`. Picking **Image** keeps the gradient as the layer under the image (visible while it loads and around a transparent image). Picking **Gradient** clears `hidden`. Rejected: deleting the gradient on Colour (one tap loses the generated look for good) | (assumed at spec) 2026-11-08 |
+| D14 | Switching background kinds | Picking **Colour** keeps `gradient` stored but sets `background.gradient.hidden = true`, so the solid colour shows and Gradient brings the blobs back unchanged. Picking a colour sets `background.color` (what Gradient restores the base to: D17). Picking **Image** keeps the gradient as the layer under the image (visible while it loads and around a transparent image), obeying `hidden`. Picking **Gradient** clears `hidden`; on a document with no `gradient` (every activity made before this) it generates one from a random palette (D3). The rail's selected option is derived: `image` set → Image; else no `gradient` or `hidden` → Colour; else Gradient. Removing an image: D18. Rejected: deleting the gradient on Colour (one tap loses the generated look for good) | (assumed at spec) 2026-11-08 |
 | D15 | "The animation icon" | The owner's "animation icon" is tool 7, Actions (glyph `zap`). The real animation tool (6) stays hidden, as do highlight (5) and the eyedropper (text-activity D17) | (assumed at brainstorm) 2026-11-08 |
+| D16 | Which new activities count as untouched (backing out deletes them) | OPEN — **Recommended:** untouched = no text objects, no actions, no `background.image`, no `background.wash`, whatever `color` and `gradient` hold. `isUntouched` (`ActivitiesEditorMapper.swift:112-118`) drops its `#FFFFFF` check and `starterBackground`. Rejected: comparing against the generated starter (the container would have to keep the starter document; Shuffle in an otherwise empty activity would then keep it). Why it's open: today a generated starter fails the `#FFFFFF` check, so every abandoned new activity would be kept | audit 2026-11-08 |
+| D17 | The gradient's base colour vs the Colour pick | OPEN — **Recommended:** `gradient.base` (`#RRGGBB`, required inside `gradient`) holds the palette's darkest colour. While the gradient shows, `background.color` = `gradient.base`. Colour sets `color` to the swatch and `hidden = true`. Gradient sets `color = gradient.base` and clears `hidden`. Shuffle and a palette chip rewrite `base` and `blobs` together. Rejected: one `color` for both (D1 as written; a Colour pick overwrites the base, so Gradient can't bring it back unchanged — D14's promise breaks) | audit 2026-11-08 |
+| D18 | Removing a background image | OPEN — **Recommended:** picking **Gradient** or **Colour** in the Background rail removes `background.image` and `background.wash` (one tap, no confirm). Rejected: a separate Remove chip under Image (one more control; nothing removes an image today, so without either the image covers every Gradient or Colour pick for good) | audit 2026-11-08 |
+| D19 | When Background and Actions edits save, and what Cancel covers | OPEN — **Recommended:** Background and Actions edits patch the document live. In Idle they save with one PUT when their rail closes or the editor is left. During a text edit they save with that edit's commit (Done or tap-off). Cancel restores only the edited text object, keeps the page edits, and saves them if any were made. An action added and still empty (no label) when its rail closes is dropped. Rejected: a PUT per change (today `changeActions` PUTs mid-edit, carrying the half-typed text, so a later Cancel leaves the server holding text the leader cancelled); Cancel reverting the whole page (one Cancel loses unrelated background work) | audit 2026-11-08 |
+| D20 | Tapping another text object while editing one | OPEN — **Recommended:** it commits the current edit exactly as tap-off does (D10), then starts editing the tapped object. Rejected: ignore the tap (today, `ActivitiesEditorContainer.swift:249`; feels broken now that tap-off commits) | audit 2026-11-08 |
+| D21 | A canvas tap while a rail is open in Idle | OPEN — **Recommended:** while any rail is open or a rail field is focused, a canvas tap only closes the field or rails — it never adds a text object. With nothing open, a tap on the empty canvas adds a text object as today. Rejected: always add an object (today's `tapEmpty`, `:238-245`; with page tools usable in Idle, ending a field would drop a stray object) | audit 2026-11-08 |
+| D22 | Browsing the library for a background image | OPEN — **Recommended:** the Image top rail shows the library's images as thumbnails, newest first, loading more as it scrolls, with a last "More…" chip that pushes the existing media pick page (search and Source/Tags/Leaders/Time filters, `MediaHomeContainer.swift:83, :149`) — a pushed page, not a sheet. Rejected: thumbnails only (drops search and filters from a library that grows org-wide); the pushed page only (today; the owner asked for rails) | audit 2026-11-08 |
+| D23 | The 16pt chips padding on the New Activity screen | OPEN — **Recommended:** ActivityNewScreen's C-081 (`ActivityNewScreen.swift:101`) passes the same 16pt, so the bar sits in the same place on both screens. Rejected: editor only (the bar jumps 16pt between New Activity and the editor) | audit 2026-11-08 |
 
 ## Contract
 
@@ -138,9 +152,9 @@ the viewer and the future member web viewer read it.
 
 | Contract | Producer | Consumers | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|---|
-| `background.gradient` in the activity document (`02-content-schema.md` §5), carried by `POST /api/lesson-versions/:id/activities`, `PUT /api/content-activities/:id` and every read returning `ContentActivity` | server | iphone (editor, viewer, rail thumbnails) | as text-activity D35 | `gradient?: { style: "blobs", hidden?: boolean, blobs: Blob[] }`, `Blob = { x, y, r: number, color: "#RRGGBB" }` | stored and returned unchanged; unknown keys inside `gradient` preserved | 400 `VALIDATION` when `style` isn't `"blobs"`, `blobs` has fewer than 1 or more than 8 entries, `x`/`r` fall outside 0–1, `y` outside 0–4, or a `color` isn't `#RRGGBB` |
+| `background.gradient` in the activity document (`02-content-schema.md` §5), carried by `POST /api/lesson-versions/:id/activities`, `PUT /api/content-activities/:id` and every read returning `ContentActivity` | server | iphone (editor, viewer, rail thumbnails) | as text-activity D35 | `gradient?: { style: "blobs", base: "#RRGGBB", hidden?: boolean, blobs: Blob[] }` (`base` per D17's recommendation; dropped if D17 rules otherwise), `Blob = { x, y, r: number, color: "#RRGGBB" }` | stored and returned unchanged; unknown keys inside `gradient` preserved | 400 `VALIDATION` when `style` isn't `"blobs"`, `blobs` has fewer than 1 or more than 8 entries, `x`/`r` fall outside 0–1, `y` outside 0–4, or `base` or a blob `color` isn't `#RRGGBB` |
 
-No endpoint, route or response shape changes.
+No endpoint, route or response shape changes. The server accepts only `style: "blobs"`; the iPhone decoder still tolerates an unknown style (forward compatibility for a later style the server learns first).
 
 ## Schema & API changes
 
@@ -153,8 +167,10 @@ runs, and existing documents have no `gradient` and render as before (D5).
 
 ## server
 
-- `services/activity-document.ts`: add `gradient` to the `background` zod object, optional,
-  `.passthrough()` like its siblings, with the bounds and error of §Contract. The 256 KB limit is
+- `services/activity-document.ts`: add `gradient` to the `background` zod object (`:153-166`), optional,
+  `.passthrough()` like its siblings, with the bounds and error of §Contract, reusing the `hex` and
+  `unit` helpers (`:23-24`). The publish content hash (`:248-256`) sees the gradient like any other
+  field, so a Shuffle marks a published lesson changed — intended. The 256 KB limit is
   unchanged; 8 blobs is under 1 KB.
 - `docs/features/activity-viewer/02-content-schema.md` §5: document `gradient`, its draw order (D1),
   geometry (D2) and `hidden` (D14), and add one blob example to §11.
@@ -164,42 +180,64 @@ runs, and existing documents have no `gradient` and render as before (D5).
 
 **State and models.**
 - `ActivityDocument` decodes `background.gradient` leniently (an unknown `style` → ignored and
-  preserved), so a malformed gradient never fails the decode (text-activity D11).
+  preserved), so a malformed gradient never fails the decode (text-activity D11). `ActivityBackground`
+  is synthesized Codable decoded with `?? .default` (`ActivityDocument.swift:198`): it needs a custom
+  `init(from:)` with `try?` per field, or a bad `gradient` drops the whole background to the default.
+- `ActivitiesEditorMapper.isUntouched` per D16.
 - `ActivitiesEditorMapper` maps `gradient` into C-091's background, and the Background rail's edits
   back into the document.
-- `ActivitiesEditorMapper.applyBackground` today only writes `color`, `focal` and `wash`. It gains
-  `gradient` and `hidden`, keeping every other field.
+- `ActivitiesEditorMapper.applyBackground` (`:184-198`) today writes `color`, and `focal` and `wash`
+  only when an image exists. It gains `gradient`, `base`, `hidden` and the image removal of D18,
+  keeping every other field. `motion` has no UI anywhere and stays as stored (patched by path).
+- `ActivityViewerMapper.appendPage(background:)` (`:277-293`, `:360-367`) passes the gradient to the
+  player screen's per-page background fields.
+- `ActivityThumbnail.Page` (`:77-110`, app code) draws the gradient between colour and image, sharing
+  one pure blob-drawing view with C-091 where d2m's build allows.
 
 **Generator.**
 - `MakeReady/UI2/Activities/ActivityBackgroundGenerator.swift` (D3).
 - `ActivityBackgroundPalettes.swift` (D4).
-- `ActivityNewContainer.textDocument` calls the generator instead of writing `#FFFFFF` (D5).
+- `ActivityNewContainer.textDocument` calls the generator instead of writing `#FFFFFF` (D5), taking
+  `palette:` and `rng:` parameters (defaulted) so its tests stay deterministic.
 
 **Rails** (d2m, D12). The bottom stack per D6, on `Token.layoutBackground`:
 
 | Tool | Middle rail (C-106 of C-035 chips unless noted) | Top rail |
 |---|---|---|
 | 🎨 Colour | C-094 TextColorPalette (as built) | — |
-| 🖼 Background | Gradient · Colour · Image | Gradient: ↻ Shuffle + 12 palette chips (D13). Colour: C-094. Image: library thumbnails (D40's pick mode, inline instead of a pushed page), then the wash colour (C-094) and opacity (system Slider) |
+| 🖼 Background | Gradient · Colour · Image | Gradient: ↻ Shuffle + 12 palette chips (D13). Colour: C-094. Image: library thumbnails per D22, then the wash colour (C-094) and opacity (system Slider), the wash shown only with an image (as today) |
 | ≡ Alignment | Left · Centre · Right | — |
 | Aa Font | font strip (as built) | weight row (as built) |
-| ⚡ Actions | the page's actions as chips, then ＋ Add | the selected action: Kind chips · Placement chips (Inline · Pinned) · Remove (C-105) · its fields per D8 |
+| ⚡ Actions | the page's actions as chips, then ＋ Add | the selected action: Kind chips (Add to Prayer List · Write · Open link · Next lesson) · Placement chips (Inline · Pinned; picking Pinned demotes the page's other pinned action to Inline — at most one, as the server enforces) · Remove (C-105, hidden on a just-added action, as today) · its fields per D8 (prayer title + multiline body, write prompt multiline, URL single-line) |
+
+- **Actions, carried over from the sheet:** a new action is Add to Prayer List, Inline, empty label; a
+  chip with an empty label reads "Action"; a tap on an inline action preview on the canvas opens the
+  Actions rail with that action selected. Saving and empty actions per D19.
+- **Which rails survive a mode change:** starting a text edit closes the Background and Actions rails;
+  ending it closes Colour, Alignment and Font. Background and Actions opened during an edit stay open
+  until the edit ends.
 
 - **The Image option's focal point:** while Image is open, a drag on the canvas moves the focal
-  point. No other gesture runs on the canvas while Image is open. (assumed at spec)
+  point and the canvas does not scroll; a tap still closes the rails (D21). (assumed at spec)
 - **Tap-off (D10):** C-091's empty-canvas tap is reported while editing too. The screen reports it
-  as `onTapOff`, and the container commits the edit (`model.commitEdit()`, which Done also calls).
+  as `onTapOff`, and the container commits the edit through `model.commitEdit()` — a new method
+  extracted from `done()`'s edit branch (`ActivitiesEditorContainer.swift:275-280`), which Done then
+  calls too. Tapping another object while editing per D20.
 - **Load-failed** keeps back only, with no stack.
 
 **Container.**
-- `ActivitiesEditorContainer`: `tapOff()` → commit the edit and save.
-- Tool enablement per D9 (from `editingIndex`).
+- `ActivitiesEditorContainer`: `tapOff()` → commit the edit and save. `cancel()` and the save moments
+  per D19 (`changeActions` stops PUTting on every change).
+- Tool enablement per D9 is the screen's (it already derives the mode from `editingIndex`, Screen
+  `:612`), drawn with C-102's new disabled state.
 - `changeBackground` handles gradient, shuffle, palette and the `hidden` toggle.
-- The Image option calls the media pick inline. `MediaHomeContainer`'s pick mode stays for any other
-  caller.
+- The Image option loads library images inline, copying `MediaHomeContainer.pickBackground`
+  (`:506-513`: merge `mediaMap`, write the image). `MediaHomeContainer`'s pick mode stays for D22's
+  "More…".
 
-**C-091** (d2m): draws `gradient` between `color` and `image` per D1/D2 in every mode, the viewer
-included. The rail thumbnails (C-092 viewer mode) inherit it.
+**C-091** (d2m): draws `gradient` between `color` and `image` per D1/D2 in every mode. The viewer
+gets it through the `activities-player` screen (D12); the rail thumbnails are `ActivityThumbnail.Page`
+(above), not C-091.
 
 ## Testing
 
@@ -207,7 +245,7 @@ included. The rail thumbnails (C-092 viewer mode) inherit it.
 - `activity-document` tests: a document with a valid gradient saves and round-trips unchanged.
 - Unknown keys inside `gradient` survive.
 - Each bound in §Contract is rejected with 400 `VALIDATION`: `style`, the blob count of 0 and 9,
-  `x` −0.1 and 1.1, `y` 4.1, `r` 1.1, a non-hex `color`.
+  `x` −0.1 and 1.1, `y` 4.1, `r` 1.1, a non-hex blob `color`, a missing or non-hex `base`.
 - A document without `gradient` is unaffected.
 
 **iphone.**
@@ -219,18 +257,31 @@ included. The rail thumbnails (C-092 viewer mode) inherit it.
 - `ActivityBackgroundPalettesTests`: every palette has 4–5 colours, and every colour is ≥ 4.5:1
   against white (D4).
 - Decoder tests: a document with a gradient decodes; an unknown `style` decodes and re-encodes
-  unchanged.
+  unchanged; a malformed `gradient` leaves `color`, `image` and `wash` decoded.
 - Mapper tests:
   - Shuffle keeps the palette's colours
   - a palette chip swaps them
   - Colour sets `hidden`, and Gradient clears it
   - Image keeps the gradient
+  - Colour then Gradient restores `color` to `gradient.base` (D17)
+  - Gradient or Colour removes `image` and `wash` (D18)
+  - Gradient on a document with no gradient generates one
+  - `isUntouched` is true for a generated starter and false once an object, action or image exists (D16)
+- Viewer mapper and `ActivityThumbnail` tests: a gradient reaches the page's background fields.
 - Container tests:
   - `tapOff` while editing commits and saves once
   - `tapOff` on an added empty object drops it
-  - Cancel restores
-  - Idle tool enablement per D9
+  - Cancel restores the edited object and keeps (and saves) page edits (D19)
+  - tapping another object commits, then edits it (D20)
+  - a canvas tap with a rail open adds no object (D21)
+  - backing out of an untouched generated activity deletes it (D16)
 - `ActivityNewContainer` test: the starter document carries a `blobs` gradient.
+- Screen contract tests: Idle tool enablement per D9; the rail stack replaces `sheetLayout`.
+- **Tests this rewrites** (they assert today's behaviour): ActivityNewContainerTests `:38` (two
+  starters equal) and `:112` (`#FFFFFF`); ActivitiesEditorMapperTests `:44-45` and
+  ActivitiesEditorContainerTests `:48` (untouched = `#FFFFFF`); ActivitiesEditorScreenContractTests
+  `:49-60` (`sheetLayout`); the `openTool` sheet values in ViewRegistry `:3918` and CaptureFixture
+  `:1087`.
 
 **E2E walk (one).**
 1. A leader adds Text and the page opens on a blob gradient.
@@ -244,6 +295,7 @@ included. The rail thumbnails (C-092 viewer mode) inherit it.
 7. Throughout, no sheet ever appears and the tool row never moves off screen.
 8. The chips rail clears the corners.
 9. The viewer shows the same gradient.
+10. Add Text again and back out without touching it: the new activity is gone (D16).
 
 **Human-verification script** (only a person can judge these):
 1. Gradients look organic and good. Add ten activities and note any palette you'd change.
@@ -267,4 +319,10 @@ included. The rail thumbnails (C-092 viewer mode) inherit it.
 |---|---|---|
 | F1 | The editor screen and C-091 are d2m-built; this spec's iPhone UI is a handover change d2m makes | build-time risk: iPhone's first task files the requests (D12) and waits for d2m before the container tasks |
 | F2 | Typing in a top rail above the keyboard is tight on 375pt phones | build-time risk: the d2m request pins rail heights for 375pt; human script item 3 checks it |
-| F3 | The working tree on `feature/text-activity` holds uncommitted editor fixes from the 2026-11-08 walk (full-screen editor, muted Done, drag fixes, local image store) that this spec builds on | resolve before the build starts: commit them on `feature/text-activity` |
+| F3 | The working tree on `feature/text-activity` holds uncommitted editor fixes from the 2026-11-08 walk (full-screen editor, muted Done, drag fixes, local image store) that this spec builds on — still uncommitted at the audit (10 files incl. `docker-compose.yml`'s `dev-images` service) | resolve before the build starts: commit them on `feature/text-activity` |
+| F4 | stale-spec (audit): `model.commitEdit()` didn't exist; the thumbnails are app code, not C-092/C-091; the viewer needs the player screen; C-102 has no disabled state; C-081 has no inset prop and the editor ignores the bottom safe area | fixed in place: §iphone, D11, D12 |
+| F5 | design (audit): six behaviours the spec left open — untouched rule, base vs Colour, image removal, save moments + Cancel scope, tap on another object, canvas tap with a rail open, library browsing, New Activity padding | OPEN D16–D23 |
+| F6 | contract (audit): D17's recommendation adds `gradient.base` — an additive required-inside-optional hex field, checked against the server's `hex` helper; no consumer exists yet beyond iphone | §Contract carries it conditionally; settled by the D17 ruling before the server task |
+| F7 | A failed save bumps `screenGeneration` and re-seeds the screen (`ActivitiesEditorScreen.swift:368`, Container `:58`), resetting open rails and the selected palette | build-time risk: the editor-wiring task checks that a failed tap-off save keeps the rails, or accepts the reset and says so |
+| F8 | The Image focal drag competes with C-091's vertical ScrollView (`ActivityCanvas.swift:262`) on a tall page | build-time risk: the d2m editor-screen request pins "no scroll while Image is open"; walk step 5 checks it |
+| F9 | D4's 4.5:1 rule means every palette colour has relative luminance ≤ 0.183 — deep tones only, no bright yellows or pastels. Blends of compliant colours stay compliant, so testing each palette colour suffices | build-time risk: the palettes task shows the owner the 12 palettes before committing; human script item 1 |
