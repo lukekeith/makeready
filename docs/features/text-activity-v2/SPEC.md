@@ -212,7 +212,7 @@ runs, and existing documents have no `gradient` and render as before (D5).
 
 - **Actions, carried over from the sheet:** a new action is Add to Prayer List, Inline, empty label; a
   chip with an empty label reads "Action"; a tap on an inline action preview on the canvas opens the
-  Actions rail with that action selected. Saving and empty actions per D19.
+  Actions rail with that action selected while editing; in Idle it does nothing (D6/D9 round 2, OQ-activities-editor-44). Saving and empty actions per D19.
 - **Which rails survive a mode change:** starting a text edit closes the Background and Actions rails;
   ending it closes Colour, Alignment and Font. Background and Actions opened during an edit stay open
   until the edit ends.
