@@ -3905,6 +3905,24 @@ private func buildScreenActivitiesEditor(_ fixture: CaptureFixture) throws -> An
        let data = try? Data(contentsOf: url), let picture = UIImage(data: data) {
         MakeReadyUI.Ui2ImageCache.shared.seed(picture, for: url)
     }
+    // §10.3: the Image rail's thumbnails, seeded the same way (the view reads the cache, never fetches).
+    let libraryImages = (c.libraryImages ?? []).map {
+        MakeReadyUI.ActivitiesEditorScreen.State.LibraryImage(id: $0.id, thumbnailURL: $0.thumbnailURL)
+    }
+    for image in libraryImages {
+        if let url = URL(string: image.thumbnailURL), url.scheme?.hasPrefix("http") == true,
+           MakeReadyUI.Ui2ImageCache.shared.image(for: url) == nil,
+           let data = try? Data(contentsOf: url), let picture = UIImage(data: data) {
+            MakeReadyUI.Ui2ImageCache.shared.seed(picture, for: url)
+        }
+    }
+    let gradient = c.gradient.map { payload in
+        MakeReadyUI.ActivitiesEditorScreen.State.Gradient(
+            base: payload.base,
+            hidden: payload.hidden ?? false,
+            blobs: payload.blobs.map { .init(x: $0.x, y: $0.y, r: $0.r, color: $0.color) }
+        )
+    }
     // The canvas is the harness's (CaptureRunner's `screen.*` branch), but `.sizeThatFits` proposes
     // a zero height and §2's page starts at the top of the screen: this screen fills the whole
     // fixture device, under the runner's status bar. Its top inset is a real safe area, so the
@@ -3961,7 +3979,13 @@ private func buildScreenActivitiesEditor(_ fixture: CaptureFixture) throws -> An
             saving: c.saving ?? sample.saving,
             saveFailed: c.saveFailed ?? sample.saveFailed,
             loadFailed: c.loadFailed ?? sample.loadFailed,
-            canSave: c.canSave ?? sample.canSave
+            canSave: c.canSave ?? sample.canSave,
+            backgroundOption: c.backgroundOption ?? sample.backgroundOption,
+            gradient: gradient ?? sample.gradient,
+            palettes: c.palettes ?? sample.palettes,
+            libraryImages: c.libraryImages == nil ? sample.libraryImages : libraryImages,
+            hasMoreImages: c.hasMoreImages ?? sample.hasMoreImages,
+            focusedActionField: c.focusedActionField ?? sample.focusedActionField
         )
     )
     .safeAreaPadding(.top, device.safeArea.top)
@@ -4752,8 +4776,8 @@ private func buildUI2C102(_ fixture: CaptureFixture) throws -> AnyView {
         throw ViewRegistryError.unknownView("component.ui2.C-102: missing state.component")
     }
     // C-102 §4 (R-07): `glyph`, `tone`, `style`, `selected` and `accessibilityLabel` are
-    // required — a nil is a fixture bug, not a value to guess. `onTap` is the view's no-op
-    // default. §3 `pressed` is ephemeral (R-02, OQ-C-102-5) and has no prop to set, so it
+    // required — a nil is a fixture bug, not a value to guess. `isDisabled` defaults to false
+    // (SPEC D9); `onTap` is the view's no-op default. §3 `pressed` is ephemeral (R-02, OQ-C-102-5) and has no prop to set, so it
     // renders at rest, as C-082's does. Every prop reuses an existing field under §4's name.
     guard let ui2C102GlyphRaw = c.glyph else {
         throw ViewRegistryError.unknownView("component.ui2.C-102: props.glyph is required")
@@ -4779,7 +4803,8 @@ private func buildUI2C102(_ fixture: CaptureFixture) throws -> AnyView {
             tone: ui2C102Tone,
             style: ui2C102Style,
             selected: ui2C102Selected,
-            accessibilityLabel: ui2C102Label
+            accessibilityLabel: ui2C102Label,
+            isDisabled: c.isDisabled ?? false
         ),
         // No master width: §2 fixes the control at 34×34 and the host positions it, so the
         // call site adds only the page margin and the ground (R-16).
@@ -5139,8 +5164,18 @@ private func buildUI2C091(_ fixture: CaptureFixture) throws -> AnyView {
     if let wash = ui2C091Ground.wash {
         ui2C091Wash = .init(color: try ui2C091Color(wash.color), opacity: wash.opacity)
     }
+    // §4 `background.gradient` (default nil): `hidden` absent = false (the app's own decoding).
+    var ui2C091Gradient: MakeReadyUI.ActivityCanvas<AnyView>.Background.Gradient?
+    if let gradient = ui2C091Ground.gradient {
+        ui2C091Gradient = .init(
+            base: try ui2C091Color(gradient.base),
+            hidden: gradient.hidden ?? false,
+            blobs: try gradient.blobs.map { .init(x: $0.x, y: $0.y, r: $0.r, color: try ui2C091Color($0.color)) }
+        )
+    }
     let ui2C091Background = MakeReadyUI.ActivityCanvas<AnyView>.Background(
         color: try ui2C091Color(ui2C091Ground.color),
+        gradient: ui2C091Gradient,
         image: ui2C091Image,
         wash: ui2C091Wash
     )

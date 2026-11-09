@@ -1112,6 +1112,13 @@ struct CaptureComponent: Codable {
     let editingIndex: Int?                     // activities-editor §9.1 — the edited object
     let loadFailed: Bool?                      // activities-editor §9.4 · activities-player §3
     let canSave: Bool?                         // activities-editor §9.3 — the Idle header's Done
+    // activities-editor §10.8 (chat change 2026-11-08, rail stack). Additive:
+    let backgroundOption: String?              // gradient · colour · image
+    let gradient: CaptureUI2CanvasBackground.GradientPayload?  // the page's blob gradient
+    let palettes: [[String]]?                  // 12 palettes of #RRGGBB
+    let libraryImages: [CaptureEditorLibraryImage]?  // id + thumbnail URL, newest first
+    let hasMoreImages: Bool?
+    let focusedActionField: String?            // §10.9 — label · value · body · ""
     let showsHighlightTool: Bool?
     let showsEffectsTool: Bool?
     let showsEyedropper: Bool?
@@ -1239,6 +1246,7 @@ struct CaptureComponent: Codable {
     // existed, and `available`/`active`/`selected` mean other things on other contracts.
     let recommended: Bool?                     // C-047 — amber star after the title
     let disabled: Bool?                        // C-047 — whole row at 0.4, taps ignored
+    let isDisabled: Bool?                      // C-102 — glyph at color-white-50, no tap (SPEC D9)
     // C-128 DateRangePicker. Additive; reuses `lessonCount` (Int), `today` (string reading),
     // `startDate` (String) and `enabledDays` ([Int]) as-is — same names, same types.
     let overriddenDates: [String]?             // C-128 — yyyy-MM-dd, inclusion flipped
@@ -1472,6 +1480,26 @@ struct CaptureUI2CanvasBackground: Codable {
     let color: String
     let image: ImagePayload?
     let wash: Wash?
+    // ── preview props ──
+    // C-091 chat change 2026-11-08 (text-activity-v2): `background.gradient`. Additive:
+    struct Blob: Codable {
+        let x: Double
+        let y: Double
+        let r: Double
+        let color: String
+    }
+    struct GradientPayload: Codable {
+        let base: String
+        let hidden: Bool?
+        let blobs: [Blob]
+    }
+    let gradient: GradientPayload?             // C-091 — `ActivityCanvas.Background.Gradient`
+}
+
+/// activities-editor §10.8 `libraryImages` element.
+struct CaptureEditorLibraryImage: Codable {
+    let id: String
+    let thumbnailURL: String
 }
 
 /// C-091 §4 `widthHandles` — the frame in page-local wu, the rotation in degrees.

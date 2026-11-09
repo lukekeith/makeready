@@ -22,10 +22,11 @@ import SwiftUI
 /// header, the bottom container, the panels and the chips stay in points.
 ///
 /// Composed only of §4's C-040 PageHeader, C-091 ActivityCanvas (→ C-092 CanvasTextObject, the
-/// Selection row's C-102 IconButton + C-105 Button), C-093 TextSizeSlider, the bottom container's
-/// C-094 TextColorPalette (→ C-095, C-096 ×9, C-097) or C-106 ChipStrip (→ C-035), the tool row of
-/// C-102 IconButtons, C-081 ActivityNavBar (→ C-061, C-021), and the two §6 sheets built from the
-/// same rows. Standalone: `identifiedFrom` is null, so no D7 template applies.
+/// Selection row's C-102 IconButton + C-105 Button), C-093 TextSizeSlider, and §10's rail stack:
+/// C-081 ActivityNavBar (→ C-061, C-021) as the chips rail, the tool row of C-102 IconButtons, and
+/// the middle and top rails of C-106 ChipStrip (→ C-035), C-094 TextColorPalette (→ C-095, C-096,
+/// C-097), C-102, C-105 and C-045 TextInput. No tool presents a sheet (§10.1). Standalone:
+/// `identifiedFrom` is null, so no D7 template applies.
 struct ActivitiesEditorScreen: View {
 
     /// One §3 state's inputs. Every §3 state is reachable by these alone.
@@ -111,6 +112,64 @@ struct ActivitiesEditorScreen: View {
         /// §9.3 (owner ruling 2026-11-08): the Idle header's Done — `false` muted and not
         /// tappable, `true` enabled and calling `onDone`. The container sets it on unsaved changes.
         var canSave: Bool = false
+        /// §10.3 / §10.8: the Background rail's selected option, derived by the container —
+        /// `gradient` · `colour` · `image`.
+        var backgroundOption: String = "colour"
+        /// §10.8 `gradient` (`02` §5, D1/D17): drawn through C-091 in every mode; nil = none.
+        var gradient: Gradient?
+        /// §10.3 / D13: the 12 palettes, each a list of `#RRGGBB` (base first, then blob colours).
+        var palettes: [[String]] = []
+        /// §10.3 / D22: the library's images, newest first.
+        var libraryImages: [LibraryImage] = []
+        /// §10.3: more library images can load as the Image rail scrolls.
+        var hasMoreImages: Bool = false
+        /// §10.9 (OQ-activities-editor-43): the Actions top rail's field drawn focused —
+        /// `label` · `value` · `body` · "" (none). A preview seed; live, focus is the field's own.
+        var focusedActionField: String = ""
+
+        /// §10.8 `gradient`: `base` `#RRGGBB`, `blobs`, `hidden`.
+        struct Gradient: Equatable {
+            /// One radial blob — `x`, `y`, `r` fractions of the page width, `color` `#RRGGBB`.
+            struct Blob: Equatable {
+                var x: Double
+                var y: Double
+                var r: Double
+                var color: String
+            }
+
+            var base: String
+            var hidden: Bool
+            var blobs: [Blob]
+        }
+
+        /// §10.8 `libraryImages` element: the media id and its thumbnail URL.
+        struct LibraryImage: Equatable {
+            var id: String
+            var thumbnailURL: String
+        }
+    }
+
+    /// §10.8 `BackgroundCommand` — every choice the Background rail reports; the container owns
+    /// what each does to the document (D14, D17, D18).
+    enum BackgroundCommand: Equatable {
+        /// The Gradient option.
+        case gradient
+        /// The Colour option (nil) or a swatch (`#RRGGBB`).
+        case colour(String?)
+        /// ↻ Shuffle — a new blob layout from the current palette (D13).
+        case shuffle
+        /// A palette chip, by its index in `State.palettes` (D13).
+        case palette(Int)
+        /// A library thumbnail, by media id.
+        case image(String)
+        /// "More…" — the container pushes the existing media-pick page (D22).
+        case moreImages
+        /// The Image rail scrolled to its end while `hasMoreImages`.
+        case loadMoreImages
+        /// A canvas drag while Image is open — the focal point, 0–1 (proposed payload).
+        case focal(x: Double, y: Double)
+        /// The wash colour `#RRGGBB` and opacity 0–1 (proposed payload).
+        case wash(color: String, opacity: Double)
     }
 
     /// §9.1 (D33): one user action's edit of one object — only the fields that changed are
@@ -194,6 +253,17 @@ struct ActivitiesEditorScreen: View {
     /// §9.4: Load-failed raises the top error banner with this message; the error channel is the
     /// app's, so the container routes it there.
     var onLoadFailed: (String) -> Void = { _ in }
+    /// §10.5: a tap on the empty canvas while Editing — the container commits the edit (D10).
+    var onTapOff: () -> Void = {}
+    /// §10.3: every Background rail choice.
+    var onBackground: (BackgroundCommand) -> Void = { _ in }
+    /// §10.4: the page's whole action list, on every live edit.
+    var onActionsChange: ([PageAction]) -> Void = { _ in }
+    /// §10.6: a Background or Actions rail closed — the container's save moment in Idle (D19).
+    var onPageRailsClosed: () -> Void = {}
+    /// Superseded by §10 (no sheet, no pick push): kept so the app container compiles until
+    /// text-activity-v2 rewires it. `onPickImage` still fires on "More…" and `onChangeActions`
+    /// when the Actions rail closes, as the sheet's Done did; `onChangeBackground` is not called.
     var onPickImage: () -> Void = {}
     var onChangeBackground: (ActivityCanvas<AnyView>.Background) -> Void = { _ in }
     var onChangeActions: ([PageAction]) -> Void = { _ in }
@@ -210,15 +280,20 @@ struct ActivitiesEditorScreen: View {
     @SwiftUI.State private var draftAnimation: CanvasTextObject.Animation = .none
     @SwiftUI.State private var draftEffect: CanvasTextObject.Effect = .none
     @SwiftUI.State private var draftAnimationStart: Date?
-    // §6 sheets: in-flight edit buffers of the document's page properties (R-31).
-    @SwiftUI.State private var pageColor: Color
-    @SwiftUI.State private var pageFocal: CGPoint
-    @SwiftUI.State private var pageWashColor: Color
-    @SwiftUI.State private var pageWashOpacity: Double
+    // §10.4: the page's actions, edited live and reported through `onActionsChange` (R-31).
     @SwiftUI.State private var actions: [PageAction]
-    // §3 Tools: which panel and which sheet are open is ephemeral UI (R-31).
+    // §10.4: the action the top rail shows, and the ones added in this rail (no Remove).
+    @SwiftUI.State private var selectedActionID: String?
+    @SwiftUI.State private var newActionIDs: Set<String> = []
+    // §10.1: the open tool — its rails show; ephemeral UI (R-31).
     @SwiftUI.State private var openTool: Tool?
-    @SwiftUI.State private var openSheet: Tool?
+    // §10.3: the Background option chosen in the rail before the document follows (Image with no
+    // image yet shows the Image rail); nil = `State.backgroundOption`.
+    @SwiftUI.State private var pickedBackgroundOption: String?
+    // §10.4 / D8: the rail field that has focus — `label` · `value` · `body`.
+    @SwiftUI.State private var focusedField: String?
+    // §10.3: where a focal drag on the canvas started, held only while the finger is down (R-02).
+    @SwiftUI.State private var focalDragBase: CGPoint?
     // C-094 `page` — the swatch page shown.
     @SwiftUI.State private var palettePage = 0
     // §3 Error: the alert's presented flag, seeded from `State`.
@@ -254,6 +329,10 @@ struct ActivitiesEditorScreen: View {
         onTapObject: @escaping (Int) -> Void = { _ in },
         onEditObject: @escaping (ObjectEdit) -> Void = { _ in },
         onLoadFailed: @escaping (String) -> Void = { _ in },
+        onTapOff: @escaping () -> Void = {},
+        onBackground: @escaping (BackgroundCommand) -> Void = { _ in },
+        onActionsChange: @escaping ([PageAction]) -> Void = { _ in },
+        onPageRailsClosed: @escaping () -> Void = {},
         onPickImage: @escaping () -> Void = {},
         onChangeBackground: @escaping (ActivityCanvas<AnyView>.Background) -> Void = { _ in },
         onChangeActions: @escaping ([PageAction]) -> Void = { _ in },
@@ -274,6 +353,10 @@ struct ActivitiesEditorScreen: View {
         self.onTapObject = onTapObject
         self.onEditObject = onEditObject
         self.onLoadFailed = onLoadFailed
+        self.onTapOff = onTapOff
+        self.onBackground = onBackground
+        self.onActionsChange = onActionsChange
+        self.onPageRailsClosed = onPageRailsClosed
         self.onPickImage = onPickImage
         self.onChangeBackground = onChangeBackground
         self.onChangeActions = onChangeActions
@@ -284,15 +367,11 @@ struct ActivitiesEditorScreen: View {
         self.onRetry = onRetry
         self.onDiscard = onDiscard
         _shownObjects = SwiftUI.State(initialValue: Self.committedObjects(state))
-        _pageColor = SwiftUI.State(initialValue: Self.hexColor(state.pageColorHex) ?? Token.backgroundAlt)
-        _pageFocal = SwiftUI.State(initialValue: CGPoint(x: state.pageImageFocalX, y: state.pageImageFocalY))
-        _pageWashColor = SwiftUI.State(initialValue: Self.hexColor(state.pageWashHex) ?? Token.black)
-        _pageWashOpacity = SwiftUI.State(initialValue: state.pageWashOpacity)
-        _actions = SwiftUI.State(initialValue: Self.pageActions(state))
-        let seeded = Tool(rawValue: state.openTool)
-        let isSheet = seeded == .background || seeded == .actions
-        _openTool = SwiftUI.State(initialValue: isSheet ? nil : seeded)
-        _openSheet = SwiftUI.State(initialValue: isSheet ? seeded : nil)
+        let actions = Self.pageActions(state)
+        _actions = SwiftUI.State(initialValue: actions)
+        _selectedActionID = SwiftUI.State(initialValue: actions.first?.id)
+        _openTool = SwiftUI.State(initialValue: Tool(rawValue: state.openTool))
+        _focusedField = SwiftUI.State(initialValue: state.focusedActionField.isEmpty ? nil : state.focusedActionField)
         _alertPresented = SwiftUI.State(initialValue: state.saveFailed)
     }
 
@@ -345,13 +424,16 @@ struct ActivitiesEditorScreen: View {
                            safeTop: screen.safeAreaInsets.top)
                 }
                 .ignoresSafeArea(.container)
+                if isImageRailOpen {
+                    focalDragLayer
+                        .ignoresSafeArea(.container)
+                }
                 chrome(unit: screen.size.width / Self.referenceWidth)
             }
         }
         .background(Token.layoutBackground)                 // §2: page ground
-        // §2 item 6: the keyboard never resizes the page; the container follows it by offset.
+        // §2 item 6: the keyboard never resizes the page; the stack follows it by offset (§10.1).
         .ignoresSafeArea(.keyboard)
-        .overlay { sheetOverlay }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { note in
             guard let frame = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
             let duration = note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double ?? 0
@@ -368,6 +450,46 @@ struct ActivitiesEditorScreen: View {
             guard dragged == nil else { return }
             shownObjects = Self.committedObjects(next)
         }
+        // §10.6: starting a text edit closes the Background and Actions rails; ending it closes
+        // Colour, Alignment and Font (and the effects strip).
+        .onChange(of: mode) { previous, next in
+            if next == .editing, previous != .editing, openTool == .background || openTool == .actions {
+                closeRails()
+            } else if previous == .editing, next != .editing, let tool = openTool, Self.textTools.contains(tool) {
+                openTool = nil
+            }
+        }
+        // §10.3: once the document follows the rail's pick, the derived option rules again.
+        .onChange(of: state.backgroundOption) { _, _ in pickedBackgroundOption = nil }
+    }
+
+    /// §10.3: while Image is open, a drag on the canvas moves the focal point and the canvas does
+    /// not scroll; a tap still only closes the rails (§10.5).
+    private var focalDragLayer: some View {
+        GeometryReader { proxy in
+            Color.clear
+                .contentShape(Rectangle())
+                .gesture(
+                    // pan-ok: moves the focal point on both axes, so a vertical drag must not scroll
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { drag in
+                            let base = focalDragBase ?? CGPoint(x: state.pageImageFocalX, y: state.pageImageFocalY)
+                            focalDragBase = base
+                            guard abs(drag.translation.width) + abs(drag.translation.height) > 0 else { return }
+                            onBackground(.focal(
+                                x: min(max(base.x - drag.translation.width / max(proxy.size.width, 1), 0), 1),
+                                y: min(max(base.y - drag.translation.height / max(proxy.size.height, 1), 0), 1)
+                            ))
+                        }
+                        .onEnded { drag in
+                            focalDragBase = nil
+                            if abs(drag.translation.width) + abs(drag.translation.height) < Self.tapSlop {
+                                tapCanvas()
+                            }
+                        }
+                )
+                .accessibilityHidden(true)
+        }
     }
 
     // MARK: - §2 z-order: fixed furniture and the bars
@@ -381,11 +503,11 @@ struct ActivitiesEditorScreen: View {
             furniture(unit: unit)
                 .offset(y: -keyboardOverlap)
             if mode != .manipulating {
-                bottomContainer
+                railStack
                     .transition(.opacity)
             }
         }
-        // §2 item 5: the 76pt bar is tall enough for the home indicator, so it runs to the bottom.
+        // §2 item 5: the stack runs to the bottom; C-081's 16pt inset clears the corners (§10.1).
         .ignoresSafeArea(.container, edges: .bottom)
         // §2 item 6: the container's resting bottom is this column's bottom. Measured here, outside the
         // container's keyboard offset — measured inside it, the offset fed back and cancelled itself.
@@ -459,7 +581,7 @@ struct ActivitiesEditorScreen: View {
             background: background,
             mode: mode,
             content: { AnyView(canvasContent(objects, unit: unit)) },
-            onTapEmpty: onTapEmpty,
+            onTapEmpty: { point in tapCanvas(at: point) },
             centerGuide: state.centerGuide,
             deleteTarget: state.deleteTargetShown ? .visible : nil,
             verticalAnchor: .center,
@@ -527,7 +649,7 @@ struct ActivitiesEditorScreen: View {
             onTransform: { emit($0, index: index) },
             editing: false,
             highlights: object.highlights,
-            onTap: { onTapObject(index) }
+            onTap: { tapObject(index) }
         )
         // C-092 never offsets itself (its §2): the screen places it at `transform.position`.
         .frame(width: object.transform.width ?? Self.editSlotWidth)
@@ -643,7 +765,8 @@ struct ActivitiesEditorScreen: View {
     private func actionPreviews(_ objects: [CommittedObject]) -> some View {
         let inline = actions.filter { $0.placement == .inline }
         ForEach(Array(inline.enumerated()), id: \.element.id) { index, action in
-            Button(label: action.label, onTap: { openSheet = .actions })
+            // §10.4: a tap on an inline action preview opens the Actions rail on that action.
+            Button(label: action.label, onTap: { openActions(on: action.id) })
                 .ui2Element(index == 0 ? "C-105 Button" : "C-105 Button \(index + 1)")
                 .position(x: Self.referenceWidth / 2,
                           y: objectsBottom(objects) + Self.inlineActionGap + Self.actionButtonHeight / 2
@@ -677,28 +800,26 @@ struct ActivitiesEditorScreen: View {
         .padding(.bottom, Self.selectionRowGap * unit)
     }
 
-    // MARK: - §2 item 4: the bottom container
+    // MARK: - §10: the rail stack
 
-    /// One container: the panel slot and the tool row (or C-081 in Idle), with C-081's bar surface
-    /// — its host's fill and a 1 px top hairline, edge to edge — riding the keyboard as one unit.
-    private var bottomContainer: some View {
+    /// §10.1: one stack on `color-layout-background`, with no hairlines, bottom → top: the chips
+    /// rail (C-081, Idle only), the tool row, the middle rail (the open tool's choices) and the top
+    /// rail (the pick's details). It rides the keyboard as one unit, so the tool row stays visible.
+    private var railStack: some View {
         VStack(spacing: 0) {
-            bottomPanel
-            if isToolMode {
-                toolRow
-            } else {
-                ActivityNavBar(slides: slides, activeID: state.activeID,
+            topRail
+            middleRail
+            toolRow
+            if mode == .idle {
+                // C-081 §5: the editor passes `bottomInset: 16`, measured from the bar's position
+                // before the inset (the chrome ignores the bottom safe area) — SPEC D11, D23.
+                ActivityNavBar(slides: slides, activeID: state.activeID, bottomInset: Token.Space.pageMargin,
                                onSelectSlide: onSelectSlide, onAdd: onAdd)
                     .ui2Element("C-081 ActivityNavBar")
             }
         }
         .background(Token.layoutBackground)
-        .overlay(alignment: .top) {
-            Token.layoutBorder
-                // GAP — activities-editor §2 item 4: 1 px hairline, no stroke token.
-                .frame(height: Self.hairline)
-        }
-        // The container states its own height; the canvas takes what is left (§2).
+        // The stack states its own height; the canvas takes what is left (§2).
         .fixedSize(horizontal: false, vertical: true)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { containerHeight = $0 }
         .offset(y: -keyboardOverlap)
@@ -706,59 +827,378 @@ struct ActivitiesEditorScreen: View {
 
     private var keyboardOverlap: CGFloat { max(containerBottom - keyboardTop, 0) }
 
-    @ViewBuilder private var bottomPanel: some View {
-        if mode == .editing {
-            switch openTool {
-            case .color:
-                // §3 tool 1: C-094 — the well shows the object's colour, the equal swatch is
-                // outlined (OQ-011); pages 2–3 are undesigned (04-color.md OQ-04-1) and empty.
-                // §9.2: a tap resolves to its preset's hex; a colour no preset holds outlines none.
-                TextColorPalette(
-                    currentColor: edited?.color ?? Token.textPrimary,
-                    swatches: Self.palettePages,
-                    page: palettePage,
-                    onSelect: { picked in
-                        guard let editedIndex,
-                              let preset = Self.swatchPresets.first(where: { Self.hexColor($0.hex) == picked })
-                        else { return }
-                        apply(.init(index: editedIndex, color: preset.hex))
-                    },
-                    onPageChange: { palettePage = $0 },
-                    onWellTap: onEyedropper,
-                    // §2 item 5: hidden, not disabled — no well unless the eyedropper is shown.
-                    showsWell: state.showsEyedropper
-                )
-                .ui2Element("C-094 TextColorPalette")
-            case .font:
-                // §3 tool 4: the weight row above the font strip. C-106 is 8 + 36 + 8 tall, so the
-                // two share one 8pt inset and the panel is §2's 96.
-                VStack(spacing: -Token.Space.elementGap) {
-                    ChipStrip(items: Self.weightItems, selectedID: Self.weightID(edited?.weight ?? .bold),
-                              onSelect: { id in
-                                  if let editedIndex { apply(.init(index: editedIndex, weight: Self.weightCode(Self.weight(id)))) }
-                              })
-                        .ui2Element("C-106 ChipStrip")
-                    ChipStrip(items: Self.fontItems, selectedID: Self.fontID(edited?.font ?? .sans),
-                              onSelect: { id in
-                                  if let editedIndex { apply(.init(index: editedIndex, font: id)) }
-                              })
-                        .ui2Element("C-106 ChipStrip 2")
-                }
-            case .animation where state.showsEffectsTool:
-                // §3 tool 6 (OQ-007): one combined strip — none, the animations, the effects.
-                // C-106 has one `selectedID`, so it shows the animation when one is set, else the
-                // effect (gap: two independent selections, one selected chip).
-                ChipStrip(items: Self.animationItems, selectedID: animationSelectedID,
-                          onSelect: selectAnimation)
-                    .ui2Element("C-106 ChipStrip")
-            default:
-                // Tools 2 and 7 present a sheet (§6); tools 3 and 5 have no panel.
-                EmptyView()
+    /// §10.1 middle rail — the open tool's choices.
+    @ViewBuilder private var middleRail: some View {
+        switch openTool {
+        case .color where mode == .editing:
+            // §3 tool 1: C-094 — the well shows the object's colour, the equal swatch is
+            // outlined (OQ-011); pages 2–3 are undesigned (04-color.md OQ-04-1) and empty.
+            // §9.2: a tap resolves to its preset's hex; a colour no preset holds outlines none.
+            TextColorPalette(
+                currentColor: edited?.color ?? Token.textPrimary,
+                swatches: Self.palettePages,
+                page: palettePage,
+                onSelect: { picked in
+                    guard let editedIndex, let hex = Self.presetHex(picked) else { return }
+                    apply(.init(index: editedIndex, color: hex))
+                },
+                onPageChange: { palettePage = $0 },
+                onWellTap: onEyedropper,
+                // §2 item 5: hidden, not disabled — no well unless the eyedropper is shown.
+                showsWell: state.showsEyedropper
+            )
+            .ui2Element("C-094 TextColorPalette")
+        case .font where mode == .editing:
+            // §3 tool 4: the font strip; its weight row is the top rail.
+            ChipStrip(items: Self.fontItems, selectedID: Self.fontID(edited?.font ?? .sans),
+                      onSelect: { id in
+                          if let editedIndex { apply(.init(index: editedIndex, font: id)) }
+                      })
+                .ui2Element("C-106 ChipStrip 2")
+        case .animation where mode == .editing && state.showsEffectsTool:
+            // §3 tool 6 (OQ-007): one combined strip — none, the animations, the effects.
+            // C-106 has one `selectedID`, so it shows the animation when one is set, else the
+            // effect (gap: two independent selections, one selected chip).
+            ChipStrip(items: Self.animationItems, selectedID: animationSelectedID,
+                      onSelect: selectAnimation)
+                .ui2Element("C-106 ChipStrip")
+        case .background:
+            // §10.3: Gradient · Colour · Image; the selected option is derived.
+            ChipStrip(items: Self.backgroundItems, selectedID: backgroundOption, onSelect: selectBackgroundOption)
+                .ui2Element("C-106 ChipStrip")
+        case .actions:
+            // §10.4: the page's actions, then + Add.
+            ChipStrip(items: actionItems, selectedID: selectedActionID ?? "", onSelect: selectAction)
+                .ui2Element("C-106 ChipStrip 3")
+        default:
+            // Tools 3 and 5 have no rail.
+            EmptyView()
+        }
+    }
+
+    /// §10.1 top rail — the picked choice's details, only when it has some. Its height is pinned
+    /// (§10.1): taller content scrolls inside it.
+    @ViewBuilder private var topRail: some View {
+        switch openTool {
+        case .font where mode == .editing:
+            // §3 tool 4: the weight row above the font strip. C-106 is 8 + 36 + 8 tall, so the
+            // two share one 8pt inset and the pair stays §2's 96.
+            ChipStrip(items: Self.weightItems, selectedID: Self.weightID(edited?.weight ?? .bold),
+                      onSelect: { id in
+                          if let editedIndex { apply(.init(index: editedIndex, weight: Self.weightCode(Self.weight(id)))) }
+                      })
+                .ui2Element("C-106 ChipStrip")
+                .padding(.bottom, -Token.Space.elementGap)
+        case .background:
+            pinnedTopRail { backgroundDetails }
+        case .actions:
+            if let index = actions.firstIndex(where: { $0.id == selectedActionID }) {
+                pinnedTopRail { actionDetails(actions[index]) }
+            }
+        default:
+            EmptyView()
+        }
+    }
+
+    /// §10.1: the top rail's pinned height — content that fits sits at its own height, taller
+    /// content scrolls, and a focused field scrolls into view (D8).
+    private func pinnedTopRail<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        let body = content()
+        return ScrollViewReader { proxy in
+            ViewThatFits(in: .vertical) {
+                body
+                ScrollView(.vertical) { body }
+                    .scrollIndicators(.hidden)
+            }
+            .frame(maxHeight: Self.topRailMaxHeight)
+            .onChange(of: focusedField) { _, field in
+                if let field { withAnimation { proxy.scrollTo(field) } }
             }
         }
     }
 
-    // MARK: - §2 item 5: the tool row
+    // MARK: §10.3 Background
+
+    /// §10.3: Gradient — ↻ Shuffle then one chip per palette; Colour — C-094 swatches; Image —
+    /// the library's thumbnails then "More…", and once an image is set the wash.
+    @ViewBuilder private var backgroundDetails: some View {
+        switch backgroundOption {
+        case "gradient":
+            HorizontalRail(showsIndicators: false) {
+                HStack(spacing: Token.Space.elementGap) {
+                    IconButton(glyph: .refreshCw, tone: .default, style: .outlined, selected: false,
+                               accessibilityLabel: Self.shuffleLabel, onTap: { onBackground(.shuffle) })
+                        .ui2Element("C-102 IconButton \(visibleTools.count + 1)")
+                    ForEach(Array(state.palettes.enumerated()), id: \.offset) { index, palette in
+                        paletteTile(palette, index: index)
+                    }
+                }
+                .padding(.horizontal, Token.Space.pageMargin)
+                .padding(.vertical, Token.Space.elementGap)
+            }
+        case "image":
+            VStack(alignment: .leading, spacing: 0) {
+                HorizontalRail(showsIndicators: false) {
+                    HStack(spacing: Token.Space.elementGap) {
+                        ForEach(Array(state.libraryImages.enumerated()), id: \.element.id) { index, image in
+                            thumbnail(image, index: index)
+                                .onAppear {
+                                    if index == state.libraryImages.count - 1, state.hasMoreImages {
+                                        onBackground(.loadMoreImages)
+                                    }
+                                }
+                        }
+                        FilterChip(type: .button, active: false, label: Self.moreImagesLabel, onSelect: {
+                            onBackground(.moreImages)
+                            onPickImage()
+                        })
+                        .ui2Element("C-035 FilterChip")
+                    }
+                    .padding(.horizontal, Token.Space.pageMargin)
+                    .padding(.vertical, Token.Space.elementGap)
+                }
+                if !state.pageImageURL.isEmpty {
+                    // §10.3: the wash colour (C-094, swatches only) and opacity (system Slider).
+                    TextColorPalette(currentColor: washColor, swatches: Self.palettePages,
+                                     onSelect: { picked in
+                                         guard let hex = Self.presetHex(picked) else { return }
+                                         onBackground(.wash(color: hex, opacity: state.pageWashOpacity))
+                                     },
+                                     showsWell: false)
+                        .ui2Element("C-094 TextColorPalette 2")
+                    // activities-editor §3 tool 2: undrawn default, the system slider (no registry row).
+                    SwiftUI.Slider(value: Binding(get: { state.pageWashOpacity },
+                                                  set: { onBackground(.wash(color: washHex, opacity: $0)) }),
+                                   in: 0...1)
+                        .tint(Token.white100)
+                        .padding(.horizontal, Token.Space.pageMargin)
+                        .padding(.vertical, Token.Space.elementGap)
+                        .accessibilityLabel("Wash opacity")
+                        .ui2Element("Wash opacity")
+                }
+            }
+        default:
+            // §10.3 Colour: C-094, swatches only — no well (§2 item 4).
+            TextColorPalette(
+                currentColor: pageColor,
+                swatches: Self.palettePages,
+                page: palettePage,
+                onSelect: { picked in
+                    guard let hex = Self.presetHex(picked) else { return }
+                    onBackground(.colour(hex))
+                },
+                onPageChange: { palettePage = $0 },
+                showsWell: false
+            )
+            .ui2Element("C-094 TextColorPalette")
+        }
+    }
+
+    /// GAP — OQ-activities-editor-41: the palette chip, screen-drawn until a registry row exists —
+    /// a 33×44 `radius-card` tile of the palette's base under C-091's own blob gradient, outlined
+    /// 1pt `color-white-100` when it is the page's palette.
+    private func paletteTile(_ palette: [String], index: Int) -> some View {
+        let tile = CGSize(width: Self.paletteTileWidth, height: Self.paletteTileHeight)
+        return SwiftUI.Button(action: { onBackground(.palette(index)) }) {
+            ZStack(alignment: .topLeading) {
+                Self.hexColor(palette.first ?? "") ?? Token.activitySlidePlaceholder
+                ActivityBlobGradient(gradient: Self.tileGradient(palette), pageSize: tile)
+            }
+            .frame(width: tile.width, height: tile.height)
+            .clipShape(RoundedRectangle(cornerRadius: Token.Radius.card))
+            .overlay {
+                if index == selectedPaletteIndex {
+                    RoundedRectangle(cornerRadius: Token.Radius.card)
+                        .strokeBorder(Token.white100, lineWidth: Self.hairline)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Palette \(index + 1)")
+        .accessibilityAddTraits(index == selectedPaletteIndex ? [.isButton, .isSelected] : .isButton)
+        .ui2Element("Palette chip \(index + 1)")
+    }
+
+    /// GAP — OQ-activities-editor-42: the library thumbnail, screen-drawn until a registry row
+    /// exists — 44×44 `radius-card`, read cache-first (R-04 / R-19), never fetched here.
+    private func thumbnail(_ image: State.LibraryImage, index: Int) -> some View {
+        SwiftUI.Button(action: { onBackground(.image(image.id)) }) {
+            ZStack {
+                Token.activitySlidePlaceholder
+                if let url = URL(string: image.thumbnailURL), let picture = Ui2ImageCache.shared.image(for: url) {
+                    SwiftUI.Image(uiImage: picture)
+                        .resizable()
+                        .scaledToFill()
+                }
+            }
+            .frame(width: Self.thumbnailSize, height: Self.thumbnailSize)
+            .clipShape(RoundedRectangle(cornerRadius: Token.Radius.card))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Library image \(index + 1)")
+        .ui2Element("Thumbnail \(index + 1)")
+    }
+
+    /// §10.3: the option the rail shows — the rail's own pick until the document follows it.
+    private var backgroundOption: String { pickedBackgroundOption ?? state.backgroundOption }
+
+    private var isImageRailOpen: Bool {
+        openTool == .background && backgroundOption == "image" && !state.pageImageURL.isEmpty
+    }
+
+    private func selectBackgroundOption(_ id: String) {
+        endField()
+        pickedBackgroundOption = id
+        guard id != state.backgroundOption else { return }
+        switch id {
+        case "gradient": onBackground(.gradient)
+        case "colour": onBackground(.colour(nil))
+        default: break                                       // Image: a thumbnail tap reports it
+        }
+    }
+
+    /// D13: the palette whose colours are the page gradient's (base + blob colours), if any.
+    private var selectedPaletteIndex: Int? {
+        guard let gradient = state.gradient else { return nil }
+        let colours = Set(([gradient.base] + gradient.blobs.map(\.color)).map { $0.uppercased() })
+        return state.palettes.firstIndex { Set($0.map { $0.uppercased() }) == colours }
+    }
+
+    // MARK: §10.4 Actions
+
+    /// §10.4: the page's actions by label ("Action" when empty), then + Add.
+    private var actionItems: [ChipStrip.Item] {
+        actions.map { ChipStrip.Item(id: $0.id, label: $0.label.isEmpty ? "Action" : $0.label) }
+            + [ChipStrip.Item(id: Self.addActionID, label: "+ Add")]
+    }
+
+    /// §10.4: Kind, the label, Placement, the kind's fields, then Remove (hidden on a just-added
+    /// action). Edits are live; there is no Done.
+    private func actionDetails(_ action: PageAction) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ChipStrip(items: Self.kindItems, selectedID: action.kind.rawValue, onSelect: { id in
+                endField()
+                updateAction(action.id) { $0.kind = PageAction.Kind(rawValue: id) ?? $0.kind }
+            })
+            .ui2Element("C-106 ChipStrip")
+            field("label", placeholder: "Label", text: action.label, kind: .single) { text in
+                updateAction(action.id) { $0.label = text }
+            }
+            ChipStrip(items: Self.placementItems, selectedID: action.placement.rawValue, onSelect: { id in
+                endField()
+                setPlacement(PageAction.Placement(rawValue: id) ?? action.placement, of: action.id)
+            })
+            .ui2Element("C-106 ChipStrip 2")
+            prefill(action)
+            if !newActionIDs.contains(action.id) {
+                Button(label: "Remove action", onTap: { remove(action.id) })
+                    .ui2Element("C-105 Button")
+                    .padding(.horizontal, Token.Space.pageMargin)
+                    .padding(.vertical, Token.Space.elementGap)
+            }
+        }
+    }
+
+    /// §10.4: the fields depend on the kind — title + multiline body, write prompt multiline,
+    /// URL single-line.
+    @ViewBuilder
+    private func prefill(_ action: PageAction) -> some View {
+        switch action.kind {
+        case .addToPrayerList:
+            VStack(spacing: Token.Space.elementGap) {
+                field("value", placeholder: "Title", text: action.value, kind: .single) { text in
+                    updateAction(action.id) { $0.value = text }
+                }
+                field("body", placeholder: "Body", text: action.body, kind: .multi) { text in
+                    updateAction(action.id) { $0.body = text }
+                }
+            }
+            .padding(.vertical, Token.Space.elementGap)
+        case .write:
+            field("value", placeholder: "Write your thoughts", text: action.value, kind: .multi) { text in
+                updateAction(action.id) { $0.value = text }
+            }
+            .padding(.vertical, Token.Space.elementGap)
+        case .openUrl:
+            field("value", placeholder: "https://…", text: action.value, kind: .single) { text in
+                updateAction(action.id) { $0.value = text }
+            }
+            .padding(.vertical, Token.Space.elementGap)
+        case .nextLesson:
+            EmptyView()
+        }
+    }
+
+    /// D8: a C-045 in the top rail. A single-line field ends on Return; any field ends on a
+    /// canvas tap or a tool tap, keeping its value.
+    private func field(_ key: String, placeholder: String, text: String, kind: TextInput.Kind,
+                       onChange: @escaping (String) -> Void) -> some View {
+        let submit: (() -> Void)? = kind == .single ? { endField() } : nil
+        return TextInput(
+            text: text,
+            placeholder: placeholder,
+            kind: kind,
+            focused: focusedField == key,
+            onChange: onChange,
+            onFocusChange: { focused in
+                if focused {
+                    focusedField = key
+                } else if focusedField == key {
+                    focusedField = nil
+                }
+            },
+            editing: .init(onSubmit: submit)
+        )
+        .padding(.horizontal, Token.Space.pageMargin)
+        .id(key)
+        .ui2Element("C-045 TextInput \(placeholder)")
+    }
+
+    private func selectAction(_ id: String) {
+        endField()
+        guard id == Self.addActionID else {
+            selectedActionID = id
+            return
+        }
+        // §10.4: a new action is Add to Prayer List, Inline, empty label.
+        let action = PageAction(id: UUID().uuidString, kind: .addToPrayerList, label: "",
+                                placement: .inline, value: "", body: "")
+        newActionIDs.insert(action.id)
+        actions.append(action)
+        selectedActionID = action.id
+        onActionsChange(actions)
+    }
+
+    private func updateAction(_ id: String, _ change: (inout PageAction) -> Void) {
+        guard let index = actions.firstIndex(where: { $0.id == id }) else { return }
+        change(&actions[index])
+        onActionsChange(actions)
+    }
+
+    /// §10.4: Pinned demotes the page's other pinned action to Inline.
+    private func setPlacement(_ placement: PageAction.Placement, of id: String) {
+        if placement == .pinned {
+            for other in actions.indices where actions[other].id != id && actions[other].placement == .pinned {
+                actions[other].placement = .inline
+            }
+        }
+        updateAction(id) { $0.placement = placement }
+    }
+
+    private func remove(_ id: String) {
+        endField()
+        actions.removeAll { $0.id == id }
+        selectedActionID = actions.first?.id
+        onActionsChange(actions)
+    }
+
+    private func openActions(on id: String) {
+        endField()
+        selectedActionID = id
+        setOpenTool(.actions)
+    }
+
+    // MARK: - §2 item 5 / §10.2: the tool row
 
     /// §2 item 5: hidden tools are not in the layout, the accessibility tree or the focus order.
     private var visibleTools: [Tool] {
@@ -784,6 +1224,7 @@ struct ActivitiesEditorScreen: View {
                         style: .plain,
                         selected: isSelected(tool),
                         accessibilityLabel: Self.toolLabel(tool),
+                        isDisabled: isDisabled(tool),
                         onTap: { tap(tool) }
                     )
                     // FLAGGED LITERAL — activities-editor §2: 32pt tools.
@@ -808,21 +1249,28 @@ struct ActivitiesEditorScreen: View {
         return min(minToolPitch, (width - 2 * Token.Space.pageMargin - toolSize) / gaps)
     }
 
-    /// §3 Tools: category tools (1, 2, 4, 6, 7) take `selected` while their panel or sheet is
-    /// open; 3 is never selected; 5 is selected while Highlighting is on.
+    /// §10.2: in Idle, Colour, Alignment and Font act on a selected text object — drawn with
+    /// C-102's `isDisabled` look and taking no tap. Background and Actions act on the page.
+    private func isDisabled(_ tool: Tool) -> Bool {
+        mode == .idle && Self.textTools.contains(tool)
+    }
+
+    /// §3 Tools: category tools take `selected` while their rails are open; 3 is never selected;
+    /// 5 is selected while Highlighting is on.
     private func isSelected(_ tool: Tool) -> Bool {
         switch tool {
         case .alignment: return false
         case .highlight: return mode == .highlighting
-        case .background, .actions: return openSheet == tool
-        default: return mode == .editing && openTool == tool
+        default: return openTool == tool
         }
     }
 
     private func tap(_ tool: Tool) {
+        // D8: a tool tap ends a rail field, keeping its value.
+        endField()
         switch tool {
         case .alignment:
-            // §3 tool 3: center → left → right → center, no panel.
+            // §3 tool 3: center → left → right → center, no rail.
             guard let editedIndex else { return }
             let next: String
             switch draftAlignment {
@@ -833,100 +1281,97 @@ struct ActivitiesEditorScreen: View {
             apply(.init(index: editedIndex, alignment: next))
         case .highlight:
             onToggleHighlight()
-        case .background, .actions:
-            openSheet = tool
         default:
-            openTool = tool
+            // §10.1: tapping the open tool again closes its rails.
+            setOpenTool(openTool == tool ? nil : tool)
         }
     }
 
-    // MARK: - §6: the sheets
+    // MARK: - §10.5 / §10.6: taps and closing rails
 
-    /// §6 names both sheets as overlays. Presentation through the app's typed `Route` is the
-    /// container's wiring (§5, out of this screen's scope); here they are drawn in place, with no
-    /// `.sheet` or `.fullScreenCover`.
-    @ViewBuilder private var sheetOverlay: some View {
-        if let openSheet {
-            // §2 item 4: the sheet's height is capped at the screen minus the safe top and 16pt.
-            GeometryReader { screen in
-                ZStack(alignment: .bottom) {
-                    Token.black50
-                        .ignoresSafeArea()
-                        .contentShape(Rectangle())
-                        .onTapGesture { self.openSheet = nil }
-                        .accessibilityLabel(Self.closeSheetLabel)
-                        .accessibilityAddTraits(.isButton)
-                    Group {
-                        if openSheet == .background {
-                            backgroundSheet
-                        } else {
-                            ActionsSheet(
-                                actions: actions,
-                                onCancel: { self.openSheet = nil },
-                                onDone: { edited in
-                                    actions = edited
-                                    onChangeActions(edited)
-                                    self.openSheet = nil
-                                }
-                            )
-                        }
-                    }
-                    .frame(maxHeight: sheetLayout(screen).maxHeight, alignment: .bottom)
-                    .offset(y: -sheetLayout(screen).lift)
-                }
+    /// §10.5: a field focused or a page rail open → the tap only closes it (D21); Editing → tap-off
+    /// (D10); otherwise the empty-canvas tap as before (Idle adds a text object).
+    private func tapCanvas(at point: CGPoint? = nil) {
+        if focusedField != nil {
+            endField()
+        } else if openTool == .background || openTool == .actions {
+            setOpenTool(nil)
+        } else if mode == .editing {
+            onTapOff()
+        } else if let point {
+            onTapEmpty(point)
+        }
+    }
+
+    /// §10.5: a tap on an object — the container commits any current edit, then edits it (D20).
+    private func tapObject(_ index: Int) {
+        endField()
+        onTapObject(index)
+    }
+
+    private func closeRails() { setOpenTool(nil) }
+
+    /// §10.6: when a Background or Actions rail closes, an action still empty is dropped (D19) and
+    /// `onPageRailsClosed` fires — the container's save moment in Idle.
+    private func setOpenTool(_ tool: Tool?) {
+        let closing = openTool
+        openTool = tool
+        pickedBackgroundOption = nil
+        guard let closing, closing == .background || closing == .actions, closing != tool else { return }
+        if closing == .actions {
+            let kept = actions.filter { !$0.label.isEmpty }
+            if kept.count != actions.count {
+                actions = kept
+                onActionsChange(kept)
             }
-            // §2 item 6: the keyboard lifts a sheet ONCE, by `keyboardOverlap`. The overlay sits outside
-            // the page's `.ignoresSafeArea(.keyboard)`, so without `.keyboard` here SwiftUI's avoidance
-            // lifted it too, and the double lift put its header and Done off the top (walk round 2).
-            .ignoresSafeArea([.container, .keyboard], edges: .bottom)
+            newActionIDs = []
+            if !kept.contains(where: { $0.id == selectedActionID }) { selectedActionID = kept.first?.id }
+            onChangeActions(actions)
         }
+        onPageRailsClosed()
     }
 
-    private func sheetLayout(_ screen: GeometryProxy) -> (maxHeight: CGFloat, lift: CGFloat) {
-        Self.sheetLayout(available: screen.size.height, keyboardOverlap: keyboardOverlap)
+    /// D8: ends the focused rail field; its value is already reported.
+    private func endField() {
+        guard focusedField != nil else { return }
+        focusedField = nil
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 
-    /// §2 items 4 + 6: a sheet stands on the keyboard's top edge — lifted by the overlap, once — and
-    /// its cap (the screen minus the safe top and 16pt) shrinks by that overlap, so its fixed header
-    /// and Done stay on screen while the body scrolls. `available` is the overlay's height below the
-    /// safe top.
+    /// Superseded by §10 (there is no sheet to lift): kept, unused by the view, for the existing
+    /// screen contract tests until text-activity-v2 rewrites them. A sheet stood on the keyboard's
+    /// top edge — lifted once, by the overlap — and its cap shrank by that overlap.
     static func sheetLayout(available: CGFloat, keyboardOverlap: CGFloat) -> (maxHeight: CGFloat, lift: CGFloat) {
         let room = max(available - sheetTopGap, 0)
         let lift = min(max(keyboardOverlap, 0), room)
         return (room - lift, lift)
     }
 
-    private var backgroundSheet: some View {
-        BackgroundSheet(
-            pageColor: pageColor,
-            image: background.image,
-            focal: pageFocal,
-            washColor: pageWashColor,
-            washOpacity: pageWashOpacity,
-            swatches: Self.palettePages,
-            showsWell: state.showsEyedropper,
-            onPageColor: { pageColor = $0; onChangeBackground(background) },
-            onPickImage: onPickImage,
-            onFocal: { pageFocal = $0; onChangeBackground(background) },
-            onWashColor: { pageWashColor = $0; onChangeBackground(background) },
-            onWashOpacity: { pageWashOpacity = $0; onChangeBackground(background) }
-        )
-    }
-
     // MARK: - Derived values
 
-    /// §2 item 3 (D4; 02 §5): the document's background layer. `motion` keeps C-091's default here
-    /// and is never drawn or exposed; the document's own value is the container's to carry.
+    /// §2 item 3 (D4; 02 §5) + §10.8: the document's background layer, from `State` — colour,
+    /// gradient, image, wash. `motion` keeps C-091's default here and is never drawn or exposed.
     private var background: ActivityCanvas<AnyView>.Background {
         var result = ActivityCanvas<AnyView>.Background(color: pageColor)
+        if let gradient = state.gradient {
+            result.gradient = .init(
+                base: Self.hexColor(gradient.base) ?? pageColor,
+                hidden: gradient.hidden,
+                blobs: gradient.blobs.map { .init(x: $0.x, y: $0.y, r: $0.r, color: Self.hexColor($0.color) ?? pageColor) }
+            )
+        }
         if !state.pageImageURL.isEmpty, let url = URL(string: state.pageImageURL) {
-            result.image = .init(imageURL: url, focal: pageFocal)
-            if pageWashOpacity > 0 {
-                result.wash = .init(color: pageWashColor, opacity: pageWashOpacity)
+            result.image = .init(imageURL: url, focal: CGPoint(x: state.pageImageFocalX, y: state.pageImageFocalY))
+            if state.pageWashOpacity > 0 {
+                result.wash = .init(color: washColor, opacity: state.pageWashOpacity)
             }
         }
         return result
     }
+
+    private var pageColor: Color { Self.hexColor(state.pageColorHex) ?? Token.backgroundAlt }
+    private var washHex: String { state.pageWashHex.isEmpty ? Self.defaultWashHex : state.pageWashHex }
+    private var washColor: Color { Self.hexColor(washHex) ?? Token.black }
 
     /// One committed C-092, resolved from `State` with §3's defaults. Lengths are wu.
     private struct CommittedObject {
@@ -1301,6 +1746,53 @@ struct ActivitiesEditorScreen: View {
         }
     }
 
+    /// §10.2 / §10.6: the tools that act on a selected text object.
+    private static let textTools: Set<Tool> = [.color, .alignment, .font, .animation]
+
+    /// §9.2: a C-094 tap resolves to its preset's hex; a colour no preset holds resolves to none.
+    private static func presetHex(_ picked: Color) -> String? {
+        swatchPresets.first { hexColor($0.hex) == picked }?.hex
+    }
+
+    /// §10.3: the Background rail's three options.
+    private static let backgroundItems: [ChipStrip.Item] = [
+        .init(id: "gradient", label: "Gradient"),
+        .init(id: "colour", label: "Colour"),
+        .init(id: "image", label: "Image")
+    ]
+
+    /// §10.4: the Actions rail's trailing chip.
+    private static let addActionID = "add"
+
+    private static let kindItems: [ChipStrip.Item] = [
+        .init(id: PageAction.Kind.addToPrayerList.rawValue, label: "Add to Prayer List"),
+        .init(id: PageAction.Kind.write.rawValue, label: "Write"),
+        .init(id: PageAction.Kind.openUrl.rawValue, label: "Open link"),
+        .init(id: PageAction.Kind.nextLesson.rawValue, label: "Next lesson")
+    ]
+
+    private static let placementItems: [ChipStrip.Item] = [
+        .init(id: PageAction.Placement.inline.rawValue, label: "Inline"),
+        .init(id: PageAction.Placement.pinned.rawValue, label: "Pinned")
+    ]
+
+    /// GAP — OQ-activities-editor-41: the palette chip's blob layout, `x`, `y`, `r` as fractions
+    /// of the tile width (C-091's D2 units), screen-drawn until a registry row exists. The
+    /// palette's base is the tile's fill; its other colours take these blobs in turn.
+    private static let tileBlobs: [(x: Double, y: Double, r: Double)] = [
+        (0.15, 0.25, 0.95), (0.9, 0.55, 0.9), (0.25, 1.1, 0.9), (0.85, 1.3, 0.85), (0.5, 0.7, 0.6)
+    ]
+
+    private static func tileGradient(_ palette: [String]) -> ActivityCanvasGradient {
+        let colours = palette.dropFirst().compactMap(hexColor)
+        let blobs = tileBlobs.indices.compactMap { index -> ActivityCanvasGradient.Blob? in
+            guard !colours.isEmpty else { return nil }
+            let place = tileBlobs[index]
+            return .init(x: place.x, y: place.y, r: place.r, color: colours[index % colours.count])
+        }
+        return .init(base: hexColor(palette.first ?? "") ?? Token.activitySlidePlaceholder, hidden: false, blobs: blobs)
+    }
+
     /// OQ-015: the slider's wu range and its 50 % default.
     private static func size(forSlider value: CGFloat) -> Double {
         minSize + Double(value) * (maxSize - minSize)
@@ -1310,7 +1802,8 @@ struct ActivitiesEditorScreen: View {
     private static let title = "Edit lesson"
     private static let deleteHighlightLabel = "Delete highlight"
     private static let addNoteLabel = "Add note"
-    private static let closeSheetLabel = "Close"
+    private static let shuffleLabel = "Shuffle"
+    private static let moreImagesLabel = "More…"
     // §9.4 Load-failed copy and the banner's 2 s before the pop.
     private static let loadFailedMessage = "Couldn't load this activity."
     private static let loadFailedDelay = Duration.seconds(2)
@@ -1344,8 +1837,19 @@ struct ActivitiesEditorScreen: View {
     private static let minToolPitch: CGFloat = 40
     /// FLAGGED LITERAL — activities-editor §2: 32pt tools.
     private static let toolSize: CGFloat = 32
-    /// GAP — activities-editor §2 item 2: the 1px hairline.
+    /// GAP — activities-editor §2 item 2: the 1px hairline (also the palette chip's outline).
     private static let hairline: CGFloat = 1
+    /// GAP — OQ-activities-editor-41 / 42: the palette chip 33×44 and the thumbnail 44×44.
+    private static let paletteTileWidth: CGFloat = 33
+    private static let paletteTileHeight: CGFloat = 44
+    private static let thumbnailSize: CGFloat = 44
+    /// FLAGGED LITERAL — activities-editor §10.1: the top rail's pinned height — two C-106 rows
+    /// (52 each) and a single-line C-045 (44), whole rows; the rest scrolls inside the rail.
+    private static let topRailMaxHeight: CGFloat = 148
+    /// §10.3: a canvas touch that moves less than this is a tap, not a focal drag.
+    private static let tapSlop: CGFloat = 10
+    /// §10.3: the wash colour before one is chosen — `color-black`'s value.
+    private static let defaultWashHex = "#000000"
     /// activities-editor §2 item 3: the edit slot — 392 wu wide (440 − 2 × 24), centred on 478 wu.
     private static let editSlotInset: CGFloat = 24
     private static let editSlotWidth: CGFloat = 392
@@ -1369,292 +1873,6 @@ struct ActivitiesEditorScreen: View {
     /// GAP — C-091 §4 `contentExtent`: an object not yet measured counts one line per item at
     /// this multiple of its size; the live measurement replaces it on the next pass.
     private static let lineHeightFactor: CGFloat = 1.25
-}
-
-// MARK: - §6 Background sheet (D4)
-
-/// §6: page colour, image and — once an image is set — focal point and wash. No `motion` control.
-/// Built from C-094 and C-105 on the modal surface. Controlled (R-01): every value leaves through
-/// a closure.
-private struct BackgroundSheet: View {
-    let pageColor: Color
-    let image: ActivityCanvas<AnyView>.Background.Image?
-    let focal: CGPoint
-    let washColor: Color
-    let washOpacity: Double
-    let swatches: [[TextColorPalette.NamedColor]]
-    /// §2 item 4: the wash and page palettes draw no well unless the eyedropper is shown.
-    let showsWell: Bool
-    let onPageColor: (Color) -> Void
-    let onPickImage: () -> Void
-    let onFocal: (CGPoint) -> Void
-    let onWashColor: (Color) -> Void
-    let onWashOpacity: (Double) -> Void
-
-    /// R-02: where a focal drag started, held only while the finger is down.
-    @State private var dragBase: CGPoint?
-
-    /// GAP — activities-editor §6: the crop preview's height; undrawn, no token.
-    private let previewHeight: CGFloat = 140
-
-    var body: some View {
-        // §2 item 4: the body scrolls only when it does not fit the sheet's cap.
-        ViewThatFits(in: .vertical) {
-            controls
-            ScrollView(.vertical) { controls }
-                .scrollIndicators(.hidden)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Token.modalBackground, in: UnevenRoundedRectangle(
-            topLeadingRadius: Token.Radius.modal, topTrailingRadius: Token.Radius.modal
-        ))
-        .ui2Element("Background sheet")
-    }
-
-    private var controls: some View {
-        VStack(alignment: .leading, spacing: Token.Space.elementGap) {
-            sectionLabel("Page colour")
-            TextColorPalette(currentColor: pageColor, swatches: swatches, onSelect: onPageColor, showsWell: showsWell)
-                .ui2Element("C-094 TextColorPalette")
-            sectionLabel("Image")
-            Button(label: image == nil ? "Choose image" : "Change image", leadingGlyph: .image, onTap: onPickImage)
-                .ui2Element("C-105 Button")
-                .padding(.horizontal, Token.Space.pageMargin)
-            if let image {
-                sectionLabel("Focal point")
-                focalPreview(image)
-                sectionLabel("Wash")
-                TextColorPalette(currentColor: washColor, swatches: swatches, onSelect: onWashColor, showsWell: showsWell)
-                    .ui2Element("C-094 TextColorPalette 2")
-                // activities-editor §3 tool 2: undrawn default, the system slider (no registry row).
-                SwiftUI.Slider(value: Binding(get: { washOpacity }, set: onWashOpacity), in: 0...1)
-                    .tint(Token.white100)
-                    .padding(.horizontal, Token.Space.pageMargin)
-                    .accessibilityLabel("Wash opacity")
-                    .ui2Element("Wash opacity")
-            }
-        }
-        .padding(.top, Token.Space.pageMargin)
-        .padding(.bottom, Token.Space.pageMargin * 2)
-    }
-
-    private func sectionLabel(_ text: String) -> some View {
-        SwiftUI.Text(verbatim: text)
-            .designTextStyle(Token.TypeStyle.labelEmphasis)
-            .foregroundStyle(Token.textPrimary)
-            .padding(.horizontal, Token.Space.pageMargin)
-    }
-
-    /// §6: "drag the image inside a crop preview; written as `focal` 0–1". R-04 / R-19: read
-    /// cache-first, never fetched.
-    @ViewBuilder
-    private func focalPreview(_ image: ActivityCanvas<AnyView>.Background.Image) -> some View {
-        if let picture = Ui2ImageCache.shared.image(for: image.imageURL) {
-            GeometryReader { proxy in
-                let scale = max(proxy.size.width / picture.size.width, proxy.size.height / picture.size.height)
-                let drawn = CGSize(width: picture.size.width * scale, height: picture.size.height * scale)
-                SwiftUI.Image(uiImage: picture)
-                    .resizable()
-                    .frame(width: drawn.width, height: drawn.height)
-                    .offset(x: min(0, max(proxy.size.width - drawn.width, proxy.size.width / 2 - focal.x * drawn.width)),
-                            y: min(0, max(proxy.size.height - drawn.height, proxy.size.height / 2 - focal.y * drawn.height)))
-                    .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
-                    .clipped()
-                    .contentShape(Rectangle())
-                    .gesture(
-                        // pan-ok: moves the focal point on both axes inside its own crop box
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { drag in
-                                let base = dragBase ?? focal
-                                dragBase = base
-                                onFocal(CGPoint(
-                                    x: min(max(base.x - drag.translation.width / drawn.width, 0), 1),
-                                    y: min(max(base.y - drag.translation.height / drawn.height, 0), 1)
-                                ))
-                            }
-                            .onEnded { _ in dragBase = nil }
-                    )
-                    .accessibilityElement()
-                    .accessibilityLabel("Focal point")
-            }
-            .frame(height: previewHeight)
-            .clipShape(RoundedRectangle(cornerRadius: Token.Radius.cardSm))
-            .padding(.horizontal, Token.Space.pageMargin)
-            .ui2Element("Focal crop preview")
-        }
-    }
-}
-
-// MARK: - §6 Actions sheet (D8)
-
-/// §3 Actions: undrawn — a default the owner delegated, built from C-040, C-106 of C-035, C-045
-/// fields and C-105. Holds an edit buffer until Done (R-31); Cancel discards it.
-private struct ActionsSheet: View {
-    typealias PageAction = ActivitiesEditorScreen.PageAction
-
-    let actions: [PageAction]
-    let onCancel: () -> Void
-    let onDone: ([PageAction]) -> Void
-
-    @State private var edited: [PageAction]
-    @State private var selectedID: String
-    @State private var isNew: Set<String> = []
-
-    private static let addID = "add"
-
-    init(actions: [PageAction], onCancel: @escaping () -> Void, onDone: @escaping ([PageAction]) -> Void) {
-        self.actions = actions
-        self.onCancel = onCancel
-        self.onDone = onDone
-        _edited = State(initialValue: actions)
-        _selectedID = State(initialValue: actions.first?.id ?? Self.addID)
-    }
-
-    private var selectedIndex: Int? { edited.firstIndex { $0.id == selectedID } }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            PageHeader(
-                style: .textButtons,
-                title: "Action",
-                showTitle: true,
-                showIcons: false,
-                leadingGlyph: .back,
-                rightButtons: [],
-                onCancel: onCancel,
-                onDone: { onDone(edited) }
-            )
-            .ui2Element("C-040 PageHeader")
-            // §2 item 4: the header stays fixed; the body scrolls when it does not fit the cap.
-            ViewThatFits(in: .vertical) {
-                formBody
-                ScrollView(.vertical) { formBody }
-                    .scrollIndicators(.hidden)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Token.modalBackground, in: UnevenRoundedRectangle(
-            topLeadingRadius: Token.Radius.modal, topTrailingRadius: Token.Radius.modal
-        ))
-        .ui2Element("Actions sheet")
-    }
-
-    private var formBody: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ChipStrip(items: listItems, selectedID: selectedID, onSelect: select)
-                .ui2Element("C-106 ChipStrip")
-            if let index = selectedIndex {
-                form(index)
-            }
-        }
-        .padding(.bottom, Token.Space.pageMargin * 2)
-    }
-
-    /// §3 Actions: the page's actions by label plus a trailing "+ Add" chip.
-    private var listItems: [ChipStrip.Item] {
-        edited.map { ChipStrip.Item(id: $0.id, label: $0.label.isEmpty ? "Action" : $0.label) }
-            + [ChipStrip.Item(id: Self.addID, label: "+ Add")]
-    }
-
-    private func select(_ id: String) {
-        guard id == Self.addID else {
-            selectedID = id
-            return
-        }
-        let action = PageAction(id: UUID().uuidString, kind: .addToPrayerList, label: "",
-                                placement: .inline, value: "", body: "")
-        edited.append(action)
-        isNew.insert(action.id)
-        selectedID = action.id
-    }
-
-    @ViewBuilder
-    private func form(_ index: Int) -> some View {
-        let action = edited[index]
-        sectionLabel("Kind")
-        ChipStrip(items: Self.kindItems, selectedID: action.kind.rawValue, onSelect: { id in
-            edited[index].kind = PageAction.Kind(rawValue: id) ?? action.kind
-        })
-        .ui2Element("C-106 ChipStrip 2")
-        sectionLabel("Label")
-        field("Label", text: action.label, kind: .single) { edited[index].label = $0 }
-        sectionLabel("Placement")
-        ChipStrip(items: Self.placementItems, selectedID: action.placement.rawValue, onSelect: { id in
-            setPlacement(PageAction.Placement(rawValue: id) ?? action.placement, at: index)
-        })
-        .ui2Element("C-106 ChipStrip 3")
-        if action.kind != .nextLesson {
-            sectionLabel("Prefill")
-            prefill(action, index: index)
-        }
-        if !isNew.contains(action.id) {
-            Button(label: "Remove action", onTap: { remove(action.id) })
-                .ui2Element("C-105 Button")
-                .padding(.horizontal, Token.Space.pageMargin)
-                .padding(.top, Token.Space.pageMargin)
-        }
-    }
-
-    /// §3 Actions: the fields depend on the kind.
-    @ViewBuilder
-    private func prefill(_ action: PageAction, index: Int) -> some View {
-        switch action.kind {
-        case .addToPrayerList:
-            VStack(spacing: Token.Space.elementGap) {
-                field("Title", text: action.value, kind: .single) { edited[index].value = $0 }
-                field("Body", text: action.body, kind: .multi) { edited[index].body = $0 }
-            }
-        case .write:
-            field("Write your thoughts", text: action.value, kind: .multi) { edited[index].value = $0 }
-        case .openUrl:
-            field("https://…", text: action.value, kind: .single) { edited[index].value = $0 }
-        case .nextLesson:
-            EmptyView()
-        }
-    }
-
-    /// §3 Actions: at most one pinned per page; choosing Pinned moves the other to Inline.
-    private func setPlacement(_ placement: PageAction.Placement, at index: Int) {
-        if placement == .pinned {
-            for other in edited.indices where other != index && edited[other].placement == .pinned {
-                edited[other].placement = .inline
-            }
-        }
-        edited[index].placement = placement
-    }
-
-    private func remove(_ id: String) {
-        edited.removeAll { $0.id == id }
-        selectedID = edited.first?.id ?? Self.addID
-    }
-
-    private func sectionLabel(_ text: String) -> some View {
-        SwiftUI.Text(verbatim: text)
-            .designTextStyle(Token.TypeStyle.labelEmphasis)
-            .foregroundStyle(Token.textPrimary)
-            .padding(.horizontal, Token.Space.pageMargin)
-            .padding(.top, Token.Space.elementGap)
-    }
-
-    private func field(_ placeholder: String, text: String, kind: TextInput.Kind,
-                       onChange: @escaping (String) -> Void) -> some View {
-        TextInput(text: text, placeholder: placeholder, kind: kind, focused: false,
-                  onChange: onChange, editing: .init())
-            .padding(.horizontal, Token.Space.pageMargin)
-            .ui2Element("C-045 TextInput \(placeholder)")
-    }
-
-    private static let kindItems: [ChipStrip.Item] = [
-        .init(id: PageAction.Kind.addToPrayerList.rawValue, label: "Add to Prayer List"),
-        .init(id: PageAction.Kind.write.rawValue, label: "Write"),
-        .init(id: PageAction.Kind.openUrl.rawValue, label: "Open link"),
-        .init(id: PageAction.Kind.nextLesson.rawValue, label: "Next lesson")
-    ]
-
-    private static let placementItems: [ChipStrip.Item] = [
-        .init(id: PageAction.Placement.inline.rawValue, label: "Inline"),
-        .init(id: PageAction.Placement.pinned.rawValue, label: "Pinned")
-    ]
 }
 
 // MARK: - Sample data (the previews' props, single-sourced for the #Preview blocks and the
@@ -1848,6 +2066,89 @@ extension ActivitiesEditorScreen.State {
         s.showsEffectsTool = true
         return s
     }()
+    /// D4 / D13: the 12 palettes (base first) — text-activity-v2's curated set.
+    private static let samplePalettes: [[String]] = [
+        ["#1B1F4A", "#3B3F9E", "#5B3E96", "#2E5C8A", "#7A2E8E"],
+        ["#0B3440", "#0F6B6E", "#1F5F8B", "#13807A", "#2A4E7A"],
+        ["#3A0F1A", "#A3262E", "#B4442A", "#8C1F4F", "#9A3B12"],
+        ["#0F2E1F", "#1E6B3A", "#2F7A55", "#4A6B1E", "#14625E"],
+        ["#2A0F33", "#6B2380", "#8E2C6E", "#4B2A8C", "#A0285A"],
+        ["#0A1F3D", "#1A4C8C", "#2563A8", "#0F6E8C", "#3A3F9E"],
+        ["#3A1030", "#B03A4A", "#A8462E", "#7A2F7A", "#C0392B"],
+        ["#0D2233", "#14736B", "#3A4FA0", "#6A2E8C", "#1C6B8C"],
+        ["#33071F", "#9C1F55", "#7A1F7A", "#B0284A", "#5A2A9C"],
+        ["#1A2410", "#4F6B1A", "#2E6B3F", "#6B5A12", "#1F5E4A"],
+        ["#1F1433", "#4A3A8C", "#7A3A7A", "#2E4A8C", "#8C3A5A"],
+        ["#2E1408", "#8C3A12", "#A0461F", "#7A2E1F", "#6B4A12"]
+    ]
+    /// D3: a generated gradient from the first palette — base its darkest colour, four blobs.
+    private static let sampleGradient = Gradient(
+        base: "#1B1F4A",
+        hidden: false,
+        blobs: [
+            .init(x: 0.2, y: 0.3, r: 0.7, color: "#3B3F9E"),
+            .init(x: 0.85, y: 0.65, r: 0.65, color: "#5B3E96"),
+            .init(x: 0.3, y: 1.2, r: 0.75, color: "#2E5C8A"),
+            .init(x: 0.75, y: 1.55, r: 0.6, color: "#7A2E8E")
+        ]
+    )
+    /// §10.3 / D22: library thumbnails from the project's image catalog, newest first.
+    private static let sampleLibrary: [LibraryImage] = [
+        "revelation-new-creation-city", "revelation-multitude-worship", "revelation-lampstands-witness",
+        "revelation-lamb-scroll-v02", "jude-mercy-rescue", "jude-kept-standing"
+    ].map { .init(id: $0, thumbnailURL: "http://localhost:5961/api/projects/makeready/images/\($0)") }
+
+    /// §10.9 — Idle with a page rail open: the chips rail, the three object tools disabled.
+    private static func pageRail(_ tool: String, option: String) -> Self {
+        var s = committed()
+        s.canSave = true
+        s.openTool = tool
+        s.backgroundOption = option
+        s.gradient = sampleGradient
+        s.pageColorHex = sampleGradient.base
+        s.palettes = samplePalettes
+        s.libraryImages = sampleLibrary
+        s.hasMoreImages = true
+        return s
+    }
+
+    /// §10.9 background-gradient — ↻ Shuffle and the 12 palette chips, the page's palette outlined.
+    static let backgroundGradient = pageRail("background", option: "gradient")
+    /// §10.9 background-colour — C-094 swatches; the gradient kept but hidden (D14).
+    static let backgroundColour: Self = {
+        var s = pageRail("background", option: "colour")
+        s.gradient?.hidden = true
+        s.pageColorHex = "#509CEF"
+        return s
+    }()
+    /// §10.9 background-image — the thumbnails and More…, then the wash (C-094 + opacity).
+    static let backgroundImage: Self = {
+        var s = pageRail("background", option: "image")
+        s.pageImageURL = "http://localhost:5961/api/projects/makeready/images/genesis-abram-stars"
+        s.pageImageFocalX = 0.7
+        s.pageImageFocalY = 0.3
+        s.pageWashHex = "#141F6B"
+        s.pageWashOpacity = 0.5
+        return s
+    }()
+    /// §10.9 actions-rail — the page's actions in the middle rail, the first in the top rail.
+    static let actionsRail: Self = {
+        var s = pageRail("actions", option: "gradient")
+        s.actionIDs = ["action-1", "action-2"]
+        s.actionKinds = ["addToPrayerList", "nextLesson"]
+        s.actionLabels = ["Add to Prayer List", "Next lesson"]
+        s.actionPlacements = ["inline", "pinned"]
+        s.actionValues = ["", ""]
+        s.actionBodies = ["", ""]
+        return s
+    }()
+    /// §10.9 rails-375 (OQ-activities-editor-43) — the Actions rail with its label field focused;
+    /// the keyboard check at 375×667 is a device-walk item.
+    static let rails375: Self = {
+        var s = actionsRail
+        s.focusedActionField = "label"
+        return s
+    }()
     /// §9.4 Load-failed — the container could not load the activity.
     static let loadFailed: Self = {
         var s = base
@@ -1942,6 +2243,36 @@ extension ActivitiesEditorScreen.State {
 
 #Preview("Load-failed") {
     ActivitiesEditorScreen(state: .loadFailed)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Background gradient") {
+    ActivitiesEditorScreen(state: .backgroundGradient)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Background colour") {
+    ActivitiesEditorScreen(state: .backgroundColour)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Background image") {
+    ActivitiesEditorScreen(state: .backgroundImage)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Actions rail") {
+    ActivitiesEditorScreen(state: .actionsRail)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Rails 375") {
+    ActivitiesEditorScreen(state: .rails375)
         .safeAreaPadding(.top, 59)
         .frame(width: 440, height: 956, alignment: .top)
 }
