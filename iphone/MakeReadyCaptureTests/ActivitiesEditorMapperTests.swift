@@ -111,6 +111,86 @@ final class ActivitiesEditorMapperTests: XCTestCase {
             XCTAssertNotNil(action["payload"] as? [String: Any], "\(action["kind"] ?? "?") has no payload object")
         }
     }
+
+    // MARK: - text-activity-v2: gradient operations (D13, D14, D17, D18)
+
+    private func starter(_ rng: inout SeededRandom) -> ActivityDocument {
+        ActivityNewContainer.textDocument(title: "T", palette: nil, rng: &rng)
+    }
+
+    func testShuffleKeepsThePalettesColours() {
+        var rng = SeededRandom(seed: 3)
+        let doc = starter(&rng)
+        let before = Set(ActivitiesEditorMapper.paletteColours(of: doc.background.gradient!))
+        let shuffled = ActivitiesEditorMapper.shuffling(in: doc, rng: &rng)
+        XCTAssertTrue(Set(ActivitiesEditorMapper.paletteColours(of: shuffled.background.gradient!)).isSubset(of: before))
+        XCTAssertNotEqual(shuffled.background.gradient!.blobs, doc.background.gradient!.blobs)
+        XCTAssertEqual(shuffled.background.color, shuffled.background.gradient!.base)
+    }
+
+    func testAPaletteChipSwapsTheColours() {
+        var rng = SeededRandom(seed: 4)
+        let palette = ActivityBackgroundPalettes.all[5]
+        let doc = ActivitiesEditorMapper.choosingPalette(palette, in: starter(&rng), rng: &rng)
+        XCTAssertEqual(doc.background.gradient!.base, ActivityBackgroundPalettes.darkest(palette))
+        XCTAssertEqual(doc.background.color, doc.background.gradient!.base)
+        XCTAssertTrue(doc.background.gradient!.blobs.allSatisfy { palette.contains($0.color) })
+    }
+
+    func testColourThenGradientRestoresTheBase() {
+        var rng = SeededRandom(seed: 5)
+        let doc = starter(&rng)
+        XCTAssertEqual(ActivitiesEditorMapper.backgroundOption(of: doc), .gradient)
+        let coloured = ActivitiesEditorMapper.choosingColour("#AA0000", in: doc)
+        XCTAssertEqual(coloured.background.color, "#AA0000")
+        XCTAssertEqual(coloured.background.gradient?.hidden, true)
+        XCTAssertEqual(ActivitiesEditorMapper.backgroundOption(of: coloured), .colour)
+        let back = ActivitiesEditorMapper.showingGradient(in: coloured, rng: &rng)
+        XCTAssertEqual(back.background.color, doc.background.gradient!.base)
+        XCTAssertEqual(back.background.gradient, doc.background.gradient)
+        XCTAssertNil(back.raw[path: ["background", "gradient", "hidden"]])
+        XCTAssertEqual(ActivitiesEditorMapper.backgroundOption(of: back), .gradient)
+    }
+
+    func testGradientOrColourRemovesTheImageAndWash() {
+        var rng = SeededRandom(seed: 6)
+        let withImage = ActivitiesEditorMapper.settingBackgroundImage(mediaId: "m1", in: starter(&rng))
+            .updating { $0[path: ["background", "wash"]] = .object(["color": .string("#000000"), "opacity": .number(0.4)]) }
+        XCTAssertEqual(ActivitiesEditorMapper.backgroundOption(of: withImage), .image)
+        let gradient = ActivitiesEditorMapper.showingGradient(in: withImage, rng: &rng)
+        XCTAssertNil(gradient.background.image)
+        XCTAssertNil(gradient.background.wash)
+        let coloured = ActivitiesEditorMapper.choosingColour("#112233", in: withImage)
+        XCTAssertNil(coloured.background.image)
+        XCTAssertNil(coloured.background.wash)
+    }
+
+    func testImageKeepsTheGradient() {
+        var rng = SeededRandom(seed: 8)
+        let doc = starter(&rng)
+        XCTAssertEqual(ActivitiesEditorMapper.settingBackgroundImage(mediaId: "m1", in: doc).background.gradient, doc.background.gradient)
+    }
+
+    func testGradientOnALegacyDocumentGeneratesOne() {
+        var rng = SeededRandom(seed: 9)
+        let legacy = ActivityDocument(raw: .object(["schemaVersion": .number(1), "kind": .string("text"),
+                                                    "background": .object(["color": .string("#FFFFFF")])]))
+        XCTAssertEqual(ActivitiesEditorMapper.backgroundOption(of: legacy), .colour)
+        let doc = ActivitiesEditorMapper.showingGradient(in: legacy, rng: &rng)
+        XCTAssertEqual(doc.background.gradient?.blobs.count, 4)
+        XCTAssertEqual(doc.background.color, doc.background.gradient?.base)
+    }
+
+    func testGradientOperationsKeepMotionAndUnknownKeys() {
+        var rng = SeededRandom(seed: 10)
+        let doc = starter(&rng).updating {
+            $0[path: ["background", "motion"]] = .object(["mode": .string("scroll"), "rate": .number(1)])
+            $0[path: ["background", "gradient", "note"]] = .string("keep")
+        }
+        let shuffled = ActivitiesEditorMapper.shuffling(in: doc, rng: &rng)
+        XCTAssertEqual(shuffled.raw[path: ["background", "motion", "mode"]], .string("scroll"))
+        XCTAssertEqual(shuffled.raw[path: ["background", "gradient", "note"]], .string("keep"))
+    }
 }
 
 // MARK: - Fixtures

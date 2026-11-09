@@ -195,6 +195,80 @@ enum ActivitiesEditorMapper {
         }
     }
 
+    // MARK: - text-activity-v2: the Background rail's gradient operations (D13, D14, D17, D18)
+
+    /// The Background rail's three options.
+    enum BackgroundOption: Equatable {
+        case gradient, colour, image
+    }
+
+    /// D14: an image → Image; no gradient, or a hidden one → Colour; otherwise Gradient.
+    static func backgroundOption(of doc: ActivityDocument) -> BackgroundOption {
+        let background = doc.background
+        if background.image != nil { return .image }
+        guard let gradient = background.gradient, !gradient.hidden else { return .colour }
+        return .gradient
+    }
+
+    /// D13: the colours a stored gradient was made from — its base, then its distinct blob colours in order.
+    static func paletteColours(of gradient: ActivityBackground.Gradient) -> [String] {
+        var colours = [gradient.base]
+        for blob in gradient.blobs where !colours.contains(blob.color) { colours.append(blob.color) }
+        return colours
+    }
+
+    /// Gradient: removes the image and wash (D18); shows the stored gradient with `color = base` (D17),
+    /// or generates one from a random palette when the document has none (D14).
+    static func showingGradient<R: RandomNumberGenerator>(in doc: ActivityDocument, rng: inout R) -> ActivityDocument {
+        var gradient = doc.background.gradient
+            ?? ActivityBackgroundGenerator.make(palette: ActivityBackgroundGenerator.randomPalette(rng: &rng), rng: &rng)
+        gradient.hidden = false
+        return writing(gradient, removingImage: true, to: doc)
+    }
+
+    /// Colour: `color` = the pick, a stored gradient is kept but hidden (D14), the image and wash go (D18).
+    static func choosingColour(_ hex: String, in doc: ActivityDocument) -> ActivityDocument {
+        doc.updating { raw in
+            raw[path: ["background", "color"]] = .string(hex)
+            if raw[path: ["background", "gradient"]] != nil {
+                raw[path: ["background", "gradient", "hidden"]] = .bool(true)
+            }
+            raw[path: ["background", "image"]] = nil
+            raw[path: ["background", "wash"]] = nil
+        }
+    }
+
+    /// Shuffle: a new layout from the stored gradient's own colours (D13); shows it.
+    static func shuffling<R: RandomNumberGenerator>(in doc: ActivityDocument, rng: inout R) -> ActivityDocument {
+        guard let current = doc.background.gradient else { return showingGradient(in: doc, rng: &rng) }
+        let gradient = ActivityBackgroundGenerator.make(palette: paletteColours(of: current), rng: &rng)
+        return writing(gradient, removingImage: false, to: doc)
+    }
+
+    /// A palette chip: a new gradient from that palette (D13); shows it.
+    static func choosingPalette<R: RandomNumberGenerator>(_ palette: [String], in doc: ActivityDocument, rng: inout R) -> ActivityDocument {
+        writing(ActivityBackgroundGenerator.make(palette: palette, rng: &rng), removingImage: false, to: doc)
+    }
+
+    /// Writes a visible gradient and `color = base`, keeping every unknown key inside the stored gradient.
+    private static func writing(_ gradient: ActivityBackground.Gradient, removingImage: Bool, to doc: ActivityDocument) -> ActivityDocument {
+        doc.updating { raw in
+            raw[path: ["background", "color"]] = .string(gradient.base)
+            if case .object(var stored) = raw[path: ["background", "gradient"]] ?? .null,
+               case .object(let fresh) = gradient.jsonValue {
+                for (key, value) in fresh { stored[key] = value }
+                stored["hidden"] = nil
+                raw[path: ["background", "gradient"]] = .object(stored)
+            } else {
+                raw[path: ["background", "gradient"]] = gradient.jsonValue
+            }
+            if removingImage {
+                raw[path: ["background", "image"]] = nil
+                raw[path: ["background", "wash"]] = nil
+            }
+        }
+    }
+
     /// D40: the picked image becomes the page's background image, keeping a focal point already set.
     static func settingBackgroundImage(mediaId: String, in doc: ActivityDocument) -> ActivityDocument {
         doc.updating { raw in
