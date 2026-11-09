@@ -5,8 +5,9 @@ import Foundation
 enum ActivityBackgroundGenerator {
     static let blobCount = 4
 
-    /// `base` = the palette's darkest colour; 4 blobs coloured from the palette's other colours
-    /// (cycling when it has fewer than 4), `x` 0–1, `y` 0–1.6, `r` 0.45–0.8 (fractions of the page width, D2).
+    /// `base` = the palette's darkest colour; 4 blobs coloured from the palette's vivid colours
+    /// (cycling when it has fewer than 4), `x` 0–1, `y` 0–1.6, `r` 0.6–1.0 so neighbours overlap
+    /// (fractions of the page width, D2; D3 superseded 2026-11-08).
     static func make<R: RandomNumberGenerator>(palette: [String], rng: inout R) -> ActivityBackground.Gradient {
         let base = ActivityBackgroundPalettes.darkest(palette)
         var others = palette.filter { $0 != base }
@@ -15,7 +16,7 @@ enum ActivityBackgroundGenerator {
             ActivityBackground.Gradient.Blob(
                 x: Double.random(in: 0...1, using: &rng),
                 y: Double.random(in: 0...1.6, using: &rng),
-                r: Double.random(in: 0.45...0.8, using: &rng),
+                r: Double.random(in: 0.6...1.0, using: &rng),
                 color: others[index % others.count]
             )
         }

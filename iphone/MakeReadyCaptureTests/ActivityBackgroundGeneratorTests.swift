@@ -20,7 +20,7 @@ final class ActivityBackgroundGeneratorTests: XCTestCase {
             for blob in g.blobs {
                 XCTAssertTrue((0...1).contains(blob.x))
                 XCTAssertTrue((0...1.6).contains(blob.y))
-                XCTAssertTrue((0.45...0.8).contains(blob.r))
+                XCTAssertTrue((0.6...1.0).contains(blob.r))
                 XCTAssertTrue(palette.contains(blob.color))
                 XCTAssertNotEqual(blob.color, g.base)
             }

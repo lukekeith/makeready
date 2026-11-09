@@ -2,15 +2,24 @@ import XCTest
 @testable import MakeReady
 
 final class ActivityBackgroundPalettesTests: XCTestCase {
-    func testEveryPaletteHasFourToFiveColoursReadableUnderWhite() {
+    /// D4 (round 2): a dark base ≥ 4.5:1 under white, and vivid blob colours ≥ 3:1 with saturation ≥ 0.55.
+    func testEveryPaletteHasADarkBaseAndVividBlobs() {
         XCTAssertEqual(ActivityBackgroundPalettes.all.count, 12)
         for palette in ActivityBackgroundPalettes.all {
             XCTAssertTrue((4...5).contains(palette.count), "\(palette)")
             XCTAssertEqual(Set(palette).count, palette.count, "\(palette)")
-            for hex in palette {
-                XCTAssertGreaterThanOrEqual(ActivityBackgroundPalettes.contrastWithWhite(hex), 4.5, hex)
+            let base = ActivityBackgroundPalettes.darkest(palette)
+            XCTAssertGreaterThanOrEqual(ActivityBackgroundPalettes.contrastWithWhite(base), 4.5, base)
+            for hex in palette where hex != base {
+                XCTAssertGreaterThanOrEqual(ActivityBackgroundPalettes.contrastWithWhite(hex), 3.0, hex)
+                XCTAssertGreaterThanOrEqual(ActivityBackgroundPalettes.saturation(hex), 0.55, hex)
             }
         }
+    }
+
+    func testSaturationReadsHSB() {
+        XCTAssertEqual(ActivityBackgroundPalettes.saturation("#FF0000"), 1, accuracy: 0.001)
+        XCTAssertEqual(ActivityBackgroundPalettes.saturation("#808080"), 0, accuracy: 0.001)
     }
 
     func testContrastMatchesWCAG() {
