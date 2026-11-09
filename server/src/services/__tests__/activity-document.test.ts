@@ -176,6 +176,43 @@ describe('activity document', () => {
     })
   })
 
+  describe('background.gradient (text-activity-v2)', () => {
+    const blob = { x: 0.5, y: 0.5, r: 0.5, color: '#3B4BA8' }
+    const withGradient = (gradient: any) => ({ ...text(), background: { color: '#1B1F4A', gradient } })
+
+    it('accepts a blob gradient and returns it unchanged, unknown keys included', () => {
+      const gradient = { style: 'blobs', base: '#1B1F4A', extra: 1,
+        blobs: [{ x: 0.2, y: 1.4, r: 0.6, color: '#3B4BA8', tint: 'keep' }] }
+      const res: any = parseActivityDocument(withGradient(gradient), 'text')
+      expect(res.ok).toBe(true)
+      expect(res.document.background.gradient).toEqual(gradient)
+    })
+
+    it('accepts hidden and up to eight blobs', () => {
+      const gradient = { style: 'blobs', base: '#1B1F4A', hidden: true, blobs: Array.from({ length: 8 }, () => blob) }
+      expect(parseActivityDocument(withGradient(gradient), 'text').ok).toBe(true)
+    })
+
+    it.each([
+      ['style', { style: 'mesh' }],
+      ['no blobs', { blobs: [] }],
+      ['nine blobs', { blobs: Array.from({ length: 9 }, () => blob) }],
+      ['x below 0', { blobs: [{ ...blob, x: -0.1 }] }],
+      ['x above 1', { blobs: [{ ...blob, x: 1.1 }] }],
+      ['y above 4', { blobs: [{ ...blob, y: 4.1 }] }],
+      ['r above 1', { blobs: [{ ...blob, r: 1.1 }] }],
+      ['blob colour', { blobs: [{ ...blob, color: 'blue' }] }],
+      ['missing base', { base: undefined }],
+      ['bad base', { base: '#12345' }],
+      ['hidden not boolean', { hidden: 'yes' }],
+    ])('refuses a gradient with a bad %s', (_name, patch) => {
+      const gradient = { style: 'blobs', base: '#1B1F4A', blobs: [blob], ...patch }
+      const res = parseActivityDocument(withGradient(gradient), 'text')
+      expect(res).toMatchObject({ ok: false, code: 'VALIDATION' })
+      expect((res as any).error).toContain('background.gradient')
+    })
+  })
+
   it('reads passages, empty when absent', () => {
     expect(documentPassages(EXAMPLES.bible)).toEqual([
       { bookNumber: 43, chapterStart: 3, verseStart: 16, chapterEnd: 3, verseEnd: 17 },

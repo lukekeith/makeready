@@ -140,11 +140,29 @@ served by a reader view reachable from the top-right menu, later *(default)*.
     "focal": { "x": 0.5, "y": 0.4 }    // the point kept visible when cropped, 0–1
   },
   "wash": { "color": "#3B1E8F", "opacity": 0.6 },   // optional; drawn over the image
-  "motion": { "mode": "scroll", "rate": 1 }
+  "motion": { "mode": "scroll", "rate": 1 },
+  "gradient": {                        // optional (text-activity-v2); a generated "blob" gradient
+    "style": "blobs",                  // the only style today
+    "base": "#1B1F4A",                 // the palette's darkest colour; `color` equals it while the gradient shows
+    "hidden": false,                   // optional; true = the leader picked a solid colour, blobs kept for later
+    "blobs": [                         // 1–8 (a new activity gets 4)
+      { "x": 0.2, "y": 1.4, "r": 0.6, "color": "#3B4BA8" }
+    ]
+  }
 }
 ```
 
-Draw order, bottom to top: `color`, `image` (cover, around `focal`), `wash`, then the content layer.
+Draw order, bottom to top: `color`, `gradient` (unless `hidden`), `image` (cover, around `focal`),
+`wash`, then the content layer.
+
+**Gradient geometry.** `x`, `y` (the blob's centre) and `r` (its radius) are fractions of the
+background box's **width** — the box is the page (`pageHeight` tall, the viewport when the content
+fits), so `y` may exceed 1 on a tall page and the picture is the same at any width. Bounds: `x`, `r`
+0–1, `y` 0–4. Each blob is a radial gradient from `color` at the centre to fully transparent at `r`,
+composited with normal blending over `color`. `base` keeps the gradient's own base colour, so a solid
+colour picked over it (`hidden: true`, `color` = the pick) and then undone restores `color = base`.
+Every colour is `#RRGGBB`. A new activity's gradient is generated once, at creation, from curated
+palettes; renderers draw what is stored and never generate.
 
 **Motion** says how the background moves as the page's **content** scrolls (`inner`):
 
@@ -252,7 +270,14 @@ The recording's prayer page as a document:
 {
   "schemaVersion": 1,
   "kind": "text",
-  "background": { "color": "#0E4A4D", "motion": { "mode": "scroll", "rate": 1 } },
+  "background": {
+    "color": "#0E4A4D",
+    "motion": { "mode": "scroll", "rate": 1 },
+    "gradient": { "style": "blobs", "base": "#0E4A4D", "blobs": [
+      { "x": 0.15, "y": 0.3, "r": 0.7, "color": "#1F6F73" },
+      { "x": 0.85, "y": 1.1, "r": 0.6, "color": "#2B4C7E" }
+    ] }
+  },
   "content": {
     "type": "canvas",
     "verticalAnchor": "center",

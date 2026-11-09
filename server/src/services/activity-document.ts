@@ -162,6 +162,19 @@ const envelope = z
           .object({ mode: z.enum(['scroll', 'fixed', 'parallax']), rate: unit })
           .passthrough()
           .optional(),
+        // text-activity-v2 §Contract: generated blob gradient, drawn between `color` and `image`.
+        gradient: z
+          .object({
+            style: z.literal('blobs'),
+            base: hex,
+            hidden: z.boolean().optional(),
+            blobs: z
+              .array(z.object({ x: unit, y: z.number().min(0).max(4), r: unit, color: hex }).passthrough())
+              .min(1)
+              .max(8),
+          })
+          .passthrough()
+          .optional(),
       })
       .passthrough(),
     content: z.unknown(),
