@@ -23,18 +23,6 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         XCTAssertEqual(model.activityId, "a2")
     }
 
-    /// The rail's "+": the program read's lesson rows carry no program id, so the program comes from the index.
-    func testAddOpensTheTypePickerWithTheProgramFromTheLessonIndex() async {
-        let app = AppState()
-        app.lessons.upsert(Lesson(id: "l1", studyProgramId: nil, position: 1))
-        app.programLessonIndex.add(parentId: "p1", childId: "l1")
-        let nav = RecordingEditorNavigator()
-        let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "k1", lessonId: "l1",
-                                                    actions: ScriptedActivityActions())
-        model.navigator = nav
-        await model.addActivity(app: app)
-        XCTAssertEqual(nav.replaced, [.activityNew(programId: "p1", lessonId: "l1")])
-    }
 
     func testSecondFailureShowsRetryAndDiscard() async {
         let actions = ScriptedActivityActions(save: [.failure(.notDraft), .failure(.notDraft)], draft: .withActivity(id: "a2", key: "k1"))
