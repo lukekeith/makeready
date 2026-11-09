@@ -106,14 +106,6 @@ enum ActivitiesEditorMapper {
 
     // MARK: - D16: untouched
 
-    /// D16 (text-activity-v2): no objects, no actions, no image or wash — whatever the colour and gradient hold,
-    /// so a shuffled but otherwise empty new activity is still deleted on back.
-    static func isUntouched(_ doc: ActivityDocument) -> Bool {
-        let background = doc.background
-        return rawObjects(doc).isEmpty
-            && background.image == nil && background.wash == nil
-            && rawActions(doc).isEmpty
-    }
 
     // MARK: - D33: edits → document patches
 

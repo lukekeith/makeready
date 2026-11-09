@@ -39,18 +39,6 @@ final class ActivitiesEditorMapperTests: XCTestCase {
         XCTAssertEqual(transform["width"] as? Double, 300)
     }
 
-    /// D16 (text-activity-v2): untouched = no objects, actions, image or wash — the colour and gradient don't count.
-    func testUntouchedIsTheStarterDocumentOnly() {
-        let starter = ActivityNewContainer.textDocument(title: "Text")
-        XCTAssertTrue(ActivitiesEditorMapper.isUntouched(starter))
-        XCTAssertTrue(ActivitiesEditorMapper.isUntouched(starter.updating { $0[path: ["background", "color"]] = .string("#000000") }))
-        XCTAssertFalse(ActivitiesEditorMapper.isUntouched(ActivitiesEditorMapper.appendObject(to: starter, centerY: 400).document))
-        XCTAssertFalse(ActivitiesEditorMapper.isUntouched(ActivitiesEditorMapper.settingBackgroundImage(mediaId: "m1", in: starter)))
-        XCTAssertFalse(ActivitiesEditorMapper.isUntouched(starter.updating {
-            $0[path: ["actions"]] = .array([.object(["id": .string("a1"), "kind": .string("nextLesson"),
-                                                     "label": .string("Next"), "placement": .string("inline")])])
-        }))
-    }
 
     /// The page background reads the media map; the actions read their payload prefill.
     func testBackgroundAndActionsMapped() {

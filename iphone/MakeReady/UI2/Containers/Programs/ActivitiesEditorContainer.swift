@@ -158,7 +158,9 @@ struct ActivitiesEditorContainer: View {
         init(activityId: String, activityKey: String, document: ActivityDocument = ActivityDocument(raw: .object([:])),
              lessonId: String = "", lessonVersionId: String = "", phase: Phase = .ready,
              actions: ActivityActionsProtocol? = nil,
+             newActivityActions: ActivityNewContainer.Actions? = nil,
              log: ((Error, String) -> Void)? = nil) {
+            self.newActivityActions = newActivityActions ?? .live
             self.activityId = activityId
             self.activityKey = activityKey
             self.document = document
@@ -481,49 +483,78 @@ struct ActivitiesEditorContainer: View {
 
         // MARK: Leaving
 
-        /// Back: D16 deletes an untouched activity; otherwise unsaved changes save first, and a failed
-        /// save stays on the page with the alert.
+        /// Back: unsaved changes save first (an open edit commits), and a failed save stays on the page with
+        /// the alert. No activity is ever deleted on the way out (D16, superseded round 5).
         func back() async {
             guard await leave() else { return }
             navigator?.pop()
         }
 
-        /// D39: another slide opens that activity in place (a kind the editor can't open says so).
+        /// D26/D27/D28: what the canvas area shows.
+        enum CanvasContent: Equatable {
+            /// The selected activity's editable canvas.
+            case activity
+            /// The activity-type grid, in place of the canvas (＋ is disabled meanwhile).
+            case typeGrid
+            /// A kind this editor can't edit yet, drawn read-only.
+            case readOnly
+        }
+
+        private(set) var canvasContent: CanvasContent = .activity
+
+        /// D27: the in-place grid's create runs the New Activity page's own create.
+        private let newActivityActions: ActivityNewContainer.Actions
+        /// C-086 `pendingType` while the grid's create is in flight; "" = interactive.
+        private(set) var pendingType = ""
+
+        /// D26: a chip swaps the canvas to that activity in place — the current one saves first, nothing
+        /// navigates. D28: a kind the editor can't edit shows read-only. While the grid shows, a chip
+        /// closes it (D27).
         func selectSlide(_ id: String, app: AppState? = nil) async {
             let app = app ?? .shared
-            guard id != activityId, let target = app.activities[id] else { return }
-            switch ActivityEntry.destination(for: target.kind, activityId: id) {
-            case .open(let destination):
-                guard await leave() else { return }
-                navigator?.replace(with: destination)
-            case .cannotEdit(let message):
-                ActivityEntry.surface(message)
-            }
-        }
-
-        /// The rail's add opens the type picker for this lesson in place.
-        func addActivity(app: AppState? = nil) async {
-            let app = app ?? .shared
-            // The program read's lesson rows carry no program id: the index knows the parent.
-            guard let programId = app.lessons[lessonId]?.studyProgramId
-                    ?? app.programLessonIndex.parent(of: lessonId) else { return }
+            guard let target = app.activities[id] else { return }
+            guard id != activityId || canvasContent == .typeGrid else { return }
             guard await leave() else { return }
-            navigator?.replace(with: .activityNew(programId: programId, lessonId: lessonId))
+            let editable = ActivityEntry.canvasKinds.contains(target.kind) && ActivitiesEditorMapper.isEditable(target.document)
+            activityId = target.id
+            activityKey = target.activityKey
+            lessonVersionId = target.lessonVersionId
+            document = target.document
+            savedDocument = target.document
+            endEditing()
+            saveError = nil
+            canvasContent = editable ? .activity : .readOnly
+            screenGeneration += 1
         }
 
-        /// Whether the page may close: an untouched activity is deleted (a failed delete is logged, the
-        /// leader still leaves); a changed one must save.
+        /// D27: ＋ shows the type grid in place of the canvas, once the current activity has saved.
+        func addActivity() async {
+            guard canvasContent != .typeGrid, await leave() else { return }
+            canvasContent = .typeGrid
+            screenGeneration += 1
+        }
+
+        /// D27: a type picked on the grid. Only Text can be created today (the others are unavailable tiles);
+        /// the new activity then opens in place through `selectSlide`.
+        func pickType(_ rawType: String, app: AppState? = nil) async {
+            guard canvasContent == .typeGrid, pendingType.isEmpty,
+                  rawType == ActivityTypeGrid.ActivityType.text.rawValue else { return }
+            let grid = ActivityNewContainer.Model(lessonId: lessonId, actions: newActivityActions)
+            var created: String?
+            grid.onCreated = { created = $0 }
+            pendingType = rawType
+            await grid.selectText()
+            pendingType = ""
+            if let created { await selectSlide(created, app: app) }
+        }
+
+        /// Whether the editor may move on (another activity, the grid, or out): an open edit commits, and
+        /// unsaved changes save. A read-only activity or the grid has nothing to save.
         private func leave() async -> Bool {
             guard phase == .ready else { return true }
+            if editingIndex >= 0 { _ = await commitEdit() }
             await waitForSaves()
-            if ActivitiesEditorMapper.isUntouched(document) {
-                do {
-                    try await actions.delete(activityId: activityId)
-                } catch {
-                    log(error, "ActivitiesEditorContainer.deleteUntouched")
-                }
-                return true
-            }
+            guard canvasContent == .activity else { return true }
             return await saveIfChanged()
         }
 

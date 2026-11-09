@@ -45,11 +45,13 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         XCTAssertEqual(model.saveError?.options, ["Retry", "Discard changes"])
     }
 
-    func testBackingOutOfAnUntouchedActivityDeletesIt() async {
+    /// D16 (superseded round 5): an untouched new activity is kept on back — never auto-deleted.
+    func testBackingOutOfAnUntouchedActivityKeepsIt() async {
         let actions = ScriptedActivityActions()
         let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "k1", document: ActivityNewContainer.textDocument(title: "Text"), actions: actions)
         await model.back()
-        XCTAssertEqual(actions.deletedIds, ["a1"])
+        XCTAssertEqual(actions.deletedIds, [])
+        XCTAssertEqual(actions.savedIds, [])
     }
 
     /// D16: an activity with an object is kept on back; its unsaved change is saved first, then the page pops.
@@ -301,6 +303,86 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         model.changeBackground(.image("m9"), app: AppState())
         XCTAssertEqual(model.document.background.image?.mediaId, "m9")
         XCTAssertEqual(ActivitiesEditorMapper.backgroundOption(of: model.document), .image)
+    }
+
+    // MARK: - text-activity-v2 round 5: one editor view (D26, D27, D28)
+
+    private func appWithLesson(_ docs: [(id: String, kind: String)]) -> AppState {
+        let app = AppState()
+        for (index, entry) in docs.enumerated() {
+            let document = entry.kind == "text" ? ActivityNewContainer.textDocument(title: entry.id)
+                : ActivityDocument(raw: .object(["schemaVersion": .number(1), "kind": .string(entry.kind),
+                                                 "background": .object(["color": .string("#000000")]),
+                                                 "content": .object(["type": .string(entry.kind)])]))
+            app.activities.upsert(ContentActivity(id: entry.id, lessonVersionId: "v1", activityKey: "k-\(entry.id)",
+                                                  position: index, kind: entry.kind, title: entry.id,
+                                                  document: document, estimatedSeconds: nil))
+        }
+        return app
+    }
+
+    func testAChipSwapsTheActivityInPlaceAfterSaving() async {
+        let app = appWithLesson([("a1", "text"), ("a2", "text")])
+        let actions = ScriptedActivityActions()
+        let nav = RecordingEditorNavigator()
+        let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "k-a1",
+                                                    document: app.activities["a1"]!.document, actions: actions)
+        model.navigator = nav
+        model.tapEmpty(at: CGPoint(x: 220, y: 400)); model.edit(.init(index: 0, text: "Hi"))
+        await model.selectSlide("a2", app: app)
+        XCTAssertEqual(actions.savedIds, ["a1"])                 // the open edit committed and saved first
+        XCTAssertEqual(model.activityId, "a2")
+        XCTAssertEqual(model.document, app.activities["a2"]!.document)
+        XCTAssertEqual(model.editingIndex, -1)
+        XCTAssertEqual(model.canvasContent, .activity)
+        XCTAssertTrue(nav.pushed.isEmpty)
+        XCTAssertEqual(nav.pops, 0)
+    }
+
+    func testAKindTheEditorCantEditShowsReadOnly() async {
+        let app = appWithLesson([("a1", "text"), ("v1", "video")])
+        let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "k-a1",
+                                                    document: app.activities["a1"]!.document, actions: ScriptedActivityActions())
+        await model.selectSlide("v1", app: app)
+        XCTAssertEqual(model.activityId, "v1")
+        XCTAssertEqual(model.canvasContent, .readOnly)
+    }
+
+    func testPlusShowsTheGridInPlaceAndAChipClosesIt() async {
+        let app = appWithLesson([("a1", "text"), ("a2", "text")])
+        let nav = RecordingEditorNavigator()
+        let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "k-a1",
+                                                    document: app.activities["a1"]!.document, actions: ScriptedActivityActions())
+        model.navigator = nav
+        await model.addActivity()
+        XCTAssertEqual(model.canvasContent, .typeGrid)
+        await model.selectSlide("a1", app: app)
+        XCTAssertEqual(model.canvasContent, .activity)
+        XCTAssertEqual(model.activityId, "a1")
+        XCTAssertTrue(nav.pushed.isEmpty)
+    }
+
+    func testPickingTextCreatesItAndOpensItInPlace() async {
+        let app = appWithLesson([("a1", "text")])
+        var createdKinds: [String] = []
+        let newActions = ActivityNewContainer.Actions(
+            draftVersionId: { _ in "v1" },
+            create: { version, kind, title, document in
+                createdKinds.append(kind)
+                app.activities.upsert(ContentActivity(id: "n1", lessonVersionId: version, activityKey: "k-n1", position: 1,
+                                                      kind: kind, title: title, document: document, estimatedSeconds: nil))
+                return "n1"
+            })
+        let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "k-a1",
+                                                    document: app.activities["a1"]!.document,
+                                                    actions: ScriptedActivityActions(), newActivityActions: newActions)
+        await model.addActivity()
+        await model.pickType("video")                           // unavailable tile: nothing happens
+        XCTAssertTrue(createdKinds.isEmpty)
+        await model.pickType("text", app: app)
+        XCTAssertEqual(createdKinds, ["text"])
+        XCTAssertEqual(model.activityId, "n1")
+        XCTAssertEqual(model.canvasContent, .activity)
     }
 
     // MARK: - One save at a time

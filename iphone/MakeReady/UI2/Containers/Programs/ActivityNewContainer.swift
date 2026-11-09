@@ -136,6 +136,9 @@ struct ActivityNewContainer: View {
         private let report: (Error) -> Void
 
         private(set) var isCreating = false
+        /// text-activity-v2 D27: set by the editor's in-place grid — the created activity opens there
+        /// instead of replacing the page.
+        var onCreated: ((String) -> Void)?
 
         /// C-086 `pendingType`: the tile whose request is in flight; "" = interactive.
         var pendingType: String { isCreating ? ActivityTypeGrid.ActivityType.text.rawValue : "" }
@@ -165,7 +168,11 @@ struct ActivityNewContainer: View {
                     let fresh = try await actions.reloadDraftVersionId(lessonId)
                     id = try await actions.create(fresh, "text", Self.textTitle, document)
                 }
-                navigator?.replace(with: .activitiesEditor(activityId: id))
+                if let onCreated {
+                    onCreated(id)
+                } else {
+                    navigator?.replace(with: .activitiesEditor(activityId: id))
+                }
             } catch {
                 if UI2ImageLoader.isCancellation(error) { return }
                 report(error)
