@@ -7,8 +7,6 @@ import UIKit
 /// back unchanged (D11, D33).
 enum ActivitiesEditorMapper {
 
-    /// D16: the starter background colour (C-094's first preset, `ActivityNewContainer.textDocument`).
-    static let starterBackground = "#FFFFFF"
     /// A new object's size in wu — the screen's §3 default.
     static let newObjectSize = 38.0
     /// The edit slot's width and centre x, in wu.
@@ -108,11 +106,11 @@ enum ActivitiesEditorMapper {
 
     // MARK: - D16: untouched
 
-    /// D16: no objects, the starter background colour with no image or wash, and no actions.
+    /// D16 (text-activity-v2): no objects, no actions, no image or wash — whatever the colour and gradient hold,
+    /// so a shuffled but otherwise empty new activity is still deleted on back.
     static func isUntouched(_ doc: ActivityDocument) -> Bool {
         let background = doc.background
         return rawObjects(doc).isEmpty
-            && background.color.uppercased() == starterBackground
             && background.image == nil && background.wash == nil
             && rawActions(doc).isEmpty
     }

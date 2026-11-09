@@ -35,7 +35,8 @@ final class ActivityNewContainerTests: XCTestCase {
         XCTAssertEqual(seen?.version, "draft-of-l1")
         XCTAssertEqual(seen?.kind, "text")
         XCTAssertEqual(seen?.title, "Text")
-        XCTAssertEqual(seen?.document, ActivityNewContainer.textDocument(title: "Text"))
+        XCTAssertEqual(seen?.document.raw[path: ["kind"]], .string("text"))
+        XCTAssertNotNil(seen?.document.background.gradient)
     }
 
     /// D16: the tile is disabled while the request is in flight.
@@ -104,12 +105,11 @@ final class ActivityNewContainerTests: XCTestCase {
         XCTAssertEqual(during, "text")
     }
 
-    /// D16: empty canvas, the C-094 first preset as the colour, a share chrome and 02 §2's fallback.
+    /// D16: empty canvas on a generated gradient (text-activity-v2 D5), a share chrome and 02 §2's fallback.
     func testTheStarterDocumentIsAnEmptyTextCanvas() {
         let doc = ActivityNewContainer.textDocument(title: "Text")
         XCTAssertEqual(doc.raw[path: ["schemaVersion"]], .number(1))
         XCTAssertEqual(doc.raw[path: ["kind"]], .string("text"))
-        XCTAssertEqual(doc.raw[path: ["background", "color"]], .string("#FFFFFF"))
         XCTAssertEqual(doc.raw[path: ["chrome", "topAction"]], .string("share"))
         XCTAssertEqual(doc.raw[path: ["content", "type"]], .string("canvas"))
         XCTAssertEqual(doc.raw[path: ["content", "objects"]], .array([]))
@@ -134,5 +134,23 @@ extension ActivityNewContainer.Actions {
 
     static func stub(failing error: Error) -> Self {
         Self(draftVersionId: { _ in "draft" }, reloadDraftVersionId: { _ in "draft" }, create: { _, _, _, _ in throw error })
+    }
+
+    /// text-activity-v2 D5/D17: the starter's background is a blob gradient whose base is the page colour.
+    func testTheStarterCarriesABlobGradient() throws {
+        var rng = SeededRandom(seed: 1)
+        let doc = ActivityNewContainer.textDocument(title: "T", palette: nil, rng: &rng)
+        let gradient = try XCTUnwrap(doc.background.gradient)
+        XCTAssertEqual(gradient.style, "blobs")
+        XCTAssertEqual(gradient.blobs.count, 4)
+        XCTAssertEqual(doc.background.color, gradient.base)
+        XCTAssertNotEqual(doc.background.color.uppercased(), "#FFFFFF")
+    }
+
+    /// text-activity-v2 D3: the same seed gives the same starter.
+    func testASeededStarterIsDeterministic() {
+        var a = SeededRandom(seed: 9), b = SeededRandom(seed: 9)
+        XCTAssertEqual(ActivityNewContainer.textDocument(title: "T", palette: nil, rng: &a),
+                       ActivityNewContainer.textDocument(title: "T", palette: nil, rng: &b))
     }
 }

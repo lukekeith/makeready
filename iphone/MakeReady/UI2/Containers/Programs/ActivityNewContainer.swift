@@ -62,13 +62,21 @@ struct ActivityNewContainer: View {
 
     // MARK: - Starter document
 
-    /// D16: the new Text activity's document — an empty canvas on the first C-094 preset (White), a share chrome,
-    /// and 02 §2's fallback. `title` is the fallback's title.
+    /// D16: the new Text activity's document — an empty canvas on a generated blob gradient
+    /// (text-activity-v2 D3/D5), a share chrome, and 02 §2's fallback. `title` is the fallback's title.
     static func textDocument(title: String) -> ActivityDocument {
-        ActivityDocument(raw: .object([
+        var rng = SystemRandomNumberGenerator()
+        return textDocument(title: title, palette: nil, rng: &rng)
+    }
+
+    /// The starter with an injectable palette (nil = a random curated one) and RNG, so tests are deterministic.
+    static func textDocument<R: RandomNumberGenerator>(title: String, palette: [String]?, rng: inout R) -> ActivityDocument {
+        let gradient = ActivityBackgroundGenerator.make(
+            palette: palette ?? ActivityBackgroundGenerator.randomPalette(rng: &rng), rng: &rng)
+        return ActivityDocument(raw: .object([
             "schemaVersion": .number(1),
             "kind": .string("text"),
-            "background": .object(["color": .string("#FFFFFF")]),
+            "background": .object(["color": .string(gradient.base), "gradient": gradient.jsonValue]),
             "content": .object([
                 "type": .string("canvas"),
                 "verticalAnchor": .string("center"),
