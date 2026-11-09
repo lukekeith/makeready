@@ -361,6 +361,10 @@ struct ActivitiesEditorScreen: View {
     @SwiftUI.State private var sliderDocked: Bool
     @SwiftUI.State private var sliderTouching = false
     @SwiftUI.State private var sliderDockTimer = 0
+    // §15.2 (round 8): the slider drag in flight — its touch-down reference in the global space —
+    // and the track's on-screen frame.
+    @SwiftUI.State private var sliderDrag: SliderDrag?
+    @SwiftUI.State private var sliderFrame: CGRect = .zero
     // §15.2: Reduce Motion cuts between docked and full.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -508,7 +512,7 @@ struct ActivitiesEditorScreen: View {
         // §9.1: `State.objects` is the source — a new State from the container re-seeds the display.
         // §9.1a: never while a gesture is in flight, so a late echo cannot snap the object back.
         .onChange(of: state) { _, next in
-            guard dragged == nil else { return }
+            guard dragged == nil, sliderDrag == nil else { return }
             shownObjects = Self.committedObjects(next)
         }
         // §10.6 (round 2): a text edit opens with no rail open, and ending it closes every rail —
@@ -518,6 +522,7 @@ struct ActivitiesEditorScreen: View {
             if next == .editing && previous != .editing {
                 sliderDocked = state.sliderDocked
                 sliderTouching = false
+                sliderDrag = nil
             }
             let wasEditing = previous == .editing || previous == .highlighting
             let isEditing = next == .editing || next == .highlighting
@@ -727,40 +732,30 @@ struct ActivitiesEditorScreen: View {
                 // §2 item 3 handle / thumb separation (1): C-091 draws its handles above its slot,
                 // so the slider sits over the canvas — above them in hit order, and fixed to the
                 // viewport. Centred on the edit slot, clamped between the header and the container.
+                // C-093's own `onChange` now only carries its accessibility adjustable action (one
+                // edit per step); the drag is the screen's gesture below.
                 TextSizeSlider(value: sliderValue, onChange: { value in
                     if let editedIndex { apply(.init(index: editedIndex, size: CGFloat(Self.size(forSlider: value)))) }
                 })
                     .ui2Element("C-093 TextSizeSlider")
-                    // §15.2: a finger on the full slider holds it out; lifting restarts the 2 s.
-                    .simultaneousGesture(
-                        // pan-ok: observes C-093's own vertical drag to hold the dock timer
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { _ in beginSliderTouch() }
-                            .onEnded { _ in endSliderTouch() }
+                    // §15.2 (round 8): ONE gesture owns the slider's touch — it holds the dock timer,
+                    // undocks on touch-down and keeps tracking the same drag. It is measured in the
+                    // global space, so the undock's slide cannot move the finger's reference, and
+                    // each frame is display-only (§9.1a) with one ObjectEdit on lift.
+                    .highPriorityGesture(
+                        // pan-ok: vertical slider — tracks the finger on C-093's strip
+                        DragGesture(minimumDistance: 0, coordinateSpace: .global)
+                            .onChanged { drag in dragSlider(drag) }
+                            .onEnded { _ in endSliderDrag() }
                     )
-                    // §15.2: docked, a touch on its visible half only brings it back — the overlay
-                    // takes the touch so the thumb does not jump.
-                    .overlay {
-                        if sliderDocked {
-                            Color.clear
-                                // FLAGGED LITERAL — C-093 §2 / OQ-C-093-002: the 44pt hit strip.
-                                .frame(width: Self.sliderHitWidth)
-                                .contentShape(Rectangle())
-                                .gesture(
-                                    // pan-ok: a touch-down on the docked slider, not a sideways drag
-                                    DragGesture(minimumDistance: 0)
-                                        .onChanged { _ in beginSliderTouch() }
-                                        .onEnded { _ in endSliderTouch() }
-                                )
-                                .accessibilityHidden(true)
-                        }
-                    }
                     // FLAGGED LITERAL — activities-editor §2: slider 20×263.5 at x 11; §15.2 (D30)
                     // docked: its centre line on the screen's left edge, only its right half shows.
                     .offset(x: sliderDocked ? -Self.sliderWidth / 2 : Self.sliderX,
                             y: max(min(Self.editSlotY + offset - Self.sliderHeight / 2, containerTop - Self.sliderHeight),
                                    headerBottom))
                     .scaleEffect(unit, anchor: .topLeading)
+                    // §15.2 (round 8): the track's on-screen frame, for a touch-down on the full slider.
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { sliderFrame = $0 }
                     // §15.2: the dock timer is a cancellable task owned by this view — restarted
                     // when a touch on C-093 ends, cancelled when the edit ends (the slider leaves).
                     .task(id: sliderDockTimer) {
@@ -785,6 +780,38 @@ struct ActivitiesEditorScreen: View {
     private func endSliderTouch() {
         sliderTouching = false
         sliderDockTimer += 1                                 // restarts the 2 s
+    }
+
+    /// §15.2 (round 8): one slider frame. Touch-down undocks and fixes the reference: from docked
+    /// the thumb moves relative to where the finger went down (no jump); on the full slider it
+    /// jumps to the touch first, as C-093 does (OQ-C-093-002). Display only — no report.
+    private func dragSlider(_ drag: DragGesture.Value) {
+        guard let editedIndex else { return }
+        if sliderDrag == nil {
+            let wasDocked = sliderDocked
+            beginSliderTouch()
+            let height = max(sliderFrame.height, 1)
+            let start = wasDocked
+                ? sliderValue
+                : min(max(1 - (drag.startLocation.y - sliderFrame.minY) / height, 0), 1)
+            sliderDrag = SliderDrag(startY: drag.startLocation.y, startValue: start,
+                                    height: height, startSize: draftSize)
+        }
+        guard let reference = sliderDrag else { return }
+        let value = min(max(reference.startValue + (reference.startY - drag.location.y) / reference.height, 0), 1)
+        let size = CGFloat(Self.size(forSlider: value))
+        if size != shownObjects[editedIndex].size {
+            apply(.init(index: editedIndex, size: size), report: false)
+        }
+    }
+
+    /// §9.1a parity: the lift reports the size once.
+    private func endSliderDrag() {
+        if let reference = sliderDrag, let editedIndex, draftSize != reference.startSize {
+            apply(.init(index: editedIndex, size: draftSize))
+        }
+        sliderDrag = nil
+        endSliderTouch()
     }
 
     /// §15.2: one ease-out, ≈ 250 ms, both ways; Reduce Motion cuts.
@@ -1681,6 +1708,15 @@ struct ActivitiesEditorScreen: View {
     private var washHex: String { state.pageWashHex.isEmpty ? Self.defaultWashHex : state.pageWashHex }
     private var washColor: Color { Self.hexColor(washHex) ?? Token.black }
 
+    /// §15.2 (round 8): a slider drag's touch-down reference — the finger's global y, the value
+    /// it starts from, the track's on-screen height, and the size before the drag (for the lift).
+    private struct SliderDrag {
+        var startY: CGFloat
+        var startValue: CGFloat
+        var height: CGFloat
+        var startSize: CGFloat
+    }
+
     /// One committed C-092, resolved from `State` with §3's defaults. Lengths are wu.
     private struct CommittedObject {
         var text: String
@@ -2186,9 +2222,8 @@ struct ActivitiesEditorScreen: View {
     /// ends at frame x 38; the handles' 14 wu inset.
     private static let sliderX: CGFloat = 11
     private static let sliderHeight: CGFloat = 263.5
-    /// FLAGGED LITERAL — C-093 §2: the 20pt track and its 44pt hit strip (§15.2 docks it by half).
+    /// FLAGGED LITERAL — C-093 §2: the 20pt track (§15.2 docks it by half).
     private static let sliderWidth: CGFloat = 20
-    private static let sliderHitWidth: CGFloat = 44
     /// FLAGGED LITERAL — activities-editor §15.2 (D30): docks after 2 s untouched, one ease-out
     /// ≈ 250 ms (no `motion-*` token holds either).
     private static let sliderDockDelay: Duration = .seconds(2)
