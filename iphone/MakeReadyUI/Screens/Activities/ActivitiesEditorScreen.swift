@@ -128,6 +128,21 @@ struct ActivitiesEditorScreen: View {
         /// §10.9 (OQ-activities-editor-43): the Actions top rail's field drawn focused —
         /// `label` · `value` · `body` · "" (none). A preview seed; live, focus is the field's own.
         var focusedActionField: String = ""
+        /// §14.1 (owner ruling 2026-11-09, D26–D28): what the area between the header and the
+        /// chips rail shows — `activity` (the editable canvas) · `typeGrid` (C-086 in place of the
+        /// canvas) · `readOnly` (a kind the editor can't edit, drawn as a member sees it).
+        var canvasContent: String = "activity"
+        /// §14.3 `typeGrid`: C-086 `unavailableTypes` as raw case names — the dimmed, inert tiles.
+        var unavailableTypes: [String] = []
+        /// §14.3 `typeGrid`: C-086 `pendingType` as its raw case name — the create in flight;
+        /// "" = nil (interactive).
+        var pendingType: String = ""
+        /// §14.3 `readOnly`: the activity's kind — `video` · `youtube` · `write` · `poll`.
+        var readOnlyKind: String = "video"
+        /// §14.3 `readOnly`: the activity's title; "" = the kind's C-086 title.
+        var readOnlyTitle: String = ""
+        /// §14.3 `readOnly`: the poster drawn as the page's image; "" = none.
+        var readOnlyPosterURL: String = ""
 
         /// §10.8 `gradient`: `base` `#RRGGBB`, `blobs`, `hidden`.
         struct Gradient: Equatable {
@@ -248,6 +263,9 @@ struct ActivitiesEditorScreen: View {
     var onDone: () -> Void = {}
     var onSelectSlide: (String) -> Void = { _ in }
     var onAdd: () -> Void = {}
+    /// §14.1 `typeGrid`: a C-086 tile was tapped — its raw case name. The container creates the
+    /// activity and swaps the canvas to it; the screen only reports.
+    var onPickType: (String) -> Void = { _ in }
     var onTapEmpty: (CGPoint) -> Void = { _ in }
     var onTapObject: (Int) -> Void = { _ in }
     /// §9.1: one callback per user action that edits an object.
@@ -339,6 +357,7 @@ struct ActivitiesEditorScreen: View {
         onDone: @escaping () -> Void = {},
         onSelectSlide: @escaping (String) -> Void = { _ in },
         onAdd: @escaping () -> Void = {},
+        onPickType: @escaping (String) -> Void = { _ in },
         onTapEmpty: @escaping (CGPoint) -> Void = { _ in },
         onTapObject: @escaping (Int) -> Void = { _ in },
         onEditObject: @escaping (ObjectEdit) -> Void = { _ in },
@@ -363,6 +382,7 @@ struct ActivitiesEditorScreen: View {
         self.onDone = onDone
         self.onSelectSlide = onSelectSlide
         self.onAdd = onAdd
+        self.onPickType = onPickType
         self.onTapEmpty = onTapEmpty
         self.onTapObject = onTapObject
         self.onEditObject = onEditObject
@@ -389,7 +409,13 @@ struct ActivitiesEditorScreen: View {
         _alertPresented = SwiftUI.State(initialValue: state.saveFailed)
     }
 
+    /// §14.1: the editable canvas shows — `typeGrid` and `readOnly` have no edit mode and no
+    /// tool stack.
+    private var showsActivity: Bool { state.canvasContent != "typeGrid" && state.canvasContent != "readOnly" }
+
     private var mode: ActivityCanvas<AnyView>.Mode {
+        // §14.1: no edit mode outside the editable canvas — the Idle header and the chips rail.
+        guard showsActivity else { return .idle }
         switch state.editorMode {
         case "editing": return .editing
         case "highlighting": return .highlighting
@@ -432,14 +458,19 @@ struct ActivitiesEditorScreen: View {
         GeometryReader { screen in
             ZStack(alignment: .top) {
                 // §2: the canvas is the whole screen on any phone — canvas y 0 = screen y 0.
-                GeometryReader { proxy in
-                    canvas(unit: proxy.size.width / Self.referenceWidth,
-                           viewport: proxy.size.height * Self.referenceWidth / proxy.size.width,
-                           safeTop: screen.safeAreaInsets.top)
-                        .background(manipulationBridge(size: proxy.size, safeTop: screen.safeAreaInsets.top))
+                if showsActivity {
+                    GeometryReader { proxy in
+                        canvas(unit: proxy.size.width / Self.referenceWidth,
+                               viewport: proxy.size.height * Self.referenceWidth / proxy.size.width,
+                               safeTop: screen.safeAreaInsets.top)
+                            .background(manipulationBridge(size: proxy.size, safeTop: screen.safeAreaInsets.top))
+                    }
+                    .ignoresSafeArea(.container)
+                } else if state.canvasContent == "readOnly" {
+                    readOnlyPage
+                        .ignoresSafeArea(.container)
                 }
-                .ignoresSafeArea(.container)
-                if isImageRailOpen {
+                if showsActivity && isImageRailOpen {
                     focalDragLayer
                         .ignoresSafeArea(.container)
                 }
@@ -514,9 +545,15 @@ struct ActivitiesEditorScreen: View {
     private func chrome(unit: CGFloat) -> some View {
         VStack(spacing: 0) {
             header
-            Spacer(minLength: 0)
-            furniture(unit: unit)
-                .offset(y: -keyboardOverlap)
+            if state.canvasContent == "typeGrid" {
+                typeGrid
+            } else {
+                Spacer(minLength: 0)
+            }
+            if showsActivity {
+                furniture(unit: unit)
+                    .offset(y: -keyboardOverlap)
+            }
             if mode != .manipulating {
                 railStack
                     .transition(.opacity)
@@ -549,6 +586,60 @@ struct ActivitiesEditorScreen: View {
                 .padding(.bottom, Self.pinnedInset * unit)
                 .allowsHitTesting(false)
         }
+    }
+
+    // MARK: - §14: the type grid and the read-only page
+
+    /// §14.1 `typeGrid`: C-086 in place of the canvas, between the header and the chips rail —
+    /// laid out as ActivityNewScreen lays it (page-margin inset, scrolls when it overflows).
+    private var typeGrid: some View {
+        ScrollView(.vertical) {
+            ActivityTypeGrid(
+                pendingType: ActivityTypeGrid.ActivityType(rawValue: state.pendingType),
+                unavailableTypes: Set(state.unavailableTypes.compactMap(ActivityTypeGrid.ActivityType.init(rawValue:))),
+                onSelect: { onPickType($0.rawValue) }
+            )
+            .ui2Element("C-086 ActivityTypeGrid")
+            .padding(Token.Space.pageMargin)
+        }
+        .scrollBounceBehavior(.basedOnSize, axes: .vertical)
+        .frame(maxHeight: .infinity)
+    }
+
+    /// §14.1 `readOnly`: the activity drawn as a member sees a page the player can't play here —
+    /// C-091 in viewer mode with the poster as the page image, the title and the note as C-092,
+    /// centred (the player's fallback page). Not interactive; no edit mode, no tool stack.
+    private var readOnlyPage: some View {
+        var page = ActivityCanvas<AnyView>.Background(color: pageColor)
+        if let url = URL(string: state.readOnlyPosterURL), !state.readOnlyPosterURL.isEmpty {
+            page.image = .init(imageURL: url, focal: CGPoint(x: 0.5, y: 0.5))
+        }
+        let title = state.readOnlyTitle.isEmpty
+            ? (ActivityTypeGrid.ActivityType(rawValue: state.readOnlyKind)?.title ?? "")
+            : state.readOnlyTitle
+        return ActivityCanvas<AnyView>(
+            background: page,
+            mode: .viewer,
+            content: {
+                AnyView(
+                    VStack(spacing: Self.readOnlyGap) {
+                        // FLAGGED LITERAL — activities-player §2 fallback page: title 700, 24.
+                        CanvasTextObject(text: title, mode: .viewer, font: .sans, weight: .bold,
+                                         size: Self.readOnlyTitleSize, alignment: .center, editing: false)
+                            .ui2Element("C-092 CanvasTextObject")
+                        // FLAGGED LITERAL — activities-player §2 fallback page: body 400, 16.
+                        CanvasTextObject(text: Self.readOnlyNote, mode: .viewer, font: .sans, weight: .regular,
+                                         size: Self.readOnlyNoteSize, alignment: .center, editing: false)
+                            .ui2Element("C-092 CanvasTextObject 2")
+                    }
+                    .frame(width: Self.editSlotWidth)
+                    .position(x: Self.referenceWidth / 2, y: Self.referenceHeight / 2)
+                )
+            },
+            verticalAnchor: .center
+        )
+        .ui2Element("C-091 ActivityCanvas")
+        .allowsHitTesting(false)
     }
 
     // MARK: - §2 item 2: the header
@@ -940,8 +1031,10 @@ struct ActivitiesEditorScreen: View {
             } else {
                 // C-081 §5: the editor passes `bottomInset: 16`, measured from the bar's position
                 // before the inset (the chrome ignores the bottom safe area) — SPEC D11, D23.
+                // §14.2: chips and ＋ only report; ＋ is disabled while the type grid shows.
                 ActivityNavBar(slides: slides, activeID: state.activeID, bottomInset: Token.Space.pageMargin,
-                               onSelectSlide: onSelectSlide, onAdd: onAdd)
+                               onSelectSlide: onSelectSlide,
+                               addEnabled: state.canvasContent != "typeGrid", onAdd: onAdd)
                     .ui2Element("C-081 ActivityNavBar")
             }
         }
@@ -1929,6 +2022,12 @@ struct ActivitiesEditorScreen: View {
     private static let title = "Edit lesson"
     private static let deleteHighlightLabel = "Delete highlight"
     private static let addNoteLabel = "Add note"
+    /// §14.1 `readOnly`: the note under the read-only page's title.
+    private static let readOnlyNote = "This activity can't be edited yet."
+    /// FLAGGED LITERAL — activities-player §2 fallback page: title 24, body 16, 16 wu apart.
+    private static let readOnlyTitleSize: CGFloat = 24
+    private static let readOnlyNoteSize: CGFloat = 16
+    private static let readOnlyGap: CGFloat = 16
     private static let shuffleLabel = "Shuffle"
     private static let moreImagesLabel = "More…"
     // §9.4 Load-failed copy and the banner's 2 s before the pop.

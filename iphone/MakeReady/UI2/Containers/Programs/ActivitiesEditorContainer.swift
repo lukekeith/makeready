@@ -43,6 +43,7 @@ struct ActivitiesEditorContainer: View {
             onDone: { Task { await model.done() } },
             onSelectSlide: { id in Task { await model.selectSlide(id) } },
             onAdd: { Task { await model.addActivity() } },
+            onPickType: { type in Task { await model.pickType(type) } },
             onTapEmpty: { point in model.tapEmpty(at: point) },
             onTapObject: { index in Task { await model.tapObject(index) } },
             onEditObject: { edit in model.edit(edit) },
@@ -85,6 +86,21 @@ struct ActivitiesEditorContainer: View {
         state.saving = model.isSaving
         state.saveFailed = model.saveError != nil
         state.loadFailed = model.phase == .failed
+        // D26–D28: what the canvas area shows — the activity, the type grid in place, or a read-only page.
+        switch model.canvasContent {
+        case .activity: state.canvasContent = "activity"
+        case .typeGrid: state.canvasContent = "typeGrid"
+        case .readOnly: state.canvasContent = "readOnly"
+        }
+        state.unavailableTypes = ActivityNewContainer.unavailableTypes
+        state.pendingType = model.pendingType
+        if model.canvasContent == .readOnly, let activity = app.activities[model.activityId] {
+            state.readOnlyKind = activity.kind
+            state.readOnlyTitle = activity.title
+            if case .video(let video) = activity.document.renderable {
+                state.readOnlyPosterURL = ActivityViewerMapper.videoEntry(video, media: app.mediaMap)?.posterUrl ?? ""
+            }
+        }
         // Owner 2026-11-08: the Idle Done is muted until there is something to save.
         state.canSave = model.phase == .ready && model.document != model.savedDocument
         return state

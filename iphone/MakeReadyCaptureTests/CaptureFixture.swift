@@ -1119,6 +1119,12 @@ struct CaptureComponent: Codable {
     let libraryImages: [CaptureEditorLibraryImage]?  // id + thumbnail URL, newest first
     let hasMoreImages: Bool?
     let focusedActionField: String?            // §10.9 — label · value · body · ""
+    // activities-editor §14 (chat change 2026-11-09, one view). Additive; `pendingType` and
+    // `unavailableTypes` are reused from C-086 as-is:
+    let canvasContent: String?                 // activity · typeGrid · readOnly
+    let readOnlyKind: String?                  // video · youtube · write · poll
+    let readOnlyTitle: String?                 // "" = the kind's C-086 title
+    let readOnlyPosterURL: String?             // the read-only page's image; "" = none
     let showsHighlightTool: Bool?
     let showsEffectsTool: Bool?
     let showsEyedropper: Bool?

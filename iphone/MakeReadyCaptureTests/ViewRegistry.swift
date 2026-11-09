@@ -3905,7 +3905,13 @@ private func buildScreenActivitiesEditor(_ fixture: CaptureFixture) throws -> An
        let data = try? Data(contentsOf: url), let picture = UIImage(data: data) {
         MakeReadyUI.Ui2ImageCache.shared.seed(picture, for: url)
     }
-    // §10.3: the Image rail's thumbnails, seeded the same way (the view reads the cache, never fetches).
+    // §14.1 `readOnly`: the poster is the page image — seeded the same way.
+    let readOnlyPosterURL = c.readOnlyPosterURL ?? sample.readOnlyPosterURL
+    if let url = URL(string: readOnlyPosterURL), url.scheme?.hasPrefix("http") == true,
+       let data = try? Data(contentsOf: url), let picture = UIImage(data: data) {
+        MakeReadyUI.Ui2ImageCache.shared.seed(picture, for: url)
+    }
+        // §10.3: the Image rail's thumbnails, seeded the same way (the view reads the cache, never fetches).
     let libraryImages = (c.libraryImages ?? []).map {
         MakeReadyUI.ActivitiesEditorScreen.State.LibraryImage(id: $0.id, thumbnailURL: $0.thumbnailURL)
     }
@@ -3985,7 +3991,13 @@ private func buildScreenActivitiesEditor(_ fixture: CaptureFixture) throws -> An
             palettes: c.palettes ?? sample.palettes,
             libraryImages: c.libraryImages == nil ? sample.libraryImages : libraryImages,
             hasMoreImages: c.hasMoreImages ?? sample.hasMoreImages,
-            focusedActionField: c.focusedActionField ?? sample.focusedActionField
+            focusedActionField: c.focusedActionField ?? sample.focusedActionField,
+            canvasContent: c.canvasContent ?? sample.canvasContent,
+            unavailableTypes: c.unavailableTypes ?? sample.unavailableTypes,
+            pendingType: c.pendingType ?? sample.pendingType,
+            readOnlyKind: c.readOnlyKind ?? sample.readOnlyKind,
+            readOnlyTitle: c.readOnlyTitle ?? sample.readOnlyTitle,
+            readOnlyPosterURL: readOnlyPosterURL
         )
     )
     .safeAreaPadding(.top, device.safeArea.top)

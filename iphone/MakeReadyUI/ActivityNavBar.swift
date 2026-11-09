@@ -35,6 +35,10 @@ struct ActivityNavBar: View {
     var bottomInset: CGFloat = 0
     /// §4 #4 — "Tap on a slide, passing that slide's `id`." No render effect; no-op (R-03).
     var onSelectSlide: (String) -> Void = { _ in }
+    /// §4 — the trailing ＋ takes taps (activities-editor §14.2, owner ruling 2026-11-09). When
+    /// false the ＋ is drawn at the disabled tone (C-102's disabled look, `color-white-50`), takes
+    /// no tap and carries the disabled trait. Default true, so every other caller is unchanged.
+    var addEnabled: Bool = true
     /// §4 #5 — "Tap on the trailing C-021 `add`." No render effect; no-op (R-03).
     var onAdd: () -> Void = {}
 
@@ -47,9 +51,7 @@ struct ActivityNavBar: View {
             // §2 Add button: "one C-021 GlyphButton `glyph=add`, 24×24 visual, trailing,
             // centred vertically … drawn above the strip and its mask. The 44 pt hit target is
             // C-021's." Pinned outside the scroll (OQ-C-081-002).
-            GlyphButton(glyph: .add, onTap: onAdd)
-                // §4 Accessibility (R-17): "The add button is labelled \"Add activity\"."
-                .accessibilityLabel("Add activity")
+            addButton
                 .ui2Element("Add button")
                 // §2 Padding: "`space-page-margin` (16) on all four sides."
                 .padding(.trailing, Token.Space.pageMargin)
@@ -62,6 +64,26 @@ struct ActivityNavBar: View {
         .padding(.bottom, bottomInset)
         .frame(maxWidth: .infinity)
         .ui2Element("ActivityNavBar")
+    }
+
+    /// The trailing ＋ — C-021 `add`, or, while `addEnabled` is false, the same C-021 glyph used
+    /// as a mask over `color-white-50` inside a disabled button. GAP — C-021 has no disabled state
+    /// (OQ-C-021-1), so its accent tint cannot be changed from outside.
+    @ViewBuilder private var addButton: some View {
+        if addEnabled {
+            GlyphButton(glyph: .add, onTap: onAdd)
+                // §4 Accessibility (R-17): "The add button is labelled \"Add activity\"."
+                .accessibilityLabel("Add activity")
+        } else {
+            SwiftUI.Button(action: {}) {
+                Token.white50
+                    .frame(width: Self.addVisual, height: Self.addVisual)
+                    .mask { GlyphButton(glyph: .add).allowsHitTesting(false) }
+            }
+            .buttonStyle(.plain)
+            .disabled(true)
+            .accessibilityLabel("Add activity")
+        }
     }
 
     // MARK: - Slide strip
