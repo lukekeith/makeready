@@ -166,7 +166,7 @@ struct ActivityCanvas<Content: View>: View {
     /// GAP — C-091 §2 Autoscroll: no longest step stated; a late frame moves at most this far in time.
     private let autoscrollMaxStep: TimeInterval = 1.0 / 30
 
-    private let pageSpace = "ActivityCanvas.page"
+    private let pageSpace = ActivityCanvasSpace.page
     private let scrollSpace = "ActivityCanvas.scroll"
     private let columnID = "ActivityCanvas.column"
 
@@ -548,6 +548,17 @@ private struct ScreenFoldLine: Shape {
 }
 
 // MARK: - §2 layer 2: fixed screen furniture
+
+/// The page's coordinate space name, in wu (C-091's scale is applied outside it): an object's
+/// move drag measures in it so the finger and the object stay locked together. Spelled
+/// `ActivityCanvas.page` (the type is generic, so the constant is pinned to one specialization).
+enum ActivityCanvasSpace {
+    static let page = "ActivityCanvas.page"
+}
+
+extension ActivityCanvas where Content == EmptyView {
+    static var page: String { ActivityCanvasSpace.page }
+}
 
 /// §2 layer 2: a slot child positioned against the viewport, not the scrolling page (C-093, the
 /// Selection row). The slot is translated by the page offset and scrolls; this undoes both.

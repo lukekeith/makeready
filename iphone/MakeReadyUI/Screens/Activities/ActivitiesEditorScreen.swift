@@ -108,6 +108,9 @@ struct ActivitiesEditorScreen: View {
         /// §9.4 Load-failed: the container could not load the activity — the Idle header (back
         /// only), no canvas, no bottom container; the banner, then back after 2 s.
         var loadFailed: Bool
+        /// §9.3 (owner ruling 2026-11-08): the Idle header's Done — `false` muted and not
+        /// tappable, `true` enabled and calling `onDone`. The container sets it on unsaved changes.
+        var canSave: Bool = false
     }
 
     /// §9.1 (D33): one user action's edit of one object — only the fields that changed are
@@ -188,8 +191,6 @@ struct ActivitiesEditorScreen: View {
     var onTapObject: (Int) -> Void = { _ in }
     /// §9.1: one callback per user action that edits an object.
     var onEditObject: (ObjectEdit) -> Void = { _ in }
-    /// §9.3 (D22): the Idle header's play glyph — the container opens `activities-player`.
-    var onPlay: () -> Void = {}
     /// §9.4: Load-failed raises the top error banner with this message; the error channel is the
     /// app's, so the container routes it there.
     var onLoadFailed: (String) -> Void = { _ in }
@@ -238,6 +239,9 @@ struct ActivitiesEditorScreen: View {
     @SwiftUI.State private var dragExtent: ClosedRange<CGFloat>??
     @SwiftUI.State private var dragScroll: CGFloat = 0
     @SwiftUI.State private var dragged: (index: Int, transform: CanvasTextObject.Transform)?
+    // §9.1a: the object's transform when the in-flight gesture began — a gesture that ends where
+    // it started reports nothing.
+    @SwiftUI.State private var gestureStart: ObjectEdit.Transform?
 
     init(
         state: State,
@@ -249,7 +253,6 @@ struct ActivitiesEditorScreen: View {
         onTapEmpty: @escaping (CGPoint) -> Void = { _ in },
         onTapObject: @escaping (Int) -> Void = { _ in },
         onEditObject: @escaping (ObjectEdit) -> Void = { _ in },
-        onPlay: @escaping () -> Void = {},
         onLoadFailed: @escaping (String) -> Void = { _ in },
         onPickImage: @escaping () -> Void = {},
         onChangeBackground: @escaping (ActivityCanvas<AnyView>.Background) -> Void = { _ in },
@@ -270,7 +273,6 @@ struct ActivitiesEditorScreen: View {
         self.onTapEmpty = onTapEmpty
         self.onTapObject = onTapObject
         self.onEditObject = onEditObject
-        self.onPlay = onPlay
         self.onLoadFailed = onLoadFailed
         self.onPickImage = onPickImage
         self.onChangeBackground = onChangeBackground
@@ -361,7 +363,11 @@ struct ActivitiesEditorScreen: View {
             SwiftUI.Button(Self.discardLabel, role: .destructive, action: onDiscard)
         }
         // §9.1: `State.objects` is the source — a new State from the container re-seeds the display.
-        .onChange(of: state) { _, next in shownObjects = Self.committedObjects(next) }
+        // §9.1a: never while a gesture is in flight, so a late echo cannot snap the object back.
+        .onChange(of: state) { _, next in
+            guard dragged == nil else { return }
+            shownObjects = Self.committedObjects(next)
+        }
     }
 
     // MARK: - §2 z-order: fixed furniture and the bars
@@ -411,13 +417,17 @@ struct ActivitiesEditorScreen: View {
     // MARK: - §2 item 2: the header
 
     private var header: some View {
+        // §2 item 2 / §9.3 (owner ruling 2026-11-08): Idle is `backAndLink` — back leading and a
+        // trailing Done enabled by `canSave`; Load-failed is back only (§9.4); Editing /
+        // Highlighting is `textButtons` Cancel · Done.
         PageHeader(
-            style: isToolMode ? .textButtons : .default,
+            style: isToolMode ? .textButtons : (state.loadFailed ? .default : .backAndLink),
             title: Self.title,
             showTitle: true,
             showIcons: false,
             leadingGlyph: .back,
             rightButtons: [],
+            trailingEnabled: isToolMode || state.canSave,
             onLeading: onBack,
             onCancel: onCancel,
             onDone: onDone
@@ -431,26 +441,6 @@ struct ActivitiesEditorScreen: View {
         // §2: opaque over the page, up through the status bar.
         .background(Token.layoutBackground.ignoresSafeArea(.container, edges: .top))
         .ui2Element("C-040 PageHeader")
-        // §9.3 (D22): the play glyph in the Idle header's trailing slot — drawn by the screen,
-        // since C-040's trailing slot takes only C-021 glyphs. Not in Load-failed (§9.4).
-        .overlay(alignment: .trailing) {
-            if !isToolMode && !state.loadFailed {
-                IconButton(
-                    glyph: .play,
-                    tone: .default,
-                    style: .plain,
-                    selected: false,
-                    accessibilityLabel: Self.playLabel,
-                    onTap: onPlay
-                )
-                // FLAGGED LITERAL — activities-editor §9.3: 32×32 visual in a 44×44 hit area.
-                .frame(width: Self.toolSize, height: Self.toolSize)
-                .ui2Element("C-102 IconButton")
-                .padding(Self.playHitOutset)
-                .contentShape(Rectangle())
-                .padding(.trailing, Token.Space.pageMargin - Self.playHitOutset)
-            }
-        }
         // §3 Manipulating: chrome hidden (fades out); the layout keeps its place.
         .opacity(mode == .manipulating ? 0 : 1)
     }
@@ -554,24 +544,52 @@ struct ActivitiesEditorScreen: View {
                     dragPoint = nil
                     dragExtent = nil
                     dragScroll = 0
-                    dragged = nil
+                    endGesture()
                 }
+        )
+        // §9.1a: a pinch or rotate with no drag still ends the gesture and reports once.
+        .simultaneousGesture(
+            SimultaneousGesture(MagnifyGesture(), RotateGesture())
+                .onEnded { _ in endGesture() }
         )
         .position(object.transform.position)
     }
 
     /// §2 Autoscroll: C-092 reports its move from where the drag started, so what autoscroll has
     /// moved the page goes back on, keeping the object under the finger.
+    /// §9.1a: each frame goes to the display only; `endGesture` reports the final transform once.
     private func emit(_ transform: CanvasTextObject.Transform, index: Int) {
+        if dragged == nil, shownObjects.indices.contains(index) {
+            let start = shownObjects[index].transform
+            gestureStart = .init(x: start.position.x, y: start.position.y,
+                                 scale: start.scale, rotation: start.rotation.degrees)
+        }
         dragged = (index, transform)
         var next = transform
         next.position.y += dragScroll
         apply(.init(index: index, transform: .init(x: next.position.x, y: next.position.y,
-                                                   scale: next.scale, rotation: next.rotation.degrees)))
+                                                   scale: next.scale, rotation: next.rotation.degrees)),
+              report: false)
+    }
+
+    /// §9.1a: the gesture ended — one `ObjectEdit` with the final transform (none when nothing
+    /// moved); the container's next `State` re-seeds the display as usual.
+    private func endGesture() {
+        guard let index = dragged?.index else { return }
+        dragged = nil
+        let start = gestureStart
+        gestureStart = nil
+        if shownObjects.indices.contains(index) {
+            let shown = shownObjects[index].transform
+            let final = ObjectEdit.Transform(x: shown.position.x, y: shown.position.y,
+                                             scale: shown.scale, rotation: shown.rotation.degrees)
+            if final != start { onEditObject(.init(index: index, transform: final)) }
+        }
     }
 
     /// §9.1: applies one edit to the display state, then reports it — no wait for the echo.
-    private func apply(_ edit: ObjectEdit) {
+    /// §9.1a: a gesture frame passes `report: false` (display only).
+    private func apply(_ edit: ObjectEdit, report: Bool = true) {
         guard shownObjects.indices.contains(edit.index) else { return }
         var object = shownObjects[edit.index]
         if let text = edit.text { object.text = text }
@@ -587,7 +605,7 @@ struct ActivitiesEditorScreen: View {
             object.transform.rotation = .degrees(transform.rotation)
         }
         shownObjects[edit.index] = object
-        onEditObject(edit)
+        if report { onEditObject(edit) }
     }
 
     /// §3 Editing: the edited object's index in `State.objects`, while Editing.
@@ -1293,7 +1311,6 @@ struct ActivitiesEditorScreen: View {
     private static let deleteHighlightLabel = "Delete highlight"
     private static let addNoteLabel = "Add note"
     private static let closeSheetLabel = "Close"
-    private static let playLabel = "Play"
     // §9.4 Load-failed copy and the banner's 2 s before the pop.
     private static let loadFailedMessage = "Couldn't load this activity."
     private static let loadFailedDelay = Duration.seconds(2)
@@ -1327,8 +1344,6 @@ struct ActivitiesEditorScreen: View {
     private static let minToolPitch: CGFloat = 40
     /// FLAGGED LITERAL — activities-editor §2: 32pt tools.
     private static let toolSize: CGFloat = 32
-    /// FLAGGED LITERAL — activities-editor §9.3: the play glyph's 44 hit area around its 32 visual.
-    private static let playHitOutset: CGFloat = (44 - 32) / 2
     /// GAP — activities-editor §2 item 2: the 1px hairline.
     private static let hairline: CGFloat = 1
     /// activities-editor §2 item 3: the edit slot — 392 wu wide (440 − 2 × 24), centred on 478 wu.
@@ -1704,11 +1719,16 @@ extension ActivitiesEditorScreen.State {
 
     /// §3 Idle-empty — the frozen frame `blank-canvas`.
     static let idleEmpty = base
-    /// §3 Idle-populated — one committed object.
-    static let idlePopulated = committed()
+    /// §3 Idle-populated — one committed object; Done enabled (§9.3, `canSave` true).
+    static let idlePopulated: Self = {
+        var s = committed()
+        s.canSave = true
+        return s
+    }()
     /// §3 Idle-long — content taller than the viewport: the page grows and the canvas scrolls.
     static let idleLong: Self = {
         var s = committed()
+        s.canSave = true
         s.objectTexts = [genesisVerses.joined(separator: "\n")]
         s.objectHeights = [1600]
         return s
@@ -1813,6 +1833,7 @@ extension ActivitiesEditorScreen.State {
     /// §2 item 3 (D8): the page's action previews, an inline C-105 and the pinned pill.
     static let actionsOnPage: Self = {
         var s = committed()
+        s.canSave = true
         s.actionIDs = ["action-1", "action-2"]
         s.actionKinds = ["addToPrayerList", "nextLesson"]
         s.actionLabels = ["Add to Prayer List", "Next lesson"]

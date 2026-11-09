@@ -3960,7 +3960,8 @@ private func buildScreenActivitiesEditor(_ fixture: CaptureFixture) throws -> An
             deleteTargetShown: c.deleteTargetShown ?? sample.deleteTargetShown,
             saving: c.saving ?? sample.saving,
             saveFailed: c.saveFailed ?? sample.saveFailed,
-            loadFailed: c.loadFailed ?? sample.loadFailed
+            loadFailed: c.loadFailed ?? sample.loadFailed,
+            canSave: c.canSave ?? sample.canSave
         )
     )
     .safeAreaPadding(.top, device.safeArea.top)

@@ -96,9 +96,10 @@ extension UI2Destination {
         case .editGroupCover, .editMemberAvatar, .editProgramCover, .chooseCoverFromLibrary: return true
         // program-lesson-add-activity D13: C-081 is pinned to the bottom, so no TabBar sits under it.
         case .activityNew: return true
-        // text-activity D39: the viewer takes the whole screen; the editor keeps the shell's chrome rules
-        // (its own bars are drawn in-screen), so it is not listed. The background pick is a full-screen picker.
-        case .activityViewer, .chooseActivityBackground: return true
+        // text-activity D39: the viewer takes the whole screen, and the background pick is a full-screen
+        // picker. Owner 2026-11-08: the editor is full screen too — its own bars are drawn in-screen,
+        // so no TabBar sits under it.
+        case .activitiesEditor, .activityViewer, .chooseActivityBackground: return true
         // Owner 2026-10-29: no TabBar on any enrollment page — the enrollment's own page, the
         // checklist and its six pickers.
         case .enrollmentHome, .enrollChecklist, .enrollSelectGroup, .enrollSelectProgram, .enrollSelectSchedule,

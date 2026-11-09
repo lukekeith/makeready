@@ -46,7 +46,6 @@ struct ActivitiesEditorContainer: View {
             onTapEmpty: { point in model.tapEmpty(at: point) },
             onTapObject: { index in model.tapObject(index) },
             onEditObject: { edit in model.edit(edit) },
-            onPlay: { Task { await model.play() } },
             onLoadFailed: { message in Self.surfaceLoadFailure(message) },
             onPickImage: { model.pickImage() },
             onChangeBackground: { background in model.changeBackground(background) },
@@ -82,6 +81,8 @@ struct ActivitiesEditorContainer: View {
         state.saving = model.isSaving
         state.saveFailed = model.saveError != nil
         state.loadFailed = model.phase == .failed
+        // Owner 2026-11-08: the Idle Done is muted until there is something to save.
+        state.canSave = model.phase == .ready && model.document != model.savedDocument
         return state
     }
 
@@ -264,7 +265,14 @@ struct ActivitiesEditorContainer: View {
 
         /// Done: commits the edit (a new object left empty is dropped) and saves the whole document.
         func done() async {
-            if editingIndex >= 0, editAddedObject,
+            // Owner 2026-11-08: the Idle header's Done saves, then leaves the editor. A failed save
+            // stays on the page with the alert, so the edits are not lost.
+            guard editingIndex >= 0 else {
+                guard phase == .ready, await saveIfChanged() else { return }
+                navigator?.pop()
+                return
+            }
+            if editAddedObject,
                ActivitiesEditorMapper.text(at: editingIndex, in: document)?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? false {
                 document = ActivitiesEditorMapper.removeObject(at: editingIndex, from: document)
             }
@@ -377,12 +385,6 @@ struct ActivitiesEditorContainer: View {
         func back() async {
             guard await leave() else { return }
             navigator?.pop()
-        }
-
-        /// D22: the viewer plays the draft, so unsaved changes save first.
-        func play() async {
-            guard phase == .ready, await saveIfChanged() else { return }
-            navigator?.push(.activityViewer(lessonVersionId: lessonVersionId, activityId: activityId))
         }
 
         /// D39: another slide opens that activity in place (a kind the editor can't open says so).

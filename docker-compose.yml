@@ -28,6 +28,22 @@ services:
     ports:
       - "9010:9090"
 
+  # The local dev server's image store: a simulated bucket, so local uploads and fixture images
+  # never reach production's R2 bucket. Unlike the walk's s3mock, it keeps its files on a volume.
+  # Objects are served by plain URL on the Mac's network name, so the simulator, a phone on the
+  # same Wi-Fi and the browser all load the same stored URLs.
+  dev-images:
+    image: adobe/s3mock:5.2.3
+    container_name: makeready-dev-images
+    environment:
+      COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: makeready-dev
+      COM_ADOBE_TESTING_S3MOCK_STORE_ROOT: /s3mockroot
+      COM_ADOBE_TESTING_S3MOCK_STORE_RETAIN_FILES_ON_EXIT: "true"
+    ports:
+      - "9011:9090"
+    volumes:
+      - makeready_dev_images:/s3mockroot
+
   server:
     build:
       context: ./server
@@ -50,9 +66,17 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/makeready_dev
       DIRECT_URL: postgresql://postgres:postgres@postgres:5432/makeready_dev
       CLIENT_URL: http://localhost:8000
+      # `VERBOSE_LOGGING=true docker compose -p makeready up -d server` records every request in activity_logs.
+      VERBOSE_LOGGING: ${VERBOSE_LOGGING:-false}
+      # Images go to dev-images, never production's bucket (these override server/.env).
+      R2_ENDPOINT: http://dev-images:9090
+      R2_BUCKET_NAME: makeready-dev
+      R2_PUBLIC_URL: http://${MAKEREADY_DEV_HOST:-Lukes-MacBook-Pro-534.local}:9011/makeready-dev
     depends_on:
       postgres:
         condition: service_healthy
+      dev-images:
+        condition: service_started
 
   client:
     build:
@@ -81,3 +105,4 @@ services:
 
 volumes:
   makeready_postgres_data:
+  makeready_dev_images:

@@ -1111,6 +1111,7 @@ struct CaptureComponent: Codable {
     let saveFailed: Bool?
     let editingIndex: Int?                     // activities-editor §9.1 — the edited object
     let loadFailed: Bool?                      // activities-editor §9.4 · activities-player §3
+    let canSave: Bool?                         // activities-editor §9.3 — the Idle header's Done
     let showsHighlightTool: Bool?
     let showsEffectsTool: Bool?
     let showsEyedropper: Bool?

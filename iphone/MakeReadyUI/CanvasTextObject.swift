@@ -452,16 +452,21 @@ struct CanvasTextObject: View {
     /// The width handles are C-091's.
     private var manipulation: some Gesture {
         SimultaneousGesture(
+            // Measured in C-091's fixed page space (wu), never this view's own moving frame —
+            // a local-space drag jitters as the object it measures from moves under the finger.
             // pan-ok: free 2-D move on the canvas
-            DragGesture().onChanged { drag in
+            DragGesture(coordinateSpace: .named(ActivityCanvas.page)).onChanged { drag in
                 let base = gestureBase ?? transform
                 gestureBase = base
                 var next = currentTransform
                 next.position = CGPoint(
-                    x: base.position.x + drag.translation.width,
-                    y: base.position.y + drag.translation.height
+                    x: base.position.x + (drag.location.x - drag.startLocation.x),
+                    y: base.position.y + (drag.location.y - drag.startLocation.y)
                 )
-                onTransform(next)
+                // The object tracks the finger 1:1 — no implicit animation on the drag path.
+                var transaction = Transaction()
+                transaction.animation = nil
+                withTransaction(transaction) { onTransform(next) }
             },
             SimultaneousGesture(
                 MagnifyGesture().onChanged { pinch in

@@ -1,13 +1,14 @@
 import XCTest
 @testable import MakeReady
 
-/// text-activity Task 25 (D16, D22, D46): the editor's save, conflict retry and back-out.
+/// text-activity Task 25 (D16, D46; the Idle Done per the owner, 2026-11-08): the editor's save, conflict retry and back-out.
 @MainActor
 final class ActivitiesEditorContainerTests: XCTestCase {
 
     func testNotDraftRefetchesRemapsAndRePutsOnce() async {
         let actions = ScriptedActivityActions(save: [.failure(.notDraft), .success], draft: .withActivity(id: "a2", key: "k1"))
         let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "k1", actions: actions)
+        model.tapEmpty(at: CGPoint(x: 220, y: 400)); model.edit(.init(index: 0, text: "Hello"))
         await model.done()
         XCTAssertEqual(actions.savedIds, ["a1", "a2"]); XCTAssertNil(model.saveError)
     }
@@ -16,6 +17,7 @@ final class ActivitiesEditorContainerTests: XCTestCase {
     func testGoneActivityRefetchesRemapsAndRePutsOnce() async {
         let actions = ScriptedActivityActions(save: [.failure(.gone), .success], draft: .withActivity(id: "a2", key: "k1"))
         let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "k1", actions: actions)
+        model.tapEmpty(at: CGPoint(x: 220, y: 400)); model.edit(.init(index: 0, text: "Hello"))
         await model.done()
         XCTAssertEqual(actions.savedIds, ["a1", "a2"]); XCTAssertNil(model.saveError)
         XCTAssertEqual(model.activityId, "a2")
@@ -37,6 +39,7 @@ final class ActivitiesEditorContainerTests: XCTestCase {
     func testSecondFailureShowsRetryAndDiscard() async {
         let actions = ScriptedActivityActions(save: [.failure(.notDraft), .failure(.notDraft)], draft: .withActivity(id: "a2", key: "k1"))
         let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "k1", actions: actions)
+        model.tapEmpty(at: CGPoint(x: 220, y: 400)); model.edit(.init(index: 0, text: "Hello"))
         await model.done()
         XCTAssertEqual(model.saveError?.message, "Couldn't save activity")
         XCTAssertEqual(model.saveError?.options, ["Retry", "Discard changes"])
@@ -93,14 +96,32 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         XCTAssertEqual(model.document, starter)
     }
 
-    /// D22: the play glyph opens the viewer on the draft and the current activity.
-    func testPlayOpensTheViewerOnTheDraft() async {
+    /// Owner 2026-11-08: the Idle Done saves the unsaved change, then leaves the editor.
+    func testIdleDoneSavesThenLeaves() async {
+        let actions = ScriptedActivityActions(save: [.success, .success])
         let nav = RecordingEditorNavigator()
-        let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "k1", lessonVersionId: "v1",
-                                                    actions: ScriptedActivityActions())
+        let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "k1", actions: actions)
         model.navigator = nav
-        await model.play()
-        XCTAssertEqual(nav.pushed, [.activityViewer(lessonVersionId: "v1", activityId: "a1")])
+        model.tapEmpty(at: CGPoint(x: 220, y: 400)); model.edit(.init(index: 0, text: "Hello"))
+        await model.done()                                  // ends the text edit, saves
+        XCTAssertEqual(nav.pops, 0)
+        model.changeBackground(.init(color: .red))
+        await model.done()                                  // Idle: saves the change, then leaves
+        XCTAssertEqual(actions.savedIds, ["a1", "a1"])
+        XCTAssertEqual(nav.pops, 1)
+    }
+
+    /// The Idle Done with nothing to save does nothing; a failed save stays on the page.
+    func testIdleDoneWithNothingToSaveOrAFailedSaveStays() async {
+        let actions = ScriptedActivityActions(save: [.failure(.other)])
+        let nav = RecordingEditorNavigator()
+        let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "k1", actions: actions)
+        model.navigator = nav
+        await model.done()
+        XCTAssertEqual(actions.savedIds, []); XCTAssertEqual(nav.pops, 0)
+        model.changeBackground(.init(color: .red))
+        await model.done()
+        XCTAssertNotNil(model.saveError); XCTAssertEqual(nav.pops, 0)
     }
 
     // MARK: - Load
@@ -187,9 +208,9 @@ final class ActivitiesEditorContainerTests: XCTestCase {
     func testConcurrentSavesRunOneAtATime() async {
         let actions = ScriptedActivityActions(saveDelayNanoseconds: 20_000_000)
         let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "k1", actions: actions)
-        let first = Task { await model.done() }
-        let second = Task { await model.done() }
-        let third = Task { await model.done() }
+        let first = Task { await model.changeActions([]) }
+        let second = Task { await model.changeActions([]) }
+        let third = Task { await model.changeActions([]) }
         await first.value; await second.value; await third.value
         XCTAssertEqual(actions.savedIds.count, 3)
         XCTAssertEqual(actions.maxConcurrentSaves, 1)
