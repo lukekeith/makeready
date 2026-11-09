@@ -24,6 +24,9 @@ import SwiftUI
 /// §2 Viewer mode (D69): `viewer` keeps the same ground and placement but holds no scroll position
 /// — a viewport-tall clipped window onto the page, moved by the engine's `scrollOffset`.
 ///
+/// §2 Fixed canvas (D24): with `scrolls = false` the page is the viewport — no scroll, the offset
+/// is 02 §4 step 1 only, `scrollInsets` are ignored and autoscroll is off.
+///
 /// Controlled (R-01): it holds no value of its own; every gesture leaves through a closure.
 struct ActivityCanvas<Content: View>: View {
     /// §4 `background` — the document's background layer (§2 layer 1, D4; 02 §5).
@@ -94,7 +97,7 @@ struct ActivityCanvas<Content: View>: View {
     let mode: Mode
     /// §4 — the designed slot (R-08): placed and positioned by the screen.
     @ViewBuilder let content: () -> Content
-    /// §4 — a tap no slot child took, page-local wu; `idle` only.
+    /// §4 — a tap no slot child took, page-local wu; `idle`, `editing` and `highlighting` (§2 layer 3).
     let onTapEmpty: (CGPoint) -> Void
     /// §4 — draw the centre guide in `manipulating`.
     let centerGuide: Bool
@@ -121,6 +124,9 @@ struct ActivityCanvas<Content: View>: View {
     let onAutoscroll: (CGFloat) -> Void
     /// §4 — the page's scroll position (wu), supplied each frame by the viewer's engine; `viewer` only.
     let scrollOffset: CGFloat
+    /// §4 — `false` = a fixed canvas (§2 Fixed canvas, D24): no scroll, page = viewport, insets
+    /// ignored, autoscroll off. No effect in `viewer`.
+    let scrolls: Bool
 
     /// R-02: how far the page has scrolled (wu), so the viewport-fixed layers stay put.
     @State private var scrolled: CGFloat = 0
@@ -191,7 +197,8 @@ struct ActivityCanvas<Content: View>: View {
         scrollInsets: ScrollInsets = .init(),
         dragPoint: CGPoint? = nil,
         onAutoscroll: @escaping (CGFloat) -> Void = { _ in },
-        scrollOffset: CGFloat = 0
+        scrollOffset: CGFloat = 0,
+        scrolls: Bool = true
     ) {
         self.background = background
         self.mode = mode
@@ -209,6 +216,7 @@ struct ActivityCanvas<Content: View>: View {
         self.dragPoint = dragPoint
         self.onAutoscroll = onAutoscroll
         self.scrollOffset = scrollOffset
+        self.scrolls = scrolls
     }
 
     var body: some View {
@@ -218,6 +226,9 @@ struct ActivityCanvas<Content: View>: View {
             let layout = pageLayout(viewport: viewport)
             if mode == .viewer {
                 viewerWindow(viewport: viewport, layout: layout, unit: unit, width: proxy.size.width)
+            } else if !scrolls {
+                // §2 Fixed canvas (D24): the page is the viewport — no ScrollView, nothing to scroll.
+                viewerWindow(viewport: viewport, layout: layout, unit: unit, width: proxy.size.width, scroll: 0)
             } else {
                 // The column is the page plus the insets' empty ends, which the caller's bars cover.
                 let column = layout.height + scrollInsets.top + scrollInsets.bottom
@@ -267,13 +278,14 @@ struct ActivityCanvas<Content: View>: View {
 
     /// A viewport-tall window onto the page, translated up by `scrollOffset` and clipped: no
     /// ScrollView, and no clamp, animation or memory — the range is the engine's (01 §4).
+    /// §2 Fixed canvas reuses it with `scroll` 0: the page is exactly the viewport.
     private func viewerWindow(viewport: CGFloat, layout: (offset: CGFloat, height: CGFloat),
-                              unit: CGFloat, width: CGFloat) -> some View {
+                              unit: CGFloat, width: CGFloat, scroll: CGFloat? = nil) -> some View {
         page(viewport: viewport, layout: layout)
             .frame(width: referenceWidth, height: layout.height, alignment: .topLeading)
             .scaleEffect(unit, anchor: .topLeading)
             .frame(width: width, height: layout.height * unit, alignment: .topLeading)
-            .offset(y: -scrollOffset * unit)
+            .offset(y: -(scroll ?? scrollOffset) * unit)
             .frame(width: width, height: viewport * unit, alignment: .topLeading)
             .clipped()
     }
@@ -307,7 +319,7 @@ struct ActivityCanvas<Content: View>: View {
 
     /// wu/s toward the nearer edge, rising from 0 at the band's inner edge to full at the screen's.
     private func autoscrollVelocity(viewport: CGFloat, pageHeight: CGFloat) -> CGFloat {
-        guard mode == .manipulating, pageHeight > viewport, let dragPoint else { return 0 }
+        guard mode == .manipulating, scrolls, pageHeight > viewport, let dragPoint else { return 0 }
         let intoTop = autoscrollBand - dragPoint.y
         let intoBottom = dragPoint.y - (viewport - autoscrollBand)
         if intoTop > 0 { return -autoscrollSpeed * min(intoTop / autoscrollBand, 1) }
@@ -318,6 +330,11 @@ struct ActivityCanvas<Content: View>: View {
     // MARK: - §2 Sizing (D2; 02 §4)
 
     private func pageLayout(viewport: CGFloat) -> (offset: CGFloat, height: CGFloat) {
+        // §2 Fixed canvas (D24): page = viewport, offset = step 1 only (no nudge, no growth), so the
+        // objects sit where the author put them and may lie outside the viewport.
+        if !scrolls && mode != .viewer {
+            return (verticalAnchor == .center ? (viewport - referenceHeight) / 2 : 0, viewport)
+        }
         let placed = Self.placement(viewportHeight: viewport, contentExtent: contentExtent,
                                     verticalAnchor: verticalAnchor, pinnedAction: pinnedAction, unit: 1)
         return (placed.offset, placed.pageHeight)
@@ -350,6 +367,13 @@ struct ActivityCanvas<Content: View>: View {
         return (offset, extent.upperBound + offset + bottomInset)
     }
 
+    /// How far the page sits scrolled under the viewport (wu): the engine's `scrollOffset` in
+    /// `viewer`, 0 on a fixed canvas, else the canvas's own scroll.
+    private var pageScroll: CGFloat {
+        if mode == .viewer { return scrollOffset }
+        return scrolls ? scrolled : 0
+    }
+
     private func page(viewport: CGFloat, layout: (offset: CGFloat, height: CGFloat)) -> some View {
         ZStack(alignment: .topLeading) {
             ground(height: layout.height)
@@ -360,7 +384,7 @@ struct ActivityCanvas<Content: View>: View {
                 .frame(width: referenceWidth, height: layout.height, alignment: .topLeading)
                 .offset(y: layout.offset)
                 // §2 Viewer mode: furniture stays fixed against `V` as it does when the page scrolls.
-                .environment(\.activityCanvasFixedShift, (mode == .viewer ? scrollOffset : scrolled) - layout.offset)
+                .environment(\.activityCanvasFixedShift, pageScroll - layout.offset)
                 .ui2Element("Content")
             if let widthHandles, mode != .viewer {
                 widthHandleLayer(widthHandles)
@@ -390,7 +414,9 @@ struct ActivityCanvas<Content: View>: View {
         .frame(width: referenceWidth, height: height)
         .clipped()
         .contentShape(Rectangle())
-        .gesture(SpatialTapGesture().onEnded { onTapEmpty($0.location) }, isEnabled: mode == .idle)
+        // §2 layer 3 (D10, D21): idle, editing and highlighting report a tap no child took; the
+        // screen decides what it means.
+        .gesture(SpatialTapGesture().onEnded { onTapEmpty($0.location) }, isEnabled: tapsEmpty)
         .accessibilityElement()
         .accessibilityLabel("Activity canvas")
         .accessibilityHint(mode == .idle ? "Adds a text object" : "")
@@ -398,11 +424,16 @@ struct ActivityCanvas<Content: View>: View {
         .accessibilityAction {
             if mode == .idle { onTapEmpty(CGPoint(x: referenceWidth / 2, y: height / 2)) }
         }
-        // §2 Viewer mode: no touch (01 §12, the stage's one recognizer owns it) and none of the
-        // editor's accessibility (the screen announces the page).
-        .accessibilityHidden(mode == .viewer)
+        // §2 VoiceOver (OQ-C-091-008): the "Activity canvas" button is idle's only; in the other
+        // modes the screen announces what a tap means, and in `viewer` the page (01 §12).
+        .accessibilityHidden(mode != .idle)
         .allowsHitTesting(mode != .viewer)
         .ui2Element("Ground")
+    }
+
+    /// §2 layer 3: the modes whose empty-canvas tap is reported.
+    private var tapsEmpty: Bool {
+        mode == .idle || mode == .editing || mode == .highlighting
     }
 
     /// §2 layer 1 Cover rule: drawn at `max(P.w / I.w, P.h / I.h)`, cropped from
@@ -498,7 +529,7 @@ struct ActivityCanvas<Content: View>: View {
             .frame(width: deleteDisc, height: deleteDisc)
             .scaleEffect(deleteTarget == .armed ? deleteArmedScale : 1)
             .ui2Element("Delete target")
-            .position(x: referenceWidth / 2, y: viewport * deleteHeightFraction + scrolled)
+            .position(x: referenceWidth / 2, y: viewport * deleteHeightFraction + pageScroll)
             .allowsHitTesting(false)
             .accessibilityElement()
             .accessibilityLabel(deleteTarget == .armed ? "Release to delete" : "Drag to delete")
@@ -521,7 +552,7 @@ struct ActivityCanvas<Content: View>: View {
                     zone("Pinned action zone", CGRect(x: 0, y: viewport - pinnedBand, width: referenceWidth, height: pinnedBand))
                 }
             }
-            .offset(y: scrolled)
+            .offset(y: pageScroll)
             // §2 layer 6: "marking where a 956-tall phone ends when the page is taller".
             if layout.height > referenceHeight + layout.offset {
                 ScreenFoldLine()
