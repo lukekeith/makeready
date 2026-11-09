@@ -14,7 +14,7 @@ import SwiftUI
 /// §2 units (D1): the canvas composes in a 440 × 956 reference space of width units (wu); one wu
 /// is `canvas width / 440` points. Every length it takes or emits is in wu, converted at render.
 ///
-/// §2 layers, bottom → top: the ground (colour, image, wash), the reserved-zone guides, the
+/// §2 layers, bottom → top: the ground (colour, blob gradient, image, wash), the reserved-zone guides, the
 /// `content` slot, the width handles, and the Manipulating overlays (centre guide, delete target).
 ///
 /// Width-driven (R-16): the page height is computed (§2 Sizing, D2) and a page taller than the
@@ -41,6 +41,10 @@ struct ActivityCanvas<Content: View>: View {
             var opacity: Double
         }
 
+        /// §4 `gradient` — the blob gradient (§2 layer 1). Declared outside the generic canvas
+        /// so every specialization, and `ActivityBlobGradient`, shares one type.
+        typealias Gradient = ActivityCanvasGradient
+
         /// §4 `motion` — stored and written back unchanged, never drawn (§2 layer 1).
         enum Motion {
             case scroll(rate: Double)
@@ -49,6 +53,7 @@ struct ActivityCanvas<Content: View>: View {
         }
 
         var color: Color
+        var gradient: Gradient?
         var image: Image?
         var wash: Wash?
         var motion: Motion = .scroll(rate: 1)
@@ -372,6 +377,9 @@ struct ActivityCanvas<Content: View>: View {
     private func ground(height: CGFloat) -> some View {
         ZStack(alignment: .topLeading) {
             background.color
+            if let gradient = background.gradient {
+                ActivityBlobGradient(gradient: gradient, pageSize: CGSize(width: referenceWidth, height: height))
+            }
             if let image = background.image, let picture = Ui2ImageCache.shared.image(for: image.imageURL) {
                 coverImage(picture, focal: image.focal, in: CGSize(width: referenceWidth, height: height))
             }
@@ -534,6 +542,65 @@ struct ActivityCanvas<Content: View>: View {
             .frame(width: rect.width, height: rect.height)
             .ui2Element(name)
             .offset(x: rect.minX, y: rect.minY)
+    }
+}
+
+// MARK: - §2 layer 1: the blob gradient
+
+/// §4 `background.gradient` — the blob gradient, drawn between `color` and `image` in every mode
+/// (§2 layer 1; text-activity-v2 D1, D2, D14, D17). `base` is carried and written back unchanged,
+/// never painted (OQ-schat-C-091-1); `hidden` skips only the blobs. Spelled
+/// `ActivityCanvas.Background.Gradient`.
+struct ActivityCanvasGradient {
+    /// One radial blob: `color` at its centre to fully transparent at radius `r`.
+    /// `x`, `y` and `r` are fractions of the page width.
+    struct Blob {
+        var x: Double
+        var y: Double
+        var r: Double
+        var color: Color
+    }
+
+    var base: Color
+    var hidden: Bool
+    var blobs: [Blob]
+}
+
+/// §2 layer 1 Public view — the blob gradient alone (not `color`, `base`, image or wash), drawn at
+/// `pageSize`; nothing when `gradient.hidden`. Each blob, in array order (later on top), is a
+/// radial gradient from its colour at `(x · w, y · w)` to clear at `r · w`, normal blending.
+/// The canvas uses it for its ground; the app's slide thumbnails draw it on a 440 × 956 page.
+struct ActivityBlobGradient: View {
+    let gradient: ActivityCanvasGradient
+    let pageSize: CGSize
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            if !gradient.hidden {
+                ForEach(gradient.blobs.indices, id: \.self) { index in
+                    blob(gradient.blobs[index])
+                }
+            }
+        }
+        .frame(width: pageSize.width, height: pageSize.height, alignment: .topLeading)
+        .clipped()
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+        .ui2Element("Gradient")
+    }
+
+    private func blob(_ blob: ActivityCanvasGradient.Blob) -> some View {
+        let width = pageSize.width
+        let radius = max(blob.r * width, 0)
+        return Rectangle()
+            .fill(RadialGradient(
+                colors: [blob.color, blob.color.opacity(0)],
+                // x, y are fractions of the page WIDTH (§2 layer 1), so y rescales by w / h.
+                center: UnitPoint(x: blob.x, y: blob.y * width / max(pageSize.height, 1)),
+                startRadius: 0,
+                endRadius: radius
+            ))
+            .frame(width: pageSize.width, height: pageSize.height)
     }
 }
 

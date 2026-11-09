@@ -101,6 +101,8 @@ struct ActivityNewScreen: View {
             ActivityNavBar(
                 slides: slides,
                 activeID: state.activeID,
+                // C-081 §5: `bottomInset: 16`, so the bar sits where the editor's does (SPEC D11, D23).
+                bottomInset: Token.Space.pageMargin,
                 onSelectSlide: onSelectSlide,
                 onAdd: onAdd
             )

@@ -30,9 +30,12 @@ struct ActivityNavBar: View {
     /// §4 #2 — "The slide drawn with C-061 `active=true`. nil means none is outlined."
     /// Required (R-07: no default is designed).
     let activeID: String?
-    /// §4 #3 — "Tap on a slide, passing that slide's `id`." No render effect; no-op (R-03).
+    /// §4 #3 — "Extra space added below the chips and the add button, inside the bar's frame:
+    /// the bar grows by this amount and the chips and ＋ sit that much higher. Default 0."
+    var bottomInset: CGFloat = 0
+    /// §4 #4 — "Tap on a slide, passing that slide's `id`." No render effect; no-op (R-03).
     var onSelectSlide: (String) -> Void = { _ in }
-    /// §4 #4 — "Tap on the trailing C-021 `add`." No render effect; no-op (R-03).
+    /// §4 #5 — "Tap on the trailing C-021 `add`." No render effect; no-op (R-03).
     var onAdd: () -> Void = {}
 
     var body: some View {
@@ -54,6 +57,9 @@ struct ActivityNavBar: View {
         // §2: "76 pt tall (16 + 44 + 16)" — held even when `slides` is empty (OQ-C-081-001:
         // "the bar keeps its 76 pt height").
         .frame(height: Self.slideHeight + Token.Space.pageMargin * 2)
+        // §2 Bottom inset: "extra space added below the chips and the add button, inside the
+        // bar's frame, on top of the 16 bottom padding. The bar grows by that amount."
+        .padding(.bottom, bottomInset)
         .frame(maxWidth: .infinity)
         .ui2Element("ActivityNavBar")
     }

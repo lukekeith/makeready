@@ -9,11 +9,11 @@
 import SwiftUI
 
 /// C-102 IconButton — the program's generic 34pt glyph button: any library glyph, in a tone,
-/// outlined or plain, optionally selected.
+/// outlined or plain, optionally selected, optionally disabled.
 ///
 /// A fixed 34×34 control (§2): it does not stretch to the width it is given, and the host
-/// positions it. It paints nothing outside its box and adds no outer padding (R-16). There is
-/// no `disabled` state: a host with nothing to act on leaves the button out (OQ-C-102-5).
+/// positions it. It paints nothing outside its box and adds no outer padding (R-16). A
+/// disabled button dims to `color-white-50` and takes no tap (§2 Disabled, SPEC D9).
 struct IconButton: View {
 
     /// C-102 §4 `tone` — the paint row of §2 (OQ-C-102-2).
@@ -37,8 +37,11 @@ struct IconButton: View {
     let selected: Bool
     /// C-102 §4 `accessibilityLabel` — the host names the action (R-17).
     let accessibilityLabel: String
-    /// C-102 §4 `onTap` — fired on tap; the host decides what it means (R-03). No render
-    /// effect; defaulted to a no-op.
+    /// C-102 §4 `isDisabled` — glyph (and an outlined stroke) at `color-white-50`, no tap, the
+    /// disabled trait; overrides `selected` (SPEC D9). Defaulted so existing callers compile.
+    var isDisabled: Bool = false
+    /// C-102 §4 `onTap` — fired on tap; never while `isDisabled`; the host decides what it
+    /// means (R-03). No render effect; defaulted to a no-op.
     var onTap: () -> Void = {}
 
     /// C-102 §2's placed geometry. Both are §2 dimensions of a fixed-size control, not values
@@ -52,8 +55,15 @@ struct IconButton: View {
         static let stroke: CGFloat = 1
     }
 
-    /// §2 tone paints: the stroke and the glyph share one colour per tone.
+    /// §2 Disabled overrides `selected` (SPEC D9): a disabled button never draws the selected look.
+    private var isSelectedLook: Bool {
+        selected && !isDisabled
+    }
+
+    /// §2 tone paints: the stroke and the glyph share one colour per tone; both dim to
+    /// `color-white-50` while disabled (§2 Disabled).
     private var toneColor: Color {
+        if isDisabled { return Token.white50 }
         switch tone {
         case .default: return Token.navText          // OQ-C-102-3
         case .destructive: return Token.error        // designed — symbol 3411:2493
@@ -62,7 +72,7 @@ struct IconButton: View {
 
     /// §2 Selected: the glyph turns `color-black` in either tone (OQ-C-102-6).
     private var glyphColor: Color {
-        selected ? Token.black : toneColor
+        isSelectedLook ? Token.black : toneColor
     }
 
     private var shape: RoundedRectangle {
@@ -70,6 +80,26 @@ struct IconButton: View {
     }
 
     var body: some View {
+        styledButton
+            // §3 disabled: no tap; SwiftUI's `.disabled` also carries the disabled trait (§4 Traits).
+            .disabled(isDisabled)
+            .accessibilityLabel(accessibilityLabel)
+            .accessibilityAddTraits(isSelectedLook ? [.isButton, .isSelected] : .isButton)
+            .ui2Element("IconButton")
+    }
+
+    /// §3 `pressed`, ruled by OQ-C-102-5: the system highlight of a plain button style,
+    /// ephemeral (R-02), no geometry change. A disabled button takes `DisabledStyle` instead:
+    /// the plain style would dim it a second time on top of §2's `color-white-50`.
+    @ViewBuilder private var styledButton: some View {
+        if isDisabled {
+            button.buttonStyle(DisabledStyle())
+        } else {
+            button.buttonStyle(.plain)
+        }
+    }
+
+    private var button: some View {
         SwiftUI.Button(action: onTap) {
             Image(glyph.rawValue, bundle: .ui2Preview)
                 .renderingMode(.template)
@@ -90,18 +120,20 @@ struct IconButton: View {
                 .contentShape(shape)
                 .ui2Element("Box")
         }
-        // §3 `pressed`, ruled by OQ-C-102-5: the system highlight of a plain button style,
-        // ephemeral (R-02), no geometry change.
-        .buttonStyle(.plain)
-        .accessibilityLabel(accessibilityLabel)
-        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
-        .ui2Element("IconButton")
+    }
+
+    /// §2 Disabled: draws the label exactly as painted — the dimming is §2's `color-white-50`,
+    /// nothing more. A disabled button is never pressed, so no highlight is needed.
+    private struct DisabledStyle: ButtonStyle {
+        func makeBody(configuration: Configuration) -> some View {
+            configuration.label
+        }
     }
 
     /// §2 Box fill: `color-transparent`, `color-white-100` while selected; an outlined box
     /// also carries the backdrop blur under its fill.
     @ViewBuilder private var fill: some View {
-        if selected {
+        if isSelectedLook {
             shape.fill(Token.white100)
         } else if style == .outlined {
             // FLAGGED LITERAL — C-102 §2: Background blur 10, a Figma layer effect with no

@@ -69,6 +69,9 @@ struct ActivitiesPlayerScreen: View {
         var pageImageFocalYs: [Double]
         var pageWashHexes: [String]
         var pageWashOpacities: [Double]
+        /// `background.gradient` (text-activity-v2 D1, D12): each page's blob gradient, C-091's
+        /// type, passed through uninterpreted. nil (or past the end) = no gradient, today's look.
+        var pageGradients: [ActivityCanvas<AnyView>.Background.Gradient?] = []
         /// `content.verticalAnchor`: `center` · `top`.
         var pageVerticalAnchors: [String]
         /// `end`: the lesson title. `fallback`: `fallback.title`.
@@ -760,6 +763,7 @@ extension ActivitiesPlayerScreen {
         return .init(
             // The document always carries a colour (02 §5); a missing one is the 2.0 page ground.
             color: Self.hexColor(Self.value(state.pageColorHexes, position, "")) ?? Token.layoutBackground,
+            gradient: Self.value(state.pageGradients, position, nil),
             image: image,
             wash: wash
         )
