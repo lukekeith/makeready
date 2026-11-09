@@ -95,4 +95,40 @@ extension TextObject {
                    alignment: "left", transform: .init(x: 220, y: 478, width: 392, scale: 1, rotation: 0),
                    marks: [], highlights: [])
     }
+    // MARK: - text-activity-v2: background.gradient
+
+    private func background(_ json: String) throws -> ActivityDocument {
+        try decode(#"{"schemaVersion":1,"kind":"text","background":"# + json +
+                   #","content":{"type":"canvas","objects":[]},"actions":[]}"#)
+    }
+
+    func testAGradientDecodes() throws {
+        let doc = try background(##"{"color":"#1B1F4A","gradient":{"style":"blobs","base":"#1B1F4A","blobs":[{"x":0.2,"y":1.4,"r":0.6,"color":"#3B4BA8"}]}}"##)
+        XCTAssertEqual(doc.background.gradient?.base, "#1B1F4A")
+        XCTAssertEqual(doc.background.gradient?.blobs.first?.y, 1.4)
+        XCTAssertEqual(doc.background.gradient?.hidden, false)
+    }
+
+    func testAnUnknownStyleIsIgnoredAndReEncodedUnchanged() throws {
+        let doc = try background(##"{"color":"#1B1F4A","gradient":{"style":"mesh","points":[1,2]}}"##)
+        XCTAssertNil(doc.background.gradient)
+        XCTAssertEqual(doc.background.color, "#1B1F4A")
+        let reencoded = try JSONDecoder().decode(ActivityDocument.self, from: JSONEncoder().encode(doc))
+        XCTAssertEqual(reencoded.raw, doc.raw)
+        XCTAssertEqual(reencoded.raw[path: ["background", "gradient", "style"]], .string("mesh"))
+    }
+
+    func testAMalformedGradientKeepsTheRestOfTheBackground() throws {
+        let doc = try background(##"{"color":"#224466","gradient":"nope","wash":{"color":"#000000","opacity":0.4}}"##)
+        XCTAssertEqual(doc.background.color, "#224466")
+        XCTAssertEqual(doc.background.wash?.opacity, 0.4)
+        XCTAssertNil(doc.background.gradient)
+    }
+
+    func testAGradientWritesBackAsJSON() throws {
+        let gradient = ActivityBackground.Gradient(base: "#1B1F4A", hidden: true,
+                                                   blobs: [.init(x: 0.1, y: 0.2, r: 0.5, color: "#3B4BA8")])
+        let doc = ActivityDocument(raw: .object(["background": .object(["color": .string("#1B1F4A"), "gradient": gradient.jsonValue])]))
+        XCTAssertEqual(doc.background.gradient, gradient)
+    }
 }

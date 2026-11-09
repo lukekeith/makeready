@@ -146,10 +146,89 @@ struct ActivityBackground: Codable, Hashable {
         var rate: Double?
     }
 
+    /// text-activity-v2 D1/D17: a generated blob gradient, drawn between `color` and `image`.
+    struct Gradient: Codable, Hashable {
+        struct Blob: Codable, Hashable {
+            var x: Double
+            var y: Double
+            var r: Double
+            var color: String
+        }
+
+        var style: String
+        var base: String
+        /// D14: true while a solid colour shows over a kept gradient. Absent decodes as false.
+        var hidden: Bool
+        var blobs: [Blob]
+
+        init(style: String = "blobs", base: String, hidden: Bool = false, blobs: [Blob]) {
+            self.style = style
+            self.base = base
+            self.hidden = hidden
+            self.blobs = blobs
+        }
+
+        private enum CodingKeys: String, CodingKey { case style, base, hidden, blobs }
+
+        /// Only `style: "blobs"` with a base and at least one readable blob decodes; anything else
+        /// throws, so `ActivityBackground` leaves `gradient` nil and the raw JSON keeps it untouched.
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            style = try container.decode(String.self, forKey: .style)
+            guard style == "blobs" else {
+                throw DecodingError.dataCorruptedError(forKey: .style, in: container, debugDescription: "unknown gradient style")
+            }
+            base = try container.decode(String.self, forKey: .base)
+            hidden = (try? container.decode(Bool.self, forKey: .hidden)) ?? false
+            let items = (try? container.decode([JSONValue].self, forKey: .blobs)) ?? []
+            blobs = items.compactMap { item in
+                guard let data = try? JSONEncoder().encode(item) else { return nil }
+                return try? JSONDecoder().decode(Blob.self, from: data)
+            }
+            guard !blobs.isEmpty else {
+                throw DecodingError.dataCorruptedError(forKey: .blobs, in: container, debugDescription: "no readable blobs")
+            }
+        }
+
+        /// The gradient as the document's JSON object; `hidden` is written only when true.
+        var jsonValue: JSONValue {
+            var object: [String: JSONValue] = [
+                "style": .string(style),
+                "base": .string(base),
+                "blobs": .array(blobs.map { blob in
+                    .object(["x": .number(blob.x), "y": .number(blob.y), "r": .number(blob.r), "color": .string(blob.color)])
+                })
+            ]
+            if hidden { object["hidden"] = .bool(true) }
+            return .object(object)
+        }
+    }
+
     var color: String
     var image: Image?
     var wash: Wash?
     var motion: Motion?
+    var gradient: Gradient?
+
+    init(color: String, image: Image?, wash: Wash?, motion: Motion?, gradient: Gradient? = nil) {
+        self.color = color
+        self.image = image
+        self.wash = wash
+        self.motion = motion
+        self.gradient = gradient
+    }
+
+    private enum CodingKeys: String, CodingKey { case color, image, wash, motion, gradient }
+
+    /// Each field decodes on its own, so one malformed piece never drops the rest (text-activity-v2 §iphone).
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        color = (try? container.decode(String.self, forKey: .color)) ?? Self.default.color
+        image = try? container.decode(Image.self, forKey: .image)
+        wash = try? container.decode(Wash.self, forKey: .wash)
+        motion = try? container.decode(Motion.self, forKey: .motion)
+        gradient = try? container.decode(Gradient.self, forKey: .gradient)
+    }
 
     static let `default` = ActivityBackground(color: "#000000", image: nil, wash: nil, motion: nil)
 }
