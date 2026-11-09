@@ -11,6 +11,8 @@
 //
 
 import SwiftUI
+import UIKit
+import UIKit.UIGestureRecognizerSubclass
 
 /// Activity Editor — "The purpose of this screen is to create new text activity." The leader's
 /// edit-in-place canvas over the activity document (§5): a tap anywhere on the canvas starts a
@@ -317,6 +319,13 @@ struct ActivitiesEditorScreen: View {
     // §9.1a: the object's transform when the in-flight gesture began — a gesture that ends where
     // it started reports nothing.
     @SwiftUI.State private var gestureStart: ObjectEdit.Transform?
+    // §10.10 (R-02, held only while fingers are down): the committed object under the first touch
+    // (C-092 `onTouchDown`), the recognizers in flight, and each one's starting value.
+    @SwiftUI.State private var touchedIndex: Int?
+    @SwiftUI.State private var activeManipulations: Set<CanvasManipulation.Kind> = []
+    @SwiftUI.State private var moveBase: CGPoint = .zero
+    @SwiftUI.State private var scaleBase: CGFloat = 1
+    @SwiftUI.State private var rotationBase: Double = 0
 
     init(
         state: State,
@@ -422,6 +431,7 @@ struct ActivitiesEditorScreen: View {
                     canvas(unit: proxy.size.width / Self.referenceWidth,
                            viewport: proxy.size.height * Self.referenceWidth / proxy.size.width,
                            safeTop: screen.safeAreaInsets.top)
+                        .background(manipulationBridge(size: proxy.size, safeTop: screen.safeAreaInsets.top))
                 }
                 .ignoresSafeArea(.container)
                 if isImageRailOpen {
@@ -450,14 +460,14 @@ struct ActivitiesEditorScreen: View {
             guard dragged == nil else { return }
             shownObjects = Self.committedObjects(next)
         }
-        // §10.6: starting a text edit closes the Background and Actions rails; ending it closes
-        // Colour, Alignment and Font (and the effects strip).
+        // §10.6 (round 2): a text edit opens with no rail open, and ending it closes every rail —
+        // a page rail closing through `setOpenTool`, so `onPageRailsClosed` fires (D19).
         .onChange(of: mode) { previous, next in
-            if next == .editing, previous != .editing, openTool == .background || openTool == .actions {
-                closeRails()
-            } else if previous == .editing, next != .editing, let tool = openTool, Self.textTools.contains(tool) {
-                openTool = nil
-            }
+            let wasEditing = previous == .editing || previous == .highlighting
+            let isEditing = next == .editing || next == .highlighting
+            guard wasEditing != isEditing, openTool != nil else { return }
+            endField()
+            closeRails()
         }
         // §10.3: once the document follows the rail's pick, the derived option rules again.
         .onChange(of: state.backgroundOption) { _, _ in pickedBackgroundOption = nil }
@@ -646,7 +656,10 @@ struct ActivitiesEditorScreen: View {
             listStyle: object.listStyle,
             startNumber: object.startNumber,
             transform: object.transform,
-            onTransform: { emit($0, index: index) },
+            // §10.10: drag, pinch and rotate are the canvas-wide recognizers' (`CanvasManipulation`);
+            // the object only says it is under the first touch.
+            manipulation: .host,
+            onTouchDown: { touchedIndex = index },
             editing: false,
             highlights: object.highlights,
             onTap: { tapObject(index) }
@@ -655,26 +668,88 @@ struct ActivitiesEditorScreen: View {
         .frame(width: object.transform.width ?? Self.editSlotWidth)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { measuredHeights[index] = $0 }
         .ui2Element(index == 0 ? "C-092 CanvasTextObject" : "C-092 CanvasTextObject \(index + 1)")
-        .simultaneousGesture(
-            // pan-ok: reads the touch on both axes for §2's autoscroll; C-092 owns the move itself
-            DragGesture(coordinateSpace: .named(Self.screenSpace))
-                .onChanged { drag in
-                    if dragExtent == nil { dragExtent = .some(extent) }
-                    dragPoint = CGPoint(x: drag.location.x / unit, y: drag.location.y / unit)
-                }
-                .onEnded { _ in
-                    dragPoint = nil
-                    dragExtent = nil
-                    dragScroll = 0
-                    endGesture()
-                }
-        )
-        // §9.1a: a pinch or rotate with no drag still ends the gesture and reports once.
-        .simultaneousGesture(
-            SimultaneousGesture(MagnifyGesture(), RotateGesture())
-                .onEnded { _ in endGesture() }
-        )
         .position(object.transform.position)
+    }
+
+    // MARK: - §10.10: pinch and rotate anywhere on the canvas
+
+    /// §10.10: the canvas-wide drag / pinch / rotate recognizers. They take touches only between
+    /// the header and the stack (the canvas a leader sees), in points from the screen's top.
+    private func manipulationBridge(size: CGSize, safeTop: CGFloat) -> some View {
+        let unit = size.width / Self.referenceWidth
+        let top = safeTop + Self.headerHeight
+        let bottom = size.height - containerHeight - keyboardOverlap
+        return CanvasManipulation(
+            accepts: { point in point.y > top && point.y < bottom },
+            canBegin: { kind in
+                guard manipulationTarget != nil, !isImageRailOpen else { return false }
+                // §10.10: while editing, two fingers pinch and rotate the edited object; it never moves.
+                return kind != .move || editedIndex == nil
+            },
+            onUpdate: { manipulate($0, unit: unit) },
+            onAllUp: { touchedIndex = nil }
+        )
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    /// §10.10: the object two fingers act on — while editing the edited object, otherwise the
+    /// committed object under the first touch; none when that touch landed on no object.
+    private var manipulationTarget: Int? {
+        if let editedIndex { return editedIndex }
+        guard mode == .idle || mode == .manipulating, let touchedIndex,
+              shownObjects.indices.contains(touchedIndex) else { return nil }
+        return touchedIndex
+    }
+
+    /// §10.10: the move follows the touches' centroid (1:1 in wu), pinch writes `scale` and rotate
+    /// `rotation`, simultaneously, about the object's centre. §9.1a: each frame goes to the display
+    /// only; when the last recognizer ends, `endGesture` reports the final transform once.
+    private func manipulate(_ update: CanvasManipulation.Update, unit: CGFloat) {
+        if update.phase == .ended {
+            activeManipulations.remove(update.kind)
+            if update.kind == .move { dragPoint = nil }
+            guard activeManipulations.isEmpty else { return }
+            dragPoint = nil
+            dragExtent = nil
+            dragScroll = 0
+            endGesture()
+            return
+        }
+        guard let index = dragged?.index ?? manipulationTarget, shownObjects.indices.contains(index) else { return }
+        let shown = shownObjects[index].transform
+        switch update.phase {
+        case .began:
+            if activeManipulations.isEmpty, dragExtent == nil { dragExtent = .some(measuredExtent(shownObjects)) }
+            activeManipulations.insert(update.kind)
+            // Each recognizer starts from the object as it is now, so one restarting mid-gesture
+            // (a finger lifted and put back) never snaps the object back.
+            switch update.kind {
+            case .move: moveBase = CGPoint(x: shown.position.x, y: shown.position.y - dragScroll)
+            case .pinch: scaleBase = shown.scale
+            case .rotate: rotationBase = shown.rotation.degrees
+            }
+        case .changed:
+            guard activeManipulations.contains(update.kind) else { return }
+            // `emit` puts what autoscroll has moved back on, so the transform passed is without it.
+            var next = shown
+            next.position.y -= dragScroll
+            switch update.kind {
+            case .move:
+                next.position = CGPoint(x: moveBase.x + update.translation.width / unit,
+                                        y: moveBase.y + update.translation.height / unit)
+                dragPoint = CGPoint(x: update.location.x / unit, y: update.location.y / unit)
+            case .pinch:
+                next.scale = scaleBase * update.scale
+            case .rotate:
+                next.rotation = .degrees(rotationBase + update.rotation * 180 / .pi)
+            }
+            var transaction = Transaction()
+            transaction.animation = nil
+            withTransaction(transaction) { emit(next, index: index) }
+        case .ended:
+            break
+        }
     }
 
     /// §2 Autoscroll: C-092 reports its move from where the drag started, so what autoscroll has
@@ -802,15 +877,17 @@ struct ActivitiesEditorScreen: View {
 
     // MARK: - §10: the rail stack
 
-    /// §10.1: one stack on `color-layout-background`, with no hairlines, bottom → top: the chips
-    /// rail (C-081, Idle only), the tool row, the middle rail (the open tool's choices) and the top
-    /// rail (the pick's details). It rides the keyboard as one unit, so the tool row stays visible.
+    /// §10.1 (round 2): two forms swapped by mode. Idle is the chips rail (C-081) alone; editing
+    /// is the tool stack covering it — bottom → top the tool row, the middle rail (the open tool's
+    /// choices) and the top rail (the pick's details). One surface on `color-layout-background`, no
+    /// hairlines; it rides the keyboard as one unit, so the tool row stays visible.
     private var railStack: some View {
         VStack(spacing: 0) {
-            topRail
-            middleRail
-            toolRow
-            if mode == .idle {
+            if isToolMode {
+                topRail
+                middleRail
+                toolRow
+            } else {
                 // C-081 §5: the editor passes `bottomInset: 16`, measured from the bar's position
                 // before the inset (the chrome ignores the bottom safe area) — SPEC D11, D23.
                 ActivityNavBar(slides: slides, activeID: state.activeID, bottomInset: Token.Space.pageMargin,
@@ -1193,6 +1270,9 @@ struct ActivitiesEditorScreen: View {
     }
 
     private func openActions(on id: String) {
+        // §10.4 (round 2, OQ-activities-editor-44): in Idle the tap does nothing — Actions are
+        // reached only through the Actions tool while editing.
+        guard isToolMode else { return }
         endField()
         selectedActionID = id
         setOpenTool(.actions)
@@ -1224,7 +1304,6 @@ struct ActivitiesEditorScreen: View {
                         style: .plain,
                         selected: isSelected(tool),
                         accessibilityLabel: Self.toolLabel(tool),
-                        isDisabled: isDisabled(tool),
                         onTap: { tap(tool) }
                     )
                     // FLAGGED LITERAL — activities-editor §2: 32pt tools.
@@ -1247,12 +1326,6 @@ struct ActivitiesEditorScreen: View {
         let fitted = (width - 2 * toolRowInset - toolSize) / gaps
         if fitted >= minToolPitch { return min(maxPitch, fitted) }
         return min(minToolPitch, (width - 2 * Token.Space.pageMargin - toolSize) / gaps)
-    }
-
-    /// §10.2: in Idle, Colour, Alignment and Font act on a selected text object — drawn with
-    /// C-102's `isDisabled` look and taking no tap. Background and Actions act on the page.
-    private func isDisabled(_ tool: Tool) -> Bool {
-        mode == .idle && Self.textTools.contains(tool)
     }
 
     /// §3 Tools: category tools take `selected` while their rails are open; 3 is never selected;
@@ -2098,10 +2171,13 @@ extension ActivitiesEditorScreen.State {
         "revelation-lamb-scroll-v02", "jude-mercy-rescue", "jude-kept-standing"
     ].map { .init(id: $0, thumbnailURL: "http://localhost:5961/api/projects/makeready/images/\($0)") }
 
-    /// §10.9 — Idle with a page rail open: the chips rail, the three object tools disabled.
+    /// §10.9 (round 2) — a page rail open in the editing form: the object being edited, the tool
+    /// stack covering the chips rail, all five tools enabled.
     private static func pageRail(_ tool: String, option: String) -> Self {
         var s = committed()
         s.canSave = true
+        s.editorMode = "editing"
+        s.editingIndex = 0
         s.openTool = tool
         s.backgroundOption = option
         s.gradient = sampleGradient
@@ -2275,4 +2351,184 @@ extension ActivitiesEditorScreen.State {
     ActivitiesEditorScreen(state: .rails375)
         .safeAreaPadding(.top, 59)
         .frame(width: 440, height: 956, alignment: .top)
+}
+
+// MARK: - §10.10: the canvas-wide manipulation recognizers (UIKit bridge)
+
+/// §10.10: UIPan, UIPinch and UIRotation recognizing simultaneously, attached to the window so a
+/// pinch or rotate works wherever on the canvas the fingers are. UIPan's translation is already the
+/// centroid of the touches. They never cancel the touches SwiftUI sees (taps, C-092's touch-down),
+/// and the canvas scroll waits for the move to fail, so a drag on an object never scrolls the page.
+/// Draws nothing.
+struct CanvasManipulation: UIViewRepresentable {
+    enum Kind: Hashable { case move, pinch, rotate }
+    enum Phase { case began, changed, ended }
+
+    struct Update {
+        var phase: Phase
+        var kind: Kind
+        /// `move`: the centroid's translation and location, in points in this view.
+        var translation: CGSize = .zero
+        var location: CGPoint = .zero
+        /// `pinch`: the magnification since the pinch began.
+        var scale: CGFloat = 1
+        /// `rotate`: radians since the rotation began.
+        var rotation: Double = 0
+    }
+
+    /// Whether a touch at this point (in this view) is on the canvas.
+    let accepts: (CGPoint) -> Bool
+    let canBegin: (Kind) -> Bool
+    let onUpdate: (Update) -> Void
+    /// Every finger is up — the touch sequence is over.
+    let onAllUp: () -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeUIView(context: Context) -> HostView {
+        let view = HostView()
+        view.isUserInteractionEnabled = false
+        view.backgroundColor = .clear
+        view.coordinator = context.coordinator
+        context.coordinator.view = view
+        context.coordinator.source = self
+        return view
+    }
+
+    func updateUIView(_ view: HostView, context: Context) {
+        context.coordinator.source = self
+    }
+
+    final class HostView: UIView {
+        weak var coordinator: Coordinator?
+
+        override func willMove(toWindow newWindow: UIWindow?) {
+            super.willMove(toWindow: newWindow)
+            coordinator?.detach()
+            if let newWindow { coordinator?.attach(to: newWindow) }
+        }
+    }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        weak var view: UIView?
+        var source: CanvasManipulation?
+        private lazy var pan: UIPanGestureRecognizer = {
+            let recognizer = UIPanGestureRecognizer(target: self, action: #selector(handlePan))
+            recognizer.maximumNumberOfTouches = 2
+            return recognizer
+        }()
+        private lazy var pinch = UIPinchGestureRecognizer(target: self, action: #selector(handlePinch))
+        private lazy var rotation = UIRotationGestureRecognizer(target: self, action: #selector(handleRotation))
+        private lazy var tracker = TouchTracker { [weak self] in self?.source?.onAllUp() }
+
+        private var recognizers: [UIGestureRecognizer] { [pan, pinch, rotation, tracker] }
+
+        func attach(to window: UIWindow) {
+            for recognizer in recognizers {
+                recognizer.cancelsTouchesInView = false
+                recognizer.delaysTouchesEnded = false
+                recognizer.delegate = self
+                window.addGestureRecognizer(recognizer)
+            }
+        }
+
+        func detach() {
+            for recognizer in recognizers { recognizer.view?.removeGestureRecognizer(recognizer) }
+        }
+
+        private func kind(of recognizer: UIGestureRecognizer) -> Kind? {
+            if recognizer === pan { return .move }
+            if recognizer === pinch { return .pinch }
+            if recognizer === rotation { return .rotate }
+            return nil
+        }
+
+        private func phase(_ state: UIGestureRecognizer.State) -> Phase? {
+            switch state {
+            case .began: return .began
+            case .changed: return .changed
+            case .ended, .cancelled, .failed: return .ended
+            default: return nil
+            }
+        }
+
+        @objc private func handlePan(_ recognizer: UIPanGestureRecognizer) {
+            guard let phase = phase(recognizer.state) else { return }
+            let moved = recognizer.translation(in: view)
+            source?.onUpdate(.init(phase: phase, kind: .move,
+                                   translation: CGSize(width: moved.x, height: moved.y),
+                                   location: recognizer.location(in: view)))
+        }
+
+        @objc private func handlePinch(_ recognizer: UIPinchGestureRecognizer) {
+            guard let phase = phase(recognizer.state) else { return }
+            source?.onUpdate(.init(phase: phase, kind: .pinch, scale: recognizer.scale))
+        }
+
+        @objc private func handleRotation(_ recognizer: UIRotationGestureRecognizer) {
+            guard let phase = phase(recognizer.state) else { return }
+            source?.onUpdate(.init(phase: phase, kind: .rotate, rotation: Double(recognizer.rotation)))
+        }
+
+        func gestureRecognizer(_ recognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+            if recognizer === tracker { return true }
+            guard let view, let source else { return false }
+            return source.accepts(touch.location(in: view))
+        }
+
+        func gestureRecognizerShouldBegin(_ recognizer: UIGestureRecognizer) -> Bool {
+            guard let kind = kind(of: recognizer) else { return true }
+            return source?.canBegin(kind) ?? false
+        }
+
+        func gestureRecognizer(_ recognizer: UIGestureRecognizer,
+                               shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
+            !(recognizer === pan && Self.isScrollPan(other))
+        }
+
+        /// The canvas scroll waits for the move to fail: a drag on an object never scrolls the page,
+        /// and a drag on empty canvas (the move refuses to begin) scrolls as before.
+        func gestureRecognizer(_ recognizer: UIGestureRecognizer,
+                               shouldBeRequiredToFailBy other: UIGestureRecognizer) -> Bool {
+            recognizer === pan && Self.isScrollPan(other)
+        }
+
+        private static func isScrollPan(_ recognizer: UIGestureRecognizer) -> Bool {
+            guard let scroll = recognizer.view as? UIScrollView else { return false }
+            return recognizer === scroll.panGestureRecognizer
+        }
+    }
+
+    /// Recognizes nothing: it watches every touch so the bridge knows when the last finger lifts.
+    final class TouchTracker: UIGestureRecognizer {
+        private let onAllUp: () -> Void
+        private var touching = 0
+
+        init(onAllUp: @escaping () -> Void) {
+            self.onAllUp = onAllUp
+            super.init(target: nil, action: nil)
+        }
+
+        override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
+            touching += touches.count
+        }
+
+        override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) { lift(touches) }
+        override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) { lift(touches) }
+
+        private func lift(_ touches: Set<UITouch>) {
+            touching = max(touching - touches.count, 0)
+            guard touching == 0 else { return }
+            onAllUp()
+            state = .failed
+        }
+
+        override func reset() {
+            super.reset()
+            touching = 0
+        }
+
+        override func canPrevent(_ preventedGestureRecognizer: UIGestureRecognizer) -> Bool { false }
+        override func canBePrevented(by preventingGestureRecognizer: UIGestureRecognizer) -> Bool { false }
+    }
 }
