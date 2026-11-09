@@ -306,15 +306,12 @@ struct ActivitiesEditorScreen: View {
     // §2 item 6: the container rides the keyboard's top edge; the canvas does not resize.
     @SwiftUI.State private var keyboardTop = CGFloat.infinity
     @SwiftUI.State private var containerBottom: CGFloat = 0
-    // §2 scrolling insets: the bottom container's height, held while Manipulating hides it so the
-    // scroll range, and so the page, does not change when the bars hide.
+    // §2: the bottom container's height, held while Manipulating hides it so the slider's clamp
+    // does not change when the bars hide.
     @SwiftUI.State private var containerHeight: CGFloat = 0
-    // §2 Autoscroll (R-02, held only while the finger is down): the touch in viewport wu; the page
-    // height fixed at drag start so the page never re-places under the finger; how far autoscroll
-    // has moved the page; and the object's last transform, re-emitted as the page moves.
-    @SwiftUI.State private var dragPoint: CGPoint?
+    // §11 Fixed canvas (D24, held only while the finger is down): the content extent fixed at drag
+    // start so placement never re-runs under the finger, and the object's last transform.
     @SwiftUI.State private var dragExtent: ClosedRange<CGFloat>??
-    @SwiftUI.State private var dragScroll: CGFloat = 0
     @SwiftUI.State private var dragged: (index: Int, transform: CanvasTextObject.Transform)?
     // §9.1a: the object's transform when the in-flight gesture began — a gesture that ends where
     // it started reports nothing.
@@ -586,7 +583,7 @@ struct ActivitiesEditorScreen: View {
         let headerBottom = (safeTop + Self.headerHeight) / unit
         let containerTop = viewport - (containerHeight + keyboardOverlap) / unit
         let pinned = actions.contains { $0.placement == .pinned }
-        let offset = pageOffset(viewport: viewport, extent: extent, pinned: pinned)
+        let offset = pageOffset(viewport: viewport)
         return ActivityCanvas<AnyView>(
             background: background,
             mode: mode,
@@ -601,13 +598,9 @@ struct ActivitiesEditorScreen: View {
             pinnedAction: pinned,
             widthHandles: mode == .editing ? widthHandles(pageOffset: offset) : nil,
             onResizeWidth: resizeDraft,
-            // §2: the screen's bars cover the page's ends; the range reaches past both.
-            scrollInsets: .init(top: headerBottom, bottom: viewport - containerTop),
-            dragPoint: dragPoint,
-            onAutoscroll: { moved in
-                dragScroll += moved
-                if let dragged { emit(dragged.transform, index: dragged.index) }
-            }
+            // §11 (D24): the canvas is fixed to the screen in every mode — no scroll range, no
+            // scroll insets, no autoscroll. The header and bottom area stay opaque over it.
+            scrolls: false
         )
         .coordinateSpace(.named(Self.screenSpace))
         .overlay(alignment: .topLeading) {
@@ -708,11 +701,8 @@ struct ActivitiesEditorScreen: View {
     private func manipulate(_ update: CanvasManipulation.Update, unit: CGFloat) {
         if update.phase == .ended {
             activeManipulations.remove(update.kind)
-            if update.kind == .move { dragPoint = nil }
             guard activeManipulations.isEmpty else { return }
-            dragPoint = nil
             dragExtent = nil
-            dragScroll = 0
             endGesture()
             return
         }
@@ -725,20 +715,17 @@ struct ActivitiesEditorScreen: View {
             // Each recognizer starts from the object as it is now, so one restarting mid-gesture
             // (a finger lifted and put back) never snaps the object back.
             switch update.kind {
-            case .move: moveBase = CGPoint(x: shown.position.x, y: shown.position.y - dragScroll)
+            case .move: moveBase = shown.position
             case .pinch: scaleBase = shown.scale
             case .rotate: rotationBase = shown.rotation.degrees
             }
         case .changed:
             guard activeManipulations.contains(update.kind) else { return }
-            // `emit` puts what autoscroll has moved back on, so the transform passed is without it.
             var next = shown
-            next.position.y -= dragScroll
             switch update.kind {
             case .move:
                 next.position = CGPoint(x: moveBase.x + update.translation.width / unit,
                                         y: moveBase.y + update.translation.height / unit)
-                dragPoint = CGPoint(x: update.location.x / unit, y: update.location.y / unit)
             case .pinch:
                 next.scale = scaleBase * update.scale
             case .rotate:
@@ -752,8 +739,6 @@ struct ActivitiesEditorScreen: View {
         }
     }
 
-    /// §2 Autoscroll: C-092 reports its move from where the drag started, so what autoscroll has
-    /// moved the page goes back on, keeping the object under the finger.
     /// §9.1a: each frame goes to the display only; `endGesture` reports the final transform once.
     private func emit(_ transform: CanvasTextObject.Transform, index: Int) {
         if dragged == nil, shownObjects.indices.contains(index) {
@@ -762,10 +747,8 @@ struct ActivitiesEditorScreen: View {
                                  scale: start.scale, rotation: start.rotation.degrees)
         }
         dragged = (index, transform)
-        var next = transform
-        next.position.y += dragScroll
-        apply(.init(index: index, transform: .init(x: next.position.x, y: next.position.y,
-                                                   scale: next.scale, rotation: next.rotation.degrees)),
+        apply(.init(index: index, transform: .init(x: transform.position.x, y: transform.position.y,
+                                                   scale: transform.scale, rotation: transform.rotation.degrees)),
               report: false)
     }
 
@@ -1362,16 +1345,18 @@ struct ActivitiesEditorScreen: View {
 
     // MARK: - §10.5 / §10.6: taps and closing rails
 
-    /// §10.5: a field focused or a page rail open → the tap only closes it (D21); Editing → tap-off
-    /// (D10); otherwise the empty-canvas tap as before (Idle adds a text object).
+    /// §11.2 (D10, D21): exactly one per empty-canvas tap, which C-091 reports in Idle and while
+    /// editing — a focused rail field → end it; a Background or Actions rail open → close it;
+    /// editing (Highlighting is part of the edit) → tap-off, which ends the edit exactly like Done;
+    /// Idle → add a text object.
     private func tapCanvas(at point: CGPoint? = nil) {
         if focusedField != nil {
             endField()
         } else if openTool == .background || openTool == .actions {
             setOpenTool(nil)
-        } else if mode == .editing {
+        } else if mode == .editing || mode == .highlighting {
             onTapOff()
-        } else if let point {
+        } else if mode == .idle, let point {
             onTapEmpty(point)
         }
     }
@@ -1561,16 +1546,10 @@ struct ActivitiesEditorScreen: View {
 
     /// C-091 §2 Sizing, for the one place the screen needs it: `widthHandles.frame` is page-local
     /// and the slider follows the edit slot, while C-091 keeps the slot's offset to itself.
-    private func pageOffset(viewport: CGFloat, extent: ClosedRange<CGFloat>?, pinned: Bool) -> CGFloat {
-        let offset = (viewport - Self.referenceHeight) / 2
-        guard let extent else { return offset }
-        let bottomInset = Self.pageEndSpace + (pinned ? Self.pinnedHeight : 0)
-        guard extent.upperBound - extent.lowerBound <= viewport - Self.pageTopInset - bottomInset else {
-            return Self.pageTopInset - extent.lowerBound
-        }
-        if extent.lowerBound + offset < Self.pageTopInset { return Self.pageTopInset - extent.lowerBound }
-        if extent.upperBound + offset > viewport - bottomInset { return viewport - bottomInset - extent.upperBound }
-        return offset
+    /// §11 (D24): on the fixed canvas (`scrolls: false`) the offset is 02 §4 step 1 only — no nudge
+    /// and no growth — so objects stay where the author put them, past an edge if need be.
+    private func pageOffset(viewport: CGFloat) -> CGFloat {
+        (viewport - Self.referenceHeight) / 2
     }
 
     private var draftHeight: CGFloat {
@@ -1888,9 +1867,6 @@ struct ActivitiesEditorScreen: View {
     /// §2 Units (D1; 02 §4): the reference space.
     private static let referenceWidth: CGFloat = 440
     private static let referenceHeight: CGFloat = 956
-    /// C-091 §2 Sizing, read by `pageOffset`: T 107 and B 85 wu.
-    private static let pageTopInset: CGFloat = 107
-    private static let pageEndSpace: CGFloat = 85
     /// GAP — activities-editor §3 / OQ-015: 12–64 wu, linear; the 50 % thumb is 38 wu.
     private static let minSize: Double = 12
     private static let maxSize: Double = 64
@@ -2357,9 +2333,9 @@ extension ActivitiesEditorScreen.State {
 
 /// §10.10: UIPan, UIPinch and UIRotation recognizing simultaneously, attached to the window so a
 /// pinch or rotate works wherever on the canvas the fingers are. UIPan's translation is already the
-/// centroid of the touches. They never cancel the touches SwiftUI sees (taps, C-092's touch-down),
-/// and the canvas scroll waits for the move to fail, so a drag on an object never scrolls the page.
-/// Draws nothing.
+/// centroid of the touches. §11 (D24): they act on the manipulated object only and never pan the
+/// canvas, which is fixed. `cancelsTouchesInView = false` on every one, so a single tap is never
+/// swallowed and always reaches `tapCanvas` (taps, C-092's touch-down). Draws nothing.
 struct CanvasManipulation: UIViewRepresentable {
     enum Kind: Hashable { case move, pinch, rotate }
     enum Phase { case began, changed, ended }
@@ -2486,8 +2462,8 @@ struct CanvasManipulation: UIViewRepresentable {
             !(recognizer === pan && Self.isScrollPan(other))
         }
 
-        /// The canvas scroll waits for the move to fail: a drag on an object never scrolls the page,
-        /// and a drag on empty canvas (the move refuses to begin) scrolls as before.
+        /// A scroll view's pan (the rails') waits for the move to fail, so a drag that moves an object
+        /// never scrolls anything; the canvas itself has no scroll (§11, D24).
         func gestureRecognizer(_ recognizer: UIGestureRecognizer,
                                shouldBeRequiredToFailBy other: UIGestureRecognizer) -> Bool {
             recognizer === pan && Self.isScrollPan(other)
