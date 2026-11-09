@@ -105,7 +105,7 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         model.tapEmpty(at: CGPoint(x: 220, y: 400)); model.edit(.init(index: 0, text: "Hello"))
         await model.done()                                  // ends the text edit, saves
         XCTAssertEqual(nav.pops, 0)
-        model.changeBackground(.init(color: .red))
+        model.changeBackground(.colour("#FF0000"))
         await model.done()                                  // Idle: saves the change, then leaves
         XCTAssertEqual(actions.savedIds, ["a1", "a1"])
         XCTAssertEqual(nav.pops, 1)
@@ -119,7 +119,7 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         model.navigator = nav
         await model.done()
         XCTAssertEqual(actions.savedIds, []); XCTAssertEqual(nav.pops, 0)
-        model.changeBackground(.init(color: .red))
+        model.changeBackground(.colour("#FF0000"))
         await model.done()
         XCTAssertNotNil(model.saveError); XCTAssertEqual(nav.pops, 0)
     }
@@ -270,6 +270,37 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         await model.closePageRails()
         XCTAssertEqual(actions.savedDocuments.count, 1)
         XCTAssertEqual(actions.savedDocuments[0].actions.map(\.label), ["Go"])
+    }
+
+    // MARK: - text-activity-v2: the Background rail (D13, D14, D18, D22)
+
+    func testBackgroundCommandsPatchLiveAndSaveOnRailClose() async {
+        let actions = ScriptedActivityActions()
+        let model = starterModel(actions)
+        model.random = AnyRandomNumberGenerator(SeededRandom(seed: 21))
+        let before = model.document.background.gradient
+        model.changeBackground(.shuffle)
+        XCTAssertNotEqual(model.document.background.gradient, before)
+        model.changeBackground(.palette(3))
+        XCTAssertEqual(model.document.background.gradient?.base, ActivityBackgroundPalettes.darkest(ActivityBackgroundPalettes.all[3]))
+        model.changeBackground(.colour("#112233"))
+        XCTAssertEqual(ActivitiesEditorMapper.backgroundOption(of: model.document), .colour)
+        model.changeBackground(.gradient)
+        XCTAssertEqual(ActivitiesEditorMapper.backgroundOption(of: model.document), .gradient)
+        XCTAssertTrue(actions.savedIds.isEmpty)
+        await model.closePageRails()
+        XCTAssertEqual(actions.savedIds.count, 1)
+    }
+
+    func testMoreImagesPushesThePickPageAndAThumbnailSetsTheImage() {
+        let model = starterModel(ScriptedActivityActions())
+        let nav = RecordingEditorNavigator()
+        model.navigator = nav
+        model.changeBackground(.moreImages)
+        XCTAssertEqual(nav.pushed.last, .chooseActivityBackground(activityId: "a1"))
+        model.changeBackground(.image("m9"), app: AppState())
+        XCTAssertEqual(model.document.background.image?.mediaId, "m9")
+        XCTAssertEqual(ActivitiesEditorMapper.backgroundOption(of: model.document), .image)
     }
 
     // MARK: - One save at a time

@@ -178,19 +178,52 @@ enum ActivitiesEditorMapper {
         return string(objects[index], "text")
     }
 
-    /// The Background sheet's page colour, focal point and wash. `motion` and every other field stay.
-    static func applyBackground(_ background: ActivityCanvas<AnyView>.Background, to doc: ActivityDocument) -> ActivityDocument {
-        doc.updating { raw in
-            raw[path: ["background", "color"]] = .string(hex(background.color))
-            guard raw[path: ["background", "image"]] != nil else { return }
-            if let image = background.image {
-                raw[path: ["background", "image", "focal"]] = .object(["x": .number(Double(image.focal.x)),
-                                                                        "y": .number(Double(image.focal.y))])
-            }
-            if let wash = background.wash {
-                raw[path: ["background", "wash"]] = .object(["color": .string(hex(wash.color)), "opacity": .number(wash.opacity)])
-            } else {
+    // MARK: - text-activity-v2: the Background rail's state (D13, D14, D22)
+
+    /// The Background rail's fields on top of `state()`: the selected option, the gradient (hidden
+    /// flag included, so the canvas draws exactly the visible one), the 12 palettes (darkest first),
+    /// and the library's photos newest first.
+    static func withBackgroundRail(_ state: ActivitiesEditorScreen.State, document: ActivityDocument,
+                                   library: [MediaLibraryItem], hasMoreImages: Bool) -> ActivitiesEditorScreen.State {
+        var state = state
+        switch backgroundOption(of: document) {
+        case .gradient: state.backgroundOption = "gradient"
+        case .colour: state.backgroundOption = "colour"
+        case .image: state.backgroundOption = "image"
+        }
+        state.gradient = document.background.gradient.map { gradient in
+            .init(base: gradient.base, hidden: gradient.hidden,
+                  blobs: gradient.blobs.map { .init(x: $0.x, y: $0.y, r: $0.r, color: $0.color) })
+        }
+        state.palettes = ActivityBackgroundPalettes.all.map { palette in
+            let base = ActivityBackgroundPalettes.darkest(palette)
+            return [base] + palette.filter { $0 != base }
+        }
+        state.libraryImages = library
+            .filter { $0.type == "photo" }
+            .sorted { $0.createdAt > $1.createdAt }
+            .map { .init(id: $0.id, thumbnailURL: $0.thumbnailUrl ?? $0.url) }
+        state.hasMoreImages = hasMoreImages
+        return state
+    }
+
+    /// The Image rail's canvas drag: the focal point, kept only when an image is set (0–1, clamped).
+    static func settingFocal(x: Double, y: Double, in doc: ActivityDocument) -> ActivityDocument {
+        guard doc.background.image != nil else { return doc }
+        return doc.updating {
+            $0[path: ["background", "image", "focal"]] = .object(["x": .number(min(max(x, 0), 1)),
+                                                                   "y": .number(min(max(y, 0), 1))])
+        }
+    }
+
+    /// The Image rail's wash: colour + opacity over an image; an empty colour removes it.
+    static func settingWash(color: String, opacity: Double, in doc: ActivityDocument) -> ActivityDocument {
+        guard doc.background.image != nil else { return doc }
+        return doc.updating { raw in
+            if color.isEmpty {
                 raw[path: ["background", "wash"]] = nil
+            } else {
+                raw[path: ["background", "wash"]] = .object(["color": .string(color), "opacity": .number(min(max(opacity, 0), 1))])
             }
         }
     }

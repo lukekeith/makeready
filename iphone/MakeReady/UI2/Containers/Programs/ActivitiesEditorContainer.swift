@@ -48,10 +48,9 @@ struct ActivitiesEditorContainer: View {
             onEditObject: { edit in model.edit(edit) },
             onLoadFailed: { message in Self.surfaceLoadFailure(message) },
             onTapOff: { Task { await model.tapOff() } },
+            onBackground: { command in model.changeBackground(command) },
             onActionsChange: { actions in model.changeActions(actions) },
             onPageRailsClosed: { Task { await model.closePageRails() } },
-            onPickImage: { model.pickImage() },
-            onChangeBackground: { background in model.changeBackground(background) },
             onRetry: { Task { await model.retry() } },
             onDiscard: { model.discard() }
         )
@@ -67,6 +66,7 @@ struct ActivitiesEditorContainer: View {
             model.takeBackgroundPick()
         }
         .task { await model.load() }
+        .task { await model.loadImages() }
         .task(id: state.pageImageURL) {
             if await UI2ImageLoader.seed([state.pageImageURL], context: "ActivitiesEditorContainer") { imagesSeeded += 1 }
         }
@@ -78,6 +78,8 @@ struct ActivitiesEditorContainer: View {
         var state = ActivitiesEditorMapper.state(document: model.document, media: app.mediaMap,
                                                  slides: app.activities(forVersion: model.lessonVersionId),
                                                  activeID: model.activityId)
+        state = ActivitiesEditorMapper.withBackgroundRail(state, document: model.document, library: app.mediaLibrary.all,
+                                                          hasMoreImages: app.mediaLibrary.count < app.mediaLibraryTotal)
         state.editorMode = model.editingIndex >= 0 ? "editing" : "idle"
         state.editingIndex = model.editingIndex
         state.saving = model.isSaving
@@ -326,8 +328,60 @@ struct ActivitiesEditorContainer: View {
         }
 
         /// The Background sheet's live changes; saved with the next Done or on leaving.
-        func changeBackground(_ background: ActivityCanvas<AnyView>.Background) {
-            document = ActivitiesEditorMapper.applyBackground(background, to: document)
+        /// The Background rail's choices patch the buffer live; they save when the rail closes (D19).
+        /// Gradient/Colour/Shuffle/palette per D13, D14, D17, D18; Image picks inline, More… pushes the
+        /// full picker (D22).
+        func changeBackground(_ command: ActivitiesEditorScreen.BackgroundCommand, app: AppState? = nil) {
+            switch command {
+            case .gradient:
+                document = ActivitiesEditorMapper.showingGradient(in: document, rng: &random)
+            case .colour(let hex):
+                // The Colour option alone shows the page colour as it is; a swatch sets it.
+                document = ActivitiesEditorMapper.choosingColour(hex ?? document.background.color, in: document)
+            case .shuffle:
+                document = ActivitiesEditorMapper.shuffling(in: document, rng: &random)
+            case .palette(let index):
+                guard ActivityBackgroundPalettes.all.indices.contains(index) else { return }
+                document = ActivitiesEditorMapper.choosingPalette(ActivityBackgroundPalettes.all[index], in: document, rng: &random)
+            case .image(let mediaId):
+                pickLibraryImage(mediaId, app: app ?? .shared)
+            case .moreImages:
+                pickImage()
+            case .loadMoreImages:
+                Task { await loadMoreImages() }
+            case .focal(let x, let y):
+                document = ActivitiesEditorMapper.settingFocal(x: x, y: y, in: document)
+            case .wash(let color, let opacity):
+                document = ActivitiesEditorMapper.settingWash(color: color, opacity: opacity, in: document)
+            }
+        }
+
+        /// The randomness behind Gradient, Shuffle and a palette chip; tests swap in a seeded one.
+        var random = AnyRandomNumberGenerator(SystemRandomNumberGenerator())
+
+        /// D22: a library thumbnail becomes the background image, its URL merged into the media map the
+        /// screen resolves images through (as the Media pick mode does).
+        func pickLibraryImage(_ mediaId: String, app: AppState) {
+            if let item = app.mediaLibrary[mediaId] {
+                app.mergeMedia([item.id: MediaMapEntry(url: item.url, width: nil, height: nil, kind: "image",
+                                                       playbackUrl: nil, posterUrl: nil, durationSeconds: nil,
+                                                       uploaderName: item.uploader?.name)])
+            }
+            document = ActivitiesEditorMapper.settingBackgroundImage(mediaId: mediaId, in: document)
+        }
+
+        /// D22: the Image rail's photos — the library, cache-first (a background refresh is console-only).
+        func loadImages() async {
+            do { try await MediaActions().loadLibrary() } catch {
+                AppState.shared.recordError(error, context: "ActivitiesEditorContainer.loadImages")
+            }
+        }
+
+        /// D22: the Image rail scrolled to its end.
+        func loadMoreImages() async {
+            do { try await MediaActions().loadMoreLibrary() } catch {
+                AppState.shared.recordError(error, context: "ActivitiesEditorContainer.loadMoreImages")
+            }
         }
 
         /// The Actions rail's live edits patch the buffer; nothing is saved until the rail closes or the
@@ -479,4 +533,13 @@ struct ActivitiesEditorContainer: View {
             return await commit()
         }
     }
+}
+
+/// A type-erased RNG, so the editor model can hold either the system generator or a seeded test one.
+struct AnyRandomNumberGenerator: RandomNumberGenerator {
+    private var base: any RandomNumberGenerator
+
+    init(_ base: some RandomNumberGenerator) { self.base = base }
+
+    mutating func next() -> UInt64 { base.next() }
 }

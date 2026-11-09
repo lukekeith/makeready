@@ -112,6 +112,36 @@ final class ActivitiesEditorMapperTests: XCTestCase {
         }
     }
 
+    // MARK: - text-activity-v2: the Background rail's state (D13, D14, D22)
+
+    func testStateDerivesTheBackgroundRail() throws {
+        var rng = SeededRandom(seed: 10)
+        let doc = ActivityNewContainer.textDocument(title: "T", palette: nil, rng: &rng)
+        let base = ActivitiesEditorMapper.state(document: doc, media: [:], slides: [], activeID: "a1")
+        let rail = ActivitiesEditorMapper.withBackgroundRail(base, document: doc, library: [], hasMoreImages: true)
+        XCTAssertEqual(rail.backgroundOption, "gradient")
+        XCTAssertEqual(rail.gradient?.blobs.count, 4)
+        XCTAssertEqual(rail.palettes.count, 12)
+        XCTAssertEqual(rail.palettes[0].first, ActivityBackgroundPalettes.darkest(ActivityBackgroundPalettes.all[0]))
+        XCTAssertTrue(rail.hasMoreImages)
+        let coloured = ActivitiesEditorMapper.choosingColour("#123456", in: doc)
+        let colourRail = ActivitiesEditorMapper.withBackgroundRail(base, document: coloured, library: [], hasMoreImages: false)
+        XCTAssertEqual(colourRail.backgroundOption, "colour")
+        XCTAssertEqual(colourRail.gradient?.hidden, true)
+    }
+
+    func testFocalAndWashNeedAnImage() {
+        var rng = SeededRandom(seed: 13)
+        let doc = ActivityNewContainer.textDocument(title: "T", palette: nil, rng: &rng)
+        XCTAssertEqual(ActivitiesEditorMapper.settingFocal(x: 0.2, y: 0.3, in: doc), doc)
+        let withImage = ActivitiesEditorMapper.settingBackgroundImage(mediaId: "m1", in: doc)
+        let focused = ActivitiesEditorMapper.settingFocal(x: 1.4, y: 0.3, in: withImage)
+        XCTAssertEqual(focused.background.image?.focal?.x, 1)
+        let washed = ActivitiesEditorMapper.settingWash(color: "#000000", opacity: 0.5, in: withImage)
+        XCTAssertEqual(washed.background.wash?.opacity, 0.5)
+        XCTAssertNil(ActivitiesEditorMapper.settingWash(color: "", opacity: 0.5, in: washed).background.wash)
+    }
+
     // MARK: - text-activity-v2: gradient operations (D13, D14, D17, D18)
 
     private func starter(_ rng: inout SeededRandom) -> ActivityDocument {
