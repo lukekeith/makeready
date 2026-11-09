@@ -16,3 +16,4 @@ ui2: none
 auto: off
 blocked: none
 agent-walk: off
+build: here
