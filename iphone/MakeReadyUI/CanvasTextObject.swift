@@ -33,6 +33,12 @@ struct CanvasTextObject: View {
         case editor, viewer
     }
 
+    /// §4 `manipulation` (owner ruling 2026-11-08): who recognises drag / pinch / rotate in
+    /// `editor`. `own` attaches them here; `host` leaves them to the host's canvas-wide recognizers.
+    enum Manipulation {
+        case own, host
+    }
+
     /// §4 `font` — a key, never a platform name (D6); this row owns the set.
     enum Font: CaseIterable {
         case display, sans, serif, mono
@@ -163,7 +169,12 @@ struct CanvasTextObject: View {
     let effect: Effect
     /// §4 — placement and layout width.
     let transform: Transform
-    /// §4 — drag / pinch / rotate updates while Manipulating; the caller stores them (R-01).
+    /// §4 — who recognises drag / pinch / rotate in `editor`; ignored in `viewer`.
+    let manipulation: Manipulation
+    /// §4 — the first finger lands on the rendered shape, before any movement (editor only).
+    let onTouchDown: () -> Void
+    /// §4 — an absolute transform in wu measured from where the gesture started; fired here under
+    /// `manipulation = .own`, by the host under `.host`. Never fires in `viewer`.
     let onTransform: (Transform) -> Void
     /// §4 — first responder with the caret; the keyboard is the screen's. Ignored in `viewer`.
     let editing: Bool
@@ -195,6 +206,8 @@ struct CanvasTextObject: View {
         animationStart: Date? = nil,
         effect: Effect = .none,
         transform: Transform = .identity,
+        manipulation: Manipulation = .own,
+        onTouchDown: @escaping () -> Void = {},
         onTransform: @escaping (Transform) -> Void = { _ in },
         editing: Bool,
         highlights: [TextRange] = [],
@@ -218,6 +231,8 @@ struct CanvasTextObject: View {
         self.animationStart = animationStart
         self.effect = effect
         self.transform = transform
+        self.manipulation = manipulation
+        self.onTouchDown = onTouchDown
         self.onTransform = onTransform
         self.editing = editing
         self.highlights = highlights
@@ -229,6 +244,8 @@ struct CanvasTextObject: View {
     @FocusState private var focused: Bool
     /// R-02: the transform a gesture started from, held only while the finger is down.
     @State private var gestureBase: Transform?
+    /// R-02: whether this finger-down has already been reported through `onTouchDown`.
+    @State private var touchReported = false
     /// §2 Animation: Reduce Motion ignores the clock and holds the rest pose.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -250,10 +267,18 @@ struct CanvasTextObject: View {
     var body: some View {
         switch mode {
         case .editor:
-            placed
-                .contentShape(Rectangle())
-                .onTapGesture { if !isEditing { onTap() } }
-                .simultaneousGesture(manipulation, including: isEditing ? .subviews : .all)
+            // §4 Gestures: the hit area is applied inside the scale and rotation, so it is the
+            // rendered (rotated, scaled) block, not the untransformed layout rectangle.
+            transformed(
+                laidOut
+                    .contentShape(Rectangle())
+                    .onTapGesture { if !isEditing { onTap() } }
+                    .simultaneousGesture(touchDown, including: isEditing ? .subviews : .all)
+                    .simultaneousGesture(
+                        manipulationGesture,
+                        including: isEditing || manipulation == .host ? .subviews : .all
+                    )
+            )
                 .accessibilityElement(children: isEditing ? .contain : .ignore)
                 .accessibilityLabel(isEditing ? "" : spokenLabel)
                 .accessibilityAddTraits(isEditing ? [] : .isButton)
@@ -263,7 +288,7 @@ struct CanvasTextObject: View {
         case .viewer:
             // §2 Modes: no gesture of any kind, so a vertical drag falls through to the viewer's
             // scroll and pager. Only a `link` mark is interactive, through the Text's own link.
-            viewerAccessibility(placed)
+            viewerAccessibility(transformed(laidOut))
                 .tint(glyphColor)
                 .environment(\.openURL, OpenURLAction { url in
                     onOpenLink(url.absoluteString)
@@ -275,13 +300,19 @@ struct CanvasTextObject: View {
 
     /// The block at its layout width, with the committed transform applied about its centre.
     /// Every inset is symmetric, so the block's measured centre is the glyph run's (§2 Centring).
-    private var placed: some View {
+    private var laidOut: some View {
         block
             .padding(.horizontal, horizontalInset)
             .padding(.vertical, verticalInset)
             .frame(width: transform.width.map { min(max($0, widthLimits.lowerBound), widthLimits.upperBound) })
             .frame(maxWidth: transform.width == nil ? .infinity : nil, alignment: frameAlignment)
             .overlay { if isEditing { inputField } }
+    }
+
+    /// The committed scale and rotation (identity while `editing`), applied outside whatever hit
+    /// area and gestures the content carries so they follow the rendered shape.
+    private func transformed(_ content: some View) -> some View {
+        content
             .scaleEffect(isEditing ? 1 : transform.scale)
             .rotationEffect(isEditing ? .zero : transform.rotation)
     }
@@ -449,8 +480,8 @@ struct CanvasTextObject: View {
 
     /// §4 `onTransform`: drag / pinch / rotate while Manipulating; the caller stores each update,
     /// in wu — C-091's scale is applied outside this view, so a translation here is already wu.
-    /// The width handles are C-091's.
-    private var manipulation: some Gesture {
+    /// The width handles are C-091's. Attached only under `manipulation = .own` (§4 Gestures).
+    private var manipulationGesture: some Gesture {
         SimultaneousGesture(
             // Measured in C-091's fixed page space (wu), never this view's own moving frame —
             // a local-space drag jitters as the object it measures from moves under the finger.
@@ -486,6 +517,19 @@ struct CanvasTextObject: View {
             )
         )
         .onEnded { _ in gestureBase = nil }
+    }
+
+    /// §4 `onTouchDown`: reported once per finger-down, before any movement, under either
+    /// `manipulation`, so the host knows which object its canvas-level gesture drives.
+    private var touchDown: some Gesture {
+        // pan-ok: zero-distance touch-down probe, not a sideways drag
+        DragGesture(minimumDistance: 0)
+            .onChanged { _ in
+                guard !touchReported else { return }
+                touchReported = true
+                onTouchDown()
+            }
+            .onEnded { _ in touchReported = false }
     }
 
     private var currentTransform: Transform { transform }
