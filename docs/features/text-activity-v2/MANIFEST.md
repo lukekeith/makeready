@@ -1,12 +1,12 @@
 size: lg
-state: planned
+state: building
 next: /builder:resume --path docs/features/text-activity-v2
-head: 70cae415
+head: 9d5fb419
 ticket: none
 branch: feature/text-activity
 pr: none
 apps: server+iphone
-contract: open
+contract: frozen 2026-11-08
 hold: none
 go-ahead: luke 2026-11-08 (here)
 tests: walk=risk review=slice
