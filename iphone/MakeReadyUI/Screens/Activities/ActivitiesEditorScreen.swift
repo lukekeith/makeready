@@ -323,6 +323,10 @@ struct ActivitiesEditorScreen: View {
     // D25: the object the last finger-down grabbed, kept past the lift so the tap that follows uses
     // it; replaced at the next finger-down.
     @SwiftUI.State private var tapTarget: Int?
+    // §13.1: the bridge marked the current (or last) touch sequence a manipulation — a move, pinch
+    // or rotate began, or the first finger travelled 10pt. Kept past the lift so the SwiftUI tap
+    // that fires on lift-off is ignored; cleared at the next finger-down.
+    @SwiftUI.State private var touchWasManipulation = false
     @SwiftUI.State private var activeManipulations: Set<CanvasManipulation.Kind> = []
     @SwiftUI.State private var moveBase: CGPoint = .zero
     @SwiftUI.State private var scaleBase: CGFloat = 1
@@ -630,45 +634,60 @@ struct ActivitiesEditorScreen: View {
     private func canvasContent(_ objects: [CommittedObject], unit: CGFloat) -> some View {
         ZStack(alignment: .topLeading) {
             ForEach(objects.indices, id: \.self) { index in
-                if index != editedIndex {
-                    committedObject(objects[index], index: index, unit: unit, extent: measuredExtent(objects))
-                }
-            }
-            if let editedIndex, let edited {
-                editedObject(edited, index: editedIndex)
+                canvasObject(objects[index], index: index)
             }
             actionPreviews(objects)
+                // The edited object renders above the others (OQ-010), still under the previews.
+                .zIndex(2)
         }
     }
 
-    private func committedObject(_ object: CommittedObject, index: Int, unit: CGFloat,
-                                 extent: ClosedRange<CGFloat>?) -> some View {
-        CanvasTextObject(
+    /// One C-092 per object, the same view whether committed or edited (§13.2): entering or
+    /// leaving Editing changes its placement, so the object animates between its committed
+    /// transform and the edit slot — position, scale and rotation in one curve — and never jumps.
+    private func canvasObject(_ object: CommittedObject, index: Int) -> some View {
+        let isEdited = index == editedIndex
+        return CanvasTextObject(
             text: object.text,
+            onChange: { if isEdited { apply(.init(index: index, text: $0)) } },
             font: object.font,
             weight: object.weight,
             size: object.size,
             color: object.color,
             alignment: object.alignment,
-            listStyle: object.listStyle,
-            startNumber: object.startNumber,
-            transform: object.transform,
+            listStyle: isEdited ? .none : object.listStyle,
+            startNumber: isEdited ? 1 : object.startNumber,
+            animation: isEdited ? draftAnimation : .none,
+            animationStart: isEdited ? draftAnimationStart : nil,
+            effect: isEdited ? draftEffect : .none,
+            // C-092 draws scale 1 and rotation 0 while editing (§3: re-opening shows the object at
+            // `size`, unscaled); its committed transform returns on Done.
+            transform: isEdited ? .identity : object.transform,
             // §10.10: drag, pinch and rotate are the canvas-wide recognizers' (`CanvasManipulation`);
             // the object only says it is under the first touch.
             manipulation: .host,
-            editing: false,
-            highlights: object.highlights,
+            editing: isEdited,
+            highlights: isEdited ? [] : object.highlights,
             // D25: the object the finger-down grabbed — the topmost grab area may not be this box.
             onTap: {
                 let target = tapTarget ?? index
                 if target != editedIndex { tapObject(target) }
             }
         )
-        // C-092 never offsets itself (its §2): the screen places it at `transform.position`.
-        .frame(width: object.transform.width ?? Self.editSlotWidth)
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { measuredHeights[index] = $0 }
+        // §2 item 3 + §3 Editing: the edited object alone at the edit slot, centred on 478 wu
+        // before C-091's offset; alignment anchors a narrower block 24 wu from the canvas edge
+        // (tool 3). C-092 never offsets itself (its §2): the screen places a committed object at
+        // `transform.position`.
+        .frame(width: isEdited ? draftLayoutWidth : object.transform.width ?? Self.editSlotWidth)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+            if index == editedIndex { measuredDraftHeight = height } else { measuredHeights[index] = height }
+        }
         .ui2Element(index == 0 ? "C-092 CanvasTextObject" : "C-092 CanvasTextObject \(index + 1)")
-        .position(object.transform.position)
+        .position(isEdited ? CGPoint(x: draftCentreX, y: Self.editSlotY) : object.transform.position)
+        .zIndex(isEdited ? 1 : 0)
+        // §13.2: Idle ↔ Editing is one animation — one ease-out for position, scale and rotation,
+        // no delayed dispatch. A gesture frame never changes `editedIndex`, so it stays 1:1.
+        .animation(Self.editTransition, value: editedIndex)
     }
 
     // MARK: - §10.10: pinch and rotate anywhere on the canvas
@@ -695,7 +714,9 @@ struct ActivitiesEditorScreen: View {
                 }
                 touchedIndex = target
                 tapTarget = target
+                touchWasManipulation = false
             },
+            onManipulation: { touchWasManipulation = true },
             onAllUp: { touchedIndex = nil }
         )
         .allowsHitTesting(false)
@@ -863,28 +884,6 @@ struct ActivitiesEditorScreen: View {
     }
 
     private var edited: CommittedObject? { editedIndex.map { shownObjects[$0] } }
-
-    /// §2 item 3 + §3 Editing: the edited object alone at the edit slot, centred on 478 wu before
-    /// C-091's offset; alignment anchors a narrower block 24 wu from the canvas edge (tool 3).
-    private func editedObject(_ object: CommittedObject, index: Int) -> some View {
-        CanvasTextObject(
-            text: object.text,
-            onChange: { apply(.init(index: index, text: $0)) },
-            font: object.font,
-            weight: object.weight,
-            size: object.size,
-            color: object.color,
-            alignment: object.alignment,
-            animation: draftAnimation,
-            animationStart: draftAnimationStart,
-            effect: draftEffect,
-            editing: true
-        )
-        .frame(width: draftLayoutWidth)
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { measuredDraftHeight = $0 }
-        .ui2Element(index == 0 ? "C-092 CanvasTextObject" : "C-092 CanvasTextObject \(index + 1)")
-        .position(x: draftCentreX, y: Self.editSlotY)
-    }
 
     /// §2 item 3 (D8): an inline action previews as C-105, 24 wu below the last object.
     @ViewBuilder
@@ -1418,6 +1417,8 @@ struct ActivitiesEditorScreen: View {
     /// editing (Highlighting is part of the edit) → tap-off, which ends the edit exactly like Done;
     /// Idle → add a text object.
     private func tapCanvas(at point: CGPoint? = nil) {
+        // §13.1: a touch the bridge marked as a manipulation is never a tap.
+        guard !touchWasManipulation else { return }
         if focusedField != nil {
             endField()
         } else if openTool == .background || openTool == .actions {
@@ -1435,6 +1436,8 @@ struct ActivitiesEditorScreen: View {
 
     /// §10.5: a tap on an object — the container commits any current edit, then edits it (D20).
     private func tapObject(_ index: Int) {
+        // §13.1: a touch the bridge marked as a manipulation is never a tap.
+        guard !touchWasManipulation else { return }
         endField()
         onTapObject(index)
     }
@@ -1973,6 +1976,9 @@ struct ActivitiesEditorScreen: View {
     private static let topRailMaxHeight: CGFloat = 148
     /// §10.3: a canvas touch that moves less than this is a tap, not a focal drag.
     private static let tapSlop: CGFloat = 10
+    /// §13.2 FLAGGED LITERAL — activities-editor §3 Transitions (no `motion-*` token holds it):
+    /// the object between its transform and the edit slot, ease-out 150 ms, both directions.
+    private static let editTransition = Animation.easeOut(duration: 0.15)
     /// §10.3: the wash colour before one is chosen — `color-black`'s value.
     private static let defaultWashHex = "#000000"
     /// activities-editor §2 item 3: the edit slot — 392 wu wide (440 − 2 × 24), centred on 478 wu.
@@ -2434,6 +2440,9 @@ struct CanvasManipulation: UIViewRepresentable {
     let onUpdate: (Update) -> Void
     /// D25: the first finger is down — its point in this view, or nil when it is off the canvas.
     let onTouchDown: (CGPoint?) -> Void
+    /// §13.1: the touch sequence is a manipulation, not a tap — a move, pinch or rotate began, or
+    /// the first finger travelled `TouchTracker.tapTravel` from finger-down. Once per sequence.
+    let onManipulation: () -> Void
     /// Every finger is up — the touch sequence is over.
     let onAllUp: () -> Void
 
@@ -2475,11 +2484,21 @@ struct CanvasManipulation: UIViewRepresentable {
         private lazy var rotation = UIRotationGestureRecognizer(target: self, action: #selector(handleRotation))
         private lazy var tracker = TouchTracker(
             onFirstDown: { [weak self] touch in self?.firstDown(touch) },
+            onTravelled: { [weak self] in self?.markManipulation() },
             onAllUp: { [weak self] in self?.source?.onAllUp() }
         )
+        /// §13.1: the current sequence is already marked.
+        private var marked = false
+
+        private func markManipulation() {
+            guard !marked else { return }
+            marked = true
+            source?.onManipulation()
+        }
 
         /// D25: reports the first finger-down before any recognizer begins.
         private func firstDown(_ touch: UITouch) {
+            marked = false
             guard let view, let source else { return }
             let point = touch.location(in: view)
             source.onTouchDown(source.accepts(point) ? point : nil)
@@ -2518,6 +2537,7 @@ struct CanvasManipulation: UIViewRepresentable {
 
         @objc private func handlePan(_ recognizer: UIPanGestureRecognizer) {
             guard let phase = phase(recognizer.state) else { return }
+            if phase == .began { markManipulation() }
             let moved = recognizer.translation(in: view)
             source?.onUpdate(.init(phase: phase, kind: .move,
                                    translation: CGSize(width: moved.x, height: moved.y),
@@ -2526,11 +2546,13 @@ struct CanvasManipulation: UIViewRepresentable {
 
         @objc private func handlePinch(_ recognizer: UIPinchGestureRecognizer) {
             guard let phase = phase(recognizer.state) else { return }
+            if phase == .began { markManipulation() }
             source?.onUpdate(.init(phase: phase, kind: .pinch, scale: recognizer.scale))
         }
 
         @objc private func handleRotation(_ recognizer: UIRotationGestureRecognizer) {
             guard let phase = phase(recognizer.state) else { return }
+            if phase == .began { markManipulation() }
             source?.onUpdate(.init(phase: phase, kind: .rotate, rotation: Double(recognizer.rotation)))
         }
 
@@ -2566,19 +2588,39 @@ struct CanvasManipulation: UIViewRepresentable {
     /// Recognizes nothing: it watches every touch so the bridge knows when the first finger lands
     /// (D25) and when the last finger lifts.
     final class TouchTracker: UIGestureRecognizer {
+        /// §13.1 FLAGGED LITERAL — activities-editor §13: a first finger that travels this far from
+        /// finger-down makes the sequence a manipulation, never a tap.
+        static let tapTravel: CGFloat = 10
+
         private let onFirstDown: (UITouch) -> Void
+        private let onTravelled: () -> Void
         private let onAllUp: () -> Void
         private var touching = 0
+        /// §13.1: the first finger of the sequence and where it landed (window points).
+        private weak var firstTouch: UITouch?
+        private var firstPoint: CGPoint = .zero
 
-        init(onFirstDown: @escaping (UITouch) -> Void, onAllUp: @escaping () -> Void) {
+        init(onFirstDown: @escaping (UITouch) -> Void, onTravelled: @escaping () -> Void,
+             onAllUp: @escaping () -> Void) {
             self.onFirstDown = onFirstDown
+            self.onTravelled = onTravelled
             self.onAllUp = onAllUp
             super.init(target: nil, action: nil)
         }
 
         override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
-            if touching == 0, let first = touches.first { onFirstDown(first) }
+            if touching == 0, let first = touches.first {
+                firstTouch = first
+                firstPoint = first.location(in: nil)
+                onFirstDown(first)
+            }
             touching += touches.count
+        }
+
+        override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent) {
+            guard let firstTouch, touches.contains(firstTouch) else { return }
+            let point = firstTouch.location(in: nil)
+            if hypot(point.x - firstPoint.x, point.y - firstPoint.y) >= Self.tapTravel { onTravelled() }
         }
 
         override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) { lift(touches) }
@@ -2594,6 +2636,7 @@ struct CanvasManipulation: UIViewRepresentable {
         override func reset() {
             super.reset()
             touching = 0
+            firstTouch = nil
         }
 
         override func canPrevent(_ preventedGestureRecognizer: UIGestureRecognizer) -> Bool { false }
