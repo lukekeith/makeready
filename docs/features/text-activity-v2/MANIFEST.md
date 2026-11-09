@@ -1,7 +1,7 @@
 size: lg
-state: building
+state: built
 next: /builder:resume --path docs/features/text-activity-v2
-head: 9d5fb419
+head: 0f8f9c3e
 ticket: none
 branch: feature/text-activity
 pr: none
