@@ -74,7 +74,7 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "k1", document: starter, actions: actions)
         model.tapEmpty(at: CGPoint(x: 220, y: 400))
         model.edit(.init(index: 0, text: "Hello"))
-        model.cancel()
+        await model.cancel()
         XCTAssertEqual(model.document, starter)
         XCTAssertEqual(model.editingIndex, -1)
         model.tapEmpty(at: CGPoint(x: 220, y: 400))
@@ -202,15 +202,85 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         XCTAssertEqual(model.phase, .failed)
     }
 
+    // MARK: - text-activity-v2: tap-off, tap-another and the save moments (D10, D19, D20)
+
+    private func starterModel(_ actions: ScriptedActivityActions) -> ActivitiesEditorContainer.Model {
+        ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "k1",
+                                        document: ActivityNewContainer.textDocument(title: "Text"), actions: actions)
+    }
+
+    func testTapOffWhileEditingCommitsAndSavesOnce() async {
+        let actions = ScriptedActivityActions()
+        let model = starterModel(actions)
+        model.tapEmpty(at: CGPoint(x: 220, y: 400)); model.edit(.init(index: 0, text: "Hello"))
+        await model.tapOff()
+        XCTAssertEqual(model.editingIndex, -1)
+        XCTAssertEqual(actions.savedDocuments.count, 1)
+        XCTAssertEqual(ActivitiesEditorMapper.text(at: 0, in: actions.savedDocuments[0]), "Hello")
+    }
+
+    func testTapOffOnAnAddedEmptyObjectDropsIt() async {
+        let actions = ScriptedActivityActions()
+        let model = starterModel(actions)
+        model.tapEmpty(at: CGPoint(x: 220, y: 400))
+        await model.tapOff()
+        XCTAssertTrue(ActivitiesEditorMapper.rawObjects(model.document).isEmpty)
+        XCTAssertEqual(actions.savedDocuments.count, 1)
+    }
+
+    func testTapOffInIdleDoesNothing() async {
+        let actions = ScriptedActivityActions()
+        let model = starterModel(actions)
+        await model.tapOff()
+        XCTAssertTrue(actions.savedIds.isEmpty)
+    }
+
+    func testTappingAnotherObjectCommitsThenEditsIt() async {
+        let actions = ScriptedActivityActions()
+        let model = starterModel(actions)
+        model.tapEmpty(at: CGPoint(x: 220, y: 300)); model.edit(.init(index: 0, text: "One"))
+        await model.tapOff()
+        model.tapEmpty(at: CGPoint(x: 220, y: 600)); model.edit(.init(index: 1, text: "Two"))
+        await model.tapObject(0)
+        XCTAssertEqual(model.editingIndex, 0)
+        XCTAssertEqual(actions.savedDocuments.count, 2)
+        XCTAssertEqual(ActivitiesEditorMapper.text(at: 1, in: actions.savedDocuments[1]), "Two")
+    }
+
+    func testCancelRestoresOnlyTheObjectAndSavesPageEdits() async {
+        let actions = ScriptedActivityActions()
+        let model = starterModel(actions)
+        model.tapEmpty(at: CGPoint(x: 220, y: 400)); model.edit(.init(index: 0, text: "Original"))
+        await model.tapOff()                                            // saved 1
+        await model.tapObject(0); model.edit(.init(index: 0, text: "Changed"))
+        model.changeActions([.init(id: "x1", kind: .write, label: "Go", placement: .inline, value: "", body: "")])
+        await model.cancel()                                            // saved 2: the action, not the text
+        XCTAssertEqual(ActivitiesEditorMapper.text(at: 0, in: model.document), "Original")
+        XCTAssertEqual(actions.savedDocuments.count, 2)
+        XCTAssertEqual(actions.savedDocuments[1].actions.map(\.label), ["Go"])
+        XCTAssertEqual(ActivitiesEditorMapper.text(at: 0, in: actions.savedDocuments[1]), "Original")
+    }
+
+    func testActionEditsSaveWhenTheRailClosesAndEmptyOnesDrop() async {
+        let actions = ScriptedActivityActions()
+        let model = starterModel(actions)
+        model.changeActions([.init(id: "x1", kind: .write, label: "Go", placement: .inline, value: "", body: ""),
+                             .init(id: "x2", kind: .write, label: "", placement: .inline, value: "", body: "")])
+        XCTAssertTrue(actions.savedIds.isEmpty)
+        await model.closePageRails()
+        XCTAssertEqual(actions.savedDocuments.count, 1)
+        XCTAssertEqual(actions.savedDocuments[0].actions.map(\.label), ["Go"])
+    }
+
     // MARK: - One save at a time
 
     /// Three saves started together run one after another: never two PUTs at once.
     func testConcurrentSavesRunOneAtATime() async {
         let actions = ScriptedActivityActions(saveDelayNanoseconds: 20_000_000)
         let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "k1", actions: actions)
-        let first = Task { await model.changeActions([]) }
-        let second = Task { await model.changeActions([]) }
-        let third = Task { await model.changeActions([]) }
+        let first = Task { await model.retry() }
+        let second = Task { await model.retry() }
+        let third = Task { await model.retry() }
         await first.value; await second.value; await third.value
         XCTAssertEqual(actions.savedIds.count, 3)
         XCTAssertEqual(actions.maxConcurrentSaves, 1)

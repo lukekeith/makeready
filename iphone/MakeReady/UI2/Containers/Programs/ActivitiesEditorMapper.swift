@@ -195,6 +195,26 @@ enum ActivitiesEditorMapper {
         }
     }
 
+    // MARK: - text-activity-v2: Cancel and the Actions rail (D19)
+
+    /// The document with object `index` replaced by `object` (raw JSON, unknown fields included).
+    static func replacingObject(at index: Int, with object: JSONValue, in doc: ActivityDocument) -> ActivityDocument {
+        doc.updating { raw in
+            var objects = rawObjects(doc)
+            guard objects.indices.contains(index) else { return }
+            objects[index] = object
+            raw[path: ["content", "objects"]] = .array(objects)
+        }
+    }
+
+    /// D19: an action still without a label when its rail closes is dropped; every other action stays as it is.
+    static func droppingUnlabelledActions(in doc: ActivityDocument) -> ActivityDocument {
+        let actions = rawActions(doc)
+        let kept = actions.filter { !(string($0, "label") ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        guard kept.count != actions.count else { return doc }
+        return doc.updating { $0[path: ["actions"]] = .array(kept) }
+    }
+
     // MARK: - text-activity-v2: the Background rail's gradient operations (D13, D14, D17, D18)
 
     /// The Background rail's three options.
@@ -324,7 +344,7 @@ enum ActivitiesEditorMapper {
         return []
     }
 
-    private static func rawObjects(_ doc: ActivityDocument) -> [JSONValue] {
+    static func rawObjects(_ doc: ActivityDocument) -> [JSONValue] {
         if case .array(let items)? = doc.raw[path: ["content", "objects"]] { return items }
         return []
     }

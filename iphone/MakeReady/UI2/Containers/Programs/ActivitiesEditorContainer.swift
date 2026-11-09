@@ -39,17 +39,19 @@ struct ActivitiesEditorContainer: View {
         ActivitiesEditorScreen(
             state: state,
             onBack: { Task { await model.back() } },
-            onCancel: { model.cancel() },
+            onCancel: { Task { await model.cancel() } },
             onDone: { Task { await model.done() } },
             onSelectSlide: { id in Task { await model.selectSlide(id) } },
             onAdd: { Task { await model.addActivity() } },
             onTapEmpty: { point in model.tapEmpty(at: point) },
-            onTapObject: { index in model.tapObject(index) },
+            onTapObject: { index in Task { await model.tapObject(index) } },
             onEditObject: { edit in model.edit(edit) },
             onLoadFailed: { message in Self.surfaceLoadFailure(message) },
+            onTapOff: { Task { await model.tapOff() } },
+            onActionsChange: { actions in model.changeActions(actions) },
+            onPageRailsClosed: { Task { await model.closePageRails() } },
             onPickImage: { model.pickImage() },
             onChangeBackground: { background in model.changeBackground(background) },
-            onChangeActions: { actions in Task { await model.changeActions(actions) } },
             onRetry: { Task { await model.retry() } },
             onDiscard: { model.discard() }
         )
@@ -244,12 +246,26 @@ struct ActivitiesEditorContainer: View {
             editAddedObject = true
         }
 
-        /// Idle: a tap on an object edits it.
-        func tapObject(_ index: Int) {
-            guard phase == .ready, editingIndex < 0 else { return }
+        /// Idle: a tap on an object edits it. While another object is being edited, that edit is
+        /// committed first, exactly as tap-off does, then the tapped object opens (text-activity-v2 D20).
+        func tapObject(_ index: Int) async {
+            guard phase == .ready, index != editingIndex else { return }
+            var target = index
+            if editingIndex >= 0 {
+                let droppedIndex = await commitEdit()
+                // A dropped empty object before the tapped one shifts it down by one.
+                if let droppedIndex, droppedIndex < target { target -= 1 }
+            }
+            guard target >= 0, target < ActivitiesEditorMapper.rawObjects(document).count else { return }
             editStart = document
-            editingIndex = index
+            editingIndex = target
             editAddedObject = false
+        }
+
+        /// Editing: a tap on the empty canvas ends the edit the way Done does and saves (text-activity-v2 D10).
+        func tapOff() async {
+            guard editingIndex >= 0 else { return }
+            _ = await commitEdit()
         }
 
         /// D33: one object edit patches only its fields.
@@ -257,10 +273,20 @@ struct ActivitiesEditorContainer: View {
             document = ActivitiesEditorMapper.apply(edit, to: document)
         }
 
-        /// Cancel: the document from before this edit.
-        func cancel() {
-            if let editStart { document = editStart }
+        /// Cancel restores only the edited object — an added one is removed, an existing one goes back
+        /// to how it was — and keeps every page edit made meanwhile, saving them if any (text-activity-v2 D19).
+        func cancel() async {
+            guard editingIndex >= 0 else { return }
+            if editAddedObject {
+                document = ActivitiesEditorMapper.removeObject(at: editingIndex, from: document)
+            } else if let editStart {
+                let originals = ActivitiesEditorMapper.rawObjects(editStart)
+                if originals.indices.contains(editingIndex) {
+                    document = ActivitiesEditorMapper.replacingObject(at: editingIndex, with: originals[editingIndex], in: document)
+                }
+            }
             endEditing()
+            if document != savedDocument { _ = await saveIfChanged() }
         }
 
         /// Done: commits the edit (a new object left empty is dropped) and saves the whole document.
@@ -273,12 +299,24 @@ struct ActivitiesEditorContainer: View {
                 navigator?.pop()
                 return
             }
+            _ = await commitEdit()
+        }
+
+        /// Ends the text edit and saves the whole document (one PUT): a new object left empty is dropped.
+        /// Done, tap-off and a tap on another object all end an edit this way (text-activity-v2 D10, D20).
+        /// Returns the index of the dropped object, if one was dropped.
+        @discardableResult
+        func commitEdit() async -> Int? {
+            guard editingIndex >= 0 else { return nil }
+            var dropped: Int?
             if editAddedObject,
                ActivitiesEditorMapper.text(at: editingIndex, in: document)?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? false {
                 document = ActivitiesEditorMapper.removeObject(at: editingIndex, from: document)
+                dropped = editingIndex
             }
             endEditing()
             _ = await commit()
+            return dropped
         }
 
         private func endEditing() {
@@ -292,10 +330,18 @@ struct ActivitiesEditorContainer: View {
             document = ActivitiesEditorMapper.applyBackground(background, to: document)
         }
 
-        /// The Actions sheet's Done saves the page's actions.
-        func changeActions(_ edited: [ActivitiesEditorScreen.PageAction]) async {
+        /// The Actions rail's live edits patch the buffer; nothing is saved until the rail closes or the
+        /// text edit commits (text-activity-v2 D19).
+        func changeActions(_ edited: [ActivitiesEditorScreen.PageAction]) {
             document = ActivitiesEditorMapper.applyActions(edited, to: document)
-            _ = await commit()
+        }
+
+        /// A Background or Actions rail closed: actions left without a label are dropped, then in Idle the
+        /// page saves once if it changed. During a text edit the page edits ride that edit's commit (D19).
+        func closePageRails() async {
+            document = ActivitiesEditorMapper.droppingUnlabelledActions(in: document)
+            guard phase == .ready, editingIndex < 0 else { return }
+            _ = await saveIfChanged()
         }
 
         /// D40: the Background sheet's image button opens the Media pick mode for this activity.
