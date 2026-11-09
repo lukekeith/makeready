@@ -160,7 +160,7 @@ struct ActivityNavBar: View {
     private static let fadeLength: CGFloat = Token.Space.pageMargin + addVisual
 
     /// §3: "Each slide renders the filled chip when its `image` is non-nil and the empty C-061
-    /// chip when it is nil (OQ-C-081-6, restored 2026-11-09, superseding D52)."
+    /// chip when it is nil (OQ-C-081-6). Both chips are 440:956 at 44 tall (D31)."
     @ViewBuilder
     private func slideView(_ slide: Slide) -> some View {
         if let image = slide.image {
@@ -187,9 +187,10 @@ struct ActivityNavBar: View {
         let id: String
     }
 
-    /// §2 Slide strip: "44 tall"; "Each slide is 33×44".
-    fileprivate static let slideWidth: CGFloat = 33
+    /// §2 Slide strip: "Every chip is 44 pt tall and ≈ 20.25 pt wide — C-079 ActivityScreenshot's
+    /// aspect, 440:956, so width = 44 × 440 / 956" (SPEC D31).
     fileprivate static let slideHeight: CGFloat = 44
+    fileprivate static let slideWidth: CGFloat = slideHeight * 440 / 956
     /// §2 Add button: "24×24 visual" (C-021's).
     private static let addVisual: CGFloat = 24
     /// §2: the strip's trailing content inset, "16 + 24 + `space-meta-gap` (44)".
@@ -198,11 +199,11 @@ struct ActivityNavBar: View {
 
 // MARK: - Filled chip
 
-/// §2 Slide strip, filled chip (OQ-C-081-6, restored 2026-11-09, superseding D52): "a slide whose
-/// `image` is non-nil renders the screenshot, built **inside this row** (no registry row): the
-/// image aspect-fill, top-aligned, filling the 33×44 chip, clipped to `radius-card`, with C-061's
-/// 1 pt active outline (same stroke, colour and inset) when the slide's `id` is `activeID`.
-/// Pressed, it dims to 0.6 like every slide (OQ-C-081-003)."
+/// §2 Slide strip, filled chip (OQ-C-081-6; SPEC D31): "a slide whose `image` is non-nil renders
+/// the screenshot, built **inside this row** (no registry row): the image **scaled to fit** the
+/// chip exactly and **never cropped** … clipped to `radius-card`, with C-061's 1 pt active outline
+/// (same stroke, colour and inset) when the slide's `id` is `activeID`. Pressed, it dims to 0.6
+/// like every slide (OQ-C-081-003)."
 private struct FilledChip: View {
     let image: Image
     let active: Bool
@@ -211,16 +212,15 @@ private struct FilledChip: View {
 
     var body: some View {
         SwiftUI.Button(action: onTap) {
-            // §2: "aspect-fill, top-aligned, filling the 33×44 chip". The clear frame fixes the
-            // footprint; the overlay fills it and pins the picture's top edge.
+            // §2 (D31): "scaled to fit the chip exactly and never cropped". The clear frame fixes
+            // the 440:956 footprint; the screenshot is fitted inside it, so nothing is lost.
             Color.clear
                 .frame(width: ActivityNavBar.slideWidth, height: ActivityNavBar.slideHeight)
-                .overlay(alignment: .top) {
+                .overlay {
                     image
                         .resizable()
-                        .scaledToFill()
-                        .frame(width: ActivityNavBar.slideWidth, height: ActivityNavBar.slideHeight,
-                               alignment: .top)
+                        .scaledToFit()
+                        .frame(width: ActivityNavBar.slideWidth, height: ActivityNavBar.slideHeight)
                         .ui2Element("Screenshot")
                 }
                 // §2: "clipped to `radius-card`".
