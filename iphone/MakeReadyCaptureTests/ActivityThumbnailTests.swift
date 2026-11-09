@@ -35,8 +35,9 @@ final class ActivityThumbnailTests: XCTestCase {
         let first = await ActivityThumbnail.seed([activity], media: [:])
         XCTAssertTrue(first)
         let image = try XCTUnwrap(Ui2ImageCache.shared.image(for: url))
-        XCTAssertEqual(image.size.width, 33, accuracy: 0.5)
-        XCTAssertEqual(image.size.height, 44, accuracy: 0.5)
+        // C-079 ActivityScreenshot: 112 wide at the page's own 440:956 aspect, so nothing is cropped.
+        XCTAssertEqual(image.size.width, 112, accuracy: 0.5)
+        XCTAssertEqual(image.size.height, 112 * 956 / 440, accuracy: 0.5)
         let second = await ActivityThumbnail.seed([activity], media: [:])
         XCTAssertFalse(second)
     }
@@ -76,5 +77,17 @@ final class ActivityThumbnailTests: XCTestCase {
         XCTAssertFalse(ActivityThumbnail.drawsGradient(for: ActivitiesEditorMapper.choosingColour("#123456", in: doc).background))
         XCTAssertEqual(ActivityThumbnail.canvasGradient(doc.background.gradient)?.blobs.map(\.x),
                        doc.background.gradient?.blobs.map(\.x))
+    }
+
+    /// The slide is the whole page at the page's aspect (C-079 §2), never a crop of it.
+    func testTheSlideHasThePagesAspect() {
+        XCTAssertEqual(ActivityThumbnail.size.width, 112, accuracy: 0.01)
+        XCTAssertEqual(ActivityThumbnail.size.height / ActivityThumbnail.size.width, 956.0 / 440.0, accuracy: 0.0001)
+    }
+
+    /// Slides cached by an earlier render (the old cropped 33×44) get a new key, so they draw again.
+    func testTheKeyCarriesTheRenderVersion() {
+        XCTAssertTrue(ActivityThumbnail.key(for: summary("a")).contains("r=\(ActivityThumbnail.renderVersion)"))
+        XCTAssertGreaterThanOrEqual(ActivityThumbnail.renderVersion, 2)
     }
 }

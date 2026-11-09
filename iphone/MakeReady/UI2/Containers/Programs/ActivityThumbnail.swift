@@ -7,11 +7,16 @@ import UIKit
 /// Other kinds keep their poster / thumbnail / empty tile (`StudyProgramHomeMapper.slideImage`).
 enum ActivityThumbnail {
     static let scheme = "activity-thumbnail"
-    /// The rail slide's frame, in points (C-061 §2).
-    static let size = CGSize(width: 33, height: 44)
-
     private static let referenceWidth: CGFloat = 440
     private static let referenceHeight: CGFloat = 956
+
+    /// The rail slide's frame, in points: C-079 ActivityScreenshot as LessonCard lays it out — 112 wide,
+    /// height from the page's own 440:956 aspect — so the whole page fits exactly, as on the phone.
+    static let size = CGSize(width: 112, height: 112 * referenceHeight / referenceWidth)
+
+    /// Bumped whenever the render's geometry changes, so slides cached by an earlier render draw again.
+    /// 1 = the 33×44 centre crop (C-061); 2 = the whole page at C-079's size.
+    static let renderVersion = 2
     private static let slotWidth: CGFloat = 392
 
     /// The cache key for a canvas-kind activity's thumbnail; "" for any other kind. It changes with the
@@ -22,7 +27,8 @@ enum ActivityThumbnail {
         components.scheme = scheme
         components.host = "slide"
         components.path = "/" + activity.id
-        components.queryItems = [URLQueryItem(name: "v", value: String(UInt(bitPattern: activity.document.hashValue)))]
+        components.queryItems = [URLQueryItem(name: "v", value: String(UInt(bitPattern: activity.document.hashValue))),
+                                 URLQueryItem(name: "r", value: String(renderVersion))]
         return components.string ?? ""
     }
 
@@ -52,7 +58,7 @@ enum ActivityThumbnail {
         return seeded
     }
 
-    /// The document's page, scaled so its width fills the slide and cropped to the slide's height around the middle.
+    /// The document's whole page, scaled to the slide — the slide has the page's aspect, so nothing is cropped.
     @MainActor
     static func render(_ document: ActivityDocument, backgroundImage: UIImage?) -> UIImage? {
         guard case .canvas(let canvas) = document.renderable else { return nil }
@@ -63,7 +69,7 @@ enum ActivityThumbnail {
             .frame(width: size.width, height: size.height)
             .clipped()
         let renderer = ImageRenderer(content: page)
-        renderer.scale = 4
+        renderer.scale = 3   // the phone's screen scale; 336×730 px for a 112pt slide
         return renderer.uiImage
     }
 

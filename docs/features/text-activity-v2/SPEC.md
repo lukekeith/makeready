@@ -340,3 +340,7 @@ The plan, task by task: `docs/features/text-activity-v2/PLAN.md` (§PLAN.md).
 - Phase 4 · Task 7 · Tap-off, tap-another and the save moments
 - Phase 4 · Task 8 · Wire the Background rail, the inline image picker and the tool states
 - Phase 4 · Task 9 · The viewer and the rail thumbnails draw the gradient
+
+## Fixes
+
+- [x] iphone — the study-program-home rail slide (C-079 ActivityScreenshot, 112pt at 440:956) showed a cropped page: `ActivityThumbnail` still rendered at C-061's 33×44 and cropped the page's middle, then C-079 aspect-filled that 3:4 image and cropped its sides. Now it renders the whole page at 112 × 243.3pt (render version 2 in the cache key, so old crops redraw). Owner report 2026-11-08, "Nathan's Private Study" (local)
