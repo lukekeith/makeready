@@ -316,9 +316,13 @@ struct ActivitiesEditorScreen: View {
     // §9.1a: the object's transform when the in-flight gesture began — a gesture that ends where
     // it started reports nothing.
     @SwiftUI.State private var gestureStart: ObjectEdit.Transform?
-    // §10.10 (R-02, held only while fingers are down): the committed object under the first touch
-    // (C-092 `onTouchDown`), the recognizers in flight, and each one's starting value.
+    // §10.10 (R-02, held only while fingers are down): the object the first touch grabbed (D25 —
+    // picked by the bridge by geometry, never by C-092 `onTouchDown`), the recognizers in flight,
+    // and each one's starting value.
     @SwiftUI.State private var touchedIndex: Int?
+    // D25: the object the last finger-down grabbed, kept past the lift so the tap that follows uses
+    // it; replaced at the next finger-down.
+    @SwiftUI.State private var tapTarget: Int?
     @SwiftUI.State private var activeManipulations: Set<CanvasManipulation.Kind> = []
     @SwiftUI.State private var moveBase: CGPoint = .zero
     @SwiftUI.State private var scaleBase: CGFloat = 1
@@ -652,10 +656,13 @@ struct ActivitiesEditorScreen: View {
             // §10.10: drag, pinch and rotate are the canvas-wide recognizers' (`CanvasManipulation`);
             // the object only says it is under the first touch.
             manipulation: .host,
-            onTouchDown: { touchedIndex = index },
             editing: false,
             highlights: object.highlights,
-            onTap: { tapObject(index) }
+            // D25: the object the finger-down grabbed — the topmost grab area may not be this box.
+            onTap: {
+                let target = tapTarget ?? index
+                if target != editedIndex { tapObject(target) }
+            }
         )
         // C-092 never offsets itself (its §2): the screen places it at `transform.position`.
         .frame(width: object.transform.width ?? Self.editSlotWidth)
@@ -680,6 +687,15 @@ struct ActivitiesEditorScreen: View {
                 return kind != .move || editedIndex == nil
             },
             onUpdate: { manipulate($0, unit: unit) },
+            onTouchDown: { point in
+                // D25: the canvas picks the object at the first finger-down, by geometry.
+                let target = point.flatMap {
+                    Self.grabTarget(at: $0, objects: grabAreas(unit: unit, viewport: size.height / unit),
+                                    editedIndex: editedIndex)
+                }
+                touchedIndex = target
+                tapTarget = target
+            },
             onAllUp: { touchedIndex = nil }
         )
         .allowsHitTesting(false)
@@ -693,6 +709,58 @@ struct ActivitiesEditorScreen: View {
         guard mode == .idle || mode == .manipulating, let touchedIndex,
               shownObjects.indices.contains(touchedIndex) else { return nil }
         return touchedIndex
+    }
+
+    /// D25: one object's rendered box in the bridge's points — centre, layout width × measured
+    /// height, scale and rotation as drawn.
+    struct GrabArea: Equatable {
+        var center: CGPoint
+        var size: CGSize
+        var scale: CGFloat = 1
+        var rotation: Angle = .zero
+    }
+
+    /// D25: every shown object's box, by index, in points from the screen's top (the canvas is the
+    /// whole screen; content y is page y less C-091's fixed offset, §11). The edited object sits
+    /// at the edit slot, unscaled and unrotated, as `editedObject` draws it.
+    private func grabAreas(unit: CGFloat, viewport: CGFloat) -> [GrabArea] {
+        let offset = pageOffset(viewport: viewport)
+        return shownObjects.indices.map { index in
+            if index == editedIndex {
+                return GrabArea(center: CGPoint(x: draftCentreX * unit, y: (Self.editSlotY + offset) * unit),
+                                size: CGSize(width: draftLayoutWidth * unit, height: draftHeight * unit))
+            }
+            let object = shownObjects[index]
+            return GrabArea(
+                center: CGPoint(x: object.transform.position.x * unit,
+                                y: (object.transform.position.y + offset) * unit),
+                size: CGSize(width: (object.transform.width ?? Self.editSlotWidth) * unit,
+                             height: objectHeight(object, index: index) * unit),
+                scale: object.transform.scale,
+                rotation: object.transform.rotation
+            )
+        }
+    }
+
+    /// D25: the object a touch at `point` grabs. Each grab area is the box scaled, padded by
+    /// `grabPadding` on every side and at least `grabMinimum` square, tested in the object's
+    /// rotated frame. The edited object wins while editing; otherwise the topmost (last drawn)
+    /// object whose grab area holds the touch; nil when none does.
+    static func grabTarget(at point: CGPoint, objects: [GrabArea], editedIndex: Int?) -> Int? {
+        func holds(_ area: GrabArea) -> Bool {
+            let dx = point.x - area.center.x
+            let dy = point.y - area.center.y
+            let radians = -area.rotation.radians
+            let x = dx * cos(radians) - dy * sin(radians)
+            let y = dx * sin(radians) + dy * cos(radians)
+            let width = max(area.size.width * area.scale + 2 * grabPadding, grabMinimum)
+            let height = max(area.size.height * area.scale + 2 * grabPadding, grabMinimum)
+            return abs(x) <= width / 2 && abs(y) <= height / 2
+        }
+        if let editedIndex, objects.indices.contains(editedIndex), holds(objects[editedIndex]) {
+            return editedIndex
+        }
+        return objects.indices.reversed().first { $0 != editedIndex && holds(objects[$0]) }
     }
 
     /// §10.10: the move follows the touches' centroid (1:1 in wu), pinch writes `scale` and rotate
@@ -1354,6 +1422,10 @@ struct ActivitiesEditorScreen: View {
             endField()
         } else if openTool == .background || openTool == .actions {
             setOpenTool(nil)
+        } else if point != nil, let tapTarget {
+            // D25: a tap inside a grab area opens that object (D20); inside the edited object's,
+            // it stays in the edit.
+            if tapTarget != editedIndex { tapObject(tapTarget) }
         } else if mode == .editing || mode == .highlighting {
             onTapOff()
         } else if mode == .idle, let point {
@@ -1867,6 +1939,10 @@ struct ActivitiesEditorScreen: View {
     /// §2 Units (D1; 02 §4): the reference space.
     private static let referenceWidth: CGFloat = 440
     private static let referenceHeight: CGFloat = 956
+    /// FLAGGED LITERAL — activities-editor D25: a grab area is the rendered box padded by 24 pt on
+    /// every side and at least 88 × 88 pt.
+    static let grabPadding: CGFloat = 24
+    static let grabMinimum: CGFloat = 88
     /// GAP — activities-editor §3 / OQ-015: 12–64 wu, linear; the 50 % thumb is 38 wu.
     private static let minSize: Double = 12
     private static let maxSize: Double = 64
@@ -2356,6 +2432,8 @@ struct CanvasManipulation: UIViewRepresentable {
     let accepts: (CGPoint) -> Bool
     let canBegin: (Kind) -> Bool
     let onUpdate: (Update) -> Void
+    /// D25: the first finger is down — its point in this view, or nil when it is off the canvas.
+    let onTouchDown: (CGPoint?) -> Void
     /// Every finger is up — the touch sequence is over.
     let onAllUp: () -> Void
 
@@ -2395,7 +2473,17 @@ struct CanvasManipulation: UIViewRepresentable {
         }()
         private lazy var pinch = UIPinchGestureRecognizer(target: self, action: #selector(handlePinch))
         private lazy var rotation = UIRotationGestureRecognizer(target: self, action: #selector(handleRotation))
-        private lazy var tracker = TouchTracker { [weak self] in self?.source?.onAllUp() }
+        private lazy var tracker = TouchTracker(
+            onFirstDown: { [weak self] touch in self?.firstDown(touch) },
+            onAllUp: { [weak self] in self?.source?.onAllUp() }
+        )
+
+        /// D25: reports the first finger-down before any recognizer begins.
+        private func firstDown(_ touch: UITouch) {
+            guard let view, let source else { return }
+            let point = touch.location(in: view)
+            source.onTouchDown(source.accepts(point) ? point : nil)
+        }
 
         private var recognizers: [UIGestureRecognizer] { [pan, pinch, rotation, tracker] }
 
@@ -2475,17 +2563,21 @@ struct CanvasManipulation: UIViewRepresentable {
         }
     }
 
-    /// Recognizes nothing: it watches every touch so the bridge knows when the last finger lifts.
+    /// Recognizes nothing: it watches every touch so the bridge knows when the first finger lands
+    /// (D25) and when the last finger lifts.
     final class TouchTracker: UIGestureRecognizer {
+        private let onFirstDown: (UITouch) -> Void
         private let onAllUp: () -> Void
         private var touching = 0
 
-        init(onAllUp: @escaping () -> Void) {
+        init(onFirstDown: @escaping (UITouch) -> Void, onAllUp: @escaping () -> Void) {
+            self.onFirstDown = onFirstDown
             self.onAllUp = onAllUp
             super.init(target: nil, action: nil)
         }
 
         override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
+            if touching == 0, let first = touches.first { onFirstDown(first) }
             touching += touches.count
         }
 
