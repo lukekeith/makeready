@@ -67,4 +67,14 @@ final class ActivityThumbnailTests: XCTestCase {
         XCTAssertTrue(ok)
         XCTAssertNotNil(Ui2ImageCache.shared.image(for: url))
     }
+
+    /// text-activity-v2 D1/D14: the thumbnail draws a visible gradient, never a hidden one.
+    func testTheThumbnailDrawsAVisibleGradient() {
+        var rng = SeededRandom(seed: 12)
+        let doc = ActivityNewContainer.textDocument(title: "T", palette: nil, rng: &rng)
+        XCTAssertTrue(ActivityThumbnail.drawsGradient(for: doc.background))
+        XCTAssertFalse(ActivityThumbnail.drawsGradient(for: ActivitiesEditorMapper.choosingColour("#123456", in: doc).background))
+        XCTAssertEqual(ActivityThumbnail.canvasGradient(doc.background.gradient)?.blobs.map(\.x),
+                       doc.background.gradient?.blobs.map(\.x))
+    }
 }

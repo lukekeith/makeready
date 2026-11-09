@@ -360,6 +360,7 @@ private extension ActivitiesPlayerScreen.State {
     mutating func appendPage(title: String = "", body: String = "", background: ActivityBackground,
                              media: [String: MediaMapEntry], verticalAnchor: String = "center", placeholder: String = "") {
         pageColorHexes.append(background.color)
+        pageGradients.append(ActivityThumbnail.canvasGradient(background.gradient))
         pageImageURLs.append(background.image.flatMap { media[$0.mediaId]?.url } ?? "")
         pageImageFocalXs.append(background.image?.focal?.x ?? 0.5)
         pageImageFocalYs.append(background.image?.focal?.y ?? 0.5)

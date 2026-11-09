@@ -67,6 +67,22 @@ enum ActivityThumbnail {
         return renderer.uiImage
     }
 
+    /// text-activity-v2 D1/D14: the document's gradient as C-091's type — nil when absent or hidden,
+    /// so every renderer (editor, viewer, thumbnail) draws exactly the visible gradient.
+    static func canvasGradient(_ gradient: ActivityBackground.Gradient?) -> ActivityCanvasGradient? {
+        guard let gradient, !gradient.hidden else { return nil }
+        return ActivityCanvasGradient(
+            base: color(gradient.base),
+            hidden: false,
+            blobs: gradient.blobs.map { .init(x: $0.x, y: $0.y, r: $0.r, color: color($0.color)) }
+        )
+    }
+
+    /// Whether the thumbnail draws a gradient layer for this background.
+    static func drawsGradient(for background: ActivityBackground) -> Bool {
+        canvasGradient(background.gradient) != nil
+    }
+
     /// A colour is the leader's data, read from its `#RRGGBB` (data, not style); anything else is white.
     static func color(_ hex: String) -> Color {
         let digits = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
@@ -82,6 +98,10 @@ enum ActivityThumbnail {
         var body: some View {
             ZStack(alignment: .topLeading) {
                 ActivityThumbnail.color(background.color)
+                if let gradient = ActivityThumbnail.canvasGradient(background.gradient) {
+                    ActivityBlobGradient(gradient: gradient,
+                                         pageSize: CGSize(width: ActivityThumbnail.referenceWidth, height: ActivityThumbnail.referenceHeight))
+                }
                 if let backgroundImage {
                     Image(uiImage: backgroundImage)
                         .resizable()

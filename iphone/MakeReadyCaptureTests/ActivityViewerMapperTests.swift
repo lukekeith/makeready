@@ -50,6 +50,20 @@ final class ActivityViewerMapperTests: XCTestCase {
                                                              window: nil)
         XCTAssertEqual(proxyOnly.top, 59)
     }
+
+    /// text-activity-v2 D1/D14: a visible gradient reaches the page's background; a hidden one doesn't.
+    func testAVisibleGradientReachesThePage() {
+        var rng = SeededRandom(seed: 11)
+        let doc = ActivityNewContainer.textDocument(title: "T", palette: nil, rng: &rng)
+        func gradients(_ document: ActivityDocument) -> [ActivityCanvasGradient?] {
+            let a = ContentActivity(id: "a0", lessonVersionId: "v1", activityKey: "k0", position: 0, kind: "text",
+                                    title: "T", document: document, estimatedSeconds: nil)
+            return ActivityViewerMapper.state(payload: .payload([a], media: [:]), engine: .fixture(pages: 2),
+                                              viewport: 440, playback: .idle).pageGradients
+        }
+        XCTAssertEqual(gradients(doc).first??.blobs.count, 4)
+        XCTAssertNil(gradients(ActivitiesEditorMapper.choosingColour("#123456", in: doc)).first ?? nil)
+    }
 }
 
 // MARK: - Fixtures
