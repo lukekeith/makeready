@@ -24,6 +24,9 @@ final class StudyProgramHomeContainerTests: XCTestCase {
         let s = ActivityNewMapper.state(lesson: lesson)
         XCTAssertEqual(s.slideIDs, ["a1", "a2", "placeholder"])
         XCTAssertEqual(s.slideLabels, ["First", "Second", "New activity"])
+        // The existing chips carry their screenshots (the program-home rail's rule); the placeholder has none.
+        XCTAssertEqual(s.slideImages, [ActivityThumbnail.key(for: lesson.activities[1]),
+                                       ActivityThumbnail.key(for: lesson.activities[0]), ""])
         XCTAssertEqual(s.activeID, "placeholder")
         XCTAssertEqual(s.pendingType, "")
         XCTAssertFalse(s.createFailed)

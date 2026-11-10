@@ -24,6 +24,11 @@ struct ActivityNewScreen: View {
         var slideIDs: [String]
         /// C-081 `slides` VoiceOver labels, parallel to `slideIDs` (never rendered).
         var slideLabels: [String]
+        /// C-081 `slides` screenshots, parallel to `slideIDs` (owner walk 2026-11-10): each chip's image URL,
+        /// resolved from `Ui2ImageCache` as the activities-editor's chips are ("" or not yet cached = none →
+        /// the empty C-061 chip). A short array leaves the rest empty. Supersedes deviation 8 / D52's
+        /// always-empty chips.
+        var slideImages: [String] = []
         /// C-081 `activeID` — the placeholder chip for the activity being created (§2).
         var activeID: String
         /// C-086 `pendingType` as its raw case name (`bibleVerse` … `poll`); "" = interactive.
@@ -129,9 +134,22 @@ struct ActivityNewScreen: View {
         Set(state.unavailableTypes.compactMap(ActivityTypeGrid.ActivityType.init(rawValue:)))
     }
 
-    /// C-081 `slides`: every slide is a C-061 chip — `image` nil (deviation 8, D52).
+    /// C-081 `slides`: each chip's screenshot resolved from the image cache — a cached image renders
+    /// C-081's filled chip, none the empty C-061 chip (as activities-editor's strip).
     private var slides: [ActivityNavBar.Slide] {
-        zip(state.slideIDs, state.slideLabels).map { ActivityNavBar.Slide(id: $0, image: nil, label: $1) }
+        zip(state.slideIDs, state.slideLabels).enumerated().map { index, slide in
+            ActivityNavBar.Slide(id: slide.0,
+                                 image: Self.cachedSlideImage(state.slideImages.indices.contains(index) ? state.slideImages[index] : nil),
+                                 label: slide.1)
+        }
+    }
+
+    /// C-081 slide `image` is `Image?`, resolved by the caller (R-19 / R-32): read from the preview
+    /// module's image cache, which the container seeds — never loaded here.
+    private static func cachedSlideImage(_ raw: String?) -> Image? {
+        guard let raw, !raw.isEmpty, let url = URL(string: raw),
+              let image = Ui2ImageCache.shared.image(for: url) else { return nil }
+        return Image(uiImage: image)
     }
 
     // §2 copy.

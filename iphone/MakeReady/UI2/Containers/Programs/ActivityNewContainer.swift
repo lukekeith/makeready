@@ -19,6 +19,8 @@ struct ActivityNewContainer: View {
 
     @Environment(\.ui2Navigator) private var navigator
     @State private var model: Model
+    /// Bumped when a chip screenshot lands in the image cache, so the strip re-reads it.
+    @State private var imagesSeeded = 0
 
     init(programId: String, lessonId: String) {
         self.programId = programId
@@ -27,8 +29,10 @@ struct ActivityNewContainer: View {
     }
 
     var body: some View {
-        ActivityNewScreen(
-            state: ActivityNewMapper.state(lesson: AppState.shared.lessons[lessonId], pendingType: model.pendingType),
+        let _ = imagesSeeded
+        return ActivityNewScreen(
+            state: ActivityNewMapper.state(lesson: AppState.shared.lessons[lessonId], media: AppState.shared.mediaMap,
+                                           pendingType: model.pendingType),
             onBack: { navigator.pop() },
             onSelect: { type in
                 guard type == .text else { return }
@@ -37,7 +41,23 @@ struct ActivityNewContainer: View {
             onSelectSlide: { id in openSlide(id) }
         )
         .ui2PushedPageFill()
+        // The chips' screenshots, seeded as the editor seeds its own: rendered thumbnails for canvas kinds,
+        // posters and stills otherwise. A seed re-renders the page through `imagesSeeded`.
+        .task(id: chipImageKey) {
+            let app = AppState.shared
+            let activities = app.lessons[lessonId]?.activities ?? []
+            var seeded = await ActivityThumbnail.seed(activities, media: app.mediaMap)
+            if await UI2ImageLoader.seed(chipImageKey.filter { $0.hasPrefix("http") }, context: "ActivityNewContainer.chips") {
+                seeded = true
+            }
+            if seeded { imagesSeeded += 1 }
+        }
         .onAppear { model.navigator = LiveNavigator(navigator: navigator, current: .activityNew(programId: programId, lessonId: lessonId)) }
+    }
+
+    /// Changes whenever a chip's screenshot could.
+    private var chipImageKey: [String] {
+        ActivityNewMapper.state(lesson: AppState.shared.lessons[lessonId], media: AppState.shared.mediaMap).slideImages
     }
 
     /// D39: a slide tap opens that activity; the placeholder chip is the one being created and does nothing.
@@ -192,11 +212,13 @@ enum ActivityNewMapper {
     static let placeholderID = "placeholder"
     static let placeholderLabel = "New activity"
 
-    static func state(lesson: Lesson?, pendingType: String = "") -> ActivityNewScreen.State {
+    static func state(lesson: Lesson?, media: [String: MediaMapEntry] = [:], pendingType: String = "") -> ActivityNewScreen.State {
         let activities = (lesson?.activities ?? []).sorted { $0.position < $1.position }
         return ActivityNewScreen.State(
             slideIDs: activities.map(\.id) + [placeholderID],
             slideLabels: activities.map(\.title) + [placeholderLabel],
+            // The existing chips show their screenshots, by the program-home rail's rule; the placeholder has none.
+            slideImages: activities.map { StudyProgramHomeMapper.slideImage($0, media: media) } + [""],
             activeID: placeholderID,
             pendingType: pendingType,
             unavailableTypes: ActivityNewContainer.unavailableTypes,
