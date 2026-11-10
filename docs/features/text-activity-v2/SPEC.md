@@ -373,4 +373,4 @@ The plan, task by task: `docs/features/text-activity-v2/PLAN.md` (§PLAN.md).
 - [ ] iphone (d2m: C-094) — when a palette gains a second page (OQ-04-1), a drag past its first or last page must rubber-band back; today only a single page springs back. Carried from round 9; not needed until a second page exists
 - [x] iphone (d2m: C-081, C-061) — D31: the editor's chips (filled and empty) are 440:956 at 44 pt tall (≈ 20.25 pt wide) and the screenshot fits exactly. Owner walk round 10, 2026-11-09
 - [x] iphone (d2m: activities-editor, C-091) — D32/D33: snapping on the move (targets, 8 pt engage / 12 pt release, haptic), rotation snap to every 45° within 4°, guides drawn only while active, reserved-zone guides only while entering a zone. The snap math as a pure, unit-tested function. Owner 2026-11-09 (snapping brainstorm)
-- [ ] iphone (d2m: C-081, C-061, ActivityNewScreen rail) — D31 superseded: chips 72 pt tall × ≈ 33.1 pt wide (440:956), strip 72 pt; screenshot fits exactly. Owner 2026-11-09
+- [x] iphone (d2m: C-081, C-061, ActivityNewScreen rail) — D31 superseded: chips 72 pt tall × ≈ 33.1 pt wide (440:956), strip 72 pt; screenshot fits exactly. Owner 2026-11-09
