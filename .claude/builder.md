@@ -275,3 +275,4 @@ as test data.
 - **NEVER quote the user's prompt as spec content.** Operationalize it into acceptance criteria:
   closed lists, measured values, enumerated deviations.
 - An iPhone overlay that lifts itself by a manual keyboard offset must also `.ignoresSafeArea(.keyboard)` and measure its bottom on un-offset chrome — otherwise SwiftUI keyboard avoidance lifts it a second time (or the lift cancels itself), pushing headers off screen (text-activity, 2026-11-08)
+- A server test that randomly gets a 401/405/hang/ECONNRESET from a route the app doesn't serve was answered by another local process: supertest's `listen(0)` binds `::` and macOS hands out ports others hold on 127.0.0.1. `test/setup.ts` installs `test/helpers/loopback-listen.ts` to bind 127.0.0.1 — keep it, and bind 127.0.0.1 in any server a test starts itself (text-activity-v2, 2026-11-10)
