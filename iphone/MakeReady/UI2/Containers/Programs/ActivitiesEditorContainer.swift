@@ -88,6 +88,18 @@ struct ActivitiesEditorContainer: View {
                                            media: AppState.shared.mediaMap)
     }
 
+    /// D37: the chips with the new activity's empty placeholder right after `after` (at the end when it is not a
+    /// chip), made the active chip. The placeholder is the New Activity page's own id and label.
+    static func withPlaceholder(_ state: ActivitiesEditorScreen.State, after: String?) -> ActivitiesEditorScreen.State {
+        var state = state
+        let slot = after.flatMap { state.slideIDs.firstIndex(of: $0) }.map { $0 + 1 } ?? state.slideIDs.count
+        state.slideIDs.insert(ActivityNewMapper.placeholderID, at: slot)
+        state.slideLabels.insert(ActivityNewMapper.placeholderLabel, at: min(slot, state.slideLabels.count))
+        if state.slideImages.count >= slot { state.slideImages.insert("", at: slot) }
+        state.activeID = ActivityNewMapper.placeholderID
+        return state
+    }
+
     /// The screen's state: the buffer mapped over the version's slides, plus the mode and flags.
     @MainActor
     static func screenState(_ model: Model, app: AppState) -> ActivitiesEditorScreen.State {
@@ -106,6 +118,10 @@ struct ActivitiesEditorContainer: View {
         case .activity: state.canvasContent = "activity"
         case .typeGrid: state.canvasContent = "typeGrid"
         case .readOnly: state.canvasContent = "readOnly"
+        }
+        // D37: while the grid shows, an empty placeholder chip follows the activity it was opened from and is active.
+        if model.canvasContent == .typeGrid {
+            state = withPlaceholder(state, after: model.insertAfterID)
         }
         state.unavailableTypes = ActivityNewContainer.unavailableTypes
         state.pendingType = model.pendingType
@@ -558,9 +574,13 @@ struct ActivitiesEditorContainer: View {
             screenGeneration += 1
         }
 
+        /// D37: the activity the grid was opened from — its placeholder chip, and the new activity, follow it.
+        private(set) var insertAfterID: String?
+
         /// D27: ＋ shows the type grid in place of the canvas, once the current activity has saved.
         func addActivity() async {
             guard canvasContent != .typeGrid, await leave() else { return }
+            insertAfterID = activityId
             canvasContent = .typeGrid
             screenGeneration += 1
         }
@@ -576,7 +596,28 @@ struct ActivitiesEditorContainer: View {
             pendingType = rawType
             await grid.selectText()
             pendingType = ""
-            if let created { await selectSlide(created, app: app) }
+            guard let created else { return }
+            await placeAfterInsertPoint(created, app: app ?? .shared)
+            await selectSlide(created, app: app)
+        }
+
+        /// D37: the server appends a created activity; move it to the placeholder's slot (right after the activity the
+        /// grid was opened from). Already there — the last one was selected — needs no request. A failed reorder leaves
+        /// it appended and surfaces the banner.
+        private func placeAfterInsertPoint(_ created: String, app: AppState) async {
+            guard let versionId = app.activities[created]?.lessonVersionId, let anchor = insertAfterID else { return }
+            let current = app.activities(forVersion: versionId).sorted { $0.position < $1.position }.map(\.id)
+            var order = current.filter { $0 != created }
+            guard let at = order.firstIndex(of: anchor) else { return }
+            order.insert(created, at: at + 1)
+            guard order != current else { return }
+            do {
+                try await newActivityActions.reorder(versionId, order)
+            } catch {
+                if UI2ImageLoader.isCancellation(error) { return }
+                app.recordError(error, context: "ActivitiesEditorContainer.placeAfterInsertPoint", surface: true,
+                                friendlyMessage: "Couldn't move the new activity")
+            }
         }
 
         /// Whether the editor may move on (another activity, the grid, or out): an open edit commits, and

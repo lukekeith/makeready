@@ -118,6 +118,8 @@ struct ActivityNewContainer: View {
         var reloadDraftVersionId: @MainActor (_ lessonId: String) async throws -> String = { _ in throw MissingDraft() }
         /// `POST /api/lesson-versions/:id/activities` → the created activity's id.
         var create: @MainActor (_ versionId: String, _ kind: String, _ title: String, _ document: ActivityDocument) async throws -> String
+        /// text-activity-v2 D37: `PATCH /api/lesson-versions/:id/activities/order` — the draft's activities in this order.
+        var reorder: @MainActor (_ versionId: String, _ activityIds: [String]) async throws -> Void = { _, _ in }
 
         static var live: Actions {
             Actions(
@@ -138,6 +140,9 @@ struct ActivityNewContainer: View {
                 },
                 create: { versionId, kind, title, document in
                     try await ActivityActions().create(versionId: versionId, kind: kind, title: title, document: document).id
+                },
+                reorder: { versionId, ids in
+                    try await ActivityActions().reorder(versionId: versionId, activityIds: ids)
                 })
         }
     }

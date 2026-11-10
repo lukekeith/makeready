@@ -373,6 +373,67 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         XCTAssertEqual(model.canvasContent, .activity)
     }
 
+    /// D37 (owner walk round 13): while the grid shows, an empty placeholder chip sits right after the selected
+    /// activity and is the active chip; a chip tap closes the grid and the placeholder goes.
+    func testPlusAddsAPlaceholderChipAfterTheSelectedActivity() async {
+        let app = appWithLesson([("a1", "text"), ("a2", "text"), ("a3", "text")])
+        let model = ActivitiesEditorContainer.Model(activityId: "a3", activityKey: "k-a3",
+                                                    document: app.activities["a3"]!.document, actions: ScriptedActivityActions())
+        await model.selectSlide("a1", app: app)
+        await model.addActivity()
+        let grid = ActivitiesEditorContainer.screenState(model, app: app)
+        XCTAssertEqual(grid.slideIDs, ["a1", ActivityNewMapper.placeholderID, "a2", "a3"])
+        XCTAssertEqual(grid.slideLabels[1], ActivityNewMapper.placeholderLabel)
+        XCTAssertEqual(grid.activeID, ActivityNewMapper.placeholderID)
+        await model.selectSlide("a2", app: app)
+        let closed = ActivitiesEditorContainer.screenState(model, app: app)
+        XCTAssertEqual(closed.slideIDs, ["a1", "a2", "a3"])
+        XCTAssertEqual(closed.activeID, "a2")
+    }
+
+    /// D37: the picked type's activity takes the placeholder's place — created (appended by the server), then the
+    /// draft is reordered so it follows the activity that was selected.
+    func testThePickedActivityLandsAfterTheSelectedOne() async {
+        let app = appWithLesson([("a1", "text"), ("a2", "text")])
+        var reorders: [[String]] = []
+        let newActions = ActivityNewContainer.Actions(
+            draftVersionId: { _ in "v1" },
+            create: { version, kind, title, document in
+                app.activities.upsert(ContentActivity(id: "n1", lessonVersionId: version, activityKey: "k-n1", position: 2,
+                                                      kind: kind, title: title, document: document, estimatedSeconds: nil))
+                return "n1"
+            },
+            reorder: { _, ids in reorders.append(ids) })
+        let model = ActivitiesEditorContainer.Model(activityId: "a2", activityKey: "k-a2",
+                                                    document: app.activities["a2"]!.document,
+                                                    actions: ScriptedActivityActions(), newActivityActions: newActions)
+        await model.selectSlide("a1", app: app)
+        await model.addActivity()
+        await model.pickType("text", app: app)
+        XCTAssertEqual(reorders, [["a1", "n1", "a2"]])
+        XCTAssertEqual(model.activityId, "n1")
+    }
+
+    /// D37: with the last activity selected the new one already lands in place — no reorder.
+    func testAddingAfterTheLastActivityNeedsNoReorder() async {
+        let app = appWithLesson([("a1", "text")])
+        var reorders: [[String]] = []
+        let newActions = ActivityNewContainer.Actions(
+            draftVersionId: { _ in "v1" },
+            create: { version, kind, title, document in
+                app.activities.upsert(ContentActivity(id: "n1", lessonVersionId: version, activityKey: "k-n1", position: 1,
+                                                      kind: kind, title: title, document: document, estimatedSeconds: nil))
+                return "n1"
+            },
+            reorder: { _, ids in reorders.append(ids) })
+        let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "k-a1",
+                                                    document: app.activities["a1"]!.document,
+                                                    actions: ScriptedActivityActions(), newActivityActions: newActions)
+        await model.addActivity()
+        await model.pickType("text", app: app)
+        XCTAssertTrue(reorders.isEmpty)
+    }
+
     // MARK: - One save at a time
 
     /// Three saves started together run one after another: never two PUTs at once.
