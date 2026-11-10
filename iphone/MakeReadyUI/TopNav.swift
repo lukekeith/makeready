@@ -79,6 +79,11 @@ struct TopNav: View {
         var held: (tab: String, f: CGFloat, x: CGFloat)?
     }
     @State private var box = PinBox()
+    /// §2 "Scroll range": the two widths the trailing room is solved from — observed (unlike
+    /// `box`), because the room is layout. Neither changes on a pan, so scrolling still does not
+    /// re-render the row.
+    @State private var viewportWidth: CGFloat = 0
+    @State private var lastTabWidth: CGFloat = 0
 
     // §2 table: row leading/trailing inset — 8 (`px-8`, in the component) collapsed; "none
     // in the component" expanded, and none from the host (OQ-C-019-1, closed: one shared
@@ -108,6 +113,7 @@ struct TopNav: View {
         // indicator, so it is hidden.
         ScrollViewReader { proxy in
             HorizontalRail {
+                HStack(spacing: 0) {
                 HStack(spacing: Token.Space.elementGap) {      // §2: gap = `space-element-gap` (8)
                     ForEach(tabs, id: \.self) { tab in
                         // C-069 §4: every tab takes the row's `expansion` unchanged — §2c "one
@@ -124,6 +130,7 @@ struct TopNav: View {
                         )
                         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.space)) } action: { frame in
                             record(tab, frame)
+                            if tab == tabs.last { lastTabWidth = frame.width }
                         }
                     }
                 }
@@ -131,15 +138,22 @@ struct TopNav: View {
                 // render has no live scroll position to drive, so the offset is applied to the
                 // content, which is what a scroll position IS for a static frame.
                 .offset(x: -scrollOffset)
+                // §2 "Scroll range" (owner 2026-11-09): trailing room so the LAST tab can sit at
+                // the leading inset, the same x as every other selected tab. With the trailing
+                // content margin (`inset`) this makes the trailing margin
+                // `viewport − inset − last tab width` — recomputed as `expansion` moves that width.
+                Color.clear.frame(width: trailingRoom, height: 0)
+                }
             }
             .scrollIndicators(.hidden)
             // §2 table: row leading/trailing inset — as content margins, not padding, so the
             // auto-scroll below lands the selected tab at the inset, not against the screen edge
-            // (owner 2026-10-25, ui2-shell D14(e)).
+            // (owner 2026-10-25, ui2-shell D14(e)). The trailing room above extends the range;
+            // the margins stay symmetric so the `scrollTo` anchor solves below hold.
             .contentMargins(.horizontal, inset, for: .scrollContent)
             // §2c Switch (OQ-C-019-6): "the row auto-scrolls so the selected tab lands at the
-            // leading edge" — the inset's edge. Panning never changes selection, so only a
-            // selection moves it.
+            // leading inset" — every tab, the last included (§2 trailing room). Panning never
+            // changes selection, so only a selection moves it.
             .onChange(of: selectedTab) { _, tab in
                 withAnimation { proxy.scrollTo(tab, anchor: .leading) }
             }
@@ -160,7 +174,10 @@ struct TopNav: View {
             }
         }
         .coordinateSpace(.named(Self.space))
-        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { box.viewport = $0 }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: {
+            box.viewport = $0
+            viewportWidth = $0
+        }
         // §2 table: row height 32 collapsed · 96 expanded, growing in step with the tabs
         // (§2c step 2: "the row height grows 32→96"), `items: center`.
         .frame(height: NavTabButton.height(at: progress))
@@ -213,7 +230,8 @@ struct TopNav: View {
     /// §4 `pin` 2: scroll so `tab.minX = held x − f·w` at the current `expansion`, inside
     /// `withAnimation(pin.animation)`. `scrollTo` aligns the tab's anchor with the same anchor
     /// of the inset viewport, so the anchor solving `minX = inset + a·(V − 2·inset − w)` lands
-    /// it there. Clamping at the scroll ends is accepted.
+    /// it there. §2c (owner 2026-11-09): no clamp for trailing tabs — the §2 trailing room
+    /// lets the last tab reach the leading inset.
     private func scrollToPin(_ pin: Pin, _ proxy: ScrollViewProxy) {
         guard let (tab, f, x) = box.held else { return }
         let growth = NavTabButton.growth(at: progress)
@@ -243,6 +261,14 @@ struct TopNav: View {
     // GAP — C-069 §2: "fixed 124×96" expanded card, the end of every tab's growth; C-019 §4
     // `pin` restates it (w = hug + (124 − hug)·growth). C-069 keeps its geometry private.
     private static let expandedWidth: CGFloat = 124
+
+    /// §2 "Scroll range": the spacer after the last tab. Content ends at the trailing margin
+    /// `inset + room = viewport − inset − w(last)`, so the furthest pan puts the last tab's minX
+    /// at the leading inset and no further. 0 until both widths are measured.
+    private var trailingRoom: CGFloat {
+        guard viewportWidth > 0, lastTabWidth > 0 else { return 0 }
+        return max(0, viewportWidth - 2 * inset - lastTabWidth)
+    }
 
     /// The row inset moves collapsed → expanded over C-069's growth window, while each tab's
     /// own padding grows 8 → 16, so the first label moves continuously through the morph.
