@@ -32,4 +32,21 @@ final class ActivityEntryTests: XCTestCase {
         XCTAssertEqual(pushed, [.activitiesEditor(activityId: "a")])
         XCTAssertEqual(reported, ["This activity can't be edited yet."])
     }
+
+    /// activity-slide-type-icon (owner 2026-11-09): a slide shows its kind's C-086 glyph, and only a
+    /// kind the editor opens is tappable.
+    func testSlideGlyphIsTheTypeGridGlyphAndOnlyCanvasKindsAreOpenable() {
+        XCTAssertEqual(ActivityEntry.slideGlyph(for: "text"), "text-content")
+        XCTAssertEqual(ActivityEntry.slideGlyph(for: "bible"), "cross")
+        XCTAssertEqual(ActivityEntry.slideGlyph(for: "video"), "video-record")
+        XCTAssertEqual(ActivityEntry.slideGlyph(for: "youtube"), "youtube")
+        XCTAssertEqual(ActivityEntry.slideGlyph(for: "write"), "write")
+        XCTAssertEqual(ActivityEntry.slideGlyph(for: "poll"), "poll")
+        XCTAssertEqual(ActivityEntry.slideGlyph(for: "someFutureKind"), "")
+        XCTAssertTrue(ActivityEntry.isOpenable("text"))
+        XCTAssertTrue(ActivityEntry.isOpenable("bible"))
+        for kind in ["video", "youtube", "write", "poll", "someFutureKind"] {
+            XCTAssertFalse(ActivityEntry.isOpenable(kind), kind)
+        }
+    }
 }

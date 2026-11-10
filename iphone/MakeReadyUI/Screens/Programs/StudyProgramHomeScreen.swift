@@ -69,6 +69,11 @@ struct StudyProgramHomeScreen: View {
         var lessonSlideImages: [[String]]
         /// Per lesson, its slides' VoiceOver labels (never rendered).
         var lessonSlideLabels: [[String]]
+        /// §3 (2026-11-09) Per lesson, its slides' GlyphName raw values ("" = none), drawn
+        /// centred on a slide with no picture (C-079 `empty-glyph`). Missing = no glyph.
+        var lessonSlideGlyphs: [[String]] = []
+        /// §3 (2026-11-09) Per lesson, whether each slide's tap opens an editor. Missing = enabled.
+        var lessonSlideEnabled: [[Bool]] = []
         // ── Load status (§3) ──
         /// §3 `Loading`: the parts render at their contracted geometry with no data.
         var loading: Bool = false
@@ -483,8 +488,16 @@ struct StudyProgramHomeScreen: View {
     private func slides(_ lesson: Int) -> [LessonCard.Slide] {
         let images = state.lessonSlideImages[safe: lesson] ?? []
         let labels = state.lessonSlideLabels[safe: lesson] ?? []
+        let glyphs = state.lessonSlideGlyphs[safe: lesson] ?? []
+        let enabled = state.lessonSlideEnabled[safe: lesson] ?? []
         return images.indices.map { slide in
-            LessonCard.Slide(image: Self.cachedImage(images[slide]), label: labels[safe: slide] ?? "")
+            LessonCard.Slide(
+                image: Self.cachedImage(images[slide]),
+                label: labels[safe: slide] ?? "",
+                // §3: "" or an unknown name is no glyph.
+                glyph: glyphs[safe: slide].flatMap { GlyphName(rawValue: $0) },
+                enabled: enabled[safe: slide] ?? true
+            )
         }
     }
 

@@ -48,6 +48,10 @@ enum StudyProgramHomeMapper {
                 lesson.activities.sorted { $0.position < $1.position }.map { slideImage($0, media: input.media) }
             },
             lessonSlideLabels: lessons.map { $0.activities.sorted { $0.position < $1.position }.map(\.title) },
+            // activity-slide-type-icon (owner 2026-11-09): a picture-less slide shows its kind's C-086 glyph, and
+            // only a kind the editor opens is tappable (no "can't be edited yet" banner).
+            lessonSlideGlyphs: lessons.map { $0.activities.sorted { $0.position < $1.position }.map { ActivityEntry.slideGlyph(for: $0.kind) } },
+            lessonSlideEnabled: lessons.map { $0.activities.sorted { $0.position < $1.position }.map { ActivityEntry.isOpenable($0.kind) } },
             // D5: skeletons only with nothing cached; a failure over a cache keeps the page.
             loading: p == nil && !input.failed,
             failed: p == nil && input.failed

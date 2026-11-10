@@ -13,6 +13,16 @@ enum ActivityEntry {
     /// The kinds the Text editor opens.
     static let canvasKinds = ["text", "bible"]
 
+    /// activity-slide-type-icon (owner 2026-11-09): only a kind the editor opens is tappable on a rail.
+    static func isOpenable(_ kind: String) -> Bool { canvasKinds.contains(kind) }
+
+    /// activity-slide-type-icon: the glyph a picture-less slide shows — C-086 ActivityTypeGrid's glyph for the
+    /// kind (`bible` is the grid's Bible verse), as a GlyphName raw value; "" for a kind the grid has no tile for.
+    static func slideGlyph(for kind: String) -> String {
+        let type = kind == "bible" ? ActivityTypeGrid.ActivityType.bibleVerse : ActivityTypeGrid.ActivityType(rawValue: kind)
+        return type?.glyph.rawValue ?? ""
+    }
+
     static func destination(for kind: String, activityId: String) -> Result {
         canvasKinds.contains(kind) ? .open(.activitiesEditor(activityId: activityId)) : .cannotEdit(message: cannotEditMessage)
     }

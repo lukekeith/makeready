@@ -22,6 +22,10 @@ struct ActivityScreenshot: View {
     /// Required with no default (R-07); `nil` renders `empty`.
     let image: Image?
 
+    /// C-079 §4 `glyph` (2026-11-09) — with `image == nil`, drawn centred on the placeholder
+    /// (§3 `empty-glyph`); an image ignores it. `nil` is today's look.
+    var glyph: GlyphName? = nil
+
     /// §2 / Deviation 1: "Height: intrinsic, `width × 956 / 440`" — the owner's fixed capture
     /// size (C-079 preamble: "It will always be captured at 440x956"). A ratio, not a point
     /// size, so it has no token family to live in.
@@ -41,6 +45,15 @@ struct ActivityScreenshot: View {
                         .resizable()
                         .scaledToFill()
                         .ui2Element("Image layer")
+                }
+            }
+            // §2 "Glyph (optional)": only with no image — centred, 32pt (`GlyphSize.lg`), fixed,
+            // `color-text-secondary`; decorative, so hidden from VoiceOver.
+            .overlay {
+                if image == nil, let glyph {
+                    Glyph(glyph, size: .lg, tint: Token.textSecondary)
+                        .accessibilityHidden(true)
+                        .ui2Element("Glyph")
                 }
             }
             // §2 "Corner: `radius-card` (8) with content clipped to it."

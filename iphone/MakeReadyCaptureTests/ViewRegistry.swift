@@ -1935,7 +1935,14 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
             ui2C079Image = Image(uiImage: uiImage)
         }
         return declareCase(
-            MakeReadyUI.ActivityScreenshot(image: ui2C079Image),
+            // C-079 §4 `glyph` (2026-11-09): the shared `glyph` field carries a GlyphName raw
+            // value; absent is `nil`. A name the library does not have is a fixture bug.
+            MakeReadyUI.ActivityScreenshot(image: ui2C079Image, glyph: try c.glyph.map { raw in
+                guard let name = MakeReadyUI.GlyphName(rawValue: raw) else {
+                    throw ViewRegistryError.unknownView("component.ui2.C-079: props.glyph \"\(raw)\" is not a library glyph")
+                }
+                return name
+            }),
             // C-079 §2: "The design instance is 112×244" — the master width, margin and
             // ground live here (R-16); the height follows from the width.
             PreviewFrame(width: 112)
@@ -4444,6 +4451,8 @@ private func buildScreenStudyProgramHome(_ fixture: CaptureFixture) throws -> An
             lessonDurations: c.lessonDurations ?? sample.lessonDurations,
             lessonSlideImages: lessonSlideImages,
             lessonSlideLabels: c.lessonSlideLabels ?? sample.lessonSlideLabels,
+            lessonSlideGlyphs: c.lessonSlideGlyphs ?? sample.lessonSlideGlyphs,
+            lessonSlideEnabled: c.lessonSlideEnabled ?? sample.lessonSlideEnabled,
             // §3 `Loading` / `Error` — the reused `loading` / `failed` fields.
             loading: c.loading ?? sample.loading,
             failed: c.failed ?? sample.failed

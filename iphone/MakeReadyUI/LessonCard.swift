@@ -27,10 +27,15 @@ struct LessonCard: View {
 
     /// §4 `slides` element (OQ-C-063-6): `image` is the screenshot the caller resolved
     /// (R-19, R-32), passed to C-079 `image`; `label` is the slide button's VoiceOver label,
-    /// never rendered.
+    /// never rendered. `glyph` (2026-11-09) goes to C-079 `glyph` and shows only with no
+    /// image; `enabled == false` (2026-11-09) makes the slide inert to a tap — no
+    /// `onSelectSlide`, no `.isButton`, no default accessibility action — while its
+    /// touch-and-hold, press dim and "More actions" stay.
     struct Slide {
         let image: Image?
         let label: String
+        var glyph: GlyphName? = nil
+        var enabled: Bool = true
     }
 
     /// §4 #1. Required (R-07).
@@ -236,11 +241,12 @@ struct LessonCard: View {
                     // gesture run alongside it) keeps the touch when a sideways drag starts on a
                     // slide, so the scroll fired the tap or the long-press. These two fail once
                     // the finger moves, so the HorizontalRail takes the drag.
-                    ActivityScreenshot(image: slides[index].image)
+                    ActivityScreenshot(image: slides[index].image, glyph: slides[index].glyph)
                         .frame(width: Self.slideWidth)
                         .opacity(pressedSlide == index ? Self.pressedOpacity : 1)
                         .contentShape(Rectangle())
-                        .onTapGesture { onSelectSlide(index) }
+                        // §3 per-slide options: a disabled slide's tap does nothing.
+                        .onTapGesture { if slides[index].enabled { onSelectSlide(index) } }
                         // study-program-home §3 "Slide touch-and-hold": the hold fires instead of
                         // the tap; moving more than 10 pt cancels it and lets the rail scroll.
                         .onLongPressGesture(
@@ -259,8 +265,8 @@ struct LessonCard: View {
                         // its activation is the tap the Button used to give it.
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(slides[index].label)
-                        .accessibilityAddTraits(.isButton)
-                        .accessibilityAction { onSelectSlide(index) }
+                        // A disabled slide drops `.isButton` and the default action (§3).
+                        .modifier(SlideActivation(enabled: slides[index].enabled) { onSelectSlide(index) })
                         // VoiceOver cannot long-press reliably: the same callback as a custom action.
                         .accessibilityAction(named: "More actions") { onLongPressSlide(index) }
                         .ui2Element("Slide \(index + 1)")
@@ -368,6 +374,23 @@ struct LessonCard: View {
     }
 
     private static let pressedOpacity: Double = 0.6
+
+    /// §3 per-slide options (2026-11-09): an enabled slide is a button whose default
+    /// accessibility action is its tap; a disabled one is neither.
+    private struct SlideActivation: ViewModifier {
+        let enabled: Bool
+        let action: () -> Void
+
+        func body(content: Content) -> some View {
+            if enabled {
+                content
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityAction { action() }
+            } else {
+                content
+            }
+        }
+    }
 
     /// study-program-home §3 "Slide touch-and-hold": the system long-press duration (0.5 s).
     private static let slideHoldDuration: Double = 0.5

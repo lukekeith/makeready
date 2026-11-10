@@ -80,6 +80,9 @@ final class StudyProgramHomeMapperTests: XCTestCase {
                                               ActivityThumbnail.key(for: withImage), ActivityThumbnail.key(for: plain)], []])
         XCTAssertTrue(s.lessonSlideImages[0][1].hasPrefix("activity-thumbnail://"))
         XCTAssertEqual(s.lessonSlideLabels, [["Clip", "Read: Romans 1", "Plain"], []])
+        // activity-slide-type-icon: each slide's C-086 glyph; only a kind the editor opens is tappable.
+        XCTAssertEqual(s.lessonSlideGlyphs, [["youtube", "text-content", "text-content"], []])
+        XCTAssertEqual(s.lessonSlideEnabled, [[false, true, true], []])
     }
 
     /// The estimate shows in whole minutes, rounded up.

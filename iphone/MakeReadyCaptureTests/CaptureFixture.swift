@@ -914,6 +914,10 @@ struct CaptureComponent: Codable {
     let lessonDurations: [String]?
     let lessonSlideImages: [[String]]?
     let lessonSlideLabels: [[String]]?
+    // study-program-home §3 (2026-11-09): per-slide GlyphName raw values ("" = none) and
+    // whether each slide's tap opens an editor. Absent = the screen's `[]` default.
+    let lessonSlideGlyphs: [[String]]?
+    let lessonSlideEnabled: [[Bool]]?
     // ── screen invite-home ──
     // Reused as-is: `phone`, `memberName`, `avatarURL`, `initials`, `age` (`Int?`), `role`,
     // `birthday`, `joined`, `groupTitles`, `groupPhotoURLs` (same names, same types). Not
