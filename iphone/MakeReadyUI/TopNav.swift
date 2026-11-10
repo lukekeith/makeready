@@ -77,6 +77,9 @@ struct TopNav: View {
         var viewport: CGFloat = 0
         /// §4 `pin` 1: the held (tab, f) and held x while pinned.
         var held: (tab: String, f: CGFloat, x: CGFloat)?
+        /// §4 `pin` x-lock 1: the locked tab's index, its measured minX and its analytic content
+        /// position at hold time; nil for an unlocked hold (§4 x-lock 5).
+        var lock: (index: Int, minX0: CGFloat, pos0: CGFloat)?
     }
     @State private var box = PinBox()
     /// §2 "Scroll range": the two measured inputs the trailing room is solved from — observed
@@ -150,6 +153,12 @@ struct TopNav: View {
                 // `viewport − inset − last tab width` — recomputed as `expansion` moves that width.
                 Color.clear.frame(width: trailingRoom, height: 0)
                 }
+                // §4 `pin` x-lock 4 / §2c x-lock: while a pin holds no `scrollTo` runs; the row
+                // takes `.offset(x: −(lockShift − lockShiftCollapsed))` in the same layout pass as
+                // the new widths, so the held tab has zero lag. ScrollXLockRelease moves the real
+                // offset at the hold and the release.
+                .offset(x: -((lockShift ?? 0) - (lockShiftCollapsed ?? 0)))
+                .background(ScrollXLockRelease(shift: lockShift, base: lockShiftCollapsed))
             }
             .scrollIndicators(.hidden)
             // §2 table: row leading/trailing inset — as content margins, not padding, so the
@@ -169,14 +178,20 @@ struct TopNav: View {
             .onChange(of: pin) { old, new in
                 guard let new else {
                     box.held = nil
-                    reanchorOnSelection(proxy)
+                    // §4 `pin` x-lock 4–5: a locked release already moved the shift into the
+                    // scroll offset (ScrollXLockRelease); only an unlocked hold re-anchors.
+                    if box.lock == nil { reanchorOnSelection(proxy) }
+                    box.lock = nil
                     return
                 }
-                if old.map({ !$0.sameHold(as: new) }) ?? true { box.held = hold(new) }
-                scrollToPin(new, proxy)
+                if old.map({ !$0.sameHold(as: new) }) ?? true {
+                    box.held = hold(new)
+                    box.lock = makeLock(new)
+                }
+                if box.lock == nil { scrollToPin(new, proxy) }
             }
             .onChange(of: expansion) { _, _ in
-                if let pin { scrollToPin(pin, proxy) }
+                if let pin, box.lock == nil { scrollToPin(pin, proxy) }
             }
         }
         .coordinateSpace(.named(Self.space))
@@ -205,7 +220,9 @@ struct TopNav: View {
     private func record(_ tab: String, _ frame: CGRect) {
         box.frames[tab] = frame
         let growth = NavTabButton.growth(at: progress)
-        if growth < 0.999 {
+        // §4 `pin` x-lock 2: hugs are read back only while g < 0.5 — 1/(1−g) amplifies
+        // sub-point rounding as g → 1.
+        if growth < 0.5 {
             box.hugs[tab] = (frame.width - Self.expandedWidth * growth) / (1 - growth)
         }
     }
@@ -264,6 +281,43 @@ struct TopNav: View {
         withTransaction(transaction) { proxy.scrollTo(selectedTab, anchor: anchor) }
     }
 
+    /// §4 `pin` x-lock 1: a named-tab hold locks the row's x so the tab sits at the leading
+    /// inset through the whole morph (§2c x-lock). Nil — an unlocked hold (§4 x-lock 5) — until
+    /// the tab and every preceding tab's hug are measured.
+    private func makeLock(_ pin: Pin) -> (index: Int, minX0: CGFloat, pos0: CGFloat)? {
+        guard let tab = pin.tab, let index = tabs.firstIndex(of: tab),
+              let frame = box.frames[tab], let pos = contentPosition(index) else { return nil }
+        return (index, frame.minX, pos)
+    }
+
+    /// §4 `pin` x-lock 2 `contentPosition(index, at:)`: the tab's leading x in the row's
+    /// content at the current `expansion`, inset included.
+    private func contentPosition(_ index: Int, at expansion: CGFloat? = nil) -> CGFloat? {
+        let growth = NavTabButton.growth(at: expansion ?? progress)
+        var x = Self.collapsedInset + (Self.expandedInset - Self.collapsedInset) * growth
+        for tab in tabs.prefix(index) {
+            guard let hug = box.hugs[tab] else { return nil }
+            x += hug + (Self.expandedWidth - hug) * growth + Token.Space.elementGap
+        }
+        return x
+    }
+
+    /// §4 `pin` x-lock 3 `lockShift`: the leftward shift since the hold that keeps the locked
+    /// tab at the leading inset; nil when no pin holds (the pin is a prop, so its release
+    /// re-renders the row).
+    private var lockShift: CGFloat? {
+        guard pin != nil, let lock = box.lock, let pos = contentPosition(lock.index) else { return nil }
+        return pos - lock.pos0 + lock.minX0 - inset
+    }
+
+    /// §4 `pin` x-lock 3 `lockShiftCollapsed`: the same shift at g = 0 with the collapsed
+    /// inset. The real scroll offset moves by this at the hold (x-lock 4) — the collapsed
+    /// position is inside the scroll range at every `expansion`, so nothing clamps.
+    private var lockShiftCollapsed: CGFloat? {
+        guard pin != nil, let lock = box.lock, let pos = contentPosition(lock.index, at: 0) else { return nil }
+        return pos - lock.pos0 + lock.minX0 - Self.collapsedInset
+    }
+
     // GAP — C-069 §2: "fixed 124×96" expanded card, the end of every tab's growth; C-019 §4
     // `pin` restates it (w = hug + (124 − hug)·growth). C-069 keeps its geometry private.
     private static let expandedWidth: CGFloat = 124
@@ -286,5 +340,42 @@ struct TopNav: View {
     private var inset: CGFloat {
         let growth = NavTabButton.growth(at: progress)
         return Self.collapsedInset + (Self.expandedInset - Self.collapsedInset) * growth
+    }
+}
+
+/// C-019 §4 `pin` x-lock 4: on the hold (base nil → value) moves the scroll offset by `base`
+/// (`lockShiftCollapsed`); while held the row's `.offset` covers `shift − base`; on release
+/// (→ nil, `.offset` → 0 in the same update) moves the scroll by the last `shift − base`, so
+/// nothing moves visibly. Both writes are `UIScrollView.contentOffset` changes.
+private struct ScrollXLockRelease: UIViewRepresentable {
+    let shift: CGFloat?
+    let base: CGFloat?
+
+    final class Coordinator { var last: (shift: CGFloat, base: CGFloat)? }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.isUserInteractionEnabled = false
+        return view
+    }
+
+    func updateUIView(_ view: UIView, context: Context) {
+        let coordinator = context.coordinator
+        if let shift, let base {
+            if coordinator.last == nil { move(view, by: base) }
+            coordinator.last = (shift, base)
+            return
+        }
+        guard let last = coordinator.last else { return }
+        coordinator.last = nil
+        move(view, by: last.shift - last.base)
+    }
+
+    private func move(_ view: UIView, by delta: CGFloat) {
+        var ancestor = view.superview
+        while let current = ancestor, !(current is UIScrollView) { ancestor = current.superview }
+        guard let scrollView = ancestor as? UIScrollView, delta != 0 else { return }
+        scrollView.contentOffset.x += delta
     }
 }
