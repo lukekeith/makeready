@@ -1,4 +1,5 @@
 # text-activity-v2 — spec
+> ✅ SIGNED OFF 2026-11-10 — cefb7a6d · by luke: "walked on device through round 13 (layout, alignment rail, placeholder chip, slide icons, scroll fix) — done"
 > lg · ticket none
 
 ## Idea
@@ -340,20 +341,6 @@ gets it through the `activities-player` screen (D12); the rail thumbnails are `A
 | F7 | A failed save bumps `screenGeneration` and re-seeds the screen (`ActivitiesEditorScreen.swift:368`, Container `:58`), resetting open rails and the selected palette | build-time risk: the editor-wiring task checks that a failed tap-off save keeps the rails, or accepts the reset and says so |
 | F8 | The Image focal drag competes with C-091's vertical ScrollView (`ActivityCanvas.swift:262`) on a tall page | build-time risk: the d2m editor-screen request pins "no scroll while Image is open"; walk step 5 checks it |
 | F9 | D4's 4.5:1 rule means every palette colour has relative luminance ≤ 0.183 — deep tones only, no bright yellows or pastels. Blends of compliant colours stay compliant, so testing each palette colour suffices | build-time risk: the palettes task shows the owner the 12 palettes before committing; human script item 1 |
-
-## Plan
-
-The plan, task by task: `docs/features/text-activity-v2/PLAN.md` (§PLAN.md).
-
-- Phase 1 · Task 1 · Validate `background.gradient` on the server
-- Phase 2 · Task 2 · Decode `background.gradient` without losing the background
-- Phase 2 · Task 3 · Palettes and the blob generator
-- Phase 2 · Task 4 · New activities start on a gradient and still auto-delete when untouched
-- Phase 2 · Task 5 · Background document operations
-- Phase 3 · Task 6 · File the d2m handover requests and wait for the builds
-- Phase 4 · Task 7 · Tap-off, tap-another and the save moments
-- Phase 4 · Task 8 · Wire the Background rail, the inline image picker and the tool states
-- Phase 4 · Task 9 · The viewer and the rail thumbnails draw the gradient
 
 ## Fixes
 

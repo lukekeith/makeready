@@ -1,7 +1,7 @@
 size: lg
-state: built
+state: signed-off
 next: /builder:resume --path docs/features/text-activity-v2
-head: e617ac6c
+head: cefb7a6d
 ticket: none
 branch: feature/text-activity
 pr: none
@@ -10,7 +10,7 @@ contract: frozen 2026-11-08
 hold: none
 go-ahead: luke 2026-11-08 (here)
 tests: walk=risk review=slice
-walk: none
+walk: luke 2026-11-10
 verify: none
 ready: none
 ui2: none
