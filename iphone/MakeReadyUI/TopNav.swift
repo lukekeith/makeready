@@ -79,11 +79,12 @@ struct TopNav: View {
         var held: (tab: String, f: CGFloat, x: CGFloat)?
     }
     @State private var box = PinBox()
-    /// §2 "Scroll range": the two widths the trailing room is solved from — observed (unlike
-    /// `box`), because the room is layout. Neither changes on a pan, so scrolling still does not
-    /// re-render the row.
+    /// §2 "Scroll range": the two measured inputs the trailing room is solved from — observed
+    /// (unlike `box`), because the room is layout. Neither changes on a pan or a morph frame:
+    /// the last tab's width `w` is computed from `lastTabHug` in the same pass (never read back
+    /// from its frame, which is one frame stale mid-morph), so no morph frame writes state (R-02).
     @State private var viewportWidth: CGFloat = 0
-    @State private var lastTabWidth: CGFloat = 0
+    @State private var lastTabHug: CGFloat = 0
 
     // §2 table: row leading/trailing inset — 8 (`px-8`, in the component) collapsed; "none
     // in the component" expanded, and none from the host (OQ-C-019-1, closed: one shared
@@ -130,7 +131,12 @@ struct TopNav: View {
                         )
                         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.space)) } action: { frame in
                             record(tab, frame)
-                            if tab == tabs.last { lastTabWidth = frame.width }
+                            // §2: only the collapsed hug is measured, written only on a
+                            // > 0.5pt change, so a morph frame never writes state.
+                            if tab == tabs.last, let hug = box.hugs[tab],
+                               abs(hug - lastTabHug) > 0.5 {
+                                lastTabHug = hug
+                            }
                         }
                     }
                 }
@@ -264,10 +270,15 @@ struct TopNav: View {
 
     /// §2 "Scroll range": the spacer after the last tab. Content ends at the trailing margin
     /// `inset + room = viewport − inset − w(last)`, so the furthest pan puts the last tab's minX
-    /// at the leading inset and no further. 0 until both widths are measured.
+    /// at the leading inset and no further. `w = hug + (124 − hug)·growth(at: expansion)` — the
+    /// `scrollToPin` formula — computed in this pass, so content size, max offset and the pin
+    /// solve share one frame's width. 0 until the viewport (and, before full growth, the hug)
+    /// is measured.
     private var trailingRoom: CGFloat {
-        guard viewportWidth > 0, lastTabWidth > 0 else { return 0 }
-        return max(0, viewportWidth - 2 * inset - lastTabWidth)
+        let growth = NavTabButton.growth(at: progress)
+        guard viewportWidth > 0, lastTabHug > 0 || growth >= 0.999 else { return 0 }
+        let width = lastTabHug + (Self.expandedWidth - lastTabHug) * growth
+        return max(0, viewportWidth - 2 * inset - width)
     }
 
     /// The row inset moves collapsed → expanded over C-069's growth window, while each tab's
