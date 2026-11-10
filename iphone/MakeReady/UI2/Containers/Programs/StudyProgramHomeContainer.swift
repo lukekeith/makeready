@@ -61,7 +61,10 @@ struct StudyProgramHomeContainer: View {
     @State private var viewerURL: String?
     /// image-viewer-zoom-dismiss: the cover's on-screen frame — the viewer grows from it and flies
     /// back into it.
-    @State private var coverFrame: CGRect?
+    /// The cover's on-screen frame, for the cover viewer's grow-in and fly-back. Held in an unobserved box: the
+    /// cover reports its global frame on every scroll frame, and an observed @State re-rendered the whole page
+    /// each frame (laggy on a long program). The viewer reads it when it opens, which re-renders the page anyway.
+    @State private var coverFrame = CoverFrameBox()
 
     var body: some View {
         let app = AppState.shared
@@ -112,7 +115,7 @@ struct StudyProgramHomeContainer: View {
                         // D11: no cover → the picker; a cover → Edit · Change · View.
                         onCoverTap: { handleCoverTap() },
                         onRetry: { Task { await reload() } },
-                        onCoverFrameChange: { coverFrame = $0 },
+                        onCoverFrameChange: { coverFrame.frame = $0 },
                         // D2: the "+" card pushes the picker at once.
                         onAddActivity: { index in
                             guard let lessonId = Self.lessonID(at: index, in: AppState.shared.lessonsFor(programId: programId)) else { return }
@@ -217,7 +220,7 @@ struct StudyProgramHomeContainer: View {
             pickedItem = nil
             Task { await openPicked(item) }
         }
-        .coverViewerPresentation(url: viewerURL, sourceFrame: coverFrame, accessibilityLabel: "Program cover", onClose: { viewerURL = nil })
+        .coverViewerPresentation(url: viewerURL, sourceFrame: coverFrame.frame, accessibilityLabel: "Program cover", onClose: { viewerURL = nil })
         .task { await reload() }
         .task(id: Self.imageURLs(mapped)) {
             if await UI2ImageLoader.seed(Self.imageURLs(mapped), context: "StudyProgramHomeContainer") { imagesSeeded += 1 }
@@ -563,4 +566,9 @@ struct StudyProgramHomeContainer: View {
         s.enrollmentPhotoURLs = CoverImageLoader.cachedListURLs(mapped.enrollmentPhotoURLs)
         return s
     }
+}
+
+/// A cover's last reported frame, read on demand and never observed — so reporting it re-renders nothing.
+final class CoverFrameBox {
+    var frame: CGRect?
 }

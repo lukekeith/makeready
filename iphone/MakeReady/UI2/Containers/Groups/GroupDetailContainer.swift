@@ -28,7 +28,10 @@ struct GroupDetailContainer: View {
     @State private var viewerURL: String?
     /// image-viewer-zoom-dismiss: the cover's on-screen frame — the viewer grows from it and flies
     /// back into it.
-    @State private var coverFrame: CGRect?
+    /// The cover's on-screen frame, for the cover viewer's grow-in and fly-back. Held in an unobserved box: the
+    /// cover reports its global frame on every scroll frame, and an observed @State re-rendered the whole page
+    /// each frame (laggy on a long program). The viewer reads it when it opens, which re-renders the page anyway.
+    @State private var coverFrame = CoverFrameBox()
 
     var body: some View {
         let input = Self.input(groupId: groupId, name: name, state: AppState.shared)
@@ -76,7 +79,7 @@ struct GroupDetailContainer: View {
                     onDeleteGroup: { deleteMenuOpen = true },
                     // group-cover-image D1/D2: no cover → the picker; a cover → Change · Edit · View.
                     onCoverTap: { handleCoverTap() },
-                    onCoverFrameChange: { coverFrame = $0 }
+                    onCoverFrameChange: { coverFrame.frame = $0 }
                 )
             }
             .scrollIndicators(.hidden)
@@ -115,7 +118,7 @@ struct GroupDetailContainer: View {
             Task { await openPicked(item) }
         }
         // D8
-        .coverViewerPresentation(url: viewerURL, sourceFrame: coverFrame, accessibilityLabel: "Group cover", onClose: { viewerURL = nil })
+        .coverViewerPresentation(url: viewerURL, sourceFrame: coverFrame.frame, accessibilityLabel: "Group cover", onClose: { viewerURL = nil })
         .task { await Self.load(groupId: groupId, authManager: authManager) }
         .task(id: Self.imageURLs(output.state)) {
             if await UI2ImageLoader.seed(Self.imageURLs(output.state), context: "GroupDetailContainer") { imagesSeeded += 1 }
