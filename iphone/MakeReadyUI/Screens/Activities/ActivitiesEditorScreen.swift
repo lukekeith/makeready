@@ -1307,10 +1307,43 @@ struct ActivitiesEditorScreen: View {
             // §10.4: the page's actions, then + Add.
             ChipStrip(items: actionItems, selectedID: selectedActionID ?? "", onSelect: selectAction, chipMaterial: true)
                 .ui2Element("C-106 ChipStrip 3")
+        case .alignment where mode == .editing:
+            alignmentRail
         default:
-            // Tools 3 and 5 have no rail.
+            // Tool 5 has no rail.
             EmptyView()
         }
+    }
+
+    /// §3 tool 3 (D36): three C-102 IconButtons — align left, centre, right — centred (D34) 8pt
+    /// above the tool row, each on the rail controls' blur (§15.1). The one matching
+    /// `draftAlignment` is `selected`; a tap applies it at once and the rail stays open.
+    private var alignmentRail: some View {
+        HStack(spacing: Token.Space.elementGap) {
+            ForEach(Array(Self.alignmentOptions.enumerated()), id: \.offset) { index, option in
+                IconButton(
+                    glyph: option.glyph,
+                    tone: .default,
+                    style: .plain,
+                    selected: draftAlignment == option.alignment,
+                    accessibilityLabel: option.label,
+                    onTap: { selectAlignment(option.code) }
+                )
+                // FLAGGED LITERAL — activities-editor §2: 32pt tools, the tool row's tile.
+                .frame(width: Self.toolSize, height: Self.toolSize)
+                .padding(Self.toolRowPadding)
+                .floatingControlMaterial(cornerRadius: Self.toolRowRadius)
+                .ui2Element(index == 0 ? "C-102 IconButton Align" : "C-102 IconButton Align \(index + 1)")
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.bottom, Token.Space.elementGap)
+    }
+
+    /// §3 tool 3 (D36): one `ObjectEdit` with `alignment`, as the cycle did.
+    private func selectAlignment(_ code: String) {
+        guard let editedIndex else { return }
+        apply(.init(index: editedIndex, alignment: code))
     }
 
     /// §10.1 top rail — the picked choice's details, only when it has some. Its height is pinned
@@ -1717,11 +1750,10 @@ struct ActivitiesEditorScreen: View {
         .padding(.bottom, Token.Space.pageMargin + max(safeBottom - keyboardOverlap, 0))
     }
 
-    /// §3 Tools: category tools take `selected` while their rails are open; 3 is never selected;
-    /// 5 is selected while Highlighting is on.
+    /// §3 Tools: category tools (1, 2, 3, 4, 6, 7) take `selected` while their rails are open
+    /// (D36: 3 is a category tool); 5 is selected while Highlighting is on.
     private func isSelected(_ tool: Tool) -> Bool {
         switch tool {
-        case .alignment: return false
         case .highlight: return mode == .highlighting
         default: return openTool == tool
         }
@@ -1731,16 +1763,6 @@ struct ActivitiesEditorScreen: View {
         // D8: a tool tap ends a rail field, keeping its value.
         endField()
         switch tool {
-        case .alignment:
-            // §3 tool 3: center → left → right → center, no rail.
-            guard let editedIndex else { return }
-            let next: String
-            switch draftAlignment {
-            case .center: next = "left"
-            case .left: next = "right"
-            case .right: next = "center"
-            }
-            apply(.init(index: editedIndex, alignment: next))
         case .highlight:
             onToggleHighlight()
         default:
@@ -2237,6 +2259,14 @@ struct ActivitiesEditorScreen: View {
         case .actions: return .zap
         }
     }
+
+    /// §3 tool 3 (D36): the alignment rail's buttons, left to right.
+    private static let alignmentOptions: [(alignment: CanvasTextObject.Alignment, code: String,
+                                           glyph: GlyphName, label: String)] = [
+        (.left, "left", .textAlignStart, "Align left"),
+        (.center, "center", .textAlignCenter, "Align centre"),
+        (.right, "right", .textAlignEnd, "Align right")
+    ]
 
     /// R-17: each tool's accessibility label, from §3 Tools.
     private static func toolLabel(_ tool: Tool) -> String {
