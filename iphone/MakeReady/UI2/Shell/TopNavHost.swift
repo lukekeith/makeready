@@ -110,6 +110,12 @@ struct TopNavHost: View {
             },
             pin: model.topNavPin
         )
+        // A pin owns the row's scroll position while it holds: the row's own pan kept tracking
+        // the morph drag's finger and wrote its start offset back over the pin's `scrollTo`
+        // every frame — the row jittered, and on release a trailing tab (Media) jumped right
+        // (device logs 2026-11-09). Disabling the scroll cancels that pan; `scrollTo` still
+        // moves the row.
+        .scrollDisabled(model.topNavPin != nil)
         // Simultaneous so TopNav's own horizontal ScrollView keeps its pan; only a drag whose
         // first movement is vertical scrubs the morph (analysis §6: horizontal pan scrolls,
         // vertical drag morphs).
@@ -128,12 +134,14 @@ struct TopNavHost: View {
             .onChanged { value in
                 // A drag that began horizontal scrolls the row and never scrubs.
                 guard axisLock.update(start: value.startLocation, translation: value.translation) else { return }
-                // A new vertical drag pins the tab under its start (taking over a settle still
-                // running). TopNav spans the screen width (C-019 §2: no host inset), so the global
-                // x is TopNav's own x.
+                // A new vertical drag pins the SELECTED tab's leading edge where it sits (taking
+                // over a settle still running) — the same hold as a tap or the page's pull. Owner
+                // 2026-11-09: a left-positioned tab stays pinned on the left while it grows; the
+                // finger pin held the touched point instead, pushing a grown card's leading edge
+                // off screen.
                 if dragStart == nil {
                     TopNavMorph.shared.cancel()
-                    model.topNavPin = TopNav.Pin(x: value.startLocation.x, animation: nil)
+                    model.topNavPin = TopNav.Pin(tab: model.section.rawValue, animation: nil)
                 }
                 let start = dragStart ?? model.expansion
                 dragStart = start
@@ -164,7 +172,7 @@ struct TopNavHost: View {
         // completion with nothing to wait on is not guaranteed to run — let go now, or the pin
         // outlives the drag and the page's own pull-to-expand re-scrolls the row (owner 2026-10-29).
         guard target != model.expansion else { model.topNavPin = nil; return }
-        // The finger's pin stays on through the settle, which runs frame by frame (TopNavMorph).
+        // The drag's pin stays on through the settle, which runs frame by frame (TopNavMorph).
         TopNavMorph.shared.run($model, to: target, duration: Self.morphDuration, pin: model.topNavPin)
     }
 
