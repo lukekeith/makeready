@@ -42,6 +42,13 @@ struct StudyProgramHomeContainer: View {
     @State private var lessonMenuRows = StudyProgramHomeContainer.lessonMenuRows(lessonCount: 2)
     @State private var pendingLessonChoice: LessonMenuChoice?
     @State private var deleteConfirmOpen = false
+    // activity-slide-menu: the held slide, its menu, the chosen row and the delete confirmation.
+    @State private var heldActivity: ActivitySummary?
+    @State private var heldActivityLessonId: String?
+    @State private var activityMenuOpen = false
+    @State private var activityMenuHiding = false
+    @State private var pendingActivityChoice: ActivitySlideMenu.Choice?
+    @State private var activityDeleteConfirmOpen = false
     /// D11 (group-cover-image D1–D3): the system photo picker and its selection.
     @State private var pickerOpen = false
     @State private var pickedItem: PhotosPickerItem?
@@ -120,6 +127,17 @@ struct StudyProgramHomeContainer: View {
                             heldLessonId = lessonId
                             lessonMenuRows = Self.lessonMenuRows(lessonCount: state.lessonCount)
                             lessonMenuOpen = true
+                        },
+                        // activity-slide-menu: touch-and-hold a slide → Edit · Duplicate · Delete.
+                        onActivityMenu: { lessonIndex, slideIndex in
+                            guard !activityMenuOpen, !activityMenuHiding, pendingActivityChoice == nil,
+                                  !activityDeleteConfirmOpen, !lessonMenuOpen, !deleteConfirmOpen else { return }
+                            let lessons = AppState.shared.lessonsFor(programId: programId)
+                            guard let lessonId = Self.lessonID(at: lessonIndex, in: lessons),
+                                  let activity = Self.activity(at: slideIndex, inLesson: lessonId) else { return }
+                            heldActivity = activity
+                            heldActivityLessonId = lessonId
+                            activityMenuOpen = true
                         }
                     )
                 }
@@ -155,6 +173,30 @@ struct StudyProgramHomeContainer: View {
                 menuTitle: heldLessonId.flatMap { AppState.shared.lessons[$0] }.map {
                     Self.lessonMenuTitle(dayNumber: $0.position, title: $0.title)
                 }
+            )
+        }
+        // activity-slide-menu: Edit · Duplicate · Delete; the chosen row runs once the menu has hidden.
+        .actionMenuPresentation(isPresented: activityMenuOpen, onDismiss: { closeActivityMenu() },
+                                onHidden: { runPendingActivityChoice() }) {
+            ActionMenuOverlay(
+                actions: ActivitySlideMenu.rows,
+                onSelect: { item in
+                    pendingActivityChoice = ActivitySlideMenu.Choice(rawValue: item.label)
+                    closeActivityMenu()
+                },
+                onDone: { closeActivityMenu() },
+                menuTitle: heldActivity?.title
+            )
+        }
+        // activity-slide-menu: the delete confirmation — one destructive action, Cancel keeps it.
+        .actionMenuPresentation(isPresented: activityDeleteConfirmOpen, onDismiss: { cancelActivityDelete() }) {
+            ActionMenuOverlay(
+                title: ActivitySlideMenu.deleteConfirmTitle,
+                message: ActivitySlideMenu.deleteConfirmMessage,
+                actions: [ActivitySlideMenu.deleteConfirmAction],
+                doneLabel: "Cancel",
+                onSelect: { _ in confirmActivityDelete() },
+                onDone: { cancelActivityDelete() }
             )
         }
         // D8/D16: the delete confirmation — one destructive action, Cancel keeps the lesson.
@@ -317,6 +359,76 @@ struct StudyProgramHomeContainer: View {
     }
 
     // MARK: - Lesson menu (program-lesson-add-activity D4, D8, D15, D16)
+
+    // MARK: - activity-slide-menu
+
+    private func closeActivityMenu() {
+        activityMenuOpen = false
+        activityMenuHiding = true
+    }
+
+    private func runPendingActivityChoice() {
+        activityMenuHiding = false
+        guard let choice = pendingActivityChoice, let activity = heldActivity, let lessonId = heldActivityLessonId else {
+            clearHeldActivity(); return
+        }
+        pendingActivityChoice = nil
+        switch choice {
+        case .edit:
+            ActivityEntry.open(kind: activity.kind, activityId: activity.id, push: navigator.push)
+            clearHeldActivity()
+        case .duplicate:
+            clearHeldActivity()
+            Task { await duplicateActivity(activityKey: activity.activityKey, lessonId: lessonId) }
+        case .delete:
+            activityDeleteConfirmOpen = true
+        }
+    }
+
+    private func clearHeldActivity() {
+        heldActivity = nil
+        heldActivityLessonId = nil
+    }
+
+    private func cancelActivityDelete() {
+        activityDeleteConfirmOpen = false
+        clearHeldActivity()
+    }
+
+    private func confirmActivityDelete() {
+        let key = heldActivity?.activityKey
+        let lessonId = heldActivityLessonId
+        cancelActivityDelete()
+        guard let key, let lessonId else { return }
+        Task { await deleteActivity(activityKey: key, lessonId: lessonId) }
+    }
+
+    /// The leader asked for it, so a failure is the banner with a retry (/ios-error-surface); the page reloads either way.
+    @MainActor
+    private func duplicateActivity(activityKey: String, lessonId: String) async {
+        do {
+            try await ActivitySlideMenu.duplicate(activityKey: activityKey, lessonId: lessonId)
+        } catch {
+            if UI2ImageLoader.isCancellation(error) { return }
+            AppState.shared.recordError(error, context: "StudyProgramHomeContainer.duplicateActivity", surface: true,
+                                        friendlyMessage: ActivitySlideMenu.duplicateFailedMessage,
+                                        retry: { Task { await duplicateActivity(activityKey: activityKey, lessonId: lessonId) } })
+        }
+        await reload()
+    }
+
+    @MainActor
+    private func deleteActivity(activityKey: String, lessonId: String) async {
+        do {
+            try await ActivitySlideMenu.delete(activityKey: activityKey, lessonId: lessonId)
+        } catch {
+            if UI2ImageLoader.isCancellation(error) { return }
+            AppState.shared.recordError(error, context: "StudyProgramHomeContainer.deleteActivity", surface: true,
+                                        friendlyMessage: ActivitySlideMenu.deleteFailedMessage,
+                                        retry: { Task { await deleteActivity(activityKey: activityKey, lessonId: lessonId) } })
+        }
+        await reload()
+    }
 
     private func closeLessonMenu() {
         lessonMenuOpen = false
