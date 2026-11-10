@@ -11,7 +11,8 @@ import SwiftUI
 /// C-094 TextColorPalette — the colour panel the text tool's colour button opens.
 ///
 /// A C-095 ColorPickerWell beside one page of up to nine C-096 ColorSwatch presets, with a
-/// C-097 PageIndicator under the row (§2). Width-driven with a 66pt intrinsic height (R-16):
+/// C-097 PageIndicator under the row when there are two or more pages (§2, D34). Width-driven
+/// with a 66pt intrinsic height — 50pt with one page, which draws no dot row at all (R-16):
 /// the row centres in the width it is given and the component paints no background (§1
 /// deviation 2). Controlled (R-01): `currentColor` and `page` are the caller's; the only
 /// internal state is the finger-tracked drag offset of a page swipe (R-02, animation phase).
@@ -70,6 +71,9 @@ struct TextColorPalette: View {
         }
         /// OQ-C-094-002 ruling: ≈ 250 ms ease-out slide, no motion token.
         static let slide: Double = 0.25
+        /// FLAGGED LITERAL — C-094 §2 (owner ruling 2026-11-09): the rubber-band damping for a
+        /// drag past the first or last page (UIScrollView's 0.55 coefficient), no token.
+        static let rubberBand: CGFloat = 0.55
     }
 
     private var pageCount: Int { swatches.count }
@@ -94,8 +98,12 @@ struct TextColorPalette: View {
                     .frame(width: proxy.size.width, height: proxy.size.height)
             }
             .frame(height: Geometry.rowHeight)
-            PageIndicator(pageCount: pageCount, page: shownPage)    // C-097, §5
-                .ui2Element("Page dots")
+            // §2 (owner ruling 2026-11-10, D34): dots only with two or more pages; with one page
+            // C-097 is not instantiated, so neither the 8pt gap nor the 8pt row is reserved (50pt).
+            if pageCount > 1 {
+                PageIndicator(pageCount: pageCount, page: shownPage)    // C-097, §5
+                    .ui2Element("Page dots")
+            }
         }
         .padding(.vertical, Geometry.inset)
         .frame(maxWidth: .infinity)
@@ -133,7 +141,7 @@ struct TextColorPalette: View {
         .contentShape(Rectangle())
         // Sideways only, so a vertical drag on the palette scrolls the page (HorizontalScrolling.swift).
         .horizontalPan(
-            onChanged: { dragOffset = $0.translation },
+            onChanged: { dragOffset = resisted($0.translation, pageWidth: pageWidth) },
             onEnded: { value in
                 withAnimation(.easeOut(duration: Geometry.slide)) { dragOffset = 0 }
                 release(value.predictedEndTranslation, pageWidth: pageWidth)
@@ -142,7 +150,10 @@ struct TextColorPalette: View {
         // §2 Accessibility (R-17): the row pages as an adjustable element; the well and the
         // swatches stay the parts' own buttons.
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Colour palette, page \(shownPage + 1) of \(pageCount)")
+        .accessibilityLabel(
+            pageCount > 1 ? "Colour palette, page \(shownPage + 1) of \(pageCount)" : "Colour palette"
+        )
+        // §2: with one page the row is a plain group (the adjust action has nowhere to go).
         .accessibilityAdjustableAction { direction in
             switch direction {
             case .increment: changePage(to: shownPage + 1)
@@ -192,6 +203,19 @@ struct TextColorPalette: View {
         .transformPreference(UI2ElementPreferenceKey.self) { anchors in
             if pageIndex != shownPage { anchors = [] }
         }
+    }
+
+    /// §2 (owner ruling 2026-11-09): with one page the row does not move under a drag at all;
+    /// at the first or last page a drag past the end follows the finger with increasing
+    /// resistance and settles back on release (the release animates `dragOffset` to 0).
+    private func resisted(_ translation: CGFloat, pageWidth: CGFloat) -> CGFloat {
+        guard pageCount > 1 else { return 0 }
+        let pastStart = shownPage == 0 && translation > 0
+        let pastEnd = shownPage == pageCount - 1 && translation < 0
+        guard pastStart || pastEnd, pageWidth > 0 else { return translation }
+        let distance = abs(translation)
+        let damped = (1 - 1 / (distance * Geometry.rubberBand / pageWidth + 1)) * pageWidth
+        return translation < 0 ? -damped : damped
     }
 
     /// Settles a swipe on the nearer page: past half a page (or a fling past it) pages once.

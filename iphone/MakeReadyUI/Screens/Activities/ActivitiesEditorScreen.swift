@@ -327,6 +327,8 @@ struct ActivitiesEditorScreen: View {
     @SwiftUI.State private var focalDragBase: CGPoint?
     // C-094 `page` — the swatch page shown.
     @SwiftUI.State private var palettePage = 0
+    // §19.3 (D34.3): the gradient rail's width, so a rail that fits centres (layout only).
+    @SwiftUI.State private var gradientRailWidth: CGFloat = 0
     // §3 Error: the alert's presented flag, seeded from `State`.
     @SwiftUI.State private var alertPresented: Bool
     // §4 C-091 `contentExtent`: "the screen measures the objects' rotated, scaled box in wu".
@@ -338,6 +340,9 @@ struct ActivitiesEditorScreen: View {
     // §2: the bottom container's height, held while Manipulating hides it so the slider's clamp
     // does not change when the bars hide.
     @SwiftUI.State private var containerHeight: CGFloat = 0
+    // §19.1 (D34.1): the bottom safe area the tool row clears when no keyboard is up — the chrome
+    // ignores it, so it is read from the screen and kept here (layout only).
+    @SwiftUI.State private var safeBottom: CGFloat = 0
     // §11 Fixed canvas (D24, held only while the finger is down): the content extent fixed at drag
     // start so placement never re-runs under the finger, and the object's last transform.
     @SwiftUI.State private var dragExtent: ClosedRange<CGFloat>??
@@ -503,6 +508,7 @@ struct ActivitiesEditorScreen: View {
                         .ignoresSafeArea(.container)
                 }
                 chrome(unit: screen.size.width / Self.referenceWidth)
+                    .onChange(of: screen.safeAreaInsets.bottom, initial: true) { _, inset in safeBottom = inset }
             }
         }
         .background(Token.layoutBackground)                 // §2: page ground
@@ -1357,18 +1363,19 @@ struct ActivitiesEditorScreen: View {
         case "gradient":
             HorizontalRail(showsIndicators: false) {
                 HStack(spacing: Token.Space.elementGap) {
-                    IconButton(glyph: .refreshCw, tone: .default, style: .outlined, selected: false,
-                               accessibilityLabel: Self.shuffleLabel, onTap: { onBackground(.shuffle) })
-                        // §15.1: each rail control carries the blur (C-102's box is `radius-card-sm`).
-                        .floatingControlMaterial(cornerRadius: Token.Radius.cardSm)
-                        .ui2Element("C-102 IconButton \(visibleTools.count + 1)")
+                    shuffleTile
                     ForEach(Array(state.palettes.enumerated()), id: \.offset) { index, palette in
                         paletteTile(palette, index: index)
                     }
                 }
                 .padding(.horizontal, Token.Space.pageMargin)
                 .padding(.vertical, Token.Space.elementGap)
+                // §19.3 (D34.3): centred when it fits the width; leading-aligned and scrolling
+                // when it overflows (C-106's rule).
+                .frame(minWidth: gradientRailWidth, alignment: .center)
             }
+            .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { gradientRailWidth = $0 }
         case "image":
             VStack(alignment: .leading, spacing: 0) {
                 HorizontalRail(showsIndicators: false) {
@@ -1430,6 +1437,29 @@ struct ActivitiesEditorScreen: View {
             )
             .ui2Element("C-094 TextColorPalette")
         }
+    }
+
+    /// §19.5 (D34.5): ↻ Shuffle as a 33×44 `radius-card` tile with the palette tiles' dark blur,
+    /// its glyph centred — the palette tile's size, not C-102's 34×34 (a flagged literal tile; C-102
+    /// is not used for it).
+    private var shuffleTile: some View {
+        SwiftUI.Button(action: { onBackground(.shuffle) }) {
+            Image(GlyphName.refreshCw.rawValue, bundle: .ui2Preview)
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                // FLAGGED LITERAL — the 18pt glyph C-102 draws, in its default tone.
+                .frame(width: Self.shuffleGlyph, height: Self.shuffleGlyph)
+                .foregroundStyle(Token.navText)
+                .accessibilityHidden(true)
+                .frame(width: Self.paletteTileWidth, height: Self.paletteTileHeight)
+                .contentShape(RoundedRectangle(cornerRadius: Token.Radius.card))
+        }
+        .buttonStyle(.plain)
+        // §19.5: the same dark blur material as the palette tiles (§15.1).
+        .floatingControlMaterial(cornerRadius: Token.Radius.card)
+        .accessibilityLabel(Self.shuffleLabel)
+        .ui2Element("Shuffle")
     }
 
     /// GAP — OQ-activities-editor-41: the palette chip, screen-drawn until a registry row exists —
@@ -1661,7 +1691,7 @@ struct ActivitiesEditorScreen: View {
     /// §2 item 5: plain C-102 IconButtons the screen lays out itself (owner ruling 2026-10-10),
     /// 32pt, left to right. §15.1 (D29, supersedes the pitch layout): the visible tools sit in ONE
     /// container centred horizontally — 4pt padding, 8pt radius, 16pt gap, the dark blur material —
-    /// hugging its contents, vertically centred in the row (C-081's bar height).
+    /// hugging its contents; §19.1 (D34.1): the band hugs it too (40pt, 16pt above the keyboard).
     private var toolRow: some View {
         HStack(spacing: Self.toolRowGap) {
             ForEach(Array(visibleTools.enumerated()), id: \.element) { index, tool in
@@ -1682,8 +1712,9 @@ struct ActivitiesEditorScreen: View {
         .floatingControlMaterial(cornerRadius: Self.toolRowRadius)
         .ui2Element("Tool row")
         .frame(maxWidth: .infinity)
-        // activities-editor §2 item 5: the row is C-081's bar height (C-081 §5).
-        .frame(height: Self.barHeight)
+        // §19.1 (D34.1): the row hugs its own 40pt band (4 + 32 + 4) — no longer C-081's bar
+        // height; its bottom edge sits 16pt above the keyboard or the bottom safe area.
+        .padding(.bottom, Token.Space.pageMargin + max(safeBottom - keyboardOverlap, 0))
     }
 
     /// §3 Tools: category tools take `selected` while their rails are open; 3 is never selected;
@@ -2115,28 +2146,48 @@ struct ActivitiesEditorScreen: View {
         }
     }
 
-    /// §2 item 4 / deviation 5 + §9.2: the nine C-094 presets, in order, as (name, hex) pairs —
-    /// the name is for accessibility only; a tap resolves to the hex, which is what `State` and
-    /// `ObjectEdit` carry. White and black are `color-white-100` and `color-black`'s values.
-    private static let swatchPresets: [(name: String, hex: String)] = [
-        ("White", "#FFFFFF"),
-        ("Black", "#000000"),
-        // FLAGGED LITERAL — activities-editor §1 deviation 5: swatch hues, no colour token.
-        ("Blue", "#509CEF"),
-        ("Green", "#76C257"),
-        ("Yellow", "#F6CB61"),
-        ("Orange", "#EF8F3B"),
-        ("Red", "#EA4F5E"),
-        ("Pink", "#D43570"),
-        ("Purple", "#A92BBD")
+    /// §19.6 (D35): six pages of nine C-094 presets, each page light → dark, as (name, hex)
+    /// pairs — the name is for accessibility only; a tap resolves to the hex, which is what
+    /// `State` and `ObjectEdit` carry. Shared by the text colour, page colour and wash colour.
+    /// Page 1 is today's nine in today's order (§1 deviation 5).
+    // FLAGGED LITERAL — activities-editor §1 deviation 5 / §19.6: swatch hues, no colour token
+    // (White and Black are `color-white-100` and `color-black`'s values).
+    private static let swatchPresetPages: [[(name: String, hex: String)]] = [
+        // 1 General
+        [("White", "#FFFFFF"), ("Black", "#000000"), ("Blue", "#509CEF"), ("Green", "#76C257"),
+         ("Yellow", "#F6CB61"), ("Orange", "#EF8F3B"), ("Red", "#EA4F5E"), ("Pink", "#D43570"),
+         ("Purple", "#A92BBD")],
+        // 2 Blues & teals
+        [("Mist", "#E0F4FA"), ("Sky", "#B3E5F2"), ("Aqua", "#7DD3E8"), ("Cyan", "#3FBFD6"),
+         ("Teal", "#1FA3B8"), ("Azure", "#2B8CD6"), ("Cobalt", "#1F6FB8"), ("Navy", "#1B4F8C"),
+         ("Midnight", "#0F2F5C")],
+        // 3 Greens
+        [("Frost", "#E4F5DA"), ("Pistachio", "#C3E6AC"), ("Spring", "#9FD683"), ("Leaf", "#78C25A"),
+         ("Grass", "#4FAE45"), ("Emerald", "#2E9A44"), ("Forest", "#1F7A3A"), ("Pine", "#165A2E"),
+         ("Evergreen", "#0D3B1F")],
+        // 4 Yellows, oranges & reds
+        [("Butter", "#FFF1A8"), ("Lemon", "#FBE16B"), ("Sunflower", "#F7C948"), ("Amber", "#F5A83A"),
+         ("Tangerine", "#F27A2E"), ("Vermilion", "#E8552F"), ("Red", "#D92B3A"), ("Crimson", "#B3202D"),
+         ("Burgundy", "#7F1520")],
+        // 5 Purples & pinks
+        [("Blush", "#FBE0EC"), ("Lilac", "#E1CCF5"), ("Rose", "#F2A3C6"), ("Orchid", "#C98BE0"),
+         ("Magenta", "#D13F94"), ("Violet", "#9B4FD0"), ("Plum", "#7B2FA8"), ("Grape", "#55207A"),
+         ("Aubergine", "#35124D")],
+        // 6 Neutrals
+        [("White", "#FFFFFF"), ("Cool 100", "#E8ECF0"), ("Warm 100", "#EFEBE5"), ("Cool 300", "#C5CCD3"),
+         ("Warm 300", "#CCC6BC"), ("Cool 500", "#8F99A3"), ("Warm 500", "#968F84"), ("Charcoal", "#3A3F45"),
+         ("Black", "#000000")]
     ]
 
-    /// C-094 `swatches`: only pages that hold colours (owner walk round 9) — today the one page of
-    /// nine presets, so C-097 draws no dots and the row does not page. The outlined swatch is the
-    /// one whose hex equals the current colour (§9.2); a colour no preset holds outlines none.
-    private static let palettePages: [[TextColorPalette.NamedColor]] = [
-        swatchPresets.map { TextColorPalette.NamedColor(name: $0.name, color: hexColor($0.hex) ?? Token.textPrimary) }
-    ]
+    /// Every preset, in page order — a tap resolves against these (§9.2).
+    private static let swatchPresets: [(name: String, hex: String)] = swatchPresetPages.flatMap { $0 }
+
+    /// C-094 `swatches` (§19.6, D35; supersedes §17's one page): six pages, so C-097 draws six
+    /// dots and the row pages. The outlined swatch is the one whose hex equals the current colour
+    /// (§9.2); a colour not on the shown page outlines none there.
+    private static let palettePages: [[TextColorPalette.NamedColor]] = swatchPresetPages.map { page in
+        page.map { TextColorPalette.NamedColor(name: $0.name, color: hexColor($0.hex) ?? Token.textPrimary) }
+    }
 
     /// A colour is the leader's data, decoded from its #rrggbb (data, not style; §9.2).
     private static func hexColor(_ hex: String) -> Color? {
@@ -2291,9 +2342,6 @@ struct ActivitiesEditorScreen: View {
     private static let sheetTopGap: CGFloat = 16
     /// The canvas's own space: the whole screen, in points (§2 Autoscroll's touch).
     private static let screenSpace = "ActivitiesEditorScreen.canvas"
-    /// activities-editor §2 item 5: the tool row covers the chips, so it takes C-081's bar height
-    /// (104 since D31's 72pt chips) — C-081 §5: "follows this row's height, not a literal".
-    private static let barHeight: CGFloat = ActivityNavBar.height
     /// FLAGGED LITERAL — activities-editor §15.1 (D29; no `material` token family): the tool-row
     /// container's 4pt padding, 8pt radius and 16pt gap.
     private static let toolRowPadding: CGFloat = 4
@@ -2306,6 +2354,8 @@ struct ActivitiesEditorScreen: View {
     /// GAP — OQ-activities-editor-41 / 42: the palette chip 33×44 and the thumbnail 44×44.
     private static let paletteTileWidth: CGFloat = 33
     private static let paletteTileHeight: CGFloat = 44
+    /// FLAGGED LITERAL — activities-editor §19.5: the Shuffle tile's 18pt glyph (C-102's size).
+    private static let shuffleGlyph: CGFloat = 18
     private static let thumbnailSize: CGFloat = 44
     /// FLAGGED LITERAL — activities-editor §10.1: the top rail's pinned height — two C-106 rows
     /// (52 each) and a single-line C-045 (44), whole rows; the rest scrolls inside the rail.

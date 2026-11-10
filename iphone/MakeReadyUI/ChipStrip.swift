@@ -46,11 +46,17 @@ struct ChipStrip: View {
     /// strip draws exactly as before.
     var chipMaterial: Bool = false
 
+    /// The strip's measured width — layout only, never a prop (R-02). C-106 §2 (D34): the row
+    /// is centred when it fits, so it is laid out at least as wide as the inset content area.
+    @State private var stripWidth: CGFloat = 0
+
     var body: some View {
         ScrollViewReader { proxy in
             HorizontalRail(showsIndicators: false) {
-                // §2 Chip row: leading-aligned (deviation 2), gap `space-element-gap`, chips
-                // vertically centred on the row's line (a 34pt filled chip centres in the 36 line).
+                // §2 Chip row (owner ruling 2026-11-10, D34): centred when its content fits the
+                // width, leading-aligned (and scrolling) when it overflows. Gap
+                // `space-element-gap`; chips vertically centred on the row's line (a 34pt filled
+                // chip centres in the 36 line).
                 HStack(alignment: .center, spacing: Token.Space.elementGap) {
                     ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                         chip(item)
@@ -60,8 +66,17 @@ struct ChipStrip: View {
                 }
                 // §2: "vertical inset `space-element-gap` (8) above and below".
                 .padding(.vertical, Token.Space.elementGap)
+                // §2 (D34): at least the content area's width (the strip minus its two 16pt
+                // insets), centred in it — a fitting row centres; an overflowing row is wider
+                // than this minimum, so it starts at the leading inset and scrolls.
+                .frame(
+                    minWidth: max(stripWidth - 2 * Token.Space.pageMargin, 0),
+                    alignment: .center
+                )
                 .ui2Element("Chip row")
             }
+            // §3: "a row that fits does not scroll" — bounce only when the content overflows.
+            .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
             // §2 Scroll container: the 16pt insets are SCROLL-CONTENT insets — under overflow the
             // chips pass beneath the edge; they are not outer padding on the strip. Content
             // margins (not padding) so `scrollTo` keeps the selected chip inside them.
@@ -72,6 +87,7 @@ struct ChipStrip: View {
             .onChange(of: selectedID) { scrollToSelected(proxy, animated: true) }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { stripWidth = $0 }
         // R-17: the strip is a horizontal scroll group; each chip's label and selected trait are
         // C-035's.
         .accessibilityElement(children: .contain)

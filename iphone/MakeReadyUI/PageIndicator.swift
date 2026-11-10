@@ -38,7 +38,9 @@ struct PageIndicator: View {
 
     var body: some View {
         HStack(spacing: Geometry.gap) {
-            // OQ-C-097-1 ruling: with `pageCount` ≤ 1 no dots are drawn; the 8pt height stays.
+            // §2 (owner ruling 2026-11-10, D34; OQ-C-097-1 closed): dots only with two or more
+            // pages. C-094 does not instantiate this for one page; standing alone, `pageCount`
+            // ≤ 1 draws no dot and keeps only its 8pt intrinsic height.
             if pageCount > 1 {
                 ForEach(0..<pageCount, id: \.self) { index in
                     Circle()                                       // §2: `radius-circle`
