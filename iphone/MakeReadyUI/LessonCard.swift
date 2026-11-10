@@ -66,9 +66,9 @@ struct LessonCard: View {
     /// calls it. No render effect; no-op default (R-03), so hosts that omit it are unchanged.
     var onLongPressSlide: (Int) -> Void = { _ in }
 
-    /// The slide whose touch-and-hold fired during the current touch, so its release does not
-    /// also fire the tap. Ephemeral gesture state, owned by the card (R-02).
-    @SwiftUI.State private var longPressedSlide: Int?
+    /// The slide under a finger that may still become a touch-and-hold — it draws the 0.6
+    /// press dim. Ephemeral gesture state, owned by the card (R-02).
+    @SwiftUI.State private var pressedSlide: Int?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -232,37 +232,38 @@ struct LessonCard: View {
         HorizontalRail(showsIndicators: false) {
             HStack(alignment: .top, spacing: Token.Space.metaGap) {
                 ForEach(slides.indices, id: \.self) { index in
-                    SwiftUI.Button {
-                        // A touch-and-hold already reported this touch: the release is not a tap.
-                        if longPressedSlide == index {
-                            longPressedSlide = nil
-                            return
-                        }
-                        onSelectSlide(index)
-                    } label: {
-                        ActivityScreenshot(image: slides[index].image)
-                            .frame(width: Self.slideWidth)
-                    }
-                    .buttonStyle(PressedDim())
-                    // study-program-home §3 "Slide touch-and-hold": the system long-press
-                    // duration, run alongside the button so the 0.6 dim is kept. A
-                    // LongPressGesture fails once the finger moves, so a sideways drag still
-                    // scrolls the HorizontalRail.
-                    .simultaneousGesture(
-                        LongPressGesture()
-                            .onChanged { _ in longPressedSlide = nil }
-                            .onEnded { _ in
-                                longPressedSlide = index
-                                onLongPressSlide(index)
+                    // A slide is a tap plus a touch-and-hold, not a Button: a Button (and a
+                    // gesture run alongside it) keeps the touch when a sideways drag starts on a
+                    // slide, so the scroll fired the tap or the long-press. These two fail once
+                    // the finger moves, so the HorizontalRail takes the drag.
+                    ActivityScreenshot(image: slides[index].image)
+                        .frame(width: Self.slideWidth)
+                        .opacity(pressedSlide == index ? Self.pressedOpacity : 1)
+                        .contentShape(Rectangle())
+                        .onTapGesture { onSelectSlide(index) }
+                        // study-program-home §3 "Slide touch-and-hold": the hold fires instead of
+                        // the tap; moving more than 10 pt cancels it and lets the rail scroll.
+                        .onLongPressGesture(
+                            minimumDuration: Self.slideHoldDuration,
+                            maximumDistance: Self.slideHoldSlop,
+                            perform: { onLongPressSlide(index) },
+                            onPressingChanged: { pressing in
+                                if pressing {
+                                    pressedSlide = index
+                                } else if pressedSlide == index {
+                                    pressedSlide = nil
+                                }
                             }
-                    )
-                    // §2 Accessibility: "each slide is a button labelled `Slide.label`".
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(slides[index].label)
-                    .accessibilityAddTraits(.isButton)
-                    // VoiceOver cannot long-press reliably: the same callback as a custom action.
-                    .accessibilityAction(named: "More actions") { onLongPressSlide(index) }
-                    .ui2Element("Slide \(index + 1)")
+                        )
+                        // §2 Accessibility: "each slide is a button labelled `Slide.label`" —
+                        // its activation is the tap the Button used to give it.
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(slides[index].label)
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityAction { onSelectSlide(index) }
+                        // VoiceOver cannot long-press reliably: the same callback as a custom action.
+                        .accessibilityAction(named: "More actions") { onLongPressSlide(index) }
+                        .ui2Element("Slide \(index + 1)")
                 }
                 if let addAction {
                     addCard(addAction)
@@ -367,4 +368,10 @@ struct LessonCard: View {
     }
 
     private static let pressedOpacity: Double = 0.6
+
+    /// study-program-home §3 "Slide touch-and-hold": the system long-press duration (0.5 s).
+    private static let slideHoldDuration: Double = 0.5
+
+    /// The finger travel that cancels a slide's tap / hold so the rail scrolls instead (10 pt).
+    private static let slideHoldSlop: CGFloat = 10
 }
