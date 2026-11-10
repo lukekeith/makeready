@@ -1,5 +1,5 @@
 # text-activity-v2 — spec
-> ✅ SIGNED OFF 2026-11-10 — cefb7a6d · by luke: "walked on device through round 13 (layout, alignment rail, placeholder chip, slide icons, scroll fix) — done"
+> ✅ SHIPPED 2026-11-10 — merged d88e00c0 · no ticket · signed off by luke: "walked on device through round 13 (layout, alignment rail, placeholder chip, slide icons, scroll fix) — done" · not verified
 > lg · ticket none
 
 ## Idea
