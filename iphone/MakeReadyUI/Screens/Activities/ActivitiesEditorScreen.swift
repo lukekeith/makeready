@@ -1661,7 +1661,7 @@ struct ActivitiesEditorScreen: View {
     /// §2 item 5: plain C-102 IconButtons the screen lays out itself (owner ruling 2026-10-10),
     /// 32pt, left to right. §15.1 (D29, supersedes the pitch layout): the visible tools sit in ONE
     /// container centred horizontally — 4pt padding, 8pt radius, 16pt gap, the dark blur material —
-    /// hugging its contents, vertically centred in the 76pt row.
+    /// hugging its contents, vertically centred in the row (C-081's bar height).
     private var toolRow: some View {
         HStack(spacing: Self.toolRowGap) {
             ForEach(Array(visibleTools.enumerated()), id: \.element) { index, tool in
@@ -1682,7 +1682,7 @@ struct ActivitiesEditorScreen: View {
         .floatingControlMaterial(cornerRadius: Self.toolRowRadius)
         .ui2Element("Tool row")
         .frame(maxWidth: .infinity)
-        // GAP — activities-editor §2 item 5: the 76pt row, no spacing token.
+        // activities-editor §2 item 5: the row is C-081's bar height (C-081 §5).
         .frame(height: Self.barHeight)
     }
 
@@ -2291,8 +2291,9 @@ struct ActivitiesEditorScreen: View {
     private static let sheetTopGap: CGFloat = 16
     /// The canvas's own space: the whole screen, in points (§2 Autoscroll's touch).
     private static let screenSpace = "ActivitiesEditorScreen.canvas"
-    /// GAP — activities-editor §2 item 5: the tool row, 76pt.
-    private static let barHeight: CGFloat = 76
+    /// activities-editor §2 item 5: the tool row covers the chips, so it takes C-081's bar height
+    /// (104 since D31's 72pt chips) — C-081 §5: "follows this row's height, not a literal".
+    private static let barHeight: CGFloat = ActivityNavBar.height
     /// FLAGGED LITERAL — activities-editor §15.1 (D29; no `material` token family): the tool-row
     /// container's 4pt padding, 8pt radius and 16pt gap.
     private static let toolRowPadding: CGFloat = 4

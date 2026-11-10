@@ -11,10 +11,10 @@ import SwiftUI
 /// C-081 ActivityNavBar — the lesson editor's bottom strip of activity slides plus a trailing
 /// add button.
 ///
-/// §2: "A horizontal row, 76 pt tall at the 440 design width (16 + 44 + 16). Width-driven: it
+/// §2: "A horizontal row, 104 pt tall at the 440 design width (16 + 72 + 16). Width-driven: it
 /// fills the width it is given (R-16). It paints **no background**." The four-side
 /// `space-page-margin` is the component's own inset, not outer chrome — it is what makes the
-/// row 76 tall.
+/// row 104 tall.
 struct ActivityNavBar: View {
 
     /// §4 `slides` element (R-36, nested). `image` is the activity's screenshot, already
@@ -58,9 +58,9 @@ struct ActivityNavBar: View {
                 // §2 Padding: "`space-page-margin` (16) on all four sides."
                 .padding(.trailing, Token.Space.pageMargin)
         }
-        // §2: "76 pt tall (16 + 44 + 16)" — held even when `slides` is empty (OQ-C-081-001:
-        // "the bar keeps its 76 pt height").
-        .frame(height: Self.slideHeight + Token.Space.pageMargin * 2)
+        // §2: "104 pt tall (16 + 72 + 16)" — held even when `slides` is empty (OQ-C-081-001;
+        // §3 empty: "height unchanged (104)").
+        .frame(height: Self.height)
         // §2 Bottom inset: "extra space added below the chips and the add button, inside the
         // bar's frame, on top of the 16 bottom padding. The bar grows by that amount."
         .padding(.bottom, bottomInset)
@@ -160,7 +160,7 @@ struct ActivityNavBar: View {
     private static let fadeLength: CGFloat = Token.Space.pageMargin + addVisual
 
     /// §3: "Each slide renders the filled chip when its `image` is non-nil and the empty C-061
-    /// chip when it is nil (OQ-C-081-6). Both chips are 440:956 at 44 tall (D31)."
+    /// chip when it is nil (OQ-C-081-6). Both chips are 440:956 at 72 tall (D31)."
     @ViewBuilder
     private func slideView(_ slide: Slide) -> some View {
         if let image = slide.image {
@@ -187,10 +187,13 @@ struct ActivityNavBar: View {
         let id: String
     }
 
-    /// §2 Slide strip: "Every chip is 44 pt tall and ≈ 20.25 pt wide — C-079 ActivityScreenshot's
-    /// aspect, 440:956, so width = 44 × 440 / 956" (SPEC D31).
-    fileprivate static let slideHeight: CGFloat = 44
+    /// §2 Slide strip: "Every chip is 72 pt tall and ≈ 33.1 pt wide — C-079 ActivityScreenshot's
+    /// aspect, 440:956, so width = 72 × 440 / 956" (SPEC D31, updated 2026-11-09).
+    fileprivate static let slideHeight: CGFloat = 72
     fileprivate static let slideWidth: CGFloat = slideHeight * 440 / 956
+    /// §2: the bar's height before `bottomInset` — 16 + 72 + 16 = 104. §5: "Hosts lay out against
+    /// the bar's measured height, never a literal" — exposed so a host's matching row follows it.
+    static let height: CGFloat = slideHeight + Token.Space.pageMargin * 2
     /// §2 Add button: "24×24 visual" (C-021's).
     private static let addVisual: CGFloat = 24
     /// §2: the strip's trailing content inset, "16 + 24 + `space-meta-gap` (44)".

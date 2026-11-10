@@ -14,7 +14,7 @@ import SwiftUI
 /// Deviation 1 collapses Figma's three nested layers into that one rounded rectangle. The
 /// chip shows no text, glyph or image; `label` is VoiceOver-only.
 ///
-/// §2 Frame: fixed 44 tall in C-079 ActivityScreenshot's 440:956 shape (≈ 20.25 wide; SPEC D31),
+/// §2 Frame: fixed 72 tall in C-079 ActivityScreenshot's 440:956 shape (≈ 33.1 wide; SPEC D31),
 /// its intrinsic size. The host places it and does not stretch it.
 /// So unlike most rows this view is not width-driven: it states both of its own dimensions.
 struct ActivitySlide: View {
@@ -71,9 +71,9 @@ struct ActivitySlide: View {
     /// Deviation 2: the ruling's "0.6 opacity", multiplying the slide's own paint.
     private static let pressedOpacity: Double = 0.6
 
-    /// §2 Frame: 44 tall, width = 44 × 440 / 956 (≈ 20.25) — C-079's capture aspect (SPEC D31,
-    /// superseding 33×44). The component's own designed geometry, not literals.
-    private static let height: CGFloat = 44
+    /// §2 Frame: 72 tall, width = 72 × 440 / 956 (≈ 33.1) — C-079's capture aspect (SPEC D31,
+    /// updated 2026-11-09 from 44 tall). The component's own designed geometry, not literals.
+    private static let height: CGFloat = 72
     private static let width: CGFloat = height * 440 / 956
     /// §2 Active outline: "1pt".
     private static let outlineWidth: CGFloat = 1
