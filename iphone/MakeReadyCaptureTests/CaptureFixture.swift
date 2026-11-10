@@ -1127,6 +1127,7 @@ struct CaptureComponent: Codable {
     let readOnlyPosterURL: String?             // the read-only page's image; "" = none
     // activities-editor §15.2 (chat change 2026-11-09, D30). Additive:
     let sliderDocked: Bool?                    // C-093 drawn docked at the left edge
+    let snapIndex: Int?                        // activities-editor §18.8 — the dragged object's index (−1 none)
     // OQ-C-081-6 (restored 2026-11-09): each chip's screenshot URL, parallel to `slideIDs`; "" = none.
     let slideImages: [String]?
     let showsHighlightTool: Bool?

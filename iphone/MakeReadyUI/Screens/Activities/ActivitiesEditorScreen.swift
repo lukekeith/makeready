@@ -150,6 +150,10 @@ struct ActivitiesEditorScreen: View {
         /// §15.2 (D30): C-093 drawn docked at the screen's left edge when the edit opens (the
         /// slider-docked preview). The live view docks it itself after 2 s untouched.
         var sliderDocked: Bool = false
+        /// §18.8 (D32, D33): in Manipulating, the object drawn as the one being dragged — its
+        /// active guides are `snapPosition`'s at its seeded position, and C-091's reserved zones
+        /// draw only while its box enters one. −1 = none (the snap-centre / -edge / -gap previews).
+        var snapIndex: Int = -1
 
         /// §10.8 `gradient`: `base` `#RRGGBB`, `blobs`, `hidden`.
         struct Gradient: Equatable {
@@ -356,6 +360,11 @@ struct ActivitiesEditorScreen: View {
     @SwiftUI.State private var moveBase: CGPoint = .zero
     @SwiftUI.State private var scaleBase: CGFloat = 1
     @SwiftUI.State private var rotationBase: Double = 0
+    // §18 (D32, D33): the move's and the rotation's engaged snap targets (hysteresis) and the
+    // guides the move draws — set per gesture frame, cleared when the gesture ends.
+    @SwiftUI.State private var snapEngaged = SnapEngaged()
+    @SwiftUI.State private var rotationEngaged: Double?
+    @SwiftUI.State private var liveGuides: [ActivityCanvasGuideSegment] = []
     // §15.2 (D30): C-093 docked half off the left edge; a finger on it; and the dock timer's
     // generation — bumping it cancels the running 2 s task and starts a new one (no `asyncAfter`).
     @SwiftUI.State private var sliderDocked: Bool
@@ -713,12 +722,14 @@ struct ActivitiesEditorScreen: View {
             mode: mode,
             content: { AnyView(canvasContent(objects, unit: unit)) },
             onTapEmpty: { point in tapCanvas(at: point) },
-            centerGuide: state.centerGuide,
+            // §18.7 (D33): the guides active now — the centre guide is one of them.
+            activeGuides: canvasGuides(viewport: viewport, unit: unit),
             deleteTarget: state.deleteTargetShown ? .visible : nil,
             verticalAnchor: .center,
             contentExtent: extent,
-            // §2 (D3): the screen only turns the guides on.
-            reservedZones: mode == .manipulating,
+            // §2 (D3): the screen only turns the guides on — §18.7 (D33): only while the
+            // dragged layer enters a zone.
+            reservedZones: draggedEntersZone(viewport: viewport),
             pinnedAction: pinned,
             widthHandles: mode == .editing ? widthHandles(pageOffset: offset) : nil,
             onResizeWidth: resizeDraft,
@@ -895,7 +906,7 @@ struct ActivitiesEditorScreen: View {
                 // §10.10: while editing, two fingers pinch and rotate the edited object; it never moves.
                 return kind != .move || editedIndex == nil
             },
-            onUpdate: { manipulate($0, unit: unit) },
+            onUpdate: { manipulate($0, unit: unit, viewport: size.height / unit) },
             onTouchDown: { point in
                 // D25: the canvas picks the object at the first finger-down, by geometry.
                 let target = point.flatMap {
@@ -977,11 +988,15 @@ struct ActivitiesEditorScreen: View {
     /// §10.10: the move follows the touches' centroid (1:1 in wu), pinch writes `scale` and rotate
     /// `rotation`, simultaneously, about the object's centre. §9.1a: each frame goes to the display
     /// only; when the last recognizer ends, `endGesture` reports the final transform once.
-    private func manipulate(_ update: CanvasManipulation.Update, unit: CGFloat) {
+    private func manipulate(_ update: CanvasManipulation.Update, unit: CGFloat, viewport: CGFloat) {
         if update.phase == .ended {
             activeManipulations.remove(update.kind)
             guard activeManipulations.isEmpty else { return }
             dragExtent = nil
+            // §18.7: guides draw only while active.
+            snapEngaged = SnapEngaged()
+            rotationEngaged = nil
+            liveGuides = []
             endGesture()
             return
         }
@@ -1003,12 +1018,19 @@ struct ActivitiesEditorScreen: View {
             var next = shown
             switch update.kind {
             case .move:
-                next.position = CGPoint(x: moveBase.x + update.translation.width / unit,
-                                        y: moveBase.y + update.translation.height / unit)
+                // §18.2: the position snaps per axis; the snapped value is what the frame shows.
+                next.position = snappedMove(CGPoint(x: moveBase.x + update.translation.width / unit,
+                                                    y: moveBase.y + update.translation.height / unit),
+                                            index: index, unit: unit, viewport: viewport)
             case .pinch:
+                // §18.3: pinch never snaps.
                 next.scale = scaleBase * update.scale
             case .rotate:
-                next.rotation = .degrees(rotationBase + update.rotation * 180 / .pi)
+                // §18.3: the angle snaps to every 45° within 4°.
+                let snapped = Self.snapRotation(rotationBase + update.rotation * 180 / .pi, engaged: rotationEngaged)
+                if let angle = snapped.engaged, angle != rotationEngaged { Self.snapHaptic() }
+                rotationEngaged = snapped.engaged
+                next.rotation = .degrees(snapped.angle)
             }
             var transaction = Transaction()
             transaction.animation = nil
@@ -1016,6 +1038,90 @@ struct ActivitiesEditorScreen: View {
         case .ended:
             break
         }
+    }
+
+    // MARK: - §18 (D32, D33): snapping, wired
+
+    /// §18.2: one move frame — the raw page position snapped in viewport wu, the guides and the
+    /// engaged targets kept, the haptic fired on a new engage (§18.4). Returns page wu.
+    private func snappedMove(_ raw: CGPoint, index: Int, unit: CGFloat, viewport: CGFloat) -> CGPoint {
+        let offset = pageOffset(viewport: viewport)
+        let result = Self.snapPosition(
+            CGPoint(x: raw.x, y: raw.y + offset),
+            size: snapSize(index),
+            rotation: shownObjects[index].transform.rotation,
+            others: snapBoxes(excluding: index, offset: offset),
+            viewport: viewport,
+            pinnedAction: hasPinnedAction,
+            unit: unit,
+            engaged: snapEngaged
+        )
+        let gainedX = result.engaged.x != nil && result.engaged.x != snapEngaged.x
+        let gainedY = result.engaged.y != nil && result.engaged.y != snapEngaged.y
+        if gainedX || gainedY { Self.snapHaptic() }
+        snapEngaged = result.engaged
+        liveGuides = result.guides
+        return CGPoint(x: result.position.x, y: result.position.y - offset)
+    }
+
+    /// §18.7: the guides C-091 draws — the live move's, else (a Manipulating preview) the seeded
+    /// `snapIndex` object's at its position, plus the centre guide when `centerGuide` asks for it.
+    private func canvasGuides(viewport: CGFloat, unit: CGFloat) -> [ActivityCanvasGuideSegment] {
+        var guides = liveGuides
+        if dragged == nil, mode == .manipulating, shownObjects.indices.contains(state.snapIndex) {
+            let offset = pageOffset(viewport: viewport)
+            let index = state.snapIndex
+            let box = snapBox(index, offset: offset)
+            guides = Self.snapPosition(
+                CGPoint(x: box.midX, y: box.midY),
+                size: snapSize(index),
+                rotation: shownObjects[index].transform.rotation,
+                others: snapBoxes(excluding: index, offset: offset),
+                viewport: viewport,
+                pinnedAction: hasPinnedAction,
+                unit: unit,
+                engaged: SnapEngaged()
+            ).guides
+        }
+        if state.centerGuide, mode == .manipulating {
+            let centre = Self.pageGuide(x: Snap.pageCentre, viewport: viewport)
+            if !guides.contains(centre) { guides.append(centre) }
+        }
+        return guides
+    }
+
+    /// §18.7: C-091's reserved zones draw only while the dragged layer's box enters one.
+    private func draggedEntersZone(viewport: CGFloat) -> Bool {
+        let seeded = mode == .manipulating && shownObjects.indices.contains(state.snapIndex) ? state.snapIndex : nil
+        guard let index = dragged?.index ?? seeded, shownObjects.indices.contains(index) else { return false }
+        return Self.entersReservedZone(snapBox(index, offset: pageOffset(viewport: viewport)),
+                                       viewport: viewport, pinnedAction: hasPinnedAction)
+    }
+
+    private var hasPinnedAction: Bool { actions.contains { $0.placement == .pinned } }
+
+    /// An object's layout box as drawn, scaled (wu), before rotation.
+    private func snapSize(_ index: Int) -> CGSize {
+        let object = shownObjects[index]
+        return CGSize(width: (object.transform.width ?? Self.editSlotWidth) * object.transform.scale,
+                      height: objectHeight(object, index: index) * object.transform.scale)
+    }
+
+    /// An object's rotated bounding box in viewport wu.
+    private func snapBox(_ index: Int, offset: CGFloat) -> CGRect {
+        let position = shownObjects[index].transform.position
+        return Self.rotatedBounds(center: CGPoint(x: position.x, y: position.y + offset),
+                                  size: snapSize(index), rotation: shownObjects[index].transform.rotation)
+    }
+
+    /// §18.2: every other layer's box — the edited object (drawn at the edit slot) excluded.
+    private func snapBoxes(excluding index: Int, offset: CGFloat) -> [CGRect] {
+        shownObjects.indices.filter { $0 != index && $0 != editedIndex }.map { snapBox($0, offset: offset) }
+    }
+
+    /// §18.4: a light selection haptic on each engage.
+    private static func snapHaptic() {
+        UISelectionFeedbackGenerator().selectionChanged()
     }
 
     /// §9.1a: each frame goes to the display only; `endGesture` reports the final transform once.
@@ -2368,6 +2474,59 @@ extension ActivitiesEditorScreen.State {
         s.deleteTargetShown = true
         return s
     }()
+    /// §18.8 snap-centre — a drag snapped to the page centre (x 220): its page guide.
+    static let snapCentre: Self = {
+        var s = committed(x: 220, y: 390)
+        s.objectTexts = [snapSampleText]
+        s.objectWidths = [280]
+        s.objectHeights = [snapSampleHeight]
+        s.editorMode = "manipulating"
+        s.deleteTargetShown = true
+        s.snapIndex = 0
+        return s
+    }()
+    /// §18.8 snap-edge — the dragged layer (2) snapped to the other layer's left edge (x 60):
+    /// the layer guide runs between the two.
+    static let snapEdge: Self = {
+        var s = twoLayers(first: (x: 180, y: 300, width: 240), second: (x: 160, y: 560, width: 200))
+        // Left-aligned, so the text's left edge is the box's and the guide reads at the glyphs.
+        s.objectAlignments = ["left", "left"]
+        s.snapIndex = 1
+        return s
+    }()
+    /// §18.8 snap-gap — the dragged layer (2) 24 wu below the other: the short gap guide.
+    static let snapGap: Self = {
+        let top: Double = 360
+        var s = twoLayers(first: (x: 220, y: top, width: 240),
+                          second: (x: 250, y: top + snapSampleHeight + 24, width: 200))
+        s.snapIndex = 1
+        return s
+    }()
+
+    /// §18.8: two committed one-line layers in Manipulating, for the edge and gap previews.
+    private static func twoLayers(first: (x: Double, y: Double, width: Double),
+                                  second: (x: Double, y: Double, width: Double)) -> Self {
+        var s = base
+        s.editorMode = "manipulating"
+        s.deleteTargetShown = true
+        s.objectTexts = [snapSampleText, snapSampleText]
+        s.objectFonts = ["sans", "sans"]
+        s.objectColors = [white, white]
+        s.objectWeights = ["bold", "bold"]
+        s.objectSizes = [38, 38]
+        s.objectXs = [first.x, second.x]
+        s.objectYs = [first.y, second.y]
+        s.objectScales = [1, 1]
+        s.objectRotations = [0, 0]
+        s.objectWidths = [first.width, second.width]
+        s.objectHeights = [snapSampleHeight, snapSampleHeight]
+        return s
+    }
+
+    /// §18.8: a one-line sample, 38 × 1.25 = 47.5 wu tall.
+    private static let snapSampleText = "Be still"
+    private static let snapSampleHeight: Double = 47.5
+
     /// §3 Saving — after Done the object is committed optimistically; the write runs behind.
     static let saving: Self = {
         var s = committed()
@@ -2576,6 +2735,24 @@ extension ActivitiesEditorScreen.State {
         .frame(width: 440, height: 956, alignment: .top)
 }
 
+#Preview("Snap centre") {
+    ActivitiesEditorScreen(state: .snapCentre)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Snap edge") {
+    ActivitiesEditorScreen(state: .snapEdge)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Snap gap") {
+    ActivitiesEditorScreen(state: .snapGap)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
 #Preview("Saving") {
     ActivitiesEditorScreen(state: .saving)
         .safeAreaPadding(.top, 59)
@@ -2684,6 +2861,206 @@ private extension View {
                 .fill(.ultraThinMaterial)
                 .environment(\.colorScheme, .dark)
         }
+    }
+}
+
+// MARK: - §18 (D32, D33): snapping — pure static functions
+
+extension ActivitiesEditorScreen {
+    /// §18.1: the constants, in one place. The pure functions and the guides read these only.
+    enum Snap {
+        /// FLAGGED LITERAL — §18.1: the standard padding and gap, wu.
+        static let padding: CGFloat = 24
+        static let gap: CGFloat = 24
+        /// FLAGGED LITERAL — §18.1: engage within 8 pt on screen, release 12 pt past (hysteresis).
+        static let engage: CGFloat = 8
+        static let release: CGFloat = 12
+        /// FLAGGED LITERAL — §18.3: every multiple of 45°, within 4°.
+        static let rotationStep: Double = 45
+        static let rotationWindow: Double = 4
+        /// GAP — §18.3: "the window plus hysteresis", no value stated; position's 8 → 12 ratio.
+        static let rotationRelease: Double = 6
+        /// FLAGGED LITERAL — §18.2: the padding lines T 107 and viewport − B, B 85 (110 pinned).
+        static let top: CGFloat = 107
+        static let bottom: CGFloat = 85
+        static let bottomPinned: CGFloat = 110
+        /// §18.2: the page vertical centre, x 220 wu.
+        static let pageCentre: CGFloat = 220
+        /// FLAGGED LITERAL — C-091 §2 layer 6 (01 §8): the rail zone, 23 × 88, right edge 28 from
+        /// the screen's right, centred at 81 % of the viewport — for the §18.7 zone test only.
+        static let railSize = CGSize(width: 23, height: 88)
+        static let railRightInset: CGFloat = 28
+        static let railHeightFraction: CGFloat = 0.81
+    }
+
+    /// §18.2: what a target is — the page centre, a padding line, another layer's edge or centre
+    /// line, or the standard gap to another layer (by its index in `others`).
+    enum SnapSource: Hashable {
+        case pageCentre
+        case padding
+        case layer(Int)
+        case gap(Int)
+    }
+
+    /// §18.2: the dragged layer's line tested — left/top, centre, right/bottom.
+    enum SnapAnchor: Hashable {
+        case leading
+        case centre
+        case trailing
+    }
+
+    /// One engaged target on one axis: its source, the dragged anchor and the value (viewport wu).
+    struct SnapTarget: Hashable {
+        var source: SnapSource
+        var anchor: SnapAnchor
+        var value: CGFloat
+    }
+
+    /// §18.6: the engaged target per axis, carried frame to frame for hysteresis.
+    struct SnapEngaged: Hashable {
+        var x: SnapTarget?
+        var y: SnapTarget?
+    }
+
+    /// §18.6: `snapPosition`'s answer — the snapped centre (viewport wu), the active guide
+    /// segments and the new `engaged`.
+    struct SnapResult: Equatable {
+        var position: CGPoint
+        var guides: [ActivityCanvasGuideSegment]
+        var engaged: SnapEngaged
+    }
+
+    /// The axis-aligned box of a `size` box rotated by `rotation` about `center`.
+    static func rotatedBounds(center: CGPoint, size: CGSize, rotation: Angle) -> CGRect {
+        let radians = rotation.radians
+        let width = abs(size.width * cos(radians)) + abs(size.height * sin(radians))
+        let height = abs(size.width * sin(radians)) + abs(size.height * cos(radians))
+        return CGRect(x: center.x - width / 2, y: center.y - height / 2, width: width, height: height)
+    }
+
+    /// §18.2 + §18.6: snaps a moved layer's centre per axis, independently, to the nearest target
+    /// within `Snap.engage` pt; an engaged target holds until the touch is `Snap.release` pt past
+    /// it. All lengths are viewport wu; `unit` is points per wu (for the on-screen distances);
+    /// `size` is the layer's scaled box before `rotation`; `others` the other layers' rotated
+    /// boxes. No UIKit, no haptic, no state: the caller fires the haptic when `engaged` gains one.
+    static func snapPosition(
+        _ position: CGPoint,
+        size: CGSize,
+        rotation: Angle,
+        others: [CGRect],
+        viewport: CGFloat,
+        pinnedAction: Bool,
+        unit: CGFloat,
+        engaged: SnapEngaged
+    ) -> SnapResult {
+        let extent = rotatedBounds(center: .zero, size: size, rotation: rotation).size
+        let bottom = viewport - (pinnedAction ? Snap.bottomPinned : Snap.bottom)
+        let anchors: [SnapAnchor] = [.leading, .centre, .trailing]
+        func every(_ source: SnapSource, _ value: CGFloat) -> [SnapTarget] {
+            anchors.map { SnapTarget(source: source, anchor: $0, value: value) }
+        }
+        var xTargets = every(.pageCentre, Snap.pageCentre)
+            + every(.padding, Snap.padding) + every(.padding, referenceWidth - Snap.padding)
+        var yTargets = every(.padding, Snap.top) + every(.padding, bottom)
+        for (index, box) in others.enumerated() {
+            xTargets += every(.layer(index), box.minX) + every(.layer(index), box.midX) + every(.layer(index), box.maxX)
+            yTargets += every(.layer(index), box.minY) + every(.layer(index), box.midY) + every(.layer(index), box.maxY)
+            // §18.2: the standard gap — 24 wu below or above the other layer.
+            yTargets.append(SnapTarget(source: .gap(index), anchor: .leading, value: box.maxY + Snap.gap))
+            yTargets.append(SnapTarget(source: .gap(index), anchor: .trailing, value: box.minY - Snap.gap))
+        }
+        let engageDistance = Snap.engage / unit
+        let releaseDistance = Snap.release / unit
+        func snapAxis(_ centre: CGFloat, extent: CGFloat, targets: [SnapTarget],
+                      engaged: SnapTarget?) -> (value: CGFloat, engaged: SnapTarget?) {
+            func shift(_ anchor: SnapAnchor) -> CGFloat {
+                switch anchor {
+                case .leading: return -extent / 2
+                case .centre: return 0
+                case .trailing: return extent / 2
+                }
+            }
+            if let engaged, targets.contains(engaged),
+               abs(centre + shift(engaged.anchor) - engaged.value) <= releaseDistance {
+                return (engaged.value - shift(engaged.anchor), engaged)
+            }
+            var best: (distance: CGFloat, target: SnapTarget)?
+            for target in targets {
+                let distance = abs(centre + shift(target.anchor) - target.value)
+                if distance <= engageDistance, distance < (best?.distance ?? .infinity) {
+                    best = (distance, target)
+                }
+            }
+            guard let target = best?.target else { return (centre, nil) }
+            return (target.value - shift(target.anchor), target)
+        }
+        let x = snapAxis(position.x, extent: extent.width, targets: xTargets, engaged: engaged.x)
+        let y = snapAxis(position.y, extent: extent.height, targets: yTargets, engaged: engaged.y)
+        let snapped = CGPoint(x: x.value, y: y.value)
+        let box = CGRect(x: snapped.x - extent.width / 2, y: snapped.y - extent.height / 2,
+                         width: extent.width, height: extent.height)
+        var guides: [ActivityCanvasGuideSegment] = []
+        if let target = x.engaged {
+            switch target.source {
+            case .layer(let index):
+                // §18.7: a layer guide runs between the two layers.
+                let other = others[index]
+                guides.append(.init(from: CGPoint(x: target.value, y: min(box.minY, other.minY)),
+                                    to: CGPoint(x: target.value, y: max(box.maxY, other.maxY))))
+            default:
+                guides.append(pageGuide(x: target.value, viewport: viewport))
+            }
+        }
+        if let target = y.engaged {
+            switch target.source {
+            case .layer(let index):
+                let other = others[index]
+                guides.append(.init(from: CGPoint(x: min(box.minX, other.minX), y: target.value),
+                                    to: CGPoint(x: max(box.maxX, other.maxX), y: target.value)))
+            case .gap(let index):
+                // §18.7: a gap guide is a short segment across the gap, where the boxes overlap.
+                let other = others[index]
+                let low = max(box.minX, other.minX)
+                let high = min(box.maxX, other.maxX)
+                let lineX = low <= high ? (low + high) / 2 : box.midX
+                let from = target.anchor == .leading ? other.maxY : box.maxY
+                let to = target.anchor == .leading ? box.minY : other.minY
+                guides.append(.init(from: CGPoint(x: lineX, y: from), to: CGPoint(x: lineX, y: to)))
+            default:
+                guides.append(.init(from: CGPoint(x: 0, y: target.value),
+                                    to: CGPoint(x: referenceWidth, y: target.value)))
+            }
+        }
+        return SnapResult(position: snapped, guides: guides, engaged: SnapEngaged(x: x.engaged, y: y.engaged))
+    }
+
+    /// §18.3 + §18.6: snaps a raw angle (degrees) to the nearest multiple of 45° within 4°; the
+    /// engaged multiple holds until the raw angle leaves it by more than `Snap.rotationRelease`.
+    /// Returns the angle to draw and the new engaged multiple (nil = none).
+    static func snapRotation(_ degrees: Double, engaged: Double?) -> (angle: Double, engaged: Double?) {
+        if let engaged, abs(degrees - engaged) <= Snap.rotationRelease { return (engaged, engaged) }
+        let nearest = (degrees / Snap.rotationStep).rounded() * Snap.rotationStep
+        if abs(degrees - nearest) <= Snap.rotationWindow { return (nearest, nearest) }
+        return (degrees, nil)
+    }
+
+    /// §18.7: a page guide spans the canvas — a vertical line at `x`, viewport wu.
+    static func pageGuide(x: CGFloat, viewport: CGFloat) -> ActivityCanvasGuideSegment {
+        .init(from: CGPoint(x: x, y: 0), to: CGPoint(x: x, y: viewport))
+    }
+
+    /// §18.7: does a box (viewport wu) enter C-091's reserved zones — the top chrome, the rail,
+    /// the end space or the pinned band?
+    static func entersReservedZone(_ box: CGRect, viewport: CGFloat, pinnedAction: Bool) -> Bool {
+        let bottom = viewport - (pinnedAction ? Snap.bottomPinned : Snap.bottom)
+        let zones = [
+            CGRect(x: 0, y: 0, width: referenceWidth, height: Snap.top),
+            CGRect(x: referenceWidth - Snap.railRightInset - Snap.railSize.width,
+                   y: viewport * Snap.railHeightFraction - Snap.railSize.height / 2,
+                   width: Snap.railSize.width, height: Snap.railSize.height),
+            CGRect(x: 0, y: bottom, width: referenceWidth, height: viewport - bottom)
+        ]
+        return zones.contains { $0.intersects(box) }
     }
 }
 

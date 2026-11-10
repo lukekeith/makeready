@@ -101,6 +101,10 @@ struct ActivityCanvas<Content: View>: View {
     let onTapEmpty: (CGPoint) -> Void
     /// §4 — draw the centre guide in `manipulating`.
     let centerGuide: Bool
+    /// §4 (activities-editor §18.7, D33) — the snap guides active now, viewport wu; each draws
+    /// 1pt `white-80` over the page. Empty (the default) draws nothing, so other users are unchanged.
+    let activeGuides: [GuideSegment]
+    typealias GuideSegment = ActivityCanvasGuideSegment
     /// §4 — draw the "Drag to delete" target in `manipulating`.
     let deleteTarget: DeleteTarget?
     /// §4 — 02 §4 step 1.
@@ -153,6 +157,8 @@ struct ActivityCanvas<Content: View>: View {
     private let deleteArmedScale: CGFloat = 1.15
     /// FLAGGED LITERAL — C-091 §2 layer 5 (OQ-C-091-002): the 1 px centre guide.
     private let guideWidth: CGFloat = 1
+    /// FLAGGED LITERAL — activities-editor §18.7 (D33): each active snap guide is 1pt.
+    private let snapGuideWidth: CGFloat = 1
     /// FLAGGED LITERAL — C-091 §2 layer 4 (E4): the capsule, its hit area, the resize clamp.
     private let handleSize = CGSize(width: 6, height: 28)
     private let handleHitSize: CGFloat = 44
@@ -187,6 +193,7 @@ struct ActivityCanvas<Content: View>: View {
         @ViewBuilder content: @escaping () -> Content,
         onTapEmpty: @escaping (CGPoint) -> Void = { _ in },
         centerGuide: Bool = false,
+        activeGuides: [GuideSegment] = [],
         deleteTarget: DeleteTarget? = nil,
         verticalAnchor: VerticalAnchor = .center,
         contentExtent: ClosedRange<CGFloat>? = nil,
@@ -205,6 +212,7 @@ struct ActivityCanvas<Content: View>: View {
         self.content = content
         self.onTapEmpty = onTapEmpty
         self.centerGuide = centerGuide
+        self.activeGuides = activeGuides
         self.deleteTarget = deleteTarget
         self.verticalAnchor = verticalAnchor
         self.contentExtent = contentExtent
@@ -389,6 +397,9 @@ struct ActivityCanvas<Content: View>: View {
             if let widthHandles, mode != .viewer {
                 widthHandleLayer(widthHandles)
             }
+            if !activeGuides.isEmpty && mode != .viewer {
+                snapGuides()
+            }
             if mode == .manipulating {
                 manipulatingOverlays(viewport: viewport, pageHeight: layout.height)
             }
@@ -536,6 +547,24 @@ struct ActivityCanvas<Content: View>: View {
         }
     }
 
+    // MARK: - activities-editor §18.7 (D33): the active snap guides
+
+    /// Over the page, taking no hits, held still against the viewport like the reserved zones.
+    private func snapGuides() -> some View {
+        Path { path in
+            for segment in activeGuides {
+                path.move(to: segment.from)
+                path.addLine(to: segment.to)
+            }
+        }
+        .stroke(Token.white80, lineWidth: snapGuideWidth)
+        .frame(width: referenceWidth, alignment: .topLeading)
+        .offset(y: pageScroll)
+        .ui2Element("Snap guides")
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
     // MARK: - §2 layer 6: the reserved-zone guides (D3; 01 §8–§10)
 
     /// Under the slot, taking no hits. The zones sit at the viewer's real positions on this
@@ -574,6 +603,15 @@ struct ActivityCanvas<Content: View>: View {
             .ui2Element(name)
             .offset(x: rect.minX, y: rect.minY)
     }
+}
+
+// MARK: - activities-editor §18.7: one snap guide
+
+/// §4 `activeGuides` — one guide line from `from` to `to`, viewport wu. Spelled
+/// `ActivityCanvas.GuideSegment`.
+struct ActivityCanvasGuideSegment: Equatable, Hashable {
+    var from: CGPoint
+    var to: CGPoint
 }
 
 // MARK: - §2 layer 1: the blob gradient

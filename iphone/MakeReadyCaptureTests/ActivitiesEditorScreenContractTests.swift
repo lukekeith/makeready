@@ -79,4 +79,40 @@ final class ActivitiesEditorScreenContractTests: XCTestCase {
         XCTAssertEqual(ActivitiesEditorScreen.grabTarget(at: point, objects: [a, b], editedIndex: nil), 1)
         XCTAssertEqual(ActivitiesEditorScreen.grabTarget(at: point, objects: [a, b], editedIndex: 0), 0)
     }
+
+    // MARK: - D32: snapping (owner 2026-11-09)
+
+    /// Rotation snaps to every 45° within 4° and lets go past the release window.
+    func testRotationSnapsToEveryFortyFiveDegrees() {
+        XCTAssertEqual(ActivitiesEditorScreen.snapRotation(43, engaged: nil).angle, 45)
+        XCTAssertEqual(ActivitiesEditorScreen.snapRotation(-88, engaged: nil).angle, -90)
+        XCTAssertEqual(ActivitiesEditorScreen.snapRotation(2.5, engaged: nil).angle, 0)
+        XCTAssertEqual(ActivitiesEditorScreen.snapRotation(20, engaged: nil).angle, 20)          // outside every window
+        XCTAssertNil(ActivitiesEditorScreen.snapRotation(20, engaged: nil).engaged)
+        XCTAssertEqual(ActivitiesEditorScreen.snapRotation(49, engaged: 45).angle, 45)           // held inside release
+    }
+
+    /// A layer dragged near the page centre snaps onto it and shows a guide; far off, nothing snaps.
+    func testAMoveNearThePageCentreSnapsAndShowsAGuide() {
+        let size = CGSize(width: 200, height: 60)
+        let near = ActivitiesEditorScreen.snapPosition(CGPoint(x: 223, y: 500), size: size, rotation: .zero, others: [],
+                                                       viewport: 956, pinnedAction: false, unit: 1, engaged: .init())
+        XCTAssertEqual(near.position.x, 220, accuracy: 0.01)
+        XCTAssertFalse(near.guides.isEmpty)
+        let far = ActivitiesEditorScreen.snapPosition(CGPoint(x: 260, y: 500), size: CGSize(width: 100, height: 60),
+                                                      rotation: .zero, others: [], viewport: 956, pinnedAction: false,
+                                                      unit: 1, engaged: .init())
+        XCTAssertEqual(far.position.x, 260, accuracy: 0.01)
+    }
+
+    /// The standard 24 wu gap: a layer dragged to just under another snaps to sit 24 wu below it.
+    func testTheStandardGapSnaps() {
+        let above = CGRect(x: 120, y: 300, width: 200, height: 60)               // bottom edge at 360
+        let size = CGSize(width: 200, height: 60)
+        // Centre y for a 24 wu gap = 360 + 24 + 30 = 414; start 3 wu off.
+        let result = ActivitiesEditorScreen.snapPosition(CGPoint(x: 260, y: 417), size: size, rotation: .zero,
+                                                         others: [above], viewport: 956, pinnedAction: false,
+                                                         unit: 1, engaged: .init())
+        XCTAssertEqual(result.position.y, 414, accuracy: 0.01)
+    }
 }

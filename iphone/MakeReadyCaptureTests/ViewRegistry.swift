@@ -4008,7 +4008,8 @@ private func buildScreenActivitiesEditor(_ fixture: CaptureFixture) throws -> An
             readOnlyKind: c.readOnlyKind ?? sample.readOnlyKind,
             readOnlyTitle: c.readOnlyTitle ?? sample.readOnlyTitle,
             readOnlyPosterURL: readOnlyPosterURL,
-            sliderDocked: c.sliderDocked ?? sample.sliderDocked
+            sliderDocked: c.sliderDocked ?? sample.sliderDocked,
+            snapIndex: c.snapIndex ?? sample.snapIndex
         )
     )
     .safeAreaPadding(.top, device.safeArea.top)
