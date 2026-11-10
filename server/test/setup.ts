@@ -8,6 +8,11 @@ import { beforeAll, afterAll } from 'vitest';
 import dotenv from 'dotenv';
 import { lstatSync, statSync } from 'node:fs';
 import { assertInvitationTestDatabase } from './helpers/invitations-migration-db.js';
+import { installLoopbackListen } from './helpers/loopback-listen.js';
+
+// supertest's per-request server binds 127.0.0.1 so another local process can never answer a test request
+// (see test/helpers/loopback-listen.ts).
+installLoopbackListen();
 
 // A focused invitation run must fail before dotenv can open the human's env pipe.
 if (process.argv.some(arg => arg.includes('invitations-legacy-contract'))) {
