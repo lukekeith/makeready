@@ -10,7 +10,7 @@
 //  PREVIEW ONLY: referenced by no app screen, route, tab, flag or navigation case.
 //  ui2-programs container inputs (§3, as groups-detail D27): `showsHeader`, `loading`,
 //  `failed` + `onRetry` (reload = pull-to-refresh, OQ-study-program-home-19), `onCoverTap`,
-//  `onCoverFrameChange`, `onAddActivity` and `onOpenLessonMenu`.
+//  `onCoverFrameChange`, `onAddActivity`, `onOpenLessonMenu` and `onActivityMenu`.
 //
 
 import SwiftUI
@@ -96,6 +96,8 @@ struct StudyProgramHomeScreen: View {
     // §3: the `Int` is the lesson's index into the state's lesson arrays, not its lesson/day number.
     var onAddActivity: (Int) -> Void = { _ in }         // C-063 add → activity creation for that lesson
     var onOpenLessonMenu: (Int) -> Void = { _ in }      // C-063 actions → the host's lesson menu
+    // §3 (2026-11-09): (lesson index, slide index) — a slide's touch-and-hold → the host's activity menu.
+    var onActivityMenu: (Int, Int) -> Void = { _, _ in } // C-063 slide long-press → activity action menu
 
     init(
         state: State,
@@ -112,7 +114,8 @@ struct StudyProgramHomeScreen: View {
         onRetry: @escaping () -> Void = {},
         onCoverFrameChange: @escaping (CGRect) -> Void = { _ in },
         onAddActivity: @escaping (Int) -> Void = { _ in },
-        onOpenLessonMenu: @escaping (Int) -> Void = { _ in }
+        onOpenLessonMenu: @escaping (Int) -> Void = { _ in },
+        onActivityMenu: @escaping (Int, Int) -> Void = { _, _ in }
     ) {
         self.state = state
         self.showsHeader = showsHeader
@@ -129,6 +132,7 @@ struct StudyProgramHomeScreen: View {
         self.onCoverFrameChange = onCoverFrameChange
         self.onAddActivity = onAddActivity
         self.onOpenLessonMenu = onOpenLessonMenu
+        self.onActivityMenu = onActivityMenu
     }
 
     // §3 has no UI-only rule on this screen: the day selection is reported through `onSelectDay`
@@ -452,7 +456,8 @@ struct StudyProgramHomeScreen: View {
                         onAddActivity: { onAddActivity(index) },
                         onActions: { onOpenLessonMenu(index) },
                         metaUnit: meta.unit,
-                        showsDayLabel: true
+                        showsDayLabel: true,
+                        onLongPressSlide: { slide in onActivityMenu(index, slide) }
                     )
                     .ui2Element(Self.partName("C-063 LessonCard", ordinal: index + 1))
                 }
