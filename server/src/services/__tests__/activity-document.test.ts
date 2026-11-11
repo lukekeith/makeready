@@ -250,3 +250,40 @@ describe('activity document', () => {
     expect(hashLessonContent({ title: 'Day 1', activities: [{ ...a, document: { a: 3 } }, b] })).not.toBe(h)
   })
 })
+
+describe('bible passages (bible-verse-picker)', () => {
+  const textObj = (id: string, role: string): any => ({
+    id, role, text: 'For God so loved the world', font: 'serif', weight: 400, size: 18, color: '#FFFFFF',
+    alignment: 'left', transform: { x: 220, y: 300, width: 392, scale: 1, rotation: 0 },
+  })
+  const ref = { start: { book: 43, chapter: 3, verse: 16, offset: 9 }, end: { book: 43, chapter: 3, verse: 18 }, translation: 'ENGKJV' }
+  const passage = { bookNumber: 43, chapterStart: 3, verseStart: 16, chapterEnd: 3, verseEnd: 18, startOffset: 9, translation: 'ENGKJV' }
+  const scripture = (o: any = {}) => ({ ...textObj('s', 'scripture'), listStyle: 'bibleVerse', startNumber: 16, reference: ref, ...o })
+  const doc = (objects: any[], passages: any[]) => ({ ...EXAMPLES.bible, content: { ...EXAMPLES.bible.content, objects, passages } })
+
+  it('accepts a D10 document and keeps it intact', () => {
+    const r: any = parseActivityDocument(doc([scripture(), textObj('c', 'citation')], [passage]), 'bible')
+    expect(r.ok).toBe(true)
+    expect(r.document.content.passages[0]).toEqual(passage)
+  })
+
+  it.each([
+    ['no matching passage', [scripture()], [{ ...passage, verseEnd: 17 }]],
+    ['missing translation', [scripture({ reference: { ...ref, translation: undefined } })], [{ ...passage, translation: undefined }]],
+    ['cross-chapter', [scripture({ reference: { ...ref, end: { book: 43, chapter: 4, verse: 1 } } })], [{ ...passage, chapterEnd: 4, verseEnd: 1 }]],
+    ['reversed', [scripture({ startNumber: 18, reference: { ...ref, start: { book: 43, chapter: 3, verse: 18 }, end: { book: 43, chapter: 3, verse: 16 } } })], [{ ...passage, verseStart: 18, verseEnd: 16, startOffset: undefined }]],
+    ['equal offsets', [scripture({ reference: { ...ref, end: { book: 43, chapter: 3, verse: 16, offset: 9 } } })], [{ ...passage, verseEnd: 16, endOffset: 9 }]],
+    ['startNumber', [scripture({ startNumber: 1 })], [passage]],
+    ['two scriptures', [scripture(), scripture({ id: 's2' })], [passage]],
+    ['negative offset', [textObj('b', 'body')], [{ ...passage, startOffset: -1 }]],
+  ])('refuses %s', (_n, objects, passages) => {
+    expect(parseActivityDocument(doc(objects as any[], passages as any[]), 'bible')).toMatchObject({ ok: false, code: 'VALIDATION' })
+  })
+
+  it('a converter-shaped legacy document stays valid', () => {
+    const legacy = doc([textObj('a', 'scripture'), textObj('b', 'scripture'), textObj('c', 'citation')],
+      [{ bookNumber: 43, chapterStart: 3, verseStart: 16, chapterEnd: 3, verseEnd: 16 }])
+    expect(parseActivityDocument(legacy, 'bible')).toMatchObject({ ok: true })
+    expect(parseActivityDocument(EXAMPLES.bible, 'bible')).toMatchObject({ ok: true })
+  })
+})

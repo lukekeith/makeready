@@ -80,21 +80,74 @@ const canvasContent = z
   })
   .passthrough()
 
-const bibleContent = canvasContent.extend({
-  passages: z
-    .array(
-      z
-        .object({
-          bookNumber: z.number().int(),
-          chapterStart: z.number().int(),
-          verseStart: z.number().int(),
-          chapterEnd: z.number().int(),
-          verseEnd: z.number().int(),
-        })
-        .passthrough(),
-    )
-    .optional(),
-})
+const scriptureEnd = z
+  .object({ book: z.number().int(), chapter: z.number().int(), verse: z.number().int(), offset: offset.optional() })
+  .passthrough()
+const scriptureReference = z
+  .object({ start: scriptureEnd, end: scriptureEnd, translation: z.string() })
+  .passthrough()
+
+const biblePassage = z
+  .object({
+    bookNumber: z.number().int(),
+    chapterStart: z.number().int(),
+    verseStart: z.number().int(),
+    chapterEnd: z.number().int(),
+    verseEnd: z.number().int(),
+    startOffset: offset.optional(),
+    endOffset: offset.optional(),
+    translation: z.string().optional(),
+  })
+  .passthrough()
+
+type BiblePassage = z.infer<typeof biblePassage>
+type ScriptureReference = z.infer<typeof scriptureReference>
+
+function passageMatchesReference(p: BiblePassage, r: ScriptureReference): boolean {
+  return (
+    p.bookNumber === r.start.book && p.bookNumber === r.end.book &&
+    p.chapterStart === r.start.chapter && p.chapterEnd === r.end.chapter &&
+    p.verseStart === r.start.verse && p.verseEnd === r.end.verse &&
+    p.startOffset === r.start.offset && p.endOffset === r.end.offset &&
+    p.translation === r.translation
+  )
+}
+
+/** D22: strict scripture rules apply only to scripture objects carrying `reference`, each paired with its passage. */
+const bibleContent = canvasContent
+  .extend({ passages: z.array(biblePassage).optional() })
+  .superRefine((content, ctx) => {
+    const passages = content.passages ?? []
+    const claimed = new Set<number>()
+    content.objects.forEach((object, i) => {
+      if (object.role !== 'scripture' || object.reference === undefined) return
+      const at = ['objects', i, 'reference']
+      const shape = scriptureReference.safeParse(object.reference)
+      if (!shape.success) {
+        for (const issue of shape.error.issues) ctx.addIssue({ ...issue, path: [...at, ...issue.path] })
+        return
+      }
+      const paired = passages.findIndex((p) => passageMatchesReference(p, shape.data))
+      if (paired < 0) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: at, message: 'no matching passage' })
+        return
+      }
+      const p = passages[paired]
+      const fail = (path: (string | number)[], message: string) => ctx.addIssue({ code: z.ZodIssueCode.custom, path, message })
+      const where = ['passages', paired]
+      if (claimed.has(paired)) fail(at, 'at most one scripture object per passage')
+      claimed.add(paired)
+      if (p.chapterStart !== p.chapterEnd) fail([...where, 'chapterEnd'], 'a paired passage must stay within one chapter')
+      if (p.verseStart > p.verseEnd) fail([...where, 'verseEnd'], 'verseStart must not exceed verseEnd')
+      if (
+        p.verseStart === p.verseEnd && p.startOffset !== undefined && p.endOffset !== undefined &&
+        p.startOffset >= p.endOffset
+      ) {
+        fail([...where, 'endOffset'], 'startOffset must be below endOffset')
+      }
+      if (object.startNumber !== p.verseStart) fail(['objects', i, 'startNumber'], 'startNumber must equal verseStart')
+    })
+  })
 
 const CONTENT_BY_KIND: Record<ActivityKind, z.ZodTypeAny> = {
   text: canvasContent,
