@@ -172,8 +172,11 @@ enum ActivityViewerMapper {
             let inline = document.actions.filter { $0.placement == .inline }.count
             let extent: ClosedRange<CGFloat>?
             let anchor: ActivityCanvas<AnyView>.VerticalAnchor
-            // D29/D30: a page-laid-out `bible` page is as tall as its layout; the engine scrolls inside it.
-            if let layout = BibleScripture.layout(of: document) { return layout.height * Double(unit) }
+            // D29/D30: a page-laid-out `bible` page taller than the 956 reference is as tall as its layout and the
+            // engine scrolls inside it; a page at the floor is a normal canvas page (it never scrolls in-page).
+            if let layout = BibleScripture.layout(of: document), layout.height > Double(referenceHeight) {
+                return max(layout.height * Double(unit), Double(size.height))
+            }
             switch document.renderable {
             case .canvas(let canvas):
                 extent = contentExtent(objects: objects(canvas: canvas, raw: document.raw), write: false,

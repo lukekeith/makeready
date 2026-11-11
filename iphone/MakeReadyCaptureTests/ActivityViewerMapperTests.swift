@@ -116,6 +116,14 @@ final class ActivityViewerMapperTests: XCTestCase {
         XCTAssertEqual(heights[1], 956)
     }
 
+    /// D30: a short Bible page is exactly the viewport (no in-page scroll to swallow the first paging swipe).
+    func testAShortBiblePageIsTheViewportTall() {
+        let a = ContentActivity(id: "a0", lessonVersionId: "v1", activityKey: "k0", position: 0, kind: "bible",
+                                title: "T", document: BibleEditorTests.bibleDoc, estimatedSeconds: nil)
+        let heights = ActivityViewerMapper.pageHeights(.payload([a], media: [:]), size: CGSize(width: 393, height: 852))
+        XCTAssertEqual(heights[0], 852, accuracy: 0.5)
+    }
+
     /// text-activity-v2 D1/D14: a visible gradient reaches the page's background; a hidden one doesn't.
     func testAVisibleGradientReachesThePage() {
         var rng = SeededRandom(seed: 11)

@@ -65,6 +65,7 @@ struct ActivitiesEditorContainer: View {
             onRetry: { Task { await model.retry() } },
             onDiscard: { model.discard() },
             onHighlightRange: { index, start, end in model.highlightRange(objectIndex: index, start: start, end: end) },
+            onToggleHighlight: { model.startHighlighting() },
             onEndHighlighting: { Task { await model.endHighlighting() } },
             onBibleStyleChange: { change in model.setBibleStyle(change) }
         )
@@ -713,6 +714,15 @@ struct ActivitiesEditorContainer: View {
             case .changePassage:
                 startChangePassage()
             }
+        }
+
+        /// D12/D28: the Idle Bible tool bar's Highlight — highlighting on the page's scripture object, as the menu's row.
+        func startHighlighting() {
+            guard kind == "bible", let layout = BibleScripture.layout(of: document) else { return }
+            let objects = document.textObjects
+            guard objects.indices.contains(layout.scriptureIndex) else { return }
+            selectedHighlightID = ""
+            highlightingObjectID = objects[layout.scriptureIndex].id
         }
 
         /// Dismisses whatever is showing without acting on it.

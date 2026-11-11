@@ -86,6 +86,15 @@ final class BibleEditorTests: XCTestCase {
         XCTAssertEqual(model.editingIndex, -1)
     }
 
+    /// D12/D28: the Idle tool bar's Highlight enters highlighting on the scripture object, no menu involved.
+    func testTheIdleHighlightToolEntersHighlightingOnTheScripture() {
+        let model = model()
+        model.startHighlighting()
+        let ids = state(model.document, kind: "bible").objectIDs
+        XCTAssertEqual(model.highlightingObjectID, ids[0])
+        XCTAssertEqual(model.editingIndex, -1)
+    }
+
     func testAHighlightRangeTogglesAHighlight() {
         let model = model()
         model.highlightRange(objectIndex: 0, start: 4, end: 8)
