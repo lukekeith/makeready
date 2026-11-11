@@ -1,0 +1,18 @@
+size: lg
+state: spec
+next: /builder:resume --path docs/features/bible-verse-picker
+head: 8a1bb491
+ticket: none
+branch: feature/text-activity
+pr: none
+apps: server+iphone
+contract: open
+hold: none
+go-ahead: none
+walk: none
+verify: none
+ready: none
+ui2: none
+auto: off
+blocked: none
+agent-walk: off
