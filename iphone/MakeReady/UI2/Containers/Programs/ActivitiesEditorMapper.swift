@@ -19,7 +19,9 @@ enum ActivitiesEditorMapper {
     /// save/load flags on top. D17: the highlight tool, the effects tool and the eyedropper are off.
     static func state(document: ActivityDocument, media: [String: MediaMapEntry], slides: [ContentActivity],
                       activeID: String, kind: String = "text") -> ActivitiesEditorScreen.State {
-        let objects = canvasObjects(document)
+        // D26: a `bible` activity's scripture and citation are placed by the page, never by their `transform`.
+        let placed = BibleScripture.placed(document)
+        let objects = placed.objects
         let raw = rawObjects(document)
         let background = document.background
         let image = background.image
@@ -85,7 +87,30 @@ enum ActivitiesEditorMapper {
         )
         state.objectIDs = objects.map(\.id)
         state.objectLocks = document.textObjects.map(\.isLockedScripture)
+        if kind == "bible", let layout = placed.layout { applyBibleLayout(layout, objects: objects, to: &state) }
         return state
+    }
+
+    /// D26–D29: the page's layout for a `bible` activity — the five-tool row, the page's height, which objects the page
+    /// places (with their measured heights) and the style panel seeded from the scripture. Animation stays hidden (D28).
+    private static func applyBibleLayout(_ layout: BibleScripture.PageLayout, objects: [TextObject],
+                                         to state: inout ActivitiesEditorScreen.State) {
+        let laidOut = objects.indices.map { $0 == layout.scriptureIndex || $0 == layout.citationIndex }
+        state.isBible = true
+        state.pageHeight = CGFloat(layout.height)
+        state.objectPageLaidOut = laidOut
+        state.objectHeights = objects.indices.map { index in
+            if index == layout.scriptureIndex { return layout.scripture.height }
+            if index == layout.citationIndex { return layout.citation?.height ?? 0 }
+            return 0
+        }
+        let scripture = objects[layout.scriptureIndex]
+        state.bibleFace = fontKey(scripture.font)
+        state.bibleWeight = scripture.weight < 450 ? 400 : scripture.weight < 600 ? 500 : 700
+        state.bibleSize = CGFloat(scripture.size)
+        state.bibleLineHeight = CGFloat(scripture.lineHeight)
+        state.bibleInset = CGFloat(scripture.inset ?? BibleScripture.defaultInset)
+        state.bibleVerseNumbers = (scripture.verseNumbers ?? .inline).rawValue
     }
 
     /// D18: the document's font keys, passed to the screen as keys — it draws `display`, `sans`,
@@ -385,11 +410,6 @@ enum ActivitiesEditorMapper {
     }
 
     // MARK: - Internals
-
-    private static func canvasObjects(_ doc: ActivityDocument) -> [TextObject] {
-        if case .canvas(let canvas) = doc.renderable { return canvas.objects }
-        return []
-    }
 
     static func rawObjects(_ doc: ActivityDocument) -> [JSONValue] {
         if case .array(let items)? = doc.raw[path: ["content", "objects"]] { return items }

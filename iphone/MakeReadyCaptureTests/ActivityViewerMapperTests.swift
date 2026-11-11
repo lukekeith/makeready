@@ -70,6 +70,38 @@ final class ActivityViewerMapperTests: XCTestCase {
         XCTAssertTrue(s.pageReferences.allSatisfy { $0.isEmpty }, "the scripture's reference must not reach the page's reference line")
     }
 
+    /// D29: a whole chapter's page is taller than the screen.
+    func testAWholeChapterPageIsTallerThanTheScreen() {
+        XCTAssertGreaterThan(ActivityViewerMapper.page(for: BibleEditorTests.john3AllDoc)?.height ?? 0, 956)
+        XCTAssertEqual(ActivityViewerMapper.page(for: BibleEditorTests.bibleDoc)?.height, 956)
+        XCTAssertNil(ActivityViewerMapper.page(for: ActivityNewContainer.textDocument(title: "T")))
+    }
+
+    /// D26/D29/D30: the player gets a `bible` page with its height, laid-out flags and the page's own placement.
+    func testThePlayerMapsATallBiblePage() {
+        let a = ContentActivity(id: "a0", lessonVersionId: "v1", activityKey: "k0", position: 0, kind: "bible",
+                                title: "T", document: BibleEditorTests.john3AllDoc, estimatedSeconds: nil)
+        let s = ActivityViewerMapper.state(payload: .payload([a], media: [:]), engine: .fixture(pages: 2),
+                                           viewport: 440, playback: .idle)
+        XCTAssertEqual(s.pageKinds, ["bible", "end"])
+        XCTAssertGreaterThan(s.pageHeights[0], 956)
+        XCTAssertEqual(s.pageHeights[1], 956)
+        XCTAssertEqual(s.objectPageLaidOut, [true, true])
+        XCTAssertEqual(s.objectXs, [220, 220])
+        XCTAssertGreaterThan(s.objectYs[1], s.objectYs[0])
+        let placed = ActivityViewerMapper.page(for: BibleEditorTests.john3AllDoc)
+        XCTAssertEqual(s.pageHeights[0], placed?.height)
+    }
+
+    /// D30: the engine scrolls inside a tall page — its height in points is the layout's, scaled to the viewport.
+    func testTheEngineSeesATallPageAsTall() {
+        let a = ContentActivity(id: "a0", lessonVersionId: "v1", activityKey: "k0", position: 0, kind: "bible",
+                                title: "T", document: BibleEditorTests.john3AllDoc, estimatedSeconds: nil)
+        let heights = ActivityViewerMapper.pageHeights(.payload([a], media: [:]), size: CGSize(width: 440, height: 956))
+        XCTAssertEqual(heights[0], ActivityViewerMapper.page(for: BibleEditorTests.john3AllDoc)?.height ?? 0, accuracy: 0.5)
+        XCTAssertEqual(heights[1], 956)
+    }
+
     /// text-activity-v2 D1/D14: a visible gradient reaches the page's background; a hidden one doesn't.
     func testAVisibleGradientReachesThePage() {
         var rng = SeededRandom(seed: 11)

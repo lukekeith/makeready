@@ -15,8 +15,8 @@ enum ActivityThumbnail {
     static let size = CGSize(width: 112, height: 112 * referenceHeight / referenceWidth)
 
     /// Bumped whenever the render's geometry changes, so slides cached by an earlier render draw again.
-    /// 1 = the 33×44 centre crop (C-061); 2 = the whole page at C-079's size.
-    static let renderVersion = 2
+    /// 1 = the 33×44 centre crop (C-061); 2 = the whole page at C-079's size; 3 = a `bible` page laid out by D26 (top 956 of a tall one).
+    static let renderVersion = 3
     private static let slotWidth: CGFloat = 392
 
     /// The cache key for a canvas-kind activity's thumbnail; "" for any other kind. It changes with the
@@ -61,10 +61,14 @@ enum ActivityThumbnail {
     /// The document's whole page, scaled to the slide — the slide has the page's aspect, so nothing is cropped.
     @MainActor
     static func render(_ document: ActivityDocument, backgroundImage: UIImage?) -> UIImage? {
-        guard case .canvas(let canvas) = document.renderable else { return nil }
+        guard case .canvas = document.renderable else { return nil }
         let scale = size.width / referenceWidth
-        let page = Page(background: document.background, backgroundImage: backgroundImage, objects: objects(for: document))
-            .frame(width: referenceWidth, height: referenceHeight)
+        // D30: a tall `bible` page is drawn whole and the slide shows its top 440 x 956.
+        let height = max(referenceHeight, CGFloat(BibleScripture.layout(of: document)?.height ?? 0))
+        let page = Page(background: document.background, backgroundImage: backgroundImage, objects: objects(for: document),
+                        height: height)
+            .frame(width: referenceWidth, height: referenceHeight, alignment: .top)
+            .clipped()
             .scaleEffect(scale)
             .frame(width: size.width, height: size.height)
             .clipped()
@@ -77,8 +81,12 @@ enum ActivityThumbnail {
     /// exactly as the player maps them. `reference` is never passed (D10: the citation object is the scripture's only
     /// citation line). Empty for any document that is not a canvas.
     static func objects(for document: ActivityDocument) -> [CanvasTextObject] {
-        guard case .canvas(let canvas) = document.renderable else { return [] }
-        return canvas.objects.map(Page.canvasObject)
+        guard case .canvas = document.renderable else { return [] }
+        // D26: a page-laid-out scripture and citation are placed by the page, not by their `transform`.
+        let placed = BibleScripture.placed(document)
+        return placed.objects.enumerated().map { index, object in
+            Page.canvasObject(object, pageLaidOut: index == placed.layout?.scriptureIndex || index == placed.layout?.citationIndex)
+        }
     }
 
     /// text-activity-v2 D1/D14: the document's gradient as C-091's type — nil when absent or hidden,
@@ -108,19 +116,20 @@ enum ActivityThumbnail {
         let background: ActivityBackground
         let backgroundImage: UIImage?
         let objects: [CanvasTextObject]
+        let height: CGFloat
 
         var body: some View {
             ZStack(alignment: .topLeading) {
                 ActivityThumbnail.color(background.color)
                 if let gradient = ActivityThumbnail.canvasGradient(background.gradient) {
                     ActivityBlobGradient(gradient: gradient,
-                                         pageSize: CGSize(width: ActivityThumbnail.referenceWidth, height: ActivityThumbnail.referenceHeight))
+                                         pageSize: CGSize(width: ActivityThumbnail.referenceWidth, height: height))
                 }
                 if let backgroundImage {
                     Image(uiImage: backgroundImage)
                         .resizable()
                         .scaledToFill()
-                        .frame(width: ActivityThumbnail.referenceWidth, height: ActivityThumbnail.referenceHeight)
+                        .frame(width: ActivityThumbnail.referenceWidth, height: height)
                         .clipped()
                 }
                 if let wash = background.wash {
@@ -132,18 +141,20 @@ enum ActivityThumbnail {
                         .position(object.transform.position)
                 }
             }
-            .frame(width: ActivityThumbnail.referenceWidth, height: ActivityThumbnail.referenceHeight, alignment: .topLeading)
+            .frame(width: ActivityThumbnail.referenceWidth, height: height, alignment: .topLeading)
         }
 
-        static func canvasObject(_ object: TextObject) -> CanvasTextObject {
+        static func canvasObject(_ object: TextObject, pageLaidOut: Bool = false) -> CanvasTextObject {
             CanvasTextObject(
                 text: object.text, mode: .viewer, font: font(object.font), weight: weight(object.weight),
-                size: CGFloat(object.size), color: ActivityThumbnail.color(object.color), alignment: alignment(object.alignment),
+                size: CGFloat(object.size), lineHeight: pageLaidOut && object.role == "scripture" ? CGFloat(object.lineHeight) : nil,
+                color: ActivityThumbnail.color(object.color), alignment: alignment(object.alignment),
                 listStyle: listStyle(object.listStyle), startNumber: object.startNumber ?? 1,
-                marks: marks(object.marks),
+                verseNumbers: verseNumbers(object.verseNumbers), marks: marks(object.marks),
                 transform: .init(position: CGPoint(x: object.transform.x, y: object.transform.y),
                                  scale: CGFloat(object.transform.scale), rotation: .degrees(object.transform.rotation),
                                  width: CGFloat(object.transform.width)),
+                pageLaidOut: pageLaidOut,
                 editing: false,
                 highlights: object.highlights.map { .init(start: $0.start, end: $0.end, note: $0.noteMarkdown) }
             )
@@ -155,6 +166,14 @@ enum ActivityThumbnail {
             case "numbered": return .numbered
             case "bibleVerse": return .bibleVerse
             default: return .none
+            }
+        }
+
+        static func verseNumbers(_ mode: VerseNumbers?) -> CanvasTextObject.VerseNumbers {
+            switch mode {
+            case .gutter: return .gutter
+            case .hidden: return .hidden
+            default: return .inline
             }
         }
 

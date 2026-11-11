@@ -24,6 +24,24 @@ final class ActivityThumbnailTests: XCTestCase {
         XCTAssertNil(o.reference)
     }
 
+    /// D26/D27/D28: the rail slide places the scripture itself and passes the style the panel writes.
+    func testABibleThumbnailPlacesScriptureAndCitationPerD26() {
+        let objects = ActivityThumbnail.objects(for: BibleEditorTests.bibleDoc)
+        XCTAssertEqual(objects.count, 2)
+        XCTAssertTrue(objects.allSatisfy(\.pageLaidOut))
+        XCTAssertEqual(objects[0].transform.width, 376)
+        XCTAssertEqual(objects[0].verseNumbers, .gutter)
+        XCTAssertEqual(objects[0].lineHeight, 1.4)
+        XCTAssertGreaterThan(objects[1].transform.position.y, objects[0].transform.position.y)
+    }
+
+    /// D30: a tall page's thumbnail is still the top 440x956, drawn at the slide's size.
+    func testATallPagesThumbnailCropsToTheTopPage() throws {
+        let image = try XCTUnwrap(ActivityThumbnail.render(BibleEditorTests.john3AllDoc, backgroundImage: nil))
+        XCTAssertEqual(image.size.width, 112, accuracy: 0.5)
+        XCTAssertEqual(image.size.height, 112 * 956 / 440, accuracy: 0.5)
+    }
+
     func testCanvasKindsGetAKeyAndOtherKindsDoNot() {
         XCTAssertTrue(ActivityThumbnail.key(for: summary("a")).hasPrefix("activity-thumbnail://"))
         XCTAssertFalse(ActivityThumbnail.key(for: summary("a", kind: "bible")).isEmpty)

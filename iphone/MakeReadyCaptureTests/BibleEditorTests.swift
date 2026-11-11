@@ -205,4 +205,116 @@ final class BibleEditorTests: XCTestCase {
         XCTAssertEqual(model.document.passages.first?.verseEnd, 21)
         XCTAssertEqual(ActivitiesEditorMapper.rawObjects(model.document).count, 3)
     }
+
+    // MARK: Task 19: page-laid-out scripture (D26–D29, D31)
+
+    /// A chapter-length passage: 36 long verses, John 3:1-36 shaped.
+    static var john3AllDoc: ActivityDocument {
+        let verses = (1...36).map { BibleVerse(verse: $0, text: String(repeating: "For God so loved the world, that he gave his only begotten Son. ", count: 2)) }
+        return BibleScripture.document(for: BiblePick(
+            passage: BiblePassage(bookNumber: 43, chapterStart: 3, verseStart: 1, chapterEnd: 3, verseEnd: 36,
+                                  startOffset: nil, endOffset: nil, translation: "ENGKJV"),
+            verses: verses, bookName: "John"), background: nil)
+    }
+
+    /// D26: the editor never changes a page-laid-out object's transform — a drag, pinch or width edit is dropped.
+    func testPageLaidOutObjectsIgnoreTransforms() async {
+        let model = model()
+        let before = model.document.textObjects.map(\.transform)
+        model.edit(.init(index: 0, width: 100, transform: .init(x: 300, y: 300, scale: 2, rotation: 15)))
+        model.edit(.init(index: 1, transform: .init(x: 10, y: 10, scale: 0.5, rotation: 3)))
+        XCTAssertEqual(model.document.textObjects.map(\.transform), before)
+    }
+
+    /// An ordinary text object on the same page still moves.
+    func testAnOrdinaryObjectOnABiblePageStillMoves() {
+        let doc = Self.bibleDoc.updating { raw in
+            if case .array(var objects)? = raw[path: ["content", "objects"]] {
+                objects.append(.object(["id": .string("extra"), "text": .string("Read slowly"), "font": .string("sans"),
+                                        "transform": .object(["x": .number(220), "y": .number(800), "width": .number(300),
+                                                              "scale": .number(1), "rotation": .number(0)])]))
+                raw[path: ["content", "objects"]] = .array(objects)
+            }
+        }
+        let model = model(doc)
+        model.edit(.init(index: 2, transform: .init(x: 100, y: 500, scale: 1, rotation: 0)))
+        XCTAssertEqual(model.document.textObjects[2].transform.x, 100)
+    }
+
+    /// D28: the style panel writes the scripture and the citation together.
+    func testTheStylePanelWritesScriptureAndCitationTogether() {
+        let model = model()
+        model.setBibleStyle(.inset(48)); model.setBibleStyle(.face("sans"))
+        XCTAssertEqual(model.document.textObjects[0].inset, 48)
+        XCTAssertEqual(model.document.textObjects[1].inset, 48)
+        XCTAssertEqual(model.document.textObjects[0].font, "sans")
+        XCTAssertEqual(model.document.textObjects[1].font, "sans")
+    }
+
+    /// D28: size and line height and weight and verse numbers belong to the scripture; the citation keeps 14/18 of the size.
+    func testTheStylePanelSizesTheCitationAtFourteenEighteenths() {
+        let model = model()
+        model.setBibleStyle(.size(36)); model.setBibleStyle(.lineHeight(1.8)); model.setBibleStyle(.weight(700))
+        model.setBibleStyle(.verseNumbers("inline"))
+        let objects = model.document.textObjects
+        XCTAssertEqual(objects[0].size, 36); XCTAssertEqual(objects[0].lineHeight, 1.8); XCTAssertEqual(objects[0].weight, 700)
+        XCTAssertEqual(objects[0].verseNumbers, .inline)
+        XCTAssertEqual(objects[1].size, 28, accuracy: 0.001)
+        XCTAssertEqual(objects[1].weight, 400, "the weight is the scripture's alone; the citation follows the face")
+    }
+
+    /// D28: the citation follows the scripture's colour and alignment when either is edited.
+    func testColourAndAlignmentEditsReachBothObjects() {
+        let model = model()
+        model.edit(.init(index: 1, color: "#FFCC00", alignment: "right"))
+        let objects = model.document.textObjects
+        XCTAssertEqual(objects.map(\.color), ["#FFCC00", "#FFCC00"])
+        XCTAssertEqual(objects.map(\.alignment), ["right", "right"])
+    }
+
+    /// D28: no Animation or effects on a bible activity; the five-tool row is on.
+    func testBibleHidesAnimation() {
+        let s = state(Self.bibleDoc, kind: "bible")
+        XCTAssertFalse(s.showsEffectsTool)
+        XCTAssertTrue(s.isBible)
+        XCTAssertFalse(state(Self.textDoc, kind: "text").isBible)
+    }
+
+    /// D26/D29: the state carries the page's layout — both objects page-laid-out, the citation under the scripture,
+    /// the style panel seeded from the scripture; a legacy object keeps its place.
+    func testTheStateCarriesThePageLayout() {
+        let s = state(Self.bibleDoc, kind: "bible")
+        XCTAssertEqual(s.objectPageLaidOut, [true, true])
+        XCTAssertEqual(s.objectYs[0] - s.objectHeights[0] / 2, 96, accuracy: 0.5)
+        XCTAssertEqual(s.objectYs[1] - s.objectHeights[1] / 2, 96 + s.objectHeights[0] + 16, accuracy: 0.5)
+        XCTAssertEqual(s.objectXs, [220, 220])
+        XCTAssertEqual(s.objectWidths, [376, 376])
+        XCTAssertEqual(s.pageHeight, 956)
+        XCTAssertEqual([s.bibleFace, "\(s.bibleSize)", "\(s.bibleInset)", s.bibleVerseNumbers], ["serif", "18.0", "32.0", "gutter"])
+        let legacy = state(Self.legacyBibleDoc, kind: "bible")
+        XCTAssertFalse(legacy.isBible)
+        XCTAssertFalse(legacy.objectPageLaidOut.contains(true))
+        XCTAssertEqual(legacy.pageHeight, 956)
+    }
+
+    /// D29: a whole chapter makes the page taller than the screen, and a bigger size or line height grows it.
+    func testAWholeChapterGrowsTheEditorPage() {
+        let s = state(Self.john3AllDoc, kind: "bible")
+        XCTAssertGreaterThan(s.pageHeight, 956)
+        let grown = state(Self.john3AllDoc.updating { $0[path: ["content", "objects", .index(0), "size"]] = .number(40) }, kind: "bible")
+        XCTAssertGreaterThan(grown.pageHeight, s.pageHeight)
+    }
+
+    /// D31: dismissing the passage menu without a row leaves the leader on that object with the style tools.
+    func testDismissingThePassageMenuOpensTheStyleTools() async {
+        let model = model()
+        await model.tapObject(1)
+        model.cancelPresentation()
+        XCTAssertNil(model.presentation)
+        XCTAssertEqual(model.editingIndex, 1)
+        let s = ActivitiesEditorContainer.screenState(model, app: AppState.shared)
+        XCTAssertEqual(s.editorMode, "editing")
+        await model.tapOff()
+        XCTAssertEqual(model.editingIndex, -1)
+    }
 }

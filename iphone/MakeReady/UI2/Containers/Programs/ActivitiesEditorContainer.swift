@@ -65,7 +65,8 @@ struct ActivitiesEditorContainer: View {
             onRetry: { Task { await model.retry() } },
             onDiscard: { model.discard() },
             onHighlightRange: { index, start, end in model.highlightRange(objectIndex: index, start: start, end: end) },
-            onEndHighlighting: { Task { await model.endHighlighting() } }
+            onEndHighlighting: { Task { await model.endHighlighting() } },
+            onBibleStyleChange: { change in model.setBibleStyle(change) }
         )
         // The screen seeds its sheets' buffers and its alert from `State` once, at init; a new
         // generation (loaded, a failed save, a discard) re-seeds them.
@@ -403,7 +404,51 @@ struct ActivitiesEditorContainer: View {
             var edit = edit
             // D11: a locked object takes every restyle but no text.
             if isLocked(edit.index) { edit.text = nil }
+            // D26: the page places a scripture or citation — a move, pinch, rotate or width is never written.
+            if let sibling = pageLaidOutSibling(of: edit.index) {
+                edit.transform = nil
+                edit.width = nil
+                // D28: the citation follows the scripture's colour and alignment (and the face, written by the style panel).
+                document = ActivitiesEditorMapper.apply(
+                    .init(index: sibling, font: edit.font, color: edit.color, alignment: edit.alignment), to: document)
+            }
             document = ActivitiesEditorMapper.apply(edit, to: document)
+        }
+
+        /// D28: one Bible style panel change. Face writes the scripture and the citation; weight, line height and verse
+        /// numbers the scripture alone; size the scripture and the citation at 14/18 of it; the page padding both.
+        func setBibleStyle(_ change: ActivitiesEditorScreen.BibleStyleChange) {
+            guard kind == "bible", let layout = BibleScripture.layout(of: document) else { return }
+            let scripture: [JSONPathComponent] = ["content", "objects", .index(layout.scriptureIndex)]
+            let citation = layout.citationIndex.map { ["content", "objects", JSONPathComponent.index($0)] as [JSONPathComponent] }
+            document = document.updating { raw in
+                switch change {
+                case .face(let face):
+                    raw[path: scripture + ["font"]] = .string(face)
+                    if let citation { raw[path: citation + ["font"]] = .string(face) }
+                case .weight(let weight):
+                    raw[path: scripture + ["weight"]] = .number(Double(weight))
+                case .size(let size):
+                    raw[path: scripture + ["size"]] = .number(Double(size))
+                    if let citation { raw[path: citation + ["size"]] = .number(Double(size) * BibleScripture.citationRatio) }
+                case .lineHeight(let lineHeight):
+                    raw[path: scripture + ["lineHeight"]] = .number(Double((lineHeight * 10).rounded() / 10))
+                case .inset(let inset):
+                    raw[path: scripture + ["inset"]] = .number(Double(inset))
+                    if let citation { raw[path: citation + ["inset"]] = .number(Double(inset)) }
+                case .verseNumbers(let mode):
+                    raw[path: scripture + ["verseNumbers"]] = .string(mode)
+                }
+            }
+        }
+
+        /// The other half of a page-laid-out pair (scripture ↔ citation) when `index` is one of the two; nil for any
+        /// other object, which keeps its transform.
+        private func pageLaidOutSibling(of index: Int) -> Int? {
+            guard kind == "bible", let layout = BibleScripture.layout(of: document) else { return nil }
+            if index == layout.scriptureIndex { return layout.citationIndex ?? -1 }
+            if index == layout.citationIndex { return layout.scriptureIndex }
+            return nil
         }
 
         /// Cancel restores only the edited object — an added one is removed, an existing one goes back
@@ -414,8 +459,10 @@ struct ActivitiesEditorContainer: View {
                 document = ActivitiesEditorMapper.removeObject(at: editingIndex, from: document)
             } else if let editStart {
                 let originals = ActivitiesEditorMapper.rawObjects(editStart)
-                if originals.indices.contains(editingIndex) {
-                    document = ActivitiesEditorMapper.replacingObject(at: editingIndex, with: originals[editingIndex], in: document)
+                // D28: the scripture and its citation are styled as one block, so Cancel restores both.
+                let restored = [editingIndex] + [pageLaidOutSibling(of: editingIndex)].compactMap { $0 }
+                for index in restored where originals.indices.contains(index) {
+                    document = ActivitiesEditorMapper.replacingObject(at: index, with: originals[index], in: document)
                 }
             }
             endEditing()
@@ -447,8 +494,10 @@ struct ActivitiesEditorContainer: View {
                 document = ActivitiesEditorMapper.removeObject(at: editingIndex, from: document)
                 dropped = editingIndex
             }
+            // A style-tools visit to a locked object saves only when something changed.
+            let visitedLocked = isLocked(editingIndex)
             endEditing()
-            _ = await commit()
+            if !visitedLocked || document != savedDocument { _ = await commit() }
             return dropped
         }
 
@@ -662,6 +711,14 @@ struct ActivitiesEditorContainer: View {
         /// Dismisses whatever is showing without acting on it.
         func cancelPresentation() {
             if case .change? = presentation { pendingChange = nil }
+            // D28/D31: a menu closed without a row leaves the leader on that object with the Bible style tools (Color,
+            // Alignment, Font) — the scripture can't be typed into, so this is the restyle path D11 left unreachable.
+            if case .menu(let object)? = presentation, phase == .ready, editingIndex < 0, isLocked(object),
+               BibleScripture.layout(of: document) != nil {
+                editStart = document
+                editingIndex = object
+                editAddedObject = false
+            }
             presentation = nil
         }
 

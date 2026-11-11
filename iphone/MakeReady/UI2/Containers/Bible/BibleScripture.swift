@@ -242,3 +242,126 @@ enum BibleScripture {
         return ceil(box.height)
     }
 }
+
+// MARK: - Page layout (D26–D29)
+
+extension BibleScripture {
+    /// Where the page puts one object, in the 440-wide reference's units: the centre and the box.
+    struct Placement: Equatable {
+        var centerX: Double
+        var centerY: Double
+        var width: Double
+        var height: Double
+    }
+
+    /// One `bible` page as the page lays it out (D26): the scripture and citation placements by their index in
+    /// `textObjects`, the citation's size (14/18 of the scripture's), and the page's height (D29).
+    struct PageLayout: Equatable {
+        var scriptureIndex: Int
+        var citationIndex: Int?
+        var scripture: Placement
+        var citation: Placement?
+        var height: Double
+    }
+
+    /// D28: the default padding from the page edge.
+    static let defaultInset = 32.0
+    /// D28: the citation is 14/18 of the scripture's size.
+    static let citationRatio = 14.0 / 18.0
+    private static let gutterGap = 8.0
+    private static let gutterNumberScale = 0.7
+
+    /// D26: the page that lays this document out — nil unless it holds a locked scripture object (D11, D23: a
+    /// legacy object with no `reference` is ordinary text and keeps its transform).
+    static func layout(of document: ActivityDocument) -> PageLayout? {
+        let objects = document.textObjects
+        guard let scriptureIndex = objects.firstIndex(where: { $0.role == "scripture" && $0.isLockedScripture }) else { return nil }
+        let scripture = objects[scriptureIndex]
+        let inset = min(max(scripture.inset ?? defaultInset, 16), 64)
+        let width = pageWidth - 2 * inset
+        let scriptureHeight = scriptureHeight(scripture, width: width)
+        let scriptureBox = Placement(centerX: pageWidth / 2, centerY: topInset + scriptureHeight / 2,
+                                     width: width, height: scriptureHeight)
+        var citationBox: Placement?
+        var citationIndex: Int?
+        var citationHeight = 0.0
+        if let index = objects.firstIndex(where: { $0.role == "citation" && $0.isLockedScripture }) {
+            let citation = objects[index]
+            citationHeight = textHeight(citation.text, object: citation, size: scripture.size * citationRatio,
+                                        lineHeight: nil, width: width)
+            let top = topInset + scriptureHeight + citationGap
+            citationBox = Placement(centerX: pageWidth / 2, centerY: top + citationHeight / 2, width: width, height: citationHeight)
+            citationIndex = index
+        }
+        return PageLayout(
+            scriptureIndex: scriptureIndex, citationIndex: citationIndex, scripture: scriptureBox, citation: citationBox,
+            height: Double(pageHeight(scriptureHeight: CGFloat(scriptureHeight), citationHeight: CGFloat(citationHeight))))
+    }
+
+    /// The document's text objects with the page's placement applied (D26): a page-laid-out object takes the
+    /// layout's centre and width and an identity scale and rotation; every other object is returned as it is.
+    static func placed(_ document: ActivityDocument) -> (objects: [TextObject], layout: PageLayout?) {
+        var objects = document.textObjects
+        guard let layout = layout(of: document) else { return (objects, nil) }
+        func place(_ index: Int?, _ box: Placement?) {
+            guard let index, let box, objects.indices.contains(index) else { return }
+            objects[index].transform = .init(x: box.centerX, y: box.centerY, width: box.width, scale: 1, rotation: 0)
+        }
+        place(layout.scriptureIndex, layout.scripture)
+        place(layout.citationIndex, layout.citation)
+        return (objects, layout)
+    }
+
+    // MARK: Measuring
+
+    /// The scripture's laid-out height (D27): gutter and inline put each verse on its own line(s), hidden runs them
+    /// on as one paragraph; the gutter takes a column from the text's width.
+    private static func scriptureHeight(_ scripture: TextObject, width: Double) -> Double {
+        let verses = scripture.text.components(separatedBy: "\n")
+        let first = scripture.startNumber ?? 1
+        let lineHeight: Double? = scripture.lineHeight
+        switch scripture.verseNumbers ?? .inline {
+        case .hidden:
+            return textHeight(verses.joined(separator: " "), object: scripture, size: scripture.size,
+                              lineHeight: lineHeight, width: width)
+        case .gutter:
+            let numberFont = ActivityViewerMapper.measuringFont(key: scripture.font, weight: scripture.weight,
+                                                                size: scripture.size * gutterNumberScale)
+            let widest = (0..<max(verses.count, 1)).reduce(0.0) { widest, offset in
+                max(widest, ceil(Double(("\(first + offset)" as NSString).size(withAttributes: [.font: numberFont]).width)))
+            }
+            return rows(verses, object: scripture, lineHeight: lineHeight, width: max(width - widest - gutterGap, 1))
+        case .inline:
+            let numbered = verses.enumerated().map { "\(first + $0.offset) \($0.element)" }
+            return rows(numbered, object: scripture, lineHeight: lineHeight, width: width)
+        }
+    }
+
+    /// C-092 stacks the rows with the line-height gap between them, so every line of the block keeps one pitch.
+    private static func rows(_ rows: [String], object: TextObject, lineHeight: Double?, width: Double) -> Double {
+        let size = object.size
+        let font = ActivityViewerMapper.measuringFont(key: object.font, weight: object.weight, size: size)
+        let natural = Double(font.lineHeight)
+        let pitch = max((lineHeight ?? 0) * size, natural)
+        let lines = rows.reduce(0) { total, row in
+            total + max(1, Int((boundingHeight(row, font: font, width: width) / natural).rounded()))
+        }
+        return ceil(Double(lines) * pitch - (pitch - natural))
+    }
+
+    /// A paragraph's height at one line pitch.
+    private static func textHeight(_ text: String, object: TextObject, size: Double, lineHeight: Double?, width: Double) -> Double {
+        let font = ActivityViewerMapper.measuringFont(key: object.font, weight: object.weight, size: size)
+        let natural = Double(font.lineHeight)
+        let pitch = max((lineHeight ?? 0) * size, natural)
+        let lines = max(1, Int((boundingHeight(text.isEmpty ? " " : text, font: font, width: width) / natural).rounded()))
+        return ceil(Double(lines) * pitch - (pitch - natural))
+    }
+
+    private static func boundingHeight(_ text: String, font: UIFont, width: Double) -> Double {
+        let box = (text as NSString).boundingRect(
+            with: CGSize(width: width, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: font], context: nil)
+        return Double(box.height)
+    }
+}
