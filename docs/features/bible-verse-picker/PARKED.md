@@ -59,3 +59,4 @@ Walk it on device, then run `/builder:signoff --path docs/features/bible-verse-p
 - 2026-11-11 readiness re-run at be39f31a (post-revision HEAD, SC6 live, all Bible endpoints 200); parked again (human-step) — walk=none · human=yes → waiting for your walk
 - 2026-11-11 unparked by a person — named to /builder:agent or /builder:fleet
 - 2026-11-11 readiness re-run at b74801fd (revision 2 + final-review fixes, SC7 live, all Bible endpoints 200); walk=none · human=yes → parked again (human-step), waiting for your walk
+- 2026-11-11 unparked by a person — named to /builder:agent or /builder:fleet
