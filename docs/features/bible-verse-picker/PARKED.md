@@ -33,6 +33,10 @@ inset, tall Bible page, style panel), and walk readiness passed at HEAD be39f31a
 ## Where to dig
 - Nothing to dig. Walk walk.md on device with the app pointed at a server running this branch.
 
+## Your choices
+1. Walk it yourself now — `/builder:resume --path docs/features/bible-verse-picker`
+2. Leave it for now
+
 ## Recommended next step
 Walk it on device, then `/builder:signoff --path docs/features/bible-verse-picker <your words>`.
 `/builder:resume --path docs/features/bible-verse-picker` prints the walk script first.
