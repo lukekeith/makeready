@@ -874,9 +874,23 @@ function saveSearchHistory(req: any, query: string, resultCount: number) {
   }
 }
 
+/**
+ * Deletes every one of the caller's rows with the same searchType and (case-insensitive) query
+ * as row `id`. Returns false when the row does not exist or is not the caller's.
+ */
+async function deleteRecentQuery(identity: { userId: string } | { memberId: string }, id: string): Promise<boolean> {
+  const row = await prisma.searchHistory.findFirst({ where: { id, ...identity } })
+  if (!row) return false
+  await prisma.searchHistory.deleteMany({
+    where: { ...identity, searchType: row.searchType, query: { equals: row.query, mode: 'insensitive' } },
+  })
+  return true
+}
+
 router.post('/smart', async (req, res) => {
   try {
-    const { query, translation = 'NASB', limit = 10 } = req.body
+    const { query, translation = 'NASB', limit = 10, record = true } = req.body
+    const shouldRecord = record !== false
 
     if (!query || typeof query !== 'string') {
       return res.status(400).json({ error: 'Query parameter is required' })
@@ -887,7 +901,7 @@ router.post('/smart', async (req, res) => {
     if (searchType === 'direct') {
       // Direct reference (e.g. "John 3:16") — return as before
       const result = await handleDirectReference(query, translation)
-      saveSearchHistory(req, query, (result as any).total ?? (result as any).verses?.length ?? 0)
+      if (shouldRecord) saveSearchHistory(req, query, (result as any).total ?? (result as any).verses?.length ?? 0)
       return res.json(result)
     }
 
@@ -938,7 +952,7 @@ router.post('/smart', async (req, res) => {
     const verses = verseResult.results || []
 
     const totalResults = books.length + verses.length
-    saveSearchHistory(req, query, totalResults)
+    if (shouldRecord) saveSearchHistory(req, query, totalResults)
 
     return res.json({
       type: 'grouped',
@@ -971,62 +985,26 @@ async function handleDirectReference(query: string, translationCode: string) {
     return { type: 'error', query, error: `Translation '${translationCode}' not found` }
   }
 
-  const { getBookByNumber, buildVerseId, buildPassageId } = await import('../utils/bible-id-map.js')
+  const { getBookByNumber } = await import('../utils/bible-id-map.js')
   const bookEntry = getBookByNumber(ref.bookNumber)
-
-  const { getPassage, getVerse, extractFumsToken } = await import('../services/api-bible.js')
-  const { parsePassageContent, parseVerseContent } = await import('../utils/bible-content-parser.js')
+  const { getChapterVerses } = await import('../services/bible-chapter.js')
 
   try {
-    if (ref.verseStart !== undefined && ref.verseEnd !== undefined) {
-      // Verse range
-      const passageId = buildPassageId(bookEntry.apiBibleId, ref.chapter, ref.verseStart, ref.verseEnd)
-      const response = await getPassage(bibleId, passageId)
-      const verses = parsePassageContent(response.data.content)
-      return {
-        type: 'direct', query, translation: translationCode,
-        book: { bookNumber: bookEntry.bookNumber, name: bookEntry.name, abbrev: bookEntry.abbrev },
-        chapter: ref.chapter,
-        verses: verses.map((v) => ({
-          verse: v.verse, text: v.text, reference: `${bookEntry.name} ${ref.chapter}:${v.verse}`,
-        })),
-        total: verses.length,
-        fumsToken: extractFumsToken(response.meta),
-        copyright: response.data.copyright,
-      }
-    } else if (ref.verseStart !== undefined) {
-      // Single verse
-      const verseId = buildVerseId(bookEntry.apiBibleId, ref.chapter, ref.verseStart)
-      const response = await getVerse(bibleId, verseId)
-      const text = parseVerseContent(response.data.content)
-      return {
-        type: 'direct', query, translation: translationCode,
-        book: { bookNumber: bookEntry.bookNumber, name: bookEntry.name, abbrev: bookEntry.abbrev },
-        chapter: ref.chapter,
-        verses: [{ verse: ref.verseStart, text, reference: `${bookEntry.name} ${ref.chapter}:${ref.verseStart}` }],
-        total: 1,
-        fumsToken: extractFumsToken(response.meta),
-        copyright: response.data.copyright,
-      }
-    } else {
-      // Whole chapter — use chapter endpoint
-      const { getChapter } = await import('../services/api-bible.js')
-      const { parseChapterContent } = await import('../utils/bible-content-parser.js')
-      const { buildChapterId } = await import('../utils/bible-id-map.js')
-      const chapterId = buildChapterId(bookEntry.apiBibleId, ref.chapter)
-      const response = await getChapter(bibleId, chapterId)
-      const verses = parseChapterContent(response.data.content)
-      return {
-        type: 'direct', query, translation: translationCode,
-        book: { bookNumber: bookEntry.bookNumber, name: bookEntry.name, abbrev: bookEntry.abbrev },
-        chapter: ref.chapter,
-        verses: verses.map((v) => ({
-          verse: v.verse, text: v.text, reference: `${bookEntry.name} ${ref.chapter}:${v.verse}`,
-        })),
-        total: verses.length,
-        fumsToken: extractFumsToken(response.meta),
-        copyright: response.data.copyright,
-      }
+    // Canonical chapter text (D9), sliced to the requested verses
+    const chapter = await getChapterVerses(bibleId, bookEntry.apiBibleId, ref.chapter)
+    const wanted = ref.verseStart === undefined
+      ? chapter.verses
+      : chapter.verses.filter((v) => v.verse >= ref.verseStart! && v.verse <= (ref.verseEnd ?? ref.verseStart!))
+    return {
+      type: 'direct', query, translation: translationCode,
+      book: { bookNumber: bookEntry.bookNumber, name: bookEntry.name, abbrev: bookEntry.abbrev },
+      chapter: ref.chapter,
+      verses: wanted.map((v) => ({
+        verse: v.verse, text: v.text, reference: `${bookEntry.name} ${ref.chapter}:${v.verse}`,
+      })),
+      total: wanted.length,
+      fumsToken: chapter.fumsToken,
+      copyright: chapter.copyright,
     }
   } catch (error: any) {
     return { type: 'error', query, error: error.message || 'Failed to fetch reference' }
@@ -1274,6 +1252,42 @@ router.delete('/recent', async (req, res) => {
   } catch (error) {
     console.error('Error clearing search history:', error)
     res.status(500).json({ error: 'Failed to clear search history' })
+  }
+})
+
+/**
+ * @openapi
+ * /api/search/recent/{id}:
+ *   delete:
+ *     tags: [Search]
+ *     summary: Remove one recent search (every stored row of that query)
+ *     security:
+ *       - userSession: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Removed
+ *       404:
+ *         description: No such recent search for the caller
+ */
+router.delete('/recent/:id', async (req, res) => {
+  try {
+    const userId = req.isAuthenticated?.() ? (req.user as any)?.id : null
+    const memberId = (req.session as any)?.memberId || null
+    const identity = userId ? { userId } : memberId ? { memberId } : null
+
+    if (!identity || !(await deleteRecentQuery(identity, req.params.id))) {
+      return res.status(404).json({ error: 'Recent search not found' })
+    }
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Error deleting recent search:', error)
+    res.status(500).json({ error: 'Failed to delete recent search' })
   }
 })
 
