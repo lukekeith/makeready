@@ -61,3 +61,4 @@ human-step park rather than `stuck`).
 - 2026-11-11 parked — the four Bible picker screens do not exist in d2m, and only the owner's /ui2-screen can create them
 - 2026-11-11 unparked by the fleet — automatic retry 1 of 2
 - 2026-11-10 parked again (human-step) — re-verified: still no such screens, still no tool that creates one
+- 2026-11-11 unparked by a person — named to /builder:agent or /builder:fleet
