@@ -40,6 +40,7 @@
 | 10 | server | 20 | SC7: scripture objects carry `verticalAlignment`; the contract re-freezes |
 | 11 | iphone | 21 | d2m has imported the Figma glyphs and built the reorganised Bible tool bar and Align panel |
 | 12 | iphone | 22 | Vertical alignment and the new tool bar work in the editor, player and thumbnails |
+| 13 | iphone | 23 | The reference is ordinary, editable text above the passage, with no translation code |
 
 ---
 
@@ -1142,4 +1143,60 @@ func testALegacyScriptureReadsTop() throws {
 - [ ] **Step 3: Implement to the Behaviour**
 - [ ] **Step 4: Run them and `ActivitiesEditorContainerTests`, watch them pass**
 - [ ] **Step 5: Commit** — `feat(bible-verse-picker): vertical alignment and the reorganised Bible tool bar`
+
+### Task 23: The reference becomes ordinary text above the passage
+App: iphone
+Phase: 13
+Recipe: test-driven-development
+
+**Files:**
+- Modify: `iphone/MakeReady/UI2/Containers/Bible/BibleScripture.swift` — citation text without translation; placement above; `pageHeight` without the citation; change-passage citation rule
+- Modify: `iphone/MakeReady/UI2/Containers/Programs/ActivitiesEditorMapper.swift`, `ActivitiesEditorContainer.swift` — the citation is unlocked, not page-laid-out, keeps its transform, edits/moves/deletes as text; the D12 menu and style-panel follow-through apply to the scripture only
+- Modify: `iphone/MakeReady/UI2/Viewer/ActivityViewerMapper.swift`, `iphone/MakeReady/UI2/Containers/Programs/ActivityThumbnail.swift` — draw the citation from its own transform
+- Test: `iphone/MakeReadyCaptureTests/BibleScriptureTests.swift`, `BibleEditorTests.swift`, `ActivityViewerMapperTests.swift`
+
+**Interfaces:**
+- Consumes: `BibleScripture.title(for:bookName:)` (Task 12); Task 18/21 names in `d2m-api.md`.
+- Produces: `BibleScripture.pageHeight(scriptureHeight:) -> CGFloat`; `BibleScripture.citationAfterChange(current: String, old: BiblePick, new: BiblePick) -> String`.
+
+**Behaviour:**
+- a new pick's citation text = the reference without translation ("John 3:16b-18"); placed at top 40, left = inset, width 440 − 2·inset, scripture face 14 pt, scripture colour and horizontal alignment (D34)
+- the citation is an ordinary text object: typing, moving, scaling, rotating, restyling and deleting (no confirmation) work as on a `text` activity; tapping it never opens the D12 menu (D34)
+- the scripture's style changes no longer write the citation (D34)
+- page height = max(956, 96 + scripture + 96) (D34, D29)
+- Change passage: citation text becomes the new reference only when it equals the old reference; otherwise unchanged (D34)
+- player and thumbnail draw the citation at its own transform (D34)
+
+**Tests:**
+
+```swift
+func testTheReferenceHasNoTranslationAndSitsAbove() {
+    let c = BibleScripture.document(for: Self.pick16b18, background: nil).textObjects[1]
+    XCTAssertEqual(c.text, "John 3:16b-18"); XCTAssertEqual(c.transform.y, 40, accuracy: 0.5)
+}
+func testTheReferenceIsOrdinaryText() async {
+    XCTAssertFalse(ActivitiesEditorMapper.state(Self.bibleDoc).objects[1].isLocked)
+    await model.tapObject(1)
+    XCTAssertNil(presenter.lastMenu); XCTAssertEqual(model.editingIndex, 1)
+}
+func testScriptureStyleNoLongerWritesTheReference() async {
+    await model.setBibleStyle(.inset(48))
+    XCTAssertNotEqual(model.document.textObjects[1].inset, 48)
+}
+func testChangePassageKeepsAnEditedReference() {
+    XCTAssertEqual(BibleScripture.citationAfterChange(current: "John 3:16b-18", old: Self.pick16b18, new: Self.pick16to21), "John 3:16b-21")
+    XCTAssertEqual(BibleScripture.citationAfterChange(current: "For God so loved", old: Self.pick16b18, new: Self.pick16to21), "For God so loved")
+}
+func testPageHeightIgnoresTheReference() {
+    XCTAssertEqual(BibleScripture.pageHeight(scriptureHeight: 1400), 1592)
+}
+```
+
+(Real entry-point names from the files and `d2m-api.md`.)
+
+- [ ] **Step 1: Write the listed tests; update tests that assumed the old citation**
+- [ ] **Step 2: Run the iphone-xctest suite for the three classes, watch them fail**
+- [ ] **Step 3: Implement to the Behaviour**
+- [ ] **Step 4: Run them and `ActivitiesEditorContainerTests`, `BibleSaveTests`, watch them pass**
+- [ ] **Step 5: Commit** — `feat(bible-verse-picker): the reference is ordinary text above the passage`
 
