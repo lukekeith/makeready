@@ -10,6 +10,20 @@ final class ActivityThumbnailTests: XCTestCase {
         return try! JSONDecoder.apiDecoder.decode(ActivitySummary.self, from: Data(json.utf8))
     }
 
+    /// A D10-shaped scripture page: numbered from 16, one highlight, and the `reference` the object quotes.
+    private static let bibleDoc: ActivityDocument = {
+        let json = ##"{"schemaVersion":1,"kind":"bible","background":{"color":"#0E4A4D"},"content":{"type":"canvas","verticalAnchor":"top","objects":[{"id":"s1","role":"scripture","text":"For God so loved the world\nthat he gave his only begotten Son","font":"serif","weight":400,"size":18,"color":"#FFFFFF","alignment":"left","listStyle":"bibleVerse","startNumber":16,"reference":{"start":{"book":43,"chapter":3,"verse":16},"end":{"book":43,"chapter":3,"verse":17},"translation":"ENGKJV"},"highlights":[{"id":"h1","start":4,"end":7}],"transform":{"x":220,"y":200,"width":376,"scale":1,"rotation":0}}]},"actions":[]}"##
+        return try! JSONDecoder.apiDecoder.decode(ActivityDocument.self, from: Data(json.utf8))
+    }()
+
+    /// F13: the rail slide draws the scripture as the player does — verse numbers from `startNumber`, highlights kept,
+    /// and no reference line of C-092's own (D10: the citation object is the only one).
+    func testABibleThumbnailKeepsVerseNumbersAndHighlights() {
+        let o = ActivityThumbnail.objects(for: Self.bibleDoc)[0]
+        XCTAssertEqual(o.listStyle, .bibleVerse); XCTAssertEqual(o.startNumber, 16); XCTAssertEqual(o.highlights.count, 1)
+        XCTAssertNil(o.reference)
+    }
+
     func testCanvasKindsGetAKeyAndOtherKindsDoNot() {
         XCTAssertTrue(ActivityThumbnail.key(for: summary("a")).hasPrefix("activity-thumbnail://"))
         XCTAssertFalse(ActivityThumbnail.key(for: summary("a", kind: "bible")).isEmpty)

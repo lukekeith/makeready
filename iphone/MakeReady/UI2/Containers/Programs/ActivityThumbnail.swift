@@ -63,7 +63,7 @@ enum ActivityThumbnail {
     static func render(_ document: ActivityDocument, backgroundImage: UIImage?) -> UIImage? {
         guard case .canvas(let canvas) = document.renderable else { return nil }
         let scale = size.width / referenceWidth
-        let page = Page(background: document.background, backgroundImage: backgroundImage, objects: canvas.objects)
+        let page = Page(background: document.background, backgroundImage: backgroundImage, objects: objects(for: document))
             .frame(width: referenceWidth, height: referenceHeight)
             .scaleEffect(scale)
             .frame(width: size.width, height: size.height)
@@ -71,6 +71,14 @@ enum ActivityThumbnail {
         let renderer = ImageRenderer(content: page)
         renderer.scale = 3   // the phone's screen scale; 336×730 px for a 112pt slide
         return renderer.uiImage
+    }
+
+    /// F13: the page's text objects as C-092 draws them in viewer mode — `listStyle`, `startNumber` and highlights kept,
+    /// exactly as the player maps them. `reference` is never passed (D10: the citation object is the scripture's only
+    /// citation line). Empty for any document that is not a canvas.
+    static func objects(for document: ActivityDocument) -> [CanvasTextObject] {
+        guard case .canvas(let canvas) = document.renderable else { return [] }
+        return canvas.objects.map(Page.canvasObject)
     }
 
     /// text-activity-v2 D1/D14: the document's gradient as C-091's type — nil when absent or hidden,
@@ -99,7 +107,7 @@ enum ActivityThumbnail {
     private struct Page: View {
         let background: ActivityBackground
         let backgroundImage: UIImage?
-        let objects: [TextObject]
+        let objects: [CanvasTextObject]
 
         var body: some View {
             ZStack(alignment: .topLeading) {
@@ -118,21 +126,36 @@ enum ActivityThumbnail {
                 if let wash = background.wash {
                     ActivityThumbnail.color(wash.color).opacity(wash.opacity)
                 }
-                ForEach(objects) { object in
-                    CanvasTextObject(
-                        text: object.text, mode: .viewer, font: Self.font(object.font), weight: Self.weight(object.weight),
-                        size: CGFloat(object.size), color: ActivityThumbnail.color(object.color), alignment: Self.alignment(object.alignment),
-                        marks: Self.marks(object.marks),
-                        transform: .init(position: CGPoint(x: object.transform.x, y: object.transform.y),
-                                         scale: CGFloat(object.transform.scale), rotation: .degrees(object.transform.rotation),
-                                         width: CGFloat(object.transform.width)),
-                        editing: false
-                    )
-                    .frame(width: CGFloat(object.transform.width))
-                    .position(x: object.transform.x, y: object.transform.y)
+                ForEach(Array(objects.enumerated()), id: \.offset) { _, object in
+                    object
+                        .frame(width: object.transform.width)
+                        .position(object.transform.position)
                 }
             }
             .frame(width: ActivityThumbnail.referenceWidth, height: ActivityThumbnail.referenceHeight, alignment: .topLeading)
+        }
+
+        static func canvasObject(_ object: TextObject) -> CanvasTextObject {
+            CanvasTextObject(
+                text: object.text, mode: .viewer, font: font(object.font), weight: weight(object.weight),
+                size: CGFloat(object.size), color: ActivityThumbnail.color(object.color), alignment: alignment(object.alignment),
+                listStyle: listStyle(object.listStyle), startNumber: object.startNumber ?? 1,
+                marks: marks(object.marks),
+                transform: .init(position: CGPoint(x: object.transform.x, y: object.transform.y),
+                                 scale: CGFloat(object.transform.scale), rotation: .degrees(object.transform.rotation),
+                                 width: CGFloat(object.transform.width)),
+                editing: false,
+                highlights: object.highlights.map { .init(start: $0.start, end: $0.end, note: $0.noteMarkdown) }
+            )
+        }
+
+        static func listStyle(_ key: String?) -> CanvasTextObject.ListStyle {
+            switch key {
+            case "bullet": return .bullet
+            case "numbered": return .numbered
+            case "bibleVerse": return .bibleVerse
+            default: return .none
+            }
         }
 
         // 02 §3/§6: the document's keys, never platform names.

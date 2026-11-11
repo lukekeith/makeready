@@ -51,6 +51,25 @@ final class ActivityViewerMapperTests: XCTestCase {
         XCTAssertEqual(proxyOnly.top, 59)
     }
 
+    /// A D10-shaped scripture page: numbered from 16, one highlight, and the `reference` the object quotes.
+    private static let bibleDoc: ActivityDocument = {
+        let json = ##"{"schemaVersion":1,"kind":"bible","background":{"color":"#0E4A4D"},"content":{"type":"canvas","verticalAnchor":"top","objects":[{"id":"s1","role":"scripture","text":"For God so loved the world\nthat he gave his only begotten Son","font":"serif","weight":400,"size":18,"color":"#FFFFFF","alignment":"left","listStyle":"bibleVerse","startNumber":16,"reference":{"start":{"book":43,"chapter":3,"verse":16},"end":{"book":43,"chapter":3,"verse":17},"translation":"ENGKJV"},"highlights":[{"id":"h1","start":4,"end":7}],"transform":{"x":220,"y":200,"width":376,"scale":1,"rotation":0}}]},"actions":[]}"##
+        return try! JSONDecoder.apiDecoder.decode(ActivityDocument.self, from: Data(json.utf8))
+    }()
+
+    /// D10: the player maps a scripture object with its verse numbers and highlights but WITHOUT a `reference`
+    /// channel — the state has no per-object reference, so C-092 draws no second citation line.
+    func testThePlayerNeverDrawsTheScriptureReference() {
+        let a = ContentActivity(id: "a0", lessonVersionId: "v1", activityKey: "k0", position: 0, kind: "bible",
+                                title: "T", document: Self.bibleDoc, estimatedSeconds: nil)
+        let s = ActivityViewerMapper.state(payload: .payload([a], media: [:]), engine: .fixture(pages: 2),
+                                           viewport: 440, playback: .idle)
+        XCTAssertEqual(s.objectListStyles, ["bibleVerse"])
+        XCTAssertEqual(s.objectStartNumbers, [16])
+        XCTAssertEqual(s.highlightObjects, [0])
+        XCTAssertTrue(s.pageReferences.allSatisfy { $0.isEmpty }, "the scripture's reference must not reach the page's reference line")
+    }
+
     /// text-activity-v2 D1/D14: a visible gradient reaches the page's background; a hidden one doesn't.
     func testAVisibleGradientReachesThePage() {
         var rng = SeededRandom(seed: 11)
