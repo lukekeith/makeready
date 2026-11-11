@@ -142,11 +142,11 @@ passage shape. Bible recents are **not** shared with Search home (it uses `/api/
 
 | # | ADD/EDIT/RENAME/REMOVE | Model.field | Wire | Reason | Status |
 |---|---|---|---|---|---|
-| SC1 | EDIT | activity-document `bibleContent.passages[]` | `+startOffset?: int ≥0, +endOffset?: int ≥0, +translation?: string` (required on a passage paired with a `reference` object, D22) | D8, D22 | planned |
-| SC2 | EDIT | activity-document `textObject.reference` (bible) | validated when present on `role: scripture`: `{start:{book:int, chapter:int, verse:int, offset?:int}, end:{…}, translation:string}`, equal to its passage (D22) | D10, D22 | planned |
-| SC3 | EDIT | `GET /api/bible/:code/:book/:chapter` verse `text` | normalized per D9; chapters fetched with titles off; chapter cache key versioned | D9 | planned |
-| SC4 | ADD | route `DELETE /api/search/recent/:id` | caller's own rows of that query only | D17 | planned |
-| SC5 | EDIT | `POST /api/search/smart` body | `+record?: boolean` (default true) — false skips `saveSearchHistory` | D17 | planned |
+| SC1 | EDIT | activity-document `bibleContent.passages[]` | `+startOffset?: int ≥0, +endOffset?: int ≥0, +translation?: string` (required on a passage paired with a `reference` object, D22) | D8, D22 | landed 91f06e58 (no migration) |
+| SC2 | EDIT | activity-document `textObject.reference` (bible) | validated when present on `role: scripture`: `{start:{book:int, chapter:int, verse:int, offset?:int}, end:{…}, translation:string}`, equal to its passage (D22) | D10, D22 | landed 91f06e58 (no migration) |
+| SC3 | EDIT | `GET /api/bible/:code/:book/:chapter` verse `text` | normalized per D9; chapters fetched with titles off; chapter cache key versioned | D9 | landed e58a5d14 (no migration) |
+| SC4 | ADD | route `DELETE /api/search/recent/:id` | caller's own rows of that query only | D17 | landed 68377805, 35c3b244 (no migration) |
+| SC5 | EDIT | `POST /api/search/smart` body | `+record?: boolean` (default true) — false skips `saveSearchHistory` | D17 | landed 68377805 (no migration) |
 
 **Data plan:** no table changes — `passages` and `reference` live in the activity document JSON, and `SearchHistory`
 (`schema.yaml:1912-1952`) already carries `userId?`/`memberId?`/`searchType`. Existing `bible` documents (written by
