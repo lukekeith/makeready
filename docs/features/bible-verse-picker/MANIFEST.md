@@ -13,8 +13,8 @@ tests: walk=none review=end human=yes
 target: main
 walk: none
 verify: none
-ready: pending "dev env (fleet walk lane)"
+ready: pending "API.Bible key in walk env"
 ui2: none
 auto: on 2026-11-10
-blocked: none
+blocked: "the walk env has no API.Bible key, so every Bible screen and search in the picker fails before an agent can walk it — next: export API_BIBLE_KEY in the shell that runs the fleet, then /builder:agent"
 agent-walk: on 2026-11-10
