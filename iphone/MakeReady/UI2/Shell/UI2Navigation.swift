@@ -15,8 +15,27 @@ struct UI2Navigator {
     /// ui2-groups-browse D8: replace the top entry (first) with a new page (second) — a no-op
     /// unless the first is still on top.
     var replaceTop: (UI2Destination, UI2Destination) -> Void = { _, _ in }
+    /// bible-verse-picker D2: pop to `depth` entries and optionally push a page, as ONE path write.
+    var popToAndPush: (Int, UI2Destination?) -> Void = { _, _ in }
     /// Current visible stack ownership; changes on every path mutation, including equal-ID replacement.
     var ownership: () -> UUID? = { nil }
+}
+
+extension UI2Navigator {
+    /// The navigator for one tab's stack, over the shell's model. UI2Shell injects this; tests pass a
+    /// binding that records each write.
+    static func bound(to model: Binding<UI2ShellModel>, tab: TabBar.Tab) -> UI2Navigator {
+        UI2Navigator(
+            push: { model.wrappedValue.push($0, on: tab) },
+            pop: { model.wrappedValue.pop(on: tab) },
+            popIfTop: { model.wrappedValue.popIfTop($0, on: tab) },
+            popTo: { model.wrappedValue.popTo(depth: $0, on: tab) },
+            depth: { model.wrappedValue.path(for: tab).count },
+            replaceTop: { model.wrappedValue.replaceTop($0, with: $1, on: tab) },
+            popToAndPush: { model.wrappedValue.popToAndPush(depth: $0, push: $1, on: tab) },
+            ownership: { model.wrappedValue.tab == tab ? model.wrappedValue.navigationOwnership(for: tab) : nil }
+        )
+    }
 }
 
 private struct UI2NavigatorKey: EnvironmentKey {

@@ -1095,6 +1095,9 @@
 		BACT0001000000000000002 /* BibleActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = BACT0002000000000000001 /* BibleActions.swift */; };
 		BMOD0001000000000000001 /* BibleModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BMOD0002000000000000001 /* BibleModels.swift */; };
 		BMOD0001000000000000002 /* BibleModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BMOD0002000000000000001 /* BibleModels.swift */; };
+		BPF0001000000000000001 /* BiblePickFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = BPF0002000000000000001 /* BiblePickFlow.swift */; };
+		BPF0001000000000000002 /* BiblePickFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = BPF0002000000000000001 /* BiblePickFlow.swift */; };
+		BPF0003000000000000001 /* BiblePickFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BPF0004000000000000001 /* BiblePickFlowTests.swift */; };
 		BAT0003000000000000001 /* BibleActionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAT0004000000000000001 /* BibleActionsTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -1900,6 +1903,16 @@
 		WKDI0002000000000000001 /* WeekdayIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekdayIndicator.swift; sourceTree = "<group>"; };
 		BACT0002000000000000001 /* BibleActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleActions.swift; sourceTree = "<group>"; };
 		BMOD0002000000000000001 /* BibleModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleModels.swift; sourceTree = "<group>"; };
+		BPF0002000000000000001 /* BiblePickFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiblePickFlow.swift; sourceTree = "<group>"; };
+		BPF0004000000000000001 /* BiblePickFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiblePickFlowTests.swift; sourceTree = "<group>"; };
+		BPF0005000000000000001 /* Bible */ = {
+			isa = PBXGroup;
+			children = (
+				BPF0002000000000000001 /* BiblePickFlow.swift */,
+			);
+			path = Bible;
+			sourceTree = "<group>";
+		};
 		BAT0004000000000000001 /* BibleActionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleActionsTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -1965,6 +1978,7 @@
 				73C1CE3EAD65FC55BE50A8B2 /* Shared */,
 				43ADD00D775C8A2C47D53773 /* Enrollments */,
 				78E2E2D48FAE36587A30475C /* Invites */,
+				BPF0005000000000000001 /* Bible */,
 			);
 			name = Containers;
 			path = Containers;
@@ -2484,6 +2498,7 @@
 				56C86F259C79A8B12532932C /* BiblePassageDecodingTests.swift */,
 				BBC0004000000000000001 /* BibleBookCatalogTests.swift */,
 				BAT0004000000000000001 /* BibleActionsTests.swift */,
+				BPF0004000000000000001 /* BiblePickFlowTests.swift */,
 			);
 			path = MakeReadyCaptureTests;
 			sourceTree = SOURCE_ROOT;
@@ -3741,6 +3756,7 @@
 				C4E35169039D75AFD0E5E9FE /* BiblePassageDecodingTests.swift in Sources */,
 				BBC0003000000000000001 /* BibleBookCatalogTests.swift in Sources */,
 				BAT0003000000000000001 /* BibleActionsTests.swift in Sources */,
+				BPF0003000000000000001 /* BiblePickFlowTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3805,6 +3821,7 @@
 				BSRV0001000000000000001 /* BibleSearchService.swift in Sources */,
 				BCMG0001000000000000001 /* BibleCacheManager.swift in Sources */,
 				BACT0001000000000000001 /* BibleActions.swift in Sources */,
+				BPF0001000000000000001 /* BiblePickFlow.swift in Sources */,
 				BMOD0001000000000000001 /* BibleModels.swift in Sources */,
 				BBC0001000000000000001 /* BibleBookCatalog.swift in Sources */,
 				STMD0001000000000000001 /* StudyModels.swift in Sources */,
@@ -4328,6 +4345,7 @@
 				809D356E1E77D12E91FFF970 /* BibleSearchService.swift in Sources */,
 				76FC90E218B03CFC57221151 /* BibleCacheManager.swift in Sources */,
 				BACT0001000000000000002 /* BibleActions.swift in Sources */,
+				BPF0001000000000000002 /* BiblePickFlow.swift in Sources */,
 				BMOD0001000000000000002 /* BibleModels.swift in Sources */,
 				BBC0001000000000000002 /* BibleBookCatalog.swift in Sources */,
 				F764A8CE536B5E7FE34C652E /* StudyModels.swift in Sources */,

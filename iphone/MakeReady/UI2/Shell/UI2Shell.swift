@@ -175,15 +175,7 @@ struct UI2Shell: View {
                     }
                 }
         }
-        .environment(\.ui2Navigator, UI2Navigator(
-            push: { model.push($0, on: tab) },
-            pop: { model.pop(on: tab) },
-            popIfTop: { model.popIfTop($0, on: tab) },
-            popTo: { model.popTo(depth: $0, on: tab) },
-            depth: { model.path(for: tab).count },
-            replaceTop: { model.replaceTop($0, with: $1, on: tab) },
-            ownership: { model.tab == tab ? model.navigationOwnership(for: tab) : nil }
-        ))
+        .environment(\.ui2Navigator, UI2Navigator.bound(to: $model, tab: tab))
         // dashboard-chart-intros D15: the dashboard resets its intros while hidden, replays on return.
         .environment(\.chartIntroActive, model.homeActive)
     }
@@ -238,6 +230,8 @@ struct UI2Shell: View {
         case let .activityViewer(lessonVersionId, activityId):
             ActivityViewerContainer(lessonVersionId: lessonVersionId, activityId: activityId)  // text-activity D39
         case let .chooseActivityBackground(activityId): MediaHomeContainer(mode: .pickActivityBackground(activityId: activityId))  // D40
+        // bible-verse-picker D2: placeholders — Tasks 10-11 replace each with its container (the four screens are d2m-built).
+        case .bibleBooks, .bibleChapters, .bibleVerses, .bibleReader: EmptyView()
         }
     }
 

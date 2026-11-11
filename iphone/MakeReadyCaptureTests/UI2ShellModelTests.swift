@@ -1,4 +1,5 @@
 import XCTest
+import SwiftUI
 import UIKit
 @testable import MakeReady
 
@@ -428,4 +429,38 @@ final class UI2ShellModelTests: XCTestCase {
         XCTAssertEqual(model.path(for: .home), [.requestDetail(id: "reviewed")])
     }
 
+    /// bible-verse-picker D2: every picker page is full-screen (no TabBar under it).
+    func testPickerPagesAreFullScreen() {
+        let f = UUID()
+        for d in [UI2Destination.bibleBooks(flowId: f), .bibleChapters(book: 43, flowId: f),
+                  .bibleVerses(book: 43, chapter: 3, flowId: f), .bibleReader(book: 43, chapter: 3, verse: 16, flowId: f)] {
+            XCTAssertTrue(d.isFullScreen)
+        }
+    }
+
+    /// Counts the path writes a navigator makes: the shell model behind a binding that tallies each set.
+    private final class PathRecorder {
+        var model = UI2ShellModel()
+        var writes = 0
+        var depth: Int { model.path(for: .home).count }
+        lazy var navigator = UI2Navigator.bound(
+            to: Binding(get: { self.model }, set: { self.model = $0; self.writes += 1 }), tab: .home)
+
+        init(depth: Int) {
+            model.setPath((0..<depth).map { _ in UI2Destination.mediaHome }, for: .home)
+        }
+    }
+
+    /// D2/D25: Select leaves the whole picker in one write — pop to the caller's depth, push nothing.
+    func testPopToAndPushIsOnePathWrite() {
+        let path = PathRecorder(depth: 6)
+        path.navigator.popToAndPush(2, nil)
+        XCTAssertEqual(path.depth, 2); XCTAssertEqual(path.writes, 1)
+    }
+
+    func testPopToAndPushPushesTheReplacementInTheSameWrite() {
+        let path = PathRecorder(depth: 4)
+        path.navigator.popToAndPush(1, .programsHome)
+        XCTAssertEqual(path.model.path(for: .home), [.mediaHome, .programsHome]); XCTAssertEqual(path.writes, 1)
+    }
 }

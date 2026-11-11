@@ -531,6 +531,16 @@ final class AppState {
         enrollmentDrafts[id] = draft
     }
 
+    // MARK: - Bible pick flows (bible-verse-picker D2)
+
+    /// One per open Bible picker, keyed by the flow id its four routes carry. Memory-only like the
+    /// enrollment drafts; `BiblePassagePick.take(for:)` ends the flow, `clearInMemory()` empties the map.
+    var biblePickFlows: [UUID: BiblePickFlow] = [:]
+
+    func endBiblePickFlow(_ id: UUID) {
+        biblePickFlows[id] = nil
+    }
+
     func endEnrollmentDraft(_ id: UUID) {
         enrollmentDrafts[id] = nil
         enrollmentDraftBaselines[id] = nil
@@ -989,6 +999,7 @@ final class AppState {
         groupPostsNextCursor = [:]
         // ui2-enrollment-create D13: drafts are memory-only and die with the session.
         enrollmentDrafts = [:]
+        biblePickFlows = [:]
         // ui2-enrollments-browse: memory-only stores, org-scoped — die with the session.
         enrollmentDraftsByGroupId = [:]
         enrollmentFeed = [:]
