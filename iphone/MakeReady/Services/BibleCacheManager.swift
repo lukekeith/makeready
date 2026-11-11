@@ -97,7 +97,7 @@ class BibleCacheManager {
     static let shared = BibleCacheManager()
 
     /// Canonical book data (never changes across translations)
-    private let bookData: [(number: Int, name: String, abbrev: String, testament: String, chapters: Int)] = [
+    static let bookData: [(number: Int, name: String, abbrev: String, testament: String, chapters: Int)] = [
         // Old Testament
         (1, "Genesis", "Gen", "OT", 50), (2, "Exodus", "Exod", "OT", 40), (3, "Leviticus", "Lev", "OT", 27),
         (4, "Numbers", "Num", "OT", 36), (5, "Deuteronomy", "Deut", "OT", 34), (6, "Joshua", "Josh", "OT", 24),
@@ -124,6 +124,8 @@ class BibleCacheManager {
         (63, "2 John", "2John", "NT", 1), (64, "3 John", "3John", "NT", 1), (65, "Jude", "Jude", "NT", 1),
         (66, "Revelation", "Rev", "NT", 22)
     ]
+
+    private var bookData: [(number: Int, name: String, abbrev: String, testament: String, chapters: Int)] { Self.bookData }
 
     private lazy var bookByName: [String: (number: Int, abbrev: String, testament: String, chapters: Int)] = {
         var dict: [String: (number: Int, abbrev: String, testament: String, chapters: Int)] = [:]

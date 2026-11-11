@@ -758,6 +758,9 @@
 		BBE268E548C76137C5514ADB /* ContactsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 067A81F2D190432AB322B817 /* ContactsManager.swift */; };
 		BC0A4981CF45E3D12F876DBB /* EnrollmentsHomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A140CA4833A6C31E514213 /* EnrollmentsHomeScreen.swift */; };
 		BCMG0001000000000000001 /* BibleCacheManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCMG0002000000000000001 /* BibleCacheManager.swift */; };
+		BBC0001000000000000001 /* BibleBookCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBC0002000000000000001 /* BibleBookCatalog.swift */; };
+		BBC0001000000000000002 /* BibleBookCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBC0002000000000000001 /* BibleBookCatalog.swift */; };
+		BBC0003000000000000001 /* BibleBookCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBC0004000000000000001 /* BibleBookCatalogTests.swift */; };
 		BD168B4A9E0F4CCA156151CE /* UI2Shell.swift in Sources */ = {isa = PBXBuildFile; fileRef = F92CE7087FD4474D6C575ED2 /* UI2Shell.swift */; };
 		BD8F5727EAE892898AB1E036 /* EnrollChecklistMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC46BC64B6223DADBB9F2679 /* EnrollChecklistMapper.swift */; };
 		BD963DDA2B377462D98A9DF6 /* SourceSerif4Variable-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 02EEF95F818F3F39F1F37E8C /* SourceSerif4Variable-Italic.ttf */; };
@@ -1566,6 +1569,8 @@
 		BCBF7825F164DF201A68E598 /* EnrollDiscard.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnrollDiscard.swift; sourceTree = "<group>"; };
 		BCE9B7FFB8F5C283568BBA52 /* Poppins-Medium.ttf */ = {isa = PBXFileReference; includeInIndex = 1; name = "Poppins-Medium.ttf"; path = "Resources/Fonts/Poppins/Poppins-Medium.ttf"; sourceTree = "<group>"; };
 		BCMG0002000000000000001 /* BibleCacheManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleCacheManager.swift; sourceTree = "<group>"; };
+		BBC0002000000000000001 /* BibleBookCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleBookCatalog.swift; sourceTree = "<group>"; };
+		BBC0004000000000000001 /* BibleBookCatalogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleBookCatalogTests.swift; sourceTree = "<group>"; };
 		BD808C1625086C908D00C81C /* ProgramFieldEditorTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProgramFieldEditorTests.swift; sourceTree = "<group>"; };
 		BE38DE2BC5A7B1A7608D40EA /* AvatarProgressRow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AvatarProgressRow.swift; sourceTree = "<group>"; };
 		BF10EEACA707407AAB3CFB86 /* EditExegesisActivityPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditExegesisActivityPage.swift; sourceTree = "<group>"; };
@@ -2469,6 +2474,7 @@
 				25A581FAA414EC2D5CF63309 /* ActivityBackgroundGeneratorTests.swift */,
 				7EA17BF41F3B55028C620422 /* ActivitySlideMenuTests.swift */,
 				56C86F259C79A8B12532932C /* BiblePassageDecodingTests.swift */,
+				BBC0004000000000000001 /* BibleBookCatalogTests.swift */,
 			);
 			path = MakeReadyCaptureTests;
 			sourceTree = SOURCE_ROOT;
@@ -3119,6 +3125,7 @@
 			children = (
 				BSRV0002000000000000001 /* BibleSearchService.swift */,
 				BCMG0002000000000000001 /* BibleCacheManager.swift */,
+				BBC0002000000000000001 /* BibleBookCatalog.swift */,
 				OVLY0002000000000000001 /* OverlayManager.swift */,
 				ROUT0002000000000000001 /* Route.swift */,
 				NAVC0002000000000000001 /* NavigationCoordinator.swift */,
@@ -3721,6 +3728,7 @@
 				B8E9CF0025526AEB259101A7 /* ActivityBackgroundGeneratorTests.swift in Sources */,
 				20C42BDA4983F9748B05330F /* ActivitySlideMenuTests.swift in Sources */,
 				C4E35169039D75AFD0E5E9FE /* BiblePassageDecodingTests.swift in Sources */,
+				BBC0003000000000000001 /* BibleBookCatalogTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3784,6 +3792,7 @@
 				CONF17022EADF96D0098FAB0 /* Configuration.swift in Sources */,
 				BSRV0001000000000000001 /* BibleSearchService.swift in Sources */,
 				BCMG0001000000000000001 /* BibleCacheManager.swift in Sources */,
+				BBC0001000000000000001 /* BibleBookCatalog.swift in Sources */,
 				STMD0001000000000000001 /* StudyModels.swift in Sources */,
 				CAL_MDL00000000000002 /* CalendarModels.swift in Sources */,
 				IMGVAR0001000000000001 /* String+ImageVariants.swift in Sources */,
@@ -4304,6 +4313,7 @@
 				C64BF1BF83F04B6564B95734 /* Configuration.swift in Sources */,
 				809D356E1E77D12E91FFF970 /* BibleSearchService.swift in Sources */,
 				76FC90E218B03CFC57221151 /* BibleCacheManager.swift in Sources */,
+				BBC0001000000000000002 /* BibleBookCatalog.swift in Sources */,
 				F764A8CE536B5E7FE34C652E /* StudyModels.swift in Sources */,
 				AC7B01D1660193AF28A8D94B /* CalendarModels.swift in Sources */,
 				5B3A754933E7601732F253E8 /* String+ImageVariants.swift in Sources */,
