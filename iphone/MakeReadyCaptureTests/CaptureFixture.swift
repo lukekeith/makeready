@@ -1049,6 +1049,10 @@ struct CaptureComponent: Codable {
     // C-092 change 2026-11-10 (SPEC D11/D21, bible-verse-picker). Additive:
     let isLocked: Bool?                        // C-092 — no text input, caret or deletion
     let isHighlighting: Bool?                  // C-092 — highlighting mode (hold-drag selection)
+    // C-092 change 2026-11-11 (SPEC D26/D27, bible-verse-picker). Additive:
+    let lineHeight: Double?                    // C-092 — ratio of `size`; absent = natural leading
+    let verseNumbers: String?                  // C-092 — gutter | hidden | inline
+    let pageLaidOut: Bool?                     // C-092 — the page places it; transform ignored
     // ── preview props ──
     // C-105 Button build 2026-10-13. Reused as-is under the contract's own names: `label`
     // (`String?`) and `leadingGlyph` (`String?` — a library glyph name, C-040's). Additive:
@@ -1148,6 +1152,16 @@ struct CaptureComponent: Codable {
     let objectLocks: [Bool]?                   // per object isLocked, parallel to objectTexts
     let objectIDs: [String]?                   // per object id, parallel to objectTexts
     let highlightingObjectID: String?          // the object in highlighting mode; absent = none
+    // activities-editor §21 (chat change 2026-11-11, Bible D26/D28/D29). Additive:
+    let pageHeight: Double?                    // the page's height, wu; > 956 scrolls
+    let objectPageLaidOut: [Bool]?             // per object pageLaidOut, parallel to objectTexts
+    let isBible: Bool?                         // a bible activity: five tools + the Bible font panel
+    let bibleFace: String?                     // display · sans · serif · mono
+    let bibleWeight: Int?                      // 400 · 500 · 700
+    let bibleSize: Double?                     // pt, 14–40
+    let bibleLineHeight: Double?               // ×, 1.0–2.0
+    let bibleInset: Double?                    // pt, 16–64
+    let bibleVerseNumbers: String?             // gutter · hidden · inline
     let showsEffectsTool: Bool?
     let showsEyedropper: Bool?
     let showsWell: Bool?                       // C-094 TextColorPalette
@@ -1449,6 +1463,7 @@ struct CaptureComponent: Codable {
     let sheetTitle: String?
     let sheetBodyText: String?
     let sheetPrompt: String?
+    let pageHeights: [Double]?                 // activities-player §3 Tall pages, per page, wu
     // ── preview props ──
     // C-140 BibleVerseReader build 2026-11-11. `selection` exists above (RETYPED to decode C-140's
     // object as well); the rest are additive, under the contract's own names and types.

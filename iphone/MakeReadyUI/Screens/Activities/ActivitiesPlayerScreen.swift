@@ -61,6 +61,9 @@ struct ActivitiesPlayerScreen: View {
         var pageKinds: [String]
         /// Each page's own scroll, wu: C-091 `scrollOffset` (D69). 0 on a page that does not scroll.
         var inner: [Double]
+        /// §3 Tall pages: each page's height in wu; a missing entry is 956 (the reference height),
+        /// today's short page. Above 956 the ground fills the whole height and `maxInner = pageHeight − V`.
+        var pageHeights: [Double] = []
         /// `background` (02 §5): colour #rrggbb, image URL ("" = none), focal 0–1, wash #rrggbb
         /// ("" = none) and its opacity. `motion` is not carried: C-091 never draws it (deviation 9).
         var pageColorHexes: [String]
@@ -127,6 +130,9 @@ struct ActivitiesPlayerScreen: View {
         /// Each object's measured height in wu, seeding `contentExtent`: a capture renders in one
         /// layout pass, before the screen's own measurement lands. Live, the measurement wins.
         var objectHeights: [Double]
+        /// §3 Tall pages: per object, C-092 `pageLaidOut` (the editor's `objectPageLaidOut`); a
+        /// missing or false entry renders as today.
+        var objectPageLaidOut: [Bool] = []
         /// `marks` (02 §3), UTF-16 offsets: object index, range, `bold` · `italic` · `link`, href.
         var markObjects: [Int]
         var markStarts: [Int]
@@ -348,7 +354,7 @@ struct ActivitiesPlayerScreen: View {
     @ViewBuilder
     private func pageView(_ page: Page, unit: CGFloat, width: CGFloat, height: CGFloat) -> some View {
         switch page.kind {
-        case .canvas, .write:
+        case .canvas, .write, .bible:
             canvasPage(page, unit: unit)
         case .video:
             VideoPage(
@@ -388,12 +394,17 @@ struct ActivitiesPlayerScreen: View {
     private func canvasPage(_ page: Page, unit: CGFloat) -> some View {
         let layout = contentLayout(page, unit: unit)
         let pinned = page.actions.first { $0.placement == .pinned }
+        // §3 Tall pages: a page above 956 wu gets the extent that makes C-091's placement give
+        // exactly `pageHeight` at offset 0, so the ground fills the whole page (the editor's rule).
+        let extent = page.height > Self.referenceHeight
+            ? tallPageExtent(page.height, pinned: pinned != nil)
+            : layout.extent
         return ActivityCanvas<AnyView>(
             background: page.background,
             mode: .viewer,
             content: { AnyView(canvasContent(page, layout: layout, unit: unit)) },
             verticalAnchor: page.verticalAnchor,
-            contentExtent: layout.extent,
+            contentExtent: extent,
             pinnedAction: pinned != nil,
             scrollOffset: CGFloat(page.inner)
         )
@@ -463,6 +474,7 @@ struct ActivitiesPlayerScreen: View {
             animationStart: state.animationStart,
             effect: object.effect,
             transform: object.transform,
+            pageLaidOut: object.pageLaidOut,
             editing: false,
             highlights: object.highlights,
             onOpenLink: onOpenLink
@@ -570,6 +582,12 @@ struct ActivitiesPlayerScreen: View {
         return layout
     }
 
+    /// §3 Tall pages: top at C-091's T, bottom `pageHeight` less its B (and the pinned band).
+    private func tallPageExtent(_ pageHeight: CGFloat, pinned: Bool) -> ClosedRange<CGFloat> {
+        let bottom = pageHeight - Self.canvasEndSpace - (pinned ? Self.canvasPinnedHeight : 0)
+        return Self.canvasTopInset...max(bottom, Self.canvasTopInset)
+    }
+
     /// §3 Taps: the sheet kinds open the sheet, `openUrl` its link, `nextLesson` is inert (OQ-005).
     private func tap(_ action: Action) {
         switch action.kind {
@@ -607,6 +625,10 @@ struct ActivitiesPlayerScreen: View {
     private static let loadFailedDelay = Duration.seconds(2)
     private static let referenceHeight: CGFloat = 956
     private static let slotWidth: CGFloat = 392
+    /// C-091 §2 Sizing (its own flagged literals): T 107, B 85, the pinned action's 46.
+    private static let canvasTopInset: CGFloat = 107
+    private static let canvasEndSpace: CGFloat = 85
+    private static let canvasPinnedHeight: CGFloat = 46
     /// FLAGGED LITERAL — activities-player §2 (C-133 §2): rail geometry.
     private static let railWidth: CGFloat = 23
     private static let railRightInset: CGFloat = 28
@@ -644,9 +666,9 @@ struct ActivitiesPlayerScreen: View {
 
 extension ActivitiesPlayerScreen {
     fileprivate enum Kind: String {
-        case canvas, video, youtube, write, end, fallback
+        case canvas, video, youtube, write, end, fallback, bible
 
-        var drawsCanvas: Bool { self == .canvas || self == .write || self == .fallback }
+        var drawsCanvas: Bool { self == .canvas || self == .write || self == .fallback || self == .bible }
     }
 
     fileprivate struct Video {
@@ -678,6 +700,7 @@ extension ActivitiesPlayerScreen {
         var effect: CanvasTextObject.Effect
         var transform: CanvasTextObject.Transform
         var seedHeight: CGFloat
+        var pageLaidOut: Bool
     }
 
     fileprivate struct Action {
@@ -697,6 +720,8 @@ extension ActivitiesPlayerScreen {
         var index: Int
         var kind: Kind
         var inner: Double
+        /// §3 Tall pages, wu.
+        var height: CGFloat
         var background: ActivityCanvas<AnyView>.Background
         var verticalAnchor: ActivityCanvas<AnyView>.VerticalAnchor
         var title: String
@@ -722,6 +747,7 @@ extension ActivitiesPlayerScreen {
                 index: index,
                 kind: Kind(rawValue: v(state.pageKinds)) ?? .fallback,
                 inner: Self.value(state.inner, position, 0),
+                height: CGFloat(Self.value(state.pageHeights, position, Double(Self.referenceHeight))),
                 background: pageBackground(position),
                 verticalAnchor: v(state.pageVerticalAnchors) == "top" ? .top : .center,
                 title: v(state.pageTitles),
@@ -802,7 +828,8 @@ extension ActivitiesPlayerScreen {
                 rotation: .degrees(Self.value(state.objectRotations, index, 0)),
                 width: width > 0 ? CGFloat(width) : nil
             ),
-            seedHeight: measured > 0 ? CGFloat(measured) : size * Self.lineHeightFactor * lines
+            seedHeight: measured > 0 ? CGFloat(measured) : size * Self.lineHeightFactor * lines,
+            pageLaidOut: Self.value(state.objectPageLaidOut, index, false)
         )
     }
 
@@ -1076,6 +1103,75 @@ extension ActivitiesPlayerScreen.State {
         return s
     }()
 
+    /// `bible-tall-mid-scroll` (§3 Tall pages): a `bible` page with John 3:1–36 laid out by the page
+    /// and the citation under verse 36 — the editor's `bible-tall` content, page 3000 wu — scrolled
+    /// to the middle: `inner` = `maxInner / 2` = (3000 − 956) / 2 on the 440 × 956 device; `menu`.
+    static let bibleTallMidScroll: Self = {
+        var s = base
+        s.addPage(index: 2, kind: "bible", color: "#1B1F4A")
+        s.pageHeights = [3000]
+        s.inner = [1022]
+        s.objectPages = [0, 0]
+        s.objectTexts = [john3.joined(separator: "\n"), "John 3:1-36 KJV"]
+        s.objectFonts = ["serif", "sans"]
+        s.objectColors = [white, white]
+        s.objectWeights = ["regular", "medium"]
+        s.objectSizes = [18, 14]
+        s.objectAlignments = ["left", "left"]
+        s.objectListStyles = ["bibleVerse", "none"]
+        s.objectStartNumbers = [1, 1]
+        s.objectXs = [220, 220]
+        s.objectYs = [1480, 2880]
+        s.objectScales = [1, 1]
+        s.objectRotations = [0, 0]
+        s.objectWidths = [392, 392]
+        s.objectHeights = [2720, 17.5]
+        s.objectPageLaidOut = [true, true]
+        s.thumbFraction = 0.5
+        s.rest(on: 2, topAction: "menu")
+        return s
+    }()
+
+    /// §3 Tall pages: John 3:1–36 (KJV), one verse per line — the editor's `bible-tall` sample.
+    private static let john3: [String] = [
+        "There was a man of the Pharisees, named Nicodemus, a ruler of the Jews:",
+        "The same came to Jesus by night, and said unto him, Rabbi, we know that thou art a teacher come from God: for no man can do these miracles that thou doest, except God be with him.",
+        "Jesus answered and said unto him, Verily, verily, I say unto thee, Except a man be born again, he cannot see the kingdom of God.",
+        "Nicodemus saith unto him, How can a man be born when he is old? can he enter the second time into his mother's womb, and be born?",
+        "Jesus answered, Verily, verily, I say unto thee, Except a man be born of water and of the Spirit, he cannot enter into the kingdom of God.",
+        "That which is born of the flesh is flesh; and that which is born of the Spirit is spirit.",
+        "Marvel not that I said unto thee, Ye must be born again.",
+        "The wind bloweth where it listeth, and thou hearest the sound thereof, but canst not tell whence it cometh, and whither it goeth: so is every one that is born of the Spirit.",
+        "Nicodemus answered and said unto him, How can these things be?",
+        "Jesus answered and said unto him, Art thou a master of Israel, and knowest not these things?",
+        "Verily, verily, I say unto thee, We speak that we do know, and testify that we have seen; and ye receive not our witness.",
+        "If I have told you earthly things, and ye believe not, how shall ye believe, if I tell you of heavenly things?",
+        "And no man hath ascended up to heaven, but he that came down from heaven, even the Son of man which is in heaven.",
+        "And as Moses lifted up the serpent in the wilderness, even so must the Son of man be lifted up:",
+        "That whosoever believeth in him should not perish, but have eternal life.",
+        "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+        "For God sent not his Son into the world to condemn the world; but that the world through him might be saved.",
+        "He that believeth on him is not condemned: but he that believeth not is condemned already, because he hath not believed in the name of the only begotten Son of God.",
+        "And this is the condemnation, that light is come into the world, and men loved darkness rather than light, because their deeds were evil.",
+        "For every one that doeth evil hateth the light, neither cometh to the light, lest his deeds should be reproved.",
+        "But he that doeth truth cometh to the light, that his deeds may be made manifest, that they are wrought in God.",
+        "After these things came Jesus and his disciples into the land of Judaea; and there he tarried with them, and baptized.",
+        "And John also was baptizing in Aenon near to Salim, because there was much water there: and they came, and were baptized.",
+        "For John was not yet cast into prison.",
+        "Then there arose a question between some of John's disciples and the Jews about purifying.",
+        "And they came unto John, and said unto him, Rabbi, he that was with thee beyond Jordan, to whom thou barest witness, behold, the same baptizeth, and all men come to him.",
+        "John answered and said, A man can receive nothing, except it be given him from heaven.",
+        "Ye yourselves bear me witness, that I said, I am not the Christ, but that I am sent before him.",
+        "He that hath the bride is the bridegroom: but the friend of the bridegroom, which standeth and heareth him, rejoiceth greatly because of the bridegroom's voice: this my joy therefore is fulfilled.",
+        "He must increase, but I must decrease.",
+        "He that cometh from above is above all: he that is of the earth is earthly, and speaketh of the earth: he that cometh from heaven is above all.",
+        "And what he hath seen and heard, that he testifieth; and no man receiveth his testimony.",
+        "He that hath received his testimony hath set to his seal that God is true.",
+        "For he whom God hath sent speaketh the words of God: for God giveth not the Spirit by measure unto him.",
+        "The Father loveth the Son, and hath given all things into his hand.",
+        "He that believeth on the Son hath everlasting life: and he that believeth not the Son shall not see life; but the wrath of God abideth on him."
+    ]
+
     /// `mid-drag` (t24.0): the scripture page dragged 328 pt, 34 % of 956, onto the page below
     /// (deviation 10: a blank page, sampled from the still).
     static let midDrag: Self = {
@@ -1247,5 +1343,10 @@ extension ActivitiesPlayerScreen.State {
 
 #Preview("load-failed") {
     ActivitiesPlayerScreen(state: .loadFailed)
+        .frame(width: 440, height: 956)
+}
+
+#Preview("bible-tall-mid-scroll") {
+    ActivitiesPlayerScreen(state: .bibleTallMidScroll)
         .frame(width: 440, height: 956)
 }

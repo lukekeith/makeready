@@ -163,6 +163,24 @@ struct ActivitiesEditorScreen: View {
         /// §20.1 / §20.2: the object in highlighting mode — drawn at full size with its spans;
         /// nil = none (the text activity's Highlighting, unchanged).
         var highlightingObjectID: String?
+        /// §21.1 (D26): the page's height in wu. Above 956 the page scrolls vertically inside the
+        /// canvas (header and tool stack fixed) and the background fills the whole height; at or
+        /// below 956 nothing changes (§11).
+        var pageHeight: CGFloat = 956
+        /// §21.2 (D28): per object, the page provides its frame (parallel to `objectLocks`; a short
+        /// array leaves the rest unset) — C-092 `pageLaidOut`: no handles, no drag, pinch or rotate.
+        var objectPageLaidOut: [Bool] = []
+        /// §21.3 (D29): a `bible` activity — the five-tool row and the Bible font panel.
+        var isBible: Bool = false
+        /// §21.4: the scripture's current style — face `display` · `sans` · `serif` · `mono`,
+        /// weight 400 · 500 · 700, size (pt), line height (×), inset from the page edge (pt) and
+        /// verse numbers `gutter` · `hidden` · `inline`.
+        var bibleFace: String = "serif"
+        var bibleWeight: Int = 400
+        var bibleSize: CGFloat = 18
+        var bibleLineHeight: CGFloat = 1.4
+        var bibleInset: CGFloat = 24
+        var bibleVerseNumbers: String = "gutter"
 
         /// §10.8 `gradient`: `base` `#RRGGBB`, `blobs`, `hidden`.
         struct Gradient: Equatable {
@@ -268,6 +286,23 @@ struct ActivitiesEditorScreen: View {
         .init(id: .highlight, label: "Highlight", glyph: GlyphName.textHighlight.rawValue)
     ]
 
+    /// §21.4 (D29): one Bible font panel change — the container writes it into the scripture
+    /// object's `font`, `weight`, `size`, `lineHeight`, the page padding and the verse-number mode.
+    enum BibleStyleChange: Equatable {
+        /// `display` · `sans` · `serif` · `mono`.
+        case face(String)
+        /// 400 · 500 · 700.
+        case weight(Int)
+        /// pt, 14–40.
+        case size(CGFloat)
+        /// ×, 1.0–2.0.
+        case lineHeight(CGFloat)
+        /// pt from the page edge, 16–64.
+        case inset(CGFloat)
+        /// `gutter` · `hidden` · `inline`.
+        case verseNumbers(String)
+    }
+
     /// §3 Tools — the tool row, order 1–7.
     enum Tool: String, CaseIterable {
         case color, background, alignment, font, highlight, animation, actions
@@ -334,6 +369,14 @@ struct ActivitiesEditorScreen: View {
     var onHighlightRange: (_ objectIndex: Int, _ start: Int, _ end: Int) -> Void = { _, _, _ in }
     /// §20.2: tool 5 again, or Done, while `highlightingObjectID` is set.
     var onEndHighlighting: () -> Void = {}
+    /// §21.4 (D29): a Bible font panel change — chips at once, a slider once when the finger lifts.
+    var onBibleStyleChange: (BibleStyleChange) -> Void = { _ in }
+
+    // §21.3: the Bible font panel's values as shown — each change applies here at once (a slider
+    // per frame) and is reported through `onBibleStyleChange`; a new `State` re-seeds them.
+    @SwiftUI.State private var bibleStyle: BibleStyle
+    // §21.3: a Bible panel slider is under the finger — a new `State` does not re-seed meanwhile.
+    @SwiftUI.State private var bibleSliding = false
 
     // §9.1: the screen's display state of `State.objects` — an edit applies here and is reported
     // through `onEditObject`, without waiting for the container's echo; a new `State` re-seeds it.
@@ -438,7 +481,8 @@ struct ActivitiesEditorScreen: View {
         onRetry: @escaping () -> Void = {},
         onDiscard: @escaping () -> Void = {},
         onHighlightRange: @escaping (_ objectIndex: Int, _ start: Int, _ end: Int) -> Void = { _, _, _ in },
-        onEndHighlighting: @escaping () -> Void = {}
+        onEndHighlighting: @escaping () -> Void = {},
+        onBibleStyleChange: @escaping (BibleStyleChange) -> Void = { _ in }
     ) {
         self.state = state
         self.onBack = onBack
@@ -466,6 +510,8 @@ struct ActivitiesEditorScreen: View {
         self.onDiscard = onDiscard
         self.onHighlightRange = onHighlightRange
         self.onEndHighlighting = onEndHighlighting
+        self.onBibleStyleChange = onBibleStyleChange
+        _bibleStyle = SwiftUI.State(initialValue: BibleStyle(state))
         _shownObjects = SwiftUI.State(initialValue: Self.committedObjects(state))
         let actions = Self.pageActions(state)
         _actions = SwiftUI.State(initialValue: actions)
@@ -563,6 +609,7 @@ struct ActivitiesEditorScreen: View {
         .onChange(of: state) { _, next in
             guard dragged == nil, sliderDrag == nil else { return }
             shownObjects = Self.committedObjects(next)
+            if !bibleSliding { bibleStyle = BibleStyle(next) }
         }
         // §10.6 (round 2): a text edit opens with no rail open, and ending it closes every rail —
         // a page rail closing through `setOpenTool`, so `onPageRailsClosed` fires (D19).
@@ -752,11 +799,12 @@ struct ActivitiesEditorScreen: View {
 
     private func canvas(unit: CGFloat, viewport: CGFloat, safeTop: CGFloat) -> some View {
         let objects = shownObjects
-        // §2: fixed at drag start, so neither the page nor any object re-places under the finger.
-        let extent = dragExtent ?? measuredExtent(objects)
         let headerBottom = (safeTop + Self.headerHeight) / unit
         let containerTop = viewport - (containerHeight + keyboardOverlap) / unit
         let pinned = actions.contains { $0.placement == .pinned }
+        // §21.1 (D26): a tall page states its own height — C-091 sizes the page from it — else
+        // §2: fixed at drag start, so neither the page nor any object re-places under the finger.
+        let extent = isTallPage ? tallPageExtent(pinned: pinned) : (dragExtent ?? measuredExtent(objects))
         let offset = pageOffset(viewport: viewport)
         return ActivityCanvas<AnyView>(
             background: background,
@@ -772,15 +820,23 @@ struct ActivitiesEditorScreen: View {
             // dragged layer enters a zone.
             reservedZones: draggedEntersZone(viewport: viewport),
             pinnedAction: pinned,
-            widthHandles: mode == .editing ? widthHandles(pageOffset: offset) : nil,
+            // §21.2: a page-laid-out object has no transform handles.
+            widthHandles: mode == .editing && !editedIsPageLaidOut ? widthHandles(pageOffset: offset) : nil,
             onResizeWidth: resizeDraft,
-            // §11 (D24): the canvas is fixed to the screen in every mode — no scroll range, no
-            // scroll insets, no autoscroll. The header and bottom area stay opaque over it.
-            scrolls: false
+            // §21.1 (D26): a page taller than 956 scrolls inside the canvas and §2's scroll insets
+            // apply again, so the first and last content clear the bars; autoscroll stays off (a
+            // page-laid-out object cannot be dragged).
+            scrollInsets: isTallPage
+                ? .init(top: headerBottom, bottom: (containerHeight + keyboardOverlap) / unit)
+                : .init(),
+            // §11 (D24): otherwise the canvas is fixed to the screen in every mode — no scroll range,
+            // no scroll insets, no autoscroll. The header and bottom area stay opaque over it.
+            scrolls: isTallPage
         )
         .coordinateSpace(.named(Self.screenSpace))
         .overlay(alignment: .topLeading) {
-            if mode == .editing {
+            // §21.3: a page-laid-out object's size is the Bible panel's slider, not C-093's wedge.
+            if mode == .editing && !editedIsPageLaidOut {
                 // §2 item 3 handle / thumb separation (1): C-091 draws its handles above its slot,
                 // so the slider sits over the canvas — above them in hit order, and fixed to the
                 // viewport. Centred on the edit slot, clamped between the header and the container.
@@ -888,9 +944,15 @@ struct ActivitiesEditorScreen: View {
     /// leaving Editing changes its placement, so the object animates between its committed
     /// transform and the edit slot — position, scale and rotation in one curve — and never jumps.
     private func canvasObject(_ object: CommittedObject, index: Int) -> some View {
+        // §21.3: the scripture of a `bible` activity shows the Bible panel's values at once.
+        let object = bibleStyled(object)
+        // §21.2 (D28): a page-laid-out object stays at the frame the page gives it — it never
+        // takes the edit slot, and keeps its verses and spans while its tools are open.
+        let laidOut = object.pageLaidOut
         let isEdited = index == editedIndex
         // §20.2: the highlighting object takes the edit slot at full size, with its spans.
-        let isSlotted = isEdited || index == highlightingIndex
+        let isSlotted = !laidOut && (isEdited || index == highlightingIndex)
+        let isDrafted = isEdited && !laidOut
         // §20.1 (D11): a locked object takes no text input — editing it is tools only, no caret.
         let isLocked = object.isLocked
         return CanvasTextObject(
@@ -899,16 +961,20 @@ struct ActivitiesEditorScreen: View {
             font: object.font,
             weight: object.weight,
             size: object.size,
+            lineHeight: object.lineHeight,
             color: object.color,
             alignment: object.alignment,
-            listStyle: isEdited ? .none : object.listStyle,
-            startNumber: isEdited ? 1 : object.startNumber,
+            listStyle: isDrafted ? .none : object.listStyle,
+            startNumber: isDrafted ? 1 : object.startNumber,
+            verseNumbers: object.verseNumbers,
             animation: isEdited ? draftAnimation : .none,
             animationStart: isEdited ? draftAnimationStart : nil,
             effect: isEdited ? draftEffect : .none,
             // C-092 draws scale 1 and rotation 0 while editing (§3: re-opening shows the object at
             // `size`, unscaled); its committed transform returns on Done.
             transform: isSlotted ? .identity : object.transform,
+            // §21.2 (D28): no handles, no drag, pinch or rotate — the host supplies the frame.
+            pageLaidOut: laidOut,
             // §10.10: drag, pinch and rotate are the canvas-wide recognizers' (`CanvasManipulation`);
             // the object only says it is under the first touch.
             manipulation: .host,
@@ -917,7 +983,7 @@ struct ActivitiesEditorScreen: View {
             isLocked: isLocked,
             // §20.2 (D21): the highlighting object takes C-092's hold-drag selection.
             isHighlighting: index == highlightingIndex,
-            highlights: isEdited ? [] : object.highlights,
+            highlights: isDrafted ? [] : object.highlights,
             onHighlightRange: { start, end in onHighlightRange(index, start, end) },
             // D25: the object the finger-down grabbed — the topmost grab area may not be this box.
             onTap: {
@@ -929,12 +995,12 @@ struct ActivitiesEditorScreen: View {
         // before C-091's offset; alignment anchors a narrower block 24 wu from the canvas edge
         // (tool 3). C-092 never offsets itself (its §2): the screen places a committed object at
         // `transform.position`.
-        .frame(width: isEdited ? draftLayoutWidth : object.transform.width ?? Self.editSlotWidth)
+        .frame(width: isDrafted ? draftLayoutWidth : object.transform.width ?? Self.editSlotWidth)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
             if index == editedIndex { measuredDraftHeight = height } else { measuredHeights[index] = height }
         }
         .ui2Element(index == 0 ? "C-092 CanvasTextObject" : "C-092 CanvasTextObject \(index + 1)")
-        .position(isEdited ? CGPoint(x: draftCentreX, y: Self.editSlotY)
+        .position(isDrafted ? CGPoint(x: draftCentreX, y: Self.editSlotY)
                   : isSlotted ? CGPoint(x: Self.referenceWidth / 2, y: Self.editSlotY)
                   : object.transform.position)
         .zIndex(isSlotted ? 1 : 0)
@@ -955,7 +1021,9 @@ struct ActivitiesEditorScreen: View {
         return CanvasManipulation(
             accepts: { point in point.y > top && point.y < bottom },
             canBegin: { kind in
-                guard manipulationTarget != nil, !isImageRailOpen else { return false }
+                guard let target = manipulationTarget, !isImageRailOpen else { return false }
+                // §21.2 (D28): a page-laid-out object takes no drag, pinch or rotate.
+                guard !shownObjects[target].pageLaidOut else { return false }
                 // §10.10: while editing, two fingers pinch and rotate the edited object; it never moves.
                 return kind != .move || editedIndex == nil
             },
@@ -1339,6 +1407,12 @@ struct ActivitiesEditorScreen: View {
                 swatchMaterial: true
             )
             .ui2Element("C-094 TextColorPalette")
+        case .font where mode == .editing && state.isBible:
+            // §21.3 (D29): the Bible font panel's face — the four font keys as C-035 `Font` chips,
+            // centred (§19.3); the rest of the panel is the top rail.
+            ChipStrip(items: Self.fontItems, selectedID: bibleStyle.face,
+                      onSelect: { id in setBibleStyle(.face(id)) }, chipMaterial: true)
+                .ui2Element("C-106 ChipStrip 2")
         case .font where mode == .editing:
             // §3 tool 4: the font strip; its weight row is the top rail.
             ChipStrip(items: Self.fontItems, selectedID: Self.fontID(edited?.font ?? .sans),
@@ -1405,6 +1479,8 @@ struct ActivitiesEditorScreen: View {
     /// (§10.1): taller content scrolls inside it.
     @ViewBuilder private var topRail: some View {
         switch openTool {
+        case .font where mode == .editing && state.isBible:
+            pinnedTopRail(maxHeight: Self.biblePanelMaxHeight) { biblePanel }
         case .font where mode == .editing:
             // §3 tool 4: the weight row above the font strip. C-106 is 8 + 36 + 8 tall, so the
             // two share one 8pt inset and the pair stays §2's 96.
@@ -1427,7 +1503,8 @@ struct ActivitiesEditorScreen: View {
 
     /// §10.1: the top rail's pinned height — content that fits sits at its own height, taller
     /// content scrolls, and a focused field scrolls into view (D8).
-    private func pinnedTopRail<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+    private func pinnedTopRail<Content: View>(maxHeight: CGFloat = topRailMaxHeight,
+                                              @ViewBuilder _ content: () -> Content) -> some View {
         let body = content()
         return ScrollViewReader { proxy in
             ViewThatFits(in: .vertical) {
@@ -1435,11 +1512,81 @@ struct ActivitiesEditorScreen: View {
                 ScrollView(.vertical) { body }
                     .scrollIndicators(.hidden)
             }
-            .frame(maxHeight: Self.topRailMaxHeight)
+            .frame(maxHeight: maxHeight)
             .onChange(of: focusedField) { _, field in
                 if let field { withAnimation { proxy.scrollTo(field) } }
             }
         }
+    }
+
+    // MARK: §21.3 (D29): the Bible font panel
+
+    /// §21.3: above the face strip, bottom → top reversed: weight chips, size, line height and
+    /// inset sliders, and the verse-numbers choice. The pinned rail scrolls it when it cannot fit.
+    private var biblePanel: some View {
+        VStack(spacing: 0) {
+            ChipStrip(items: Self.weightItems, selectedID: Self.weightID(Self.weight(code: bibleStyle.weight)),
+                      onSelect: { id in setBibleStyle(.weight(Self.weightCode(Self.weight(id)))) },
+                      chipMaterial: true)
+                .ui2Element("C-106 ChipStrip")
+            bibleSlider(label: "Size", value: \.size, range: Self.bibleSizeRange, step: Self.bibleSizeStep,
+                        format: { "\(Int($0.rounded())) pt" }, change: BibleStyleChange.size)
+            bibleSlider(label: "Line height", value: \.lineHeight, range: Self.bibleLineHeightRange,
+                        step: Self.bibleLineHeightStep,
+                        format: { String(format: "%.1f×", $0) }, change: BibleStyleChange.lineHeight)
+            bibleSlider(label: "Padding", value: \.inset, range: Self.bibleInsetRange, step: Self.bibleInsetStep,
+                        format: { "\(Int($0.rounded())) pt" }, change: BibleStyleChange.inset)
+            ChipStrip(items: Self.verseNumberItems, selectedID: bibleStyle.verseNumbers,
+                      onSelect: { id in setBibleStyle(.verseNumbers(id)) }, chipMaterial: true)
+                .ui2Element("C-106 ChipStrip 3")
+        }
+    }
+
+    /// §21.3: one undrawn-default slider row — the system `Slider` on the rails' blur material
+    /// with its label and value. The display follows every frame; the value is reported once,
+    /// when the finger lifts (§16).
+    private func bibleSlider(label: String, value: WritableKeyPath<BibleStyle, CGFloat>,
+                             range: ClosedRange<CGFloat>, step: CGFloat,
+                             format: @escaping (CGFloat) -> String,
+                             change: @escaping (CGFloat) -> BibleStyleChange) -> some View {
+        HStack(spacing: Token.Space.elementGap) {
+            SwiftUI.Text(verbatim: label)
+                .designTextStyle(Token.TypeStyle.footnote)
+                .foregroundStyle(Token.textPrimary)
+            SwiftUI.Slider(
+                value: Binding(get: { bibleStyle[keyPath: value] }, set: { bibleStyle[keyPath: value] = $0 }),
+                in: range, step: step,
+                onEditingChanged: { editing in
+                    bibleSliding = editing
+                    if !editing { onBibleStyleChange(change(bibleStyle[keyPath: value])) }
+                }
+            )
+            .tint(Token.white100)
+            .accessibilityLabel(label)
+            SwiftUI.Text(verbatim: format(bibleStyle[keyPath: value]))
+                .designTextStyle(Token.TypeStyle.footnote)
+                .foregroundStyle(Token.textPrimary)
+                .monospacedDigit()
+        }
+        .padding(.horizontal, Token.Space.elementGap)
+        .frame(height: Self.bibleSliderRowHeight)
+        .floatingControlMaterial(cornerRadius: Token.Radius.card)
+        .padding(.horizontal, Token.Space.pageMargin)
+        .padding(.vertical, Token.Space.elementGap / 2)
+        .ui2Element("Bible \(label.lowercased()) slider")
+    }
+
+    /// §21.4: a chip change applies to the display and is reported at once.
+    private func setBibleStyle(_ change: BibleStyleChange) {
+        switch change {
+        case .face(let face): bibleStyle.face = face
+        case .weight(let weight): bibleStyle.weight = weight
+        case .size(let size): bibleStyle.size = size
+        case .lineHeight(let lineHeight): bibleStyle.lineHeight = lineHeight
+        case .inset(let inset): bibleStyle.inset = inset
+        case .verseNumbers(let mode): bibleStyle.verseNumbers = mode
+        }
+        onBibleStyleChange(change)
     }
 
     // MARK: §10.3 Background
@@ -1767,7 +1914,10 @@ struct ActivitiesEditorScreen: View {
 
     /// §2 item 5: hidden tools are not in the layout, the accessibility tree or the focus order.
     private var visibleTools: [Tool] {
-        Tool.allCases.filter { tool in
+        // §21.3 (D29): a `bible` activity shows exactly Colour, Background, Alignment, Font and
+        // Highlight.
+        if state.isBible { return Self.bibleTools }
+        return Tool.allCases.filter { tool in
             switch tool {
             case .highlight: return state.showsHighlightTool
             case .animation: return state.showsEffectsTool
@@ -1947,8 +2097,58 @@ struct ActivitiesEditorScreen: View {
         var highlights: [CanvasTextObject.TextRange]
         /// §20.1 (D11).
         var isLocked = false
+        /// §21.2 (D28): C-092 `pageLaidOut` — the page provides the frame.
+        var pageLaidOut = false
+        /// §21.3: C-092 `lineHeight` and `verseNumbers` — set only on a `bible` activity's
+        /// scripture; otherwise C-092's defaults (natural leading, inline numbers).
+        var lineHeight: CGFloat?
+        var verseNumbers: CanvasTextObject.VerseNumbers = .inline
 
         var color: Color { ActivitiesEditorScreen.hexColor(colorHex) ?? Token.textPrimary }
+    }
+
+    /// §21.3 / §21.4: the Bible font panel's values as shown. Seeded from `State`.
+    private struct BibleStyle: Equatable {
+        var face: String
+        var weight: Int
+        var size: CGFloat
+        var lineHeight: CGFloat
+        var inset: CGFloat
+        var verseNumbers: String
+
+        init(_ state: State) {
+            face = state.bibleFace
+            weight = state.bibleWeight
+            size = state.bibleSize
+            lineHeight = state.bibleLineHeight
+            inset = state.bibleInset
+            verseNumbers = state.bibleVerseNumbers
+        }
+    }
+
+    /// §21.3: on a `bible` activity the scripture — the `bibleVerse` object — draws with the
+    /// panel's face, weight, size, line height and verse numbers; a page-laid-out scripture also
+    /// takes the inset as its margin from each page edge. Every other object is unchanged.
+    private func bibleStyled(_ object: CommittedObject) -> CommittedObject {
+        guard state.isBible, object.listStyle == .bibleVerse else { return object }
+        var styled = object
+        styled.font = Self.font(bibleStyle.face)
+        styled.weight = Self.weight(code: bibleStyle.weight)
+        styled.size = bibleStyle.size
+        styled.lineHeight = bibleStyle.lineHeight
+        styled.verseNumbers = Self.verseNumbers(bibleStyle.verseNumbers)
+        if styled.pageLaidOut {
+            styled.transform.width = Self.referenceWidth - 2 * bibleStyle.inset
+        }
+        return styled
+    }
+
+    private static func verseNumbers(_ name: String) -> CanvasTextObject.VerseNumbers {
+        switch name {
+        case "hidden": return .hidden
+        case "inline": return .inline
+        default: return .gutter
+        }
     }
 
     /// `State.objects`, resolved with §3's defaults — the seed of the display state (§9.1).
@@ -1971,7 +2171,8 @@ struct ActivitiesEditorScreen: View {
                     width: objectWidth(state, index)
                 ),
                 highlights: highlights(state, forObject: index),
-                isLocked: element(state.objectLocks, index, false)
+                isLocked: element(state.objectLocks, index, false),
+                pageLaidOut: element(state.objectPageLaidOut, index, false)
             )
         }
         if !state.verseTexts.isEmpty {
@@ -2053,8 +2254,22 @@ struct ActivitiesEditorScreen: View {
     /// §11 (D24): on the fixed canvas (`scrolls: false`) the offset is 02 §4 step 1 only — no nudge
     /// and no growth — so objects stay where the author put them, past an edge if need be.
     private func pageOffset(viewport: CGFloat) -> CGFloat {
-        (viewport - Self.referenceHeight) / 2
+        // §21.1 (D26): a tall page sits at page y 0 = viewport y 0 at rest (`tallPageExtent`).
+        isTallPage ? 0 : (viewport - Self.referenceHeight) / 2
     }
+
+    /// §21.1 (D26): the page is taller than the 956 reference — it scrolls inside the canvas.
+    private var isTallPage: Bool { state.pageHeight > Self.referenceHeight }
+
+    /// §21.1: the `contentExtent` that makes C-091's placement give exactly `pageHeight` with
+    /// offset 0 — top at C-091's T, bottom `pageHeight` less its B (and the pinned band).
+    private func tallPageExtent(pinned: Bool) -> ClosedRange<CGFloat> {
+        let bottom = state.pageHeight - Self.canvasEndSpace - (pinned ? Self.pinnedHeight : 0)
+        return Self.canvasTopInset...max(bottom, Self.canvasTopInset)
+    }
+
+    /// §21.2: the edited object is page-laid-out — no C-093 wedge, no width handles.
+    private var editedIsPageLaidOut: Bool { edited?.pageLaidOut ?? false }
 
     private var draftHeight: CGFloat {
         measuredDraftHeight ?? draftSize * Self.lineHeightFactor
@@ -2485,6 +2700,32 @@ struct ActivitiesEditorScreen: View {
     /// GAP — C-091 §4 `contentExtent`: an object not yet measured counts one line per item at
     /// this multiple of its size; the live measurement replaces it on the next pass.
     private static let lineHeightFactor: CGFloat = 1.25
+    /// C-091 §2 Sizing T / B (§18.2's padding lines), which the tall page's extent is set from
+    /// (§21.1) so C-091's placement yields `pageHeight`.
+    private static var canvasTopInset: CGFloat { Snap.top }
+    private static var canvasEndSpace: CGFloat { Snap.bottom }
+    /// §21.3 (D29): the Bible font panel's sliders — size 14–40 pt step 1, line height 1.0–2.0×
+    /// step 0.1, inset 16–64 pt step 4 (on the 440 reference).
+    private static let bibleSizeRange: ClosedRange<CGFloat> = 14...40
+    private static let bibleSizeStep: CGFloat = 1
+    private static let bibleLineHeightRange: ClosedRange<CGFloat> = 1.0...2.0
+    private static let bibleLineHeightStep: CGFloat = 0.1
+    private static let bibleInsetRange: ClosedRange<CGFloat> = 16...64
+    private static let bibleInsetStep: CGFloat = 4
+    /// FLAGGED LITERAL — activities-editor §21.3: the Bible panel's pinned height — the weight
+    /// strip (52), three slider rows (44 + 2 × 4 each) and the verse-numbers strip (52); a panel
+    /// taller than the room left (375×667) scrolls under the tool row.
+    private static let biblePanelMaxHeight: CGFloat = 260
+    /// FLAGGED LITERAL — activities-editor §21.3: a slider row's 44pt height (undrawn default).
+    private static let bibleSliderRowHeight: CGFloat = 44
+    /// §21.3: the verse-number options, in order.
+    private static let verseNumberItems: [ChipStrip.Item] = [
+        .init(id: "gutter", label: "Gutter"),
+        .init(id: "hidden", label: "Hidden"),
+        .init(id: "inline", label: "Inline")
+    ]
+    /// §21.3: the five tools of a `bible` activity — Animation, the effects tool and Actions hidden.
+    private static let bibleTools: [Tool] = [.color, .background, .alignment, .font, .highlight]
 }
 
 // MARK: - Sample data (the previews' props, single-sourced for the #Preview blocks and the
@@ -2736,6 +2977,88 @@ extension ActivitiesEditorScreen.State {
         s.selectedHighlightID = "h1"
         return s
     }()
+    /// §21.5 bible-tall — John 3:1–36 laid out by the page, the citation below verse 36, on a
+    /// page that scrolls; the gradient fills the whole page. §21.5 says ≈ 2400: at serif 18 pt
+    /// ×1.4 the 36 verses measure ≈ 2720 wu, so the page is 3000 to keep the citation on it.
+    static let bibleTall: Self = {
+        var s = base
+        s.isBible = true
+        s.showsHighlightTool = true
+        s.canSave = true
+        s.pageHeight = 3000
+        s.gradient = sampleGradient
+        s.pageColorHex = sampleGradient.base
+        s.objectIDs = ["scripture", "citation"]
+        s.objectTexts = [john3.joined(separator: "\n"), "John 3:1-36 KJV"]
+        s.objectFonts = ["serif", "sans"]
+        s.objectColors = [white, white]
+        s.objectWeights = ["regular", "medium"]
+        s.objectSizes = [18, 14]
+        s.objectAlignments = ["left", "left"]
+        s.objectListStyles = ["bibleVerse", ""]
+        s.objectStartNumbers = [1, 1]
+        s.objectXs = [220, 220]
+        s.objectYs = [1480, 2880]
+        s.objectScales = [1, 1]
+        s.objectRotations = [0, 0]
+        s.objectWidths = [392, 392]
+        s.objectHeights = [2720, 17.5]
+        s.objectLocks = [true, true]
+        s.objectPageLaidOut = [true, true]
+        return s
+    }()
+    /// §21.5 bible-style-panel — the Font tool open on a bible activity: the five-tool row, the
+    /// face strip, the weight chips, the three sliders and the verse-numbers choice.
+    static let bibleStylePanel: Self = {
+        var s = bibleLocked
+        s.isBible = true
+        s.editorMode = "editing"
+        s.editingIndex = 1
+        s.openTool = "font"
+        s.objectYs = [140, 300]
+        s.objectWidths = [392, 392]
+        s.objectPageLaidOut = [true, true]
+        return s
+    }()
+    /// §21.5: John 3:1–36 (KJV), one verse per line.
+    private static let john3: [String] = [
+        "There was a man of the Pharisees, named Nicodemus, a ruler of the Jews:",
+        "The same came to Jesus by night, and said unto him, Rabbi, we know that thou art a teacher come from God: for no man can do these miracles that thou doest, except God be with him.",
+        "Jesus answered and said unto him, Verily, verily, I say unto thee, Except a man be born again, he cannot see the kingdom of God.",
+        "Nicodemus saith unto him, How can a man be born when he is old? can he enter the second time into his mother's womb, and be born?",
+        "Jesus answered, Verily, verily, I say unto thee, Except a man be born of water and of the Spirit, he cannot enter into the kingdom of God.",
+        "That which is born of the flesh is flesh; and that which is born of the Spirit is spirit.",
+        "Marvel not that I said unto thee, Ye must be born again.",
+        "The wind bloweth where it listeth, and thou hearest the sound thereof, but canst not tell whence it cometh, and whither it goeth: so is every one that is born of the Spirit.",
+        "Nicodemus answered and said unto him, How can these things be?",
+        "Jesus answered and said unto him, Art thou a master of Israel, and knowest not these things?",
+        "Verily, verily, I say unto thee, We speak that we do know, and testify that we have seen; and ye receive not our witness.",
+        "If I have told you earthly things, and ye believe not, how shall ye believe, if I tell you of heavenly things?",
+        "And no man hath ascended up to heaven, but he that came down from heaven, even the Son of man which is in heaven.",
+        "And as Moses lifted up the serpent in the wilderness, even so must the Son of man be lifted up:",
+        "That whosoever believeth in him should not perish, but have eternal life.",
+        "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+        "For God sent not his Son into the world to condemn the world; but that the world through him might be saved.",
+        "He that believeth on him is not condemned: but he that believeth not is condemned already, because he hath not believed in the name of the only begotten Son of God.",
+        "And this is the condemnation, that light is come into the world, and men loved darkness rather than light, because their deeds were evil.",
+        "For every one that doeth evil hateth the light, neither cometh to the light, lest his deeds should be reproved.",
+        "But he that doeth truth cometh to the light, that his deeds may be made manifest, that they are wrought in God.",
+        "After these things came Jesus and his disciples into the land of Judaea; and there he tarried with them, and baptized.",
+        "And John also was baptizing in Aenon near to Salim, because there was much water there: and they came, and were baptized.",
+        "For John was not yet cast into prison.",
+        "Then there arose a question between some of John's disciples and the Jews about purifying.",
+        "And they came unto John, and said unto him, Rabbi, he that was with thee beyond Jordan, to whom thou barest witness, behold, the same baptizeth, and all men come to him.",
+        "John answered and said, A man can receive nothing, except it be given him from heaven.",
+        "Ye yourselves bear me witness, that I said, I am not the Christ, but that I am sent before him.",
+        "He that hath the bride is the bridegroom: but the friend of the bridegroom, which standeth and heareth him, rejoiceth greatly because of the bridegroom's voice: this my joy therefore is fulfilled.",
+        "He must increase, but I must decrease.",
+        "He that cometh from above is above all: he that is of the earth is earthly, and speaketh of the earth: he that cometh from heaven is above all.",
+        "And what he hath seen and heard, that he testifieth; and no man receiveth his testimony.",
+        "He that hath received his testimony hath set to his seal that God is true.",
+        "For he whom God hath sent speaketh the words of God: for God giveth not the Spirit by measure unto him.",
+        "The Father loveth the Son, and hath given all things into his hand.",
+        "He that believeth on the Son hath everlasting life: and he that believeth not the Son shall not see life; but the wrath of God abideth on him."
+    ]
     /// §6 Background sheet (D4) over an image, its focal point and wash set.
     static let backgroundSheet: Self = {
         var s = editing(sampleText, tool: "background")
@@ -2964,6 +3287,18 @@ extension ActivitiesEditorScreen.State {
 
 #Preview("Bible highlighting") {
     ActivitiesEditorScreen(state: .bibleHighlighting)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Bible tall") {
+    ActivitiesEditorScreen(state: .bibleTall)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Bible style panel") {
+    ActivitiesEditorScreen(state: .bibleStylePanel)
         .safeAreaPadding(.top, 59)
         .frame(width: 440, height: 956, alignment: .top)
 }

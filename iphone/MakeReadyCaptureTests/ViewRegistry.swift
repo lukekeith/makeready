@@ -3495,6 +3495,7 @@ private func buildScreenActivitiesPlayer(_ fixture: CaptureFixture) throws -> An
             pageIndexes: c.pageIndexes ?? [],
             pageKinds: c.pageKinds ?? [],
             inner: c.inner ?? [],
+            pageHeights: c.pageHeights ?? [],                // §3 Tall pages; missing = 956
             pageColorHexes: c.pageColorHexes ?? [],
             pageImageURLs: c.pageImageURLs ?? [],
             pageImageFocalXs: c.pageImageFocalXs ?? [],
@@ -3533,6 +3534,7 @@ private func buildScreenActivitiesPlayer(_ fixture: CaptureFixture) throws -> An
             objectRotations: c.objectRotations ?? [],
             objectWidths: c.objectWidths ?? [],
             objectHeights: c.objectHeights ?? [],
+            objectPageLaidOut: c.objectPageLaidOut ?? [],    // §3 Tall pages (the editor's key)
             markObjects: c.markObjects ?? [],
             markStarts: c.markStarts ?? [],
             markEnds: c.markEnds ?? [],
@@ -4045,7 +4047,16 @@ private func buildScreenActivitiesEditor(_ fixture: CaptureFixture) throws -> An
             snapIndex: c.snapIndex ?? sample.snapIndex,
             objectLocks: c.objectLocks ?? sample.objectLocks,
             objectIDs: c.objectIDs ?? sample.objectIDs,
-            highlightingObjectID: c.highlightingObjectID ?? sample.highlightingObjectID
+            highlightingObjectID: c.highlightingObjectID ?? sample.highlightingObjectID,
+            pageHeight: c.pageHeight.map { CGFloat($0) } ?? sample.pageHeight,
+            objectPageLaidOut: c.objectPageLaidOut ?? sample.objectPageLaidOut,
+            isBible: c.isBible ?? sample.isBible,
+            bibleFace: c.bibleFace ?? sample.bibleFace,
+            bibleWeight: c.bibleWeight ?? sample.bibleWeight,
+            bibleSize: c.bibleSize.map { CGFloat($0) } ?? sample.bibleSize,
+            bibleLineHeight: c.bibleLineHeight.map { CGFloat($0) } ?? sample.bibleLineHeight,
+            bibleInset: c.bibleInset.map { CGFloat($0) } ?? sample.bibleInset,
+            bibleVerseNumbers: c.bibleVerseNumbers ?? sample.bibleVerseNumbers
         )
     )
     .safeAreaPadding(.top, device.safeArea.top)
@@ -4979,6 +4990,14 @@ private func buildUI2C092(_ fixture: CaptureFixture) throws -> AnyView {
     case let other?:
         throw ViewRegistryError.unknownView("component.ui2.C-092: props.listStyle \"\(other)\" must be none|bullet|numbered|bibleVerse")
     }
+    let ui2C092VerseNumbers: MakeReadyUI.CanvasTextObject.VerseNumbers
+    switch c.verseNumbers {
+    case nil, "inline": ui2C092VerseNumbers = .inline
+    case "gutter": ui2C092VerseNumbers = .gutter
+    case "hidden": ui2C092VerseNumbers = .hidden
+    case let other?:
+        throw ViewRegistryError.unknownView("component.ui2.C-092: props.verseNumbers \"\(other)\" must be gutter|hidden|inline")
+    }
     let ui2C092AnimationKind: MakeReadyUI.CanvasTextObject.Animation.Kind
     switch c.animation {
     case nil, "none": ui2C092AnimationKind = .none
@@ -5024,7 +5043,7 @@ private func buildUI2C092(_ fixture: CaptureFixture) throws -> AnyView {
     let ui2C092Start = c.animationElapsed.map { Date().addingTimeInterval(-$0) }
     // A committed object's scale and rotation draw outside its layout box (§2 Transform); the
     // call site gives the turned block room so the capture does not clip it.
-    let ui2C092Turned = !ui2C092Editing && ui2C092Transform != .identity
+    let ui2C092Turned = !ui2C092Editing && !(c.pageLaidOut ?? false) && ui2C092Transform != .identity
     return declareCase(
         MakeReadyUI.CanvasTextObject(
             text: ui2C092Text,
@@ -5032,17 +5051,20 @@ private func buildUI2C092(_ fixture: CaptureFixture) throws -> AnyView {
             font: ui2C092Font,
             weight: ui2C092Weight,
             size: CGFloat(ui2C092Size),
+            lineHeight: c.lineHeight.map { CGFloat($0) },
             color: ui2C092Color,
             alignment: ui2C092Alignment,
             label: ui2C092Label,
             listStyle: ui2C092ListStyle,
             startNumber: c.startNumber ?? 1,
+            verseNumbers: ui2C092VerseNumbers,
             reference: ui2C092Reference,
             marks: ui2C092Marks,
             animation: .init(kind: ui2C092AnimationKind, loop: c.animationLoop ?? false),
             animationStart: ui2C092Start,
             effect: ui2C092Effect,
             transform: ui2C092Transform,
+            pageLaidOut: c.pageLaidOut ?? false,
             editing: ui2C092Editing,
             isLocked: c.isLocked ?? false,
             isHighlighting: c.isHighlighting ?? false,
