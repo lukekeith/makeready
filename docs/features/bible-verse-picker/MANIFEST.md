@@ -16,5 +16,5 @@ verify: none
 ready: none
 ui2: none
 auto: on 2026-11-10
-blocked: "the four Bible picker screens (books, chapters, verses, reader) do not exist in d2m, and only the owner's /ui2-screen can create them — next: /ui2-screen for bible-books, bible-chapters, bible-verses, bible-reader, then /builder:agent"
+blocked: none
 agent-walk: on 2026-11-10

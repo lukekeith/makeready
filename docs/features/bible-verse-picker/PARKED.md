@@ -49,3 +49,4 @@ The full record is in `docs/features/bible-verse-picker/PARKED.md`.
 ## History
 - 2026-11-10 parked — d2m cannot create the four picker screens; the screens are the owner's /ui2-screen step
 - 2026-11-11 parked — the four Bible picker screens (books, chapters, verses, reader) do not exist in d2m, and only the owner's /ui2-screen can create them
+- 2026-11-11 unparked by the fleet — automatic retry 1 of 2
