@@ -7,6 +7,12 @@ protocol ActivitiesEditorNavigating: AnyObject {
     func push(_ destination: UI2Destination)
     func replace(with destination: UI2Destination)
     func pop()
+    /// bible-verse-picker D2: the stack depth a Bible pick returns to.
+    var depth: Int { get }
+}
+
+extension ActivitiesEditorNavigating {
+    var depth: Int { 0 }
 }
 
 /// text-activity D16/D17/D22/D33/D39/D40/D46: the `.activitiesEditor` destination. It owns the
@@ -65,6 +71,10 @@ struct ActivitiesEditorContainer: View {
             backSwipe?.onBlockedBackSwipe = { [model] in Task { await model.back() } }
             // D40: the Media pick mode delivers here; the page is back on top.
             model.takeBackgroundPick()
+        }
+        // D2: the Bible picker's Select delivers its pick through the mailbox; the grid's model saves it.
+        .onChange(of: model.bibleGrid?.pendingFlowId.flatMap { BiblePassagePick.shared.pending[$0] }) { _, pick in
+            if pick != nil { Task { await model.bibleGrid?.receiveBiblePick() } }
         }
         .task { await model.load() }
         .task { await model.loadImages() }
@@ -159,6 +169,17 @@ struct ActivitiesEditorContainer: View {
         func push(_ destination: UI2Destination) { navigator.push(destination) }
         func replace(with destination: UI2Destination) { navigator.replaceTop(current, destination) }
         func pop() { navigator.popIfTop(current) }
+        var depth: Int { navigator.depth() }
+    }
+
+    /// The grid's model pushes Books through the editor's own navigator.
+    @MainActor
+    private final class GridNavigator: ActivityNewNavigating {
+        let editor: ActivitiesEditorNavigating
+        init(editor: ActivitiesEditorNavigating) { self.editor = editor }
+        func replace(with destination: UI2Destination) { editor.replace(with: destination) }
+        func push(_ destination: UI2Destination) { editor.push(destination) }
+        var depth: Int { editor.depth }
     }
 
     // MARK: - Model
@@ -585,9 +606,30 @@ struct ActivitiesEditorContainer: View {
             screenGeneration += 1
         }
 
-        /// D27: a type picked on the grid. Only Text can be created today (the others are unavailable tiles);
-        /// the new activity then opens in place through `selectSlide`.
+        /// bible-verse-picker D15: the grid's model while its Bible picker is open or its save is running; the
+        /// view watches it for the pick Select delivers.
+        private(set) var bibleGrid: ActivityNewContainer.Model?
+
+        /// D15: the Bible tile pushes Books; the pick saves in the background (D25) and the first part opens in place.
+        private func pickBible() {
+            guard let navigator else { return }
+            let grid = ActivityNewContainer.Model(lessonId: lessonId, actions: newActivityActions,
+                                                  navigator: GridNavigator(editor: navigator))
+            grid.afterActivityId = insertAfterID
+            grid.onCreated = { [weak self] id in Task { await self?.selectSlide(id) } }
+            bibleGrid = grid
+            grid.selectBible()
+        }
+
+        /// D27: a type picked on the grid. Text and Bible can be created today (the others are unavailable tiles);
+        /// the new activity then opens in place through `selectSlide`. A Bible passage is placed by its own
+        /// ordered save (`BibleSave`), so it skips `placeAfterInsertPoint`.
         func pickType(_ rawType: String, app: AppState? = nil) async {
+            if rawType == ActivityTypeGrid.ActivityType.bibleVerse.rawValue {
+                guard canvasContent == .typeGrid, pendingType.isEmpty else { return }
+                pickBible()
+                return
+            }
             guard canvasContent == .typeGrid, pendingType.isEmpty,
                   rawType == ActivityTypeGrid.ActivityType.text.rawValue else { return }
             let grid = ActivityNewContainer.Model(lessonId: lessonId, actions: newActivityActions)

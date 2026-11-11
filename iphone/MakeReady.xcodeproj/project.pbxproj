@@ -1102,6 +1102,9 @@
 		BSC0001000000000000001 /* BibleScripture.swift in Sources */ = {isa = PBXBuildFile; fileRef = BSC0002000000000000001 /* BibleScripture.swift */; };
 		BSC0001000000000000002 /* BibleScripture.swift in Sources */ = {isa = PBXBuildFile; fileRef = BSC0002000000000000001 /* BibleScripture.swift */; };
 		BSC0003000000000000001 /* BibleScriptureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BSC0004000000000000001 /* BibleScriptureTests.swift */; };
+		BSV0001000000000000001 /* BibleSave.swift in Sources */ = {isa = PBXBuildFile; fileRef = BSV0002000000000000001 /* BibleSave.swift */; };
+		BSV0001000000000000002 /* BibleSave.swift in Sources */ = {isa = PBXBuildFile; fileRef = BSV0002000000000000001 /* BibleSave.swift */; };
+		BSV0003000000000000001 /* BibleSaveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BSV0004000000000000001 /* BibleSaveTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -1913,12 +1916,15 @@
 			children = (
 				BPF0002000000000000001 /* BiblePickFlow.swift */,
 				BSC0002000000000000001 /* BibleScripture.swift */,
+				BSV0002000000000000001 /* BibleSave.swift */,
 			);
 			path = Bible;
 			sourceTree = "<group>";
 		};
 		BAT0004000000000000001 /* BibleActionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleActionsTests.swift; sourceTree = "<group>"; };
 		BSC0002000000000000001 /* BibleScripture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleScripture.swift; sourceTree = "<group>"; };
+		BSV0002000000000000001 /* BibleSave.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleSave.swift; sourceTree = "<group>"; };
+		BSV0004000000000000001 /* BibleSaveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleSaveTests.swift; sourceTree = "<group>"; };
 		BSC0004000000000000001 /* BibleScriptureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleScriptureTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -2506,6 +2512,7 @@
 				BAT0004000000000000001 /* BibleActionsTests.swift */,
 				BPF0004000000000000001 /* BiblePickFlowTests.swift */,
 				BSC0004000000000000001 /* BibleScriptureTests.swift */,
+				BSV0004000000000000001 /* BibleSaveTests.swift */,
 			);
 			path = MakeReadyCaptureTests;
 			sourceTree = SOURCE_ROOT;
@@ -3765,6 +3772,7 @@
 				BAT0003000000000000001 /* BibleActionsTests.swift in Sources */,
 				BPF0003000000000000001 /* BiblePickFlowTests.swift in Sources */,
 				BSC0003000000000000001 /* BibleScriptureTests.swift in Sources */,
+				BSV0003000000000000001 /* BibleSaveTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3831,6 +3839,7 @@
 				BACT0001000000000000001 /* BibleActions.swift in Sources */,
 				BPF0001000000000000001 /* BiblePickFlow.swift in Sources */,
 				BSC0001000000000000001 /* BibleScripture.swift in Sources */,
+				BSV0001000000000000001 /* BibleSave.swift in Sources */,
 				BMOD0001000000000000001 /* BibleModels.swift in Sources */,
 				BBC0001000000000000001 /* BibleBookCatalog.swift in Sources */,
 				STMD0001000000000000001 /* StudyModels.swift in Sources */,
@@ -4356,6 +4365,7 @@
 				BACT0001000000000000002 /* BibleActions.swift in Sources */,
 				BPF0001000000000000002 /* BiblePickFlow.swift in Sources */,
 				BSC0001000000000000002 /* BibleScripture.swift in Sources */,
+				BSV0001000000000000002 /* BibleSave.swift in Sources */,
 				BMOD0001000000000000002 /* BibleModels.swift in Sources */,
 				BBC0001000000000000002 /* BibleBookCatalog.swift in Sources */,
 				F764A8CE536B5E7FE34C652E /* StudyModels.swift in Sources */,
