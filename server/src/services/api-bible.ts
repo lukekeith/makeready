@@ -218,7 +218,7 @@ export async function getChapter(
   return apiBibleFetch<ApiBibleChapter>(`/bibles/${bibleId}/chapters/${chapterId}`, {
     'content-type': contentType,
     'include-verse-numbers': true,
-    'include-titles': true,
+    'include-titles': false,
     'fums-version': 3,
   })
 }
