@@ -1,7 +1,7 @@
 import XCTest
 @testable import MakeReady
 
-/// bible-verse-picker Task 13 (D14): the ordered, resumable multi-request save of a split passage.
+/// bible-verse-picker Task 13 (D14, D29): the ordered, resumable save of a passage - one activity, never split.
 @MainActor
 final class BibleSaveTests: XCTestCase {
 
@@ -37,53 +37,45 @@ final class BibleSaveTests: XCTestCase {
                                   startOffset: nil, endOffset: nil, translation: "KJV"),
             verses: [BibleVerse(verse: verse, text: "text \(verse)")], bookName: "John")
     }
-    static let twoParts = [pick(1), pick(2)]
-    static let threeParts = [pick(1), pick(2), pick(3)]
-    static var plan3: BibleSave.Plan { BibleSave.plan(new: threeParts, version: "v", existing: ["a", "b"], after: "a") }
+    static var planAfterA: BibleSave.Plan { BibleSave.plan(new: pick(1), version: "v", existing: ["a", "b"], after: "a") }
 
-    func testANewSplitPassagePostsInOrderThenReorders() async {
-        let r = await BibleSave.run(BibleSave.plan(new: Self.threeParts, version: "v", existing: ["a", "b"], after: "a"), actions: stub.actions, from: 0)
-        XCTAssertEqual(stub.log, ["POST", "POST", "POST", "PATCH a,p1,p2,p3,b"]); XCTAssertEqual(try r.get(), ["p1", "p2", "p3"])
+    /// D29: a whole chapter is one activity, never split.
+    func testAWholeChapterIsOneActivity() async {
+        _ = await BibleSave.run(BibleSave.plan(new: BibleScriptureTests.john3All, version: "v", existing: ["a", "b"], after: "a"), actions: stub.actions, from: 0)
+        XCTAssertEqual(stub.log, ["POST", "PATCH a,p1,b"])
     }
 
-    func testAChangeSplitPutsTheOriginalLast() async {
-        _ = await BibleSave.run(BibleSave.plan(change: "a", parts: Self.twoParts, version: "v", existing: ["a", "b"]), actions: stub.actions, from: 0)
-        XCTAssertEqual(stub.log, ["POST", "PATCH a,p1,b", "PUT a"])
+    /// D15: a change PUTs the original only - no POST, no reorder.
+    func testAChangePutsTheOriginalOnly() async {
+        _ = await BibleSave.run(BibleSave.plan(change: "a", pick: Self.pick(1), version: "v"), actions: stub.actions, from: 0)
+        XCTAssertEqual(stub.log, ["PUT a"])
     }
 
-    func testRetryResumesFromTheFailedStep() async {
+    /// A stopped run resumes from the failed request and never re-POSTs the created activity.
+    func testRetryResumesFromTheFailedStepAndOrdersWithTheCreatedId() async {
         stub.failAt = 1
-        guard case .failure(let f) = await BibleSave.run(Self.plan3, actions: stub.actions, from: 0) else { return XCTFail() }
+        guard case .failure(let f) = await BibleSave.run(Self.planAfterA, actions: stub.actions, from: 0) else { return XCTFail() }
         XCTAssertEqual(f.step, 1); stub.failAt = nil
-        _ = await BibleSave.run(Self.plan3, actions: stub.actions, from: f.step, created: f.created)
-        XCTAssertEqual(stub.log.filter { $0 == "POST" }.count, 3)
-    }
-
-    /// The order a resumed run sends still carries the part created before the failure.
-    func testAResumedRunOrdersWithThePartCreatedBeforeTheFailure() async {
-        stub.failAt = 1
-        guard case .failure(let f) = await BibleSave.run(Self.plan3, actions: stub.actions, from: 0) else { return XCTFail() }
-        stub.failAt = nil
-        _ = await BibleSave.run(Self.plan3, actions: stub.actions, from: f.step, created: f.created)
-        XCTAssertEqual(stub.log.last, "PATCH a,p1,p2,p3,b")
+        _ = await BibleSave.run(Self.planAfterA, actions: stub.actions, from: f.step, created: f.created)
+        XCTAssertEqual(stub.log, ["POST", "PATCH a,p1,b"])
     }
 
     /// D15: with no insert point (the New Activity page) the parts take the placeholder slot at the end, where the
     /// server appends them, so no reorder is sent.
     func testANewPassageWithNoInsertPointGoesLastWithoutAReorder() async {
-        let plan = BibleSave.plan(new: Self.twoParts, version: "v", existing: ["a", "b"], after: nil)
+        let plan = BibleSave.plan(new: Self.pick(1), version: "v", existing: ["a", "b"], after: nil)
         XCTAssertNil(plan.order)
         _ = await BibleSave.run(plan, actions: stub.actions, from: 0)
-        XCTAssertEqual(stub.log, ["POST", "POST"])
+        XCTAssertEqual(stub.log, ["POST"])
     }
 
     /// Inserting after the last activity is the same append.
     func testANewPassageAfterTheLastActivitySendsNoReorder() {
-        XCTAssertNil(BibleSave.plan(new: Self.twoParts, version: "v", existing: ["a", "b"], after: "b").order)
+        XCTAssertNil(BibleSave.plan(new: Self.pick(1), version: "v", existing: ["a", "b"], after: "b").order)
     }
 
     func testAPartDocumentIsABibleDocumentTitledByItsCitation() {
-        let plan = BibleSave.plan(new: [Self.pick(1)], version: "v", existing: [], after: nil)
+        let plan = BibleSave.plan(new: Self.pick(1), version: "v", existing: [], after: nil)
         XCTAssertEqual(plan.posts[0].raw[path: ["kind"]], .string("bible"))
         XCTAssertEqual(BibleSave.title(of: plan.posts[0]), "John 3:1")
     }

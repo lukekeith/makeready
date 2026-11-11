@@ -268,7 +268,7 @@ struct ActivityNewContainer: View {
             await createBible(pick: pick)
         }
 
-        /// D14: split the pick, POST each part, place them after the insert point, then open the first part.
+        /// D29: POST the pick as one activity, place it after the insert point, then open it.
         /// Select never waits on this (D25); a failure stops with a Retry.
         func createBible(pick: BiblePick) async {
             guard !isCreatingBible else { return }
@@ -276,9 +276,8 @@ struct ActivityNewContainer: View {
             defer { isCreatingBible = false }
             do {
                 let versionId = try await actions.draftVersionId(lessonId)
-                let parts = BibleScripture.split(pick) { BibleScripture.fits(verses: $0, width: BibleScripture.textWidth) }
                 let existing = AppState.shared.activities(forVersion: versionId).map(\.id)
-                let plan = BibleSave.plan(new: parts, version: versionId, existing: existing, after: afterActivityId)
+                let plan = BibleSave.plan(new: pick, version: versionId, existing: existing, after: afterActivityId)
                 await runBible(plan, from: 0, created: [])
             } catch {
                 if UI2ImageLoader.isCancellation(error) { return }
@@ -286,7 +285,7 @@ struct ActivityNewContainer: View {
             }
         }
 
-        /// D14: Retry - resumes from the failed request, never re-POSTing a created part.
+        /// Retry - resumes from the failed request, never re-POSTing the created activity.
         func retryBible() async {
             guard let stopped, !isCreatingBible else { return }
             isCreatingBible = true

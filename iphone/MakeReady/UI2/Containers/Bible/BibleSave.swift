@@ -1,18 +1,17 @@
 import Foundation
 
-/// bible-verse-picker D14: the ordered save of a picked passage. A split passage is several `bible` activities
-/// and there is no batch endpoint, so the save is a list of requests that stops at the first failure and
-/// resumes from it: POST every new part, `PATCH …/order` to place them, and (a changed passage) PUT the
-/// original last — so a half-done save leaves the original untouched.
+/// bible-verse-picker D15, D29: the ordered save of a picked passage. A pick is one `bible` activity, but a new
+/// one is still two requests (POST, then `PATCH …/order` into its slot), so the save is a list of requests that
+/// stops at the first failure and resumes from it; a changed passage is one PUT of the original.
 enum BibleSave {
-    /// What to send, in order. `order` names the created parts by `slot(_:)` until their ids exist.
+    /// What to send, in order. `order` names the created activity by `slot(_:)` until its id exists.
     struct Plan {
         let version: String
         /// One document per POST, in order.
         let posts: [ActivityDocument]
-        /// The version's full order, `slot(i)` standing for the i-th created activity; nil = no reorder.
+        /// The version's full order, `slot(0)` standing for the created activity; nil = no reorder.
         let order: [String]?
-        /// A changed passage's original, replaced last with its first part.
+        /// A changed passage's original, replaced with the new document.
         let put: (activityId: String, document: ActivityDocument)?
     }
 
@@ -28,30 +27,23 @@ enum BibleSave {
 
     // MARK: Planning
 
-    /// A new passage: every part is POSTed, then placed right after `after` among `existing`. With no `after` (or
-    /// one not in `existing`) the parts go last — the New Activity page's placeholder slot (D15) — where the server
-    /// already appends them, so no reorder is sent; inserting after the last activity is the same append.
-    static func plan(new parts: [BiblePick], version: String, existing: [String], after: String?,
+    /// A new passage: POSTed, then placed right after `after` among `existing`. With no `after` (or one not in
+    /// `existing`) it goes last — the New Activity page's placeholder slot (D15) — where the server already
+    /// appends it, so no reorder is sent; inserting after the last activity is the same append.
+    static func plan(new pick: BiblePick, version: String, existing: [String], after: String?,
                      background: ActivityBackground? = nil) -> Plan {
-        let documents = parts.map { BibleScripture.document(for: $0, background: background) }
+        let document = BibleScripture.document(for: pick, background: background)
         var order = existing
         let at = after.flatMap { existing.firstIndex(of: $0) }.map { $0 + 1 } ?? existing.count
-        order.insert(contentsOf: documents.indices.map(slot), at: at)
-        return Plan(version: version, posts: documents, order: at == existing.count ? nil : order, put: nil)
+        order.insert(slot(0), at: at)
+        return Plan(version: version, posts: [document], order: at == existing.count ? nil : order, put: nil)
     }
 
-    /// A changed passage: parts after the first are POSTed and placed right after `activityId`, which is then
-    /// PUT with the first part. A passage that did not split posts nothing and only PUTs.
-    static func plan(change activityId: String, parts: [BiblePick], version: String, existing: [String],
+    /// A changed passage (D15): the original `activityId` is PUT with the new document; nothing is POSTed.
+    static func plan(change activityId: String, pick: BiblePick, version: String,
                      background: ActivityBackground? = nil) -> Plan {
-        let documents = parts.map { BibleScripture.document(for: $0, background: background) }
-        let extra = Array(documents.dropFirst())
-        var order = existing
-        if !extra.isEmpty, let at = existing.firstIndex(of: activityId) {
-            order.insert(contentsOf: extra.indices.map(slot), at: at + 1)
-        }
-        return Plan(version: version, posts: extra, order: extra.isEmpty ? nil : order,
-                    put: documents.first.map { (activityId, $0) })
+        Plan(version: version, posts: [], order: nil,
+             put: (activityId, BibleScripture.document(for: pick, background: background)))
     }
 
     /// The document's fallback title — the citation without the translation (D10).

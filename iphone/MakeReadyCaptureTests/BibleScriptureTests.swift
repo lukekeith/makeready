@@ -22,6 +22,8 @@ final class BibleScriptureTests: XCTestCase {
         passage: passage(16, 17),
         verses: [BibleVerse(verse: 16, text: v16), BibleVerse(verse: 17, text: v17)],
         bookName: "John")
+    static let pick16 = BiblePick(
+        passage: passage(16, 16), verses: [BibleVerse(verse: 16, text: v16)], bookName: "John")
     static let pick16b18WEB = BiblePick(
         passage: passage(16, 18, startOffset: 9, translation: "WEBBE"),
         verses: pick16b18.verses, bookName: "John")
@@ -133,26 +135,45 @@ final class BibleScriptureTests: XCTestCase {
         XCTAssertEqual(BibleScripture.reanchor(highlights: [Self.hlEternalLifeIn16], old: Self.pick16b18, new: Self.pick16b18WEB).removed, 1)
     }
 
-    func testSplitAtVerseBoundariesKeepsPartialEnds() {
-        let parts = BibleScripture.split(Self.john3All, fits: { $0.count <= 12 })
-        XCTAssertEqual(parts.map { [$0.passage.verseStart, $0.passage.verseEnd] }, [[1, 12], [13, 24], [25, 36]])
+    func testDefaultsHideNumbersForOneVerseAndGutterForSeveral() {
+        XCTAssertEqual(BibleScripture.document(for: Self.pick16, background: nil).textObjects[0].verseNumbers, .hidden)
+        XCTAssertEqual(BibleScripture.document(for: Self.pick16b18, background: nil).textObjects[0].verseNumbers, .gutter)
+        XCTAssertEqual(BibleScripture.document(for: Self.pick16b18, background: nil).textObjects[0].inset, 32)
     }
 
-    func testSplitKeepsPartialStartOnFirstAndPartialEndOnLast() {
-        let pick = BiblePick(passage: Self.passage(1, 36, startOffset: 4, endOffset: 7),
-                             verses: Self.john3All.verses, bookName: "John")
-        let parts = BibleScripture.split(pick, fits: { $0.count <= 12 })
-        XCTAssertEqual(parts.map(\.passage.startOffset), [4, nil, nil])
-        XCTAssertEqual(parts.map(\.passage.endOffset), [nil, nil, 7])
+    func testTheDefaultsAreTheD28Style() {
+        let s = BibleScripture.document(for: Self.pick16b18, background: nil).textObjects[0]
+        XCTAssertEqual(s.size, 18); XCTAssertEqual(s.lineHeight, 1.4); XCTAssertEqual(s.font, "serif"); XCTAssertEqual(s.weight, 400)
     }
 
-    func testAPickThatFitsIsNotSplit() {
-        XCTAssertEqual(BibleScripture.split(Self.pick16b18, fits: { _ in true }), [Self.pick16b18])
+    func testPageHeightNeverDropsBelowTheTextPage() {
+        XCTAssertEqual(BibleScripture.pageHeight(scriptureHeight: 200, citationHeight: 20), 956)
+        XCTAssertEqual(BibleScripture.pageHeight(scriptureHeight: 1400, citationHeight: 20), 1628)
     }
 
-    func testFitsMeasuresAtTheD10Style() {
-        XCTAssertTrue(BibleScripture.fits(verses: Self.pick16b18.verses, width: 376))
-        XCTAssertFalse(BibleScripture.fits(verses: Self.john3All.verses, width: 376))
+    static let legacyScriptureJSON = """
+    {"id":"s","text":"x","role":"scripture","transform":{"x":220,"y":100,"width":376,"scale":1,"rotation":0}}
+    """
+
+    static func decode(_ json: String) throws -> TextObject {
+        try JSONDecoder().decode(TextObject.self, from: Data(json.utf8))
+    }
+
+    func testALegacyScriptureReadsInline() throws {
+        XCTAssertEqual(try Self.decode(Self.legacyScriptureJSON).verseNumbers, .inline)
+    }
+
+    func testEncodingNeverWritesVerseNumbersOrInsetWhenAbsent() throws {
+        let object = try Self.decode(Self.legacyScriptureJSON)
+        let written = try JSONSerialization.jsonObject(with: JSONEncoder().encode(object)) as? [String: Any]
+        XCTAssertNil(written?["verseNumbers"]); XCTAssertNil(written?["inset"])
+    }
+
+    func testAWrittenVerseNumbersModeRoundTrips() throws {
+        var object = try Self.decode(Self.legacyScriptureJSON)
+        object.verseNumbers = .gutter; object.inset = 48
+        let back = try JSONDecoder().decode(TextObject.self, from: JSONEncoder().encode(object))
+        XCTAssertEqual(back.verseNumbers, .gutter); XCTAssertEqual(back.inset, 48)
     }
 
     func testUsedCollectsEveryBiblePassageInTheDraft() {

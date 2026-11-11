@@ -2,21 +2,28 @@ import Foundation
 import UIKit
 
 /// bible-verse-picker: the Bible activity's document logic, with no view and no network — a picked passage
-/// becomes its document (D10) and citation, a changed passage re-anchors its highlights (D13), a long one
-/// splits at verse boundaries (D14), and a lesson's `used` passages come from its draft (D16).
+/// becomes its document (D10, D27, D28) and citation, a changed passage re-anchors its highlights (D13), a
+/// long one is never split but grows its page (D29), and a lesson's `used` passages come from its draft (D16).
 enum BibleScripture {
-    // MARK: D10 default style
+    // MARK: D10 / D28 default style
 
     /// The reference canvas (D10): 440 x 956.
     private static let pageWidth = 440.0
-    private static let pageHeight = 956.0
+    private static let minimumPageHeight = 956.0
+    /// D28: the default padding from the page edge.
     private static let sideInset = 32.0
     private static let topInset = 96.0
+    private static let bottomInset = 96.0
     private static let citationGap = 16.0
     private static let scriptureSize = 18.0
     private static let citationSize = 14.0
-    /// The text editor's own default line height (`TextObject` decode).
-    private static let lineHeight = 1.2
+    /// D28: the default line height multiple.
+    private static let lineHeight = 1.4
+
+    /// D29: the page is at least the text page, and grows to hold the laid-out scripture and its citation.
+    static func pageHeight(scriptureHeight: CGFloat, citationHeight: CGFloat) -> CGFloat {
+        max(minimumPageHeight, topInset + scriptureHeight + citationGap + citationHeight + bottomInset)
+    }
 
     /// The default scripture layout width.
     static var textWidth: Double { pageWidth - 2 * sideInset }
@@ -51,7 +58,8 @@ enum BibleScripture {
 
     // MARK: Document
 
-    /// D10: a `bible` document holding the locked scripture and its citation, over `background`.
+    /// D10: a `bible` document holding the locked scripture and its citation, over `background`. A pick is one
+    /// document whatever its length (D29).
     static func document(for pick: BiblePick, background: ActivityBackground?) -> ActivityDocument {
         let passage = pick.passage
         let verses = selected(pick)
@@ -66,6 +74,9 @@ enum BibleScripture {
             role: "scripture", text: text, size: scriptureSize, y: topInset + scriptureHeight / 2)
         scripture["listStyle"] = .string("bibleVerse")
         scripture["startNumber"] = .number(Double(passage.verseStart))
+        // D27: one verse reads as plain prose, several are numbered in a gutter.
+        scripture["verseNumbers"] = .string(verses.count > 1 ? "gutter" : "hidden")
+        scripture["inset"] = .number(sideInset)
         if let reference = referenceJSON(for: passage) { scripture["reference"] = reference }
         let citationObject = textObject(
             role: "citation", text: citationText, size: citationSize, y: citationTop + citationHeight / 2)
@@ -192,49 +203,6 @@ enum BibleScripture {
             kept.append(moved)
         }
         return (kept, highlights.count - kept.count)
-    }
-
-    // MARK: Splitting (D14)
-
-    /// Splits `pick` at verse boundaries into the fewest greedy parts that each fit; a part always keeps at
-    /// least one verse. The partial start stays on the first part and the partial end on the last.
-    static func split(_ pick: BiblePick, fits: ([BibleVerse]) -> Bool) -> [BiblePick] {
-        let passage = pick.passage
-        let verses = pick.verses.filter { isSelected($0, in: passage) }
-        guard !verses.isEmpty else { return [pick] }
-
-        func trimmed(_ verse: BibleVerse) -> BibleVerse {
-            BibleVerse(verse: verse.verse, text: trim(verse, in: passage))
-        }
-        func part(_ members: [BibleVerse]) -> BiblePick {
-            var p = passage
-            p.verseStart = members[0].verse
-            p.verseEnd = members[members.count - 1].verse
-            if p.verseStart != passage.verseStart { p.startOffset = nil }
-            if p.verseEnd != passage.verseEnd { p.endOffset = nil }
-            return BiblePick(passage: p, verses: members, bookName: pick.bookName)
-        }
-
-        var parts: [BiblePick] = []
-        var current: [BibleVerse] = []
-        for verse in verses {
-            if current.isEmpty || fits((current + [verse]).map(trimmed)) {
-                current.append(verse)
-            } else {
-                parts.append(part(current))
-                current = [verse]
-            }
-        }
-        parts.append(part(current))
-        return parts.count == 1 ? [pick] : parts
-    }
-
-    /// Whether `verses` (already trimmed) lay out with their citation inside the page's text area (D14).
-    static func fits(verses: [BibleVerse], width: Double) -> Bool {
-        guard let first = verses.first else { return true }
-        let scripture = height(of: numbered(verses, from: first.verse), size: scriptureSize, width: width)
-        let citation = height(of: "A", size: citationSize, width: width)
-        return scripture + citationGap + citation <= pageHeight - 2 * topInset
     }
 
     // MARK: Text helpers

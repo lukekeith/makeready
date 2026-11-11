@@ -53,6 +53,16 @@ struct TextObject: Codable, Hashable, Identifiable {
     /// The passage a scripture object quotes (SC2). A malformed `reference` reads as nil; the
     /// document's raw JSON still holds it (D23).
     var reference: ScriptureReference?
+    /// D27: how a scripture object draws its verse numbers. Reads `.inline` when the document never wrote one
+    /// (every document before the ruling); assigning nil removes the field again.
+    var verseNumbers: VerseNumbers? {
+        get { writtenVerseNumbers ?? .inline }
+        set { writtenVerseNumbers = newValue }
+    }
+    /// D28: padding from the page edge, 16-64 pt; nil = the 32 pt default (not written when absent).
+    var inset: Double?
+    /// The `verseNumbers` the document carries; nil = the field is absent and is never written.
+    var writtenVerseNumbers: VerseNumbers?
     /// Set by `ActivityDocument.textObjects` on a citation whose activity has a scripture object
     /// carrying a `reference`; a citation is locked through that object, not through its own JSON.
     var siblingScriptureHasReference = false
@@ -83,7 +93,7 @@ struct TextObject: Codable, Hashable, Identifiable {
 extension TextObject {
     private enum CodingKeys: String, CodingKey {
         case id, text, font, weight, size, lineHeight, color, alignment, transform, marks, highlights
-        case role, listStyle, startNumber, reference
+        case role, listStyle, startNumber, reference, verseNumbers, inset
     }
 
     /// Only `id`, `text` and `transform` are required; the rest take the editor's defaults.
@@ -104,7 +114,35 @@ extension TextObject {
         listStyle = try? c.decodeIfPresent(String.self, forKey: .listStyle)
         startNumber = try? c.decodeIfPresent(Int.self, forKey: .startNumber)
         reference = try? c.decodeIfPresent(ScriptureReference.self, forKey: .reference)
+        writtenVerseNumbers = try? c.decodeIfPresent(VerseNumbers.self, forKey: .verseNumbers)
+        inset = try? c.decodeIfPresent(Double.self, forKey: .inset)
     }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(text, forKey: .text)
+        try c.encode(font, forKey: .font)
+        try c.encode(weight, forKey: .weight)
+        try c.encode(size, forKey: .size)
+        try c.encode(lineHeight, forKey: .lineHeight)
+        try c.encode(color, forKey: .color)
+        try c.encode(alignment, forKey: .alignment)
+        try c.encode(transform, forKey: .transform)
+        try c.encode(marks, forKey: .marks)
+        try c.encode(highlights, forKey: .highlights)
+        try c.encodeIfPresent(role, forKey: .role)
+        try c.encodeIfPresent(listStyle, forKey: .listStyle)
+        try c.encodeIfPresent(startNumber, forKey: .startNumber)
+        try c.encodeIfPresent(reference, forKey: .reference)
+        try c.encodeIfPresent(writtenVerseNumbers, forKey: .verseNumbers)
+        try c.encodeIfPresent(inset, forKey: .inset)
+    }
+}
+
+/// D27: `gutter` numbers in a left column, `hidden` runs on with none, `inline` runs on with superscripts.
+enum VerseNumbers: String, Codable, Hashable {
+    case gutter, hidden, inline
 }
 
 /// A scripture object's quoted range (SC2). `book` is the book number (43 = John), not a name.

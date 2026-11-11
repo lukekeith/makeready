@@ -727,19 +727,16 @@ struct ActivitiesEditorContainer: View {
             await changePassage(pick: pick)
         }
 
-        /// D13/D14: re-anchors the highlights onto the new passage (splitting it when it no longer fits); if any would be
+        /// D13/D14: re-anchors the highlights onto the new passage (a long passage grows its page, D29); if any would be
         /// removed the leader is asked first, otherwise the change saves.
         func changePassage(pick: BiblePick) async {
             guard phase == .ready, kind == "bible", await leave(),
                   let old = BiblePassageEditing.currentPick(of: document) else { return }
-            let parts = BibleScripture.split(pick) { BibleScripture.fits(verses: $0, width: BibleScripture.textWidth) }
-            var existing = AppState.shared.activities(forVersion: lessonVersionId).sorted { $0.position < $1.position }.map(\.id)
-            if !existing.contains(activityId) { existing.append(activityId) }
-            let base = BibleSave.plan(change: activityId, parts: parts, version: lessonVersionId, existing: existing,
+            let base = BibleSave.plan(change: activityId, pick: pick, version: lessonVersionId,
                                       background: document.background)
 
             let previous = BiblePassageEditing.highlights(of: document)
-            let kept = parts.map { BibleScripture.reanchor(highlights: previous.scripture, old: old, new: $0).kept }
+            let kept = [BibleScripture.reanchor(highlights: previous.scripture, old: old, new: pick).kept]
             let keptIDs = Set(kept.flatMap { $0.map(\.id) })
             let removed = previous.scripture.filter { !keptIDs.contains($0.id) }.count + previous.citation
 
@@ -748,7 +745,7 @@ struct ActivitiesEditorContainer: View {
             }
             let plan = BibleSave.Plan(
                 version: base.version,
-                posts: base.posts.enumerated().map { withHighlights($0.element, kept[$0.offset + 1]) },
+                posts: base.posts,
                 order: base.order,
                 // D11/D13: the original keeps the leader's page; only the passage's own fields change.
                 put: base.put.map {
