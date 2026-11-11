@@ -144,7 +144,7 @@ class BibleCacheManager {
 
     // Track in-flight chapter requests to avoid duplicate fetches
     private var loadingChapters: Set<String> = []
-    private var chapterContinuations: [String: [CheckedContinuation<[VerseCompact]?, Never>]] = [:]
+    private var chapterContinuations: [String: [CheckedContinuation<CachedChapter, Error>]] = [:]
 
     // Progress tracking
     var downloadProgress: Double = 0
@@ -197,40 +197,49 @@ class BibleCacheManager {
 
     /// Get verses for a specific chapter in a specific translation
     func getChapterVerses(bookNumber: Int, chapter: Int, translation: String) async -> [VerseCompact]? {
-        let cacheKey = "\(translation)-\(bookNumber)-\(chapter)"
+        return try? await self.chapter(bookNumber: bookNumber, chapter: chapter, translation: translation).verses
+    }
+
+    /// bible-verse-picker D9/D24: the chapter from the memory or versioned disk cache, else fetched
+    /// through `api` and cached. Throws when the fetch fails or the chapter is empty; nothing is cached then.
+    func chapter(bookNumber: Int, chapter: Int, translation: String,
+                 api: APIClientProtocol = APIClient.shared) async throws -> CachedChapter {
+        let cacheKey = Self.cacheKey(translation: translation, bookNumber: bookNumber, chapter: chapter)
 
         // Check memory cache
         if let cached = chapterCache[cacheKey] {
-            return cached.verses
+            return cached
         }
 
         // Check disk cache
         if let diskCached = loadChapterFromDisk(key: cacheKey) {
             chapterCache[cacheKey] = diskCached
-            return diskCached.verses
+            return diskCached
         }
 
         // Handle concurrent requests for the same chapter
         if loadingChapters.contains(cacheKey) {
-            return await withCheckedContinuation { continuation in
+            return try await withCheckedThrowingContinuation { continuation in
                 chapterContinuations[cacheKey, default: []].append(continuation)
             }
         }
 
         // Fetch from API
         loadingChapters.insert(cacheKey)
-        let verses = await fetchChapter(bookNumber: bookNumber, chapter: chapter, translation: translation)
+        let result: Result<CachedChapter, Error>
+        do {
+            result = .success(try await fetchChapter(bookNumber: bookNumber, chapter: chapter, translation: translation, api: api))
+        } catch {
+            result = .failure(error)
+        }
         loadingChapters.remove(cacheKey)
 
         // Resume waiting continuations
-        if let continuations = chapterContinuations[cacheKey] {
-            for continuation in continuations {
-                continuation.resume(returning: verses)
-            }
-            chapterContinuations[cacheKey] = nil
+        for continuation in chapterContinuations.removeValue(forKey: cacheKey) ?? [] {
+            continuation.resume(with: result)
         }
 
-        return verses
+        return try result.get()
     }
 
     /// Get book info by number (uses canonical data, no API call needed)
@@ -265,11 +274,21 @@ class BibleCacheManager {
         return true
     }
 
+    /// D9: bumped when the server's canonical verse text changes, so 14-day-old raw text is refetched.
+    private static let cacheVersion = "v2"
+
+    /// Memory and disk key for one chapter; also the disk file name.
+    static func cacheKey(translation: String, bookNumber: Int, chapter: Int) -> String {
+        "\(cacheVersion)-\(translation)-\(bookNumber)-\(chapter)"
+    }
+
+    private static func cachePrefix(translation: String) -> String { "\(cacheVersion)-\(translation)-" }
+
     /// Clear the cache for a specific translation (or all)
     func clearCache(translation: String? = nil) {
         if let translation = translation {
             // Remove memory cache entries for this translation
-            chapterCache = chapterCache.filter { !$0.key.hasPrefix("\(translation)-") }
+            chapterCache = chapterCache.filter { !$0.key.hasPrefix(Self.cachePrefix(translation: translation)) }
             // Remove disk cache
             deleteChaptersFromDisk(translation: translation)
         } else {
@@ -281,65 +300,32 @@ class BibleCacheManager {
     /// Check if any chapters are cached for current translation
     var isCached: Bool {
         let translation = currentTranslation
-        return chapterCache.keys.contains(where: { $0.hasPrefix("\(translation)-") })
+        return chapterCache.keys.contains(where: { $0.hasPrefix(Self.cachePrefix(translation: translation)) })
     }
 
     // MARK: - API Fetching
 
-    private func fetchChapter(bookNumber: Int, chapter: Int, translation: String) async -> [VerseCompact]? {
-        let urlString = "\(AppConfiguration.baseURL)/api/bible/\(translation)/\(bookNumber)/\(chapter)"
-        guard let url = URL(string: urlString) else {
-            print("BibleCacheManager: Invalid URL: \(urlString)")
-            return nil
+    private func fetchChapter(bookNumber: Int, chapter: Int, translation: String,
+                              api: APIClientProtocol) async throws -> CachedChapter {
+        let response = try await api.get(
+            "/api/bible/\(translation)/\(bookNumber)/\(chapter)", responseType: ChapterResponse.self)
+
+        guard let apiVerses = response.verses, !apiVerses.isEmpty else {
+            throw URLError(.cannotParseResponse)
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-
-        if let sessionCookie = SessionCredentialStore.get() {
-            request.setValue("connect.sid=\(sessionCookie)", forHTTPHeaderField: "Cookie")
-        }
-
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse,
-                  httpResponse.statusCode == 200 else {
-                let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
-                print("BibleCacheManager: Bad response \(statusCode) for \(translation)/\(bookNumber)/\(chapter)")
-                return nil
-            }
-
-            let chapterResponse = try JSONDecoder().decode(ChapterResponse.self, from: data)
-
-            guard let apiVerses = chapterResponse.verses, !apiVerses.isEmpty else {
-                print("BibleCacheManager: No verses in response for \(translation)/\(bookNumber)/\(chapter)")
-                return nil
-            }
-
-            // Convert to VerseCompact
-            let verses = apiVerses.map { VerseCompact(b: bookNumber, c: chapter, v: $0.verse, t: $0.text) }
-
-            // Cache in memory and disk
-            let cacheKey = "\(translation)-\(bookNumber)-\(chapter)"
-            let cached = CachedChapter(
-                translationCode: translation,
-                bookNumber: bookNumber,
-                chapter: chapter,
-                verses: verses,
-                copyright: chapterResponse.copyright,
-                cachedAt: Date()
-            )
-            chapterCache[cacheKey] = cached
-            saveChapterToDisk(cached, key: cacheKey)
-
-            print("📖 BibleCacheManager: Fetched \(translation) \(bookByNumber[bookNumber]?.name ?? "?") \(chapter) (\(verses.count) verses)")
-            return verses
-        } catch {
-            print("BibleCacheManager: Fetch error for \(translation)/\(bookNumber)/\(chapter): \(error)")
-            return nil
-        }
+        let cached = CachedChapter(
+            translationCode: translation,
+            bookNumber: bookNumber,
+            chapter: chapter,
+            verses: apiVerses.map { VerseCompact(b: bookNumber, c: chapter, v: $0.verse, t: $0.text) },
+            copyright: response.copyright,
+            cachedAt: Date()
+        )
+        let cacheKey = Self.cacheKey(translation: translation, bookNumber: bookNumber, chapter: chapter)
+        chapterCache[cacheKey] = cached
+        saveChapterToDisk(cached, key: cacheKey)
+        return cached
     }
 
     // MARK: - Disk Storage (per-chapter)
@@ -386,7 +372,7 @@ class BibleCacheManager {
     }
 
     private func deleteChaptersFromDisk(translation: String) {
-        let prefix = "\(translation)-"
+        let prefix = Self.cachePrefix(translation: translation)
         if let files = try? FileManager.default.contentsOfDirectory(atPath: cacheDirectory.path) {
             for file in files where file.hasPrefix(prefix) {
                 try? FileManager.default.removeItem(at: cacheDirectory.appendingPathComponent(file))

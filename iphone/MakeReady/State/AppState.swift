@@ -256,6 +256,34 @@ final class AppState {
     /// Bible translations
     var bibleTranslations: [BibleVersion] = knownBibleVersions
 
+    /// D7: most popular first, unranked last, ties by name.
+    var sortedBibleTranslations: [BibleVersion] {
+        bibleTranslations.sorted { lhs, rhs in
+            switch (lhs.popularity, rhs.popularity) {
+            case let (l?, r?) where l != r: return l > r
+            case (.some, nil): return true
+            case (nil, .some): return false
+            default: return lhs.name < rhs.name
+            }
+        }
+    }
+
+    /// bible-verse-picker: the last smart-search answer, kept while a newer query is in flight (D17).
+    var bibleSearchResult: BibleSearchResult?
+
+    /// The query whose answer `bibleSearchResult` may still be replaced by; a response for any other is dropped.
+    var bibleSearchToken = UUID()
+
+    /// Recent Bible searches, newest first (SPEC §Contract `GET /search/recent?type=bible`).
+    var bibleRecents: [BibleRecent] = []
+
+    /// Loaded chapters keyed `"\(translation)|\(book)|\(chapter)"` (see `bibleChapterKey`).
+    var bibleChapters: [String: BibleChapter] = [:]
+
+    static func bibleChapterKey(translation: String, book: Int, chapter: Int) -> String {
+        "\(translation)|\(book)|\(chapter)"
+    }
+
     /// Currently selected Bible translation code (persisted to UserDefaults)
     var selectedBibleTranslation: String = UserDefaults.standard.string(forKey: "selectedBibleTranslation") ?? "KJV" {
         didSet {
@@ -977,6 +1005,10 @@ final class AppState {
         searchResultsGeneration = 0
         searchFilterOptions = nil
         searchPendingRemovals = []
+        bibleSearchResult = nil
+        bibleSearchToken = UUID()
+        bibleRecents = []
+        bibleChapters = [:]
         searchRequestToken = UUID()
         searchRecentsToken = UUID()
         searchNextPageToken = nil
@@ -1006,7 +1038,7 @@ final class AppState {
         async let templatesTask: () = loadTemplates()
         async let notificationsTask: () = loadUnreadNotificationCount()
         async let orgTask: () = loadOrganization(generation: generation)
-        async let translationsTask: () = loadBibleTranslations()
+        async let translationsTask: () = BibleActions(state: self).loadTranslations()
 
         _ = await (programsTask, templatesTask, notificationsTask, orgTask, translationsTask)
 
@@ -1087,23 +1119,6 @@ final class AppState {
         organizationId = orgs.first?.id
         userOrganizations = orgs
         if let id = orgs.first?.id { Log.state.info("adopted role-held organization \(id, privacy: .public)") }
-    }
-
-    private func loadBibleTranslations() async {
-        do {
-            let response: BibleTranslationsResponse = try await APIClient.shared.get(
-                "/api/bible/translations",
-                responseType: BibleTranslationsResponse.self
-            )
-            if let translations = response.translations, !translations.isEmpty {
-                bibleTranslations = translations
-                NSLog("📖 AppState: Loaded \(translations.count) Bible translations")
-            }
-        } catch {
-            // Still falls back to bundled defaults; recorded so the failed
-            // call is visible once an error surface exists.
-            recordError(error, context: "AppState.loadBibleTranslations")
-        }
     }
 
     // MARK: - Update Helpers

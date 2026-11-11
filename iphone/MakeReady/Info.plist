@@ -59,7 +59,7 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>1585</string>
+	<string>1586</string>
 	<key>DEV_MODE</key>
 	<string>$(DEV_MODE)</string>
 	<key>FIXTURE_ACCESS_KEY</key>
