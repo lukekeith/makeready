@@ -37,6 +37,9 @@
 | 7 | iphone | 17 | The scripture document has no split: verse-number defaults, D28 style defaults and the D29 page height |
 | 8 | iphone | 18 | d2m has built the gutter/hidden modes, the scrolling Bible page with the D28 style panel, and the player's in-page scroll |
 | 9 | iphone | 19 | The editor, player and thumbnails run page-laid-out scripture end to end |
+| 10 | server | 20 | SC7: scripture objects carry `verticalAlignment`; the contract re-freezes |
+| 11 | iphone | 21 | d2m has imported the Figma glyphs and built the reorganised Bible tool bar and Align panel |
+| 12 | iphone | 22 | Vertical alignment and the new tool bar work in the editor, player and thumbnails |
 
 ---
 
@@ -1029,4 +1032,114 @@ func testAWholeChapterPageIsTallerThanTheScreen() {
 - [ ] **Step 3: Implement to the Behaviour**
 - [ ] **Step 4: Run them and `ActivitiesEditorContainerTests`, watch them pass**
 - [ ] **Step 5: Commit** — `feat(bible-verse-picker): page-laid-out scripture in the editor, player and thumbnails`
+
+### Task 20: SC7 — vertical alignment on scripture objects
+App: server
+Phase: 10
+Recipe: test-driven-development · tiny
+
+**Files:**
+- Modify: `server/src/services/activity-document.ts` — the scripture field beside SC6's
+- Test: `server/src/services/__tests__/activity-document.test.ts`
+
+**Interfaces:**
+- §Contract rows `POST /api/lesson-versions/:id/activities` and `PUT /api/content-activities/:id` (EDIT: SC7).
+
+**Behaviour:**
+- a `role: scripture` object in a `bible` document may carry `verticalAlignment` ∈ {`top`, `center`, `bottom`}; any other value → 400 VALIDATION (SC7, D32)
+- absent stays valid (Backward compatibility)
+
+**Tests:**
+
+```ts
+it('accepts the three vertical alignments', () => {
+  for (const v of ['top', 'center', 'bottom'])
+    expect(parseActivityDocument('bible', withScripture({ verticalAlignment: v })).ok).toBe(true)
+})
+it('rejects an unknown vertical alignment', () => {
+  expect(parseActivityDocument('bible', withScripture({ verticalAlignment: 'middle' })).ok).toBe(false)
+})
+```
+
+(Real names as in Task 16.)
+
+- [ ] **Step 1: Write the listed tests**
+- [ ] **Step 2: Run the server vitest file, watch them fail**
+- [ ] **Step 3: Implement to the Behaviour**
+- [ ] **Step 4: Run it, watch it pass**
+- [ ] **Step 5: Commit** — `feat(bible-verse-picker): scripture vertical alignment (SC7)`
+
+### Task 21: d2m — Figma glyphs and the reorganised Bible tool bar
+App: iphone
+Phase: 11
+Recipe: d2m handover (`request_project_change`, then `wait_project_change`)
+
+**Files:**
+- Modify (by d2m): the glyph library (`Glyph`/asset catalog as d2m writes it), `iphone/MakeReadyUI/Screens/Activities/ActivitiesEditorScreen.swift`, `iphone/MakeReadyUI/CanvasTextObject.swift` (C-092) if vertical placement lives there, fixtures and `ViewRegistry.swift`
+- Reference: this SPEC (D32, D33) and Figma `https://www.figma.com/design/nVva9a2WvYmcWQo6zlHupO/Make-Ready-Mobile?node-id=4800-11364`
+
+**Interfaces:**
+- Produces (named by d2m; record them in the workspace `d2m-api.md`): glyphs for vertical align top · center · bottom, the new Font tool glyph, `text--scale`, `pan--vertical`, `pan--horizontal`; ActivitiesEditorScreen `bible` tool bar in D33's order; the Align panel's three rows with change callbacks for vertical alignment and verse numbers; Size, Line height and Padding as separate tool bar buttons, each opening a slider; the Font panel reduced to face + weight; a `verticalAlignment` input for the page-laid-out block.
+
+**Behaviour:**
+- exactly D33's tool bar, panels, ranges and glyphs; `text` activities unchanged (D33)
+- top / center / bottom place the block within the 96 pt insets on a 956 page; a taller page is unaffected (D32)
+
+**Tests:**
+
+```text
+d2m captures: ActivitiesEditorScreen bible-toolbar, bible-align-panel, bible-font-panel, bible-size-slider,
+and bible-vertical-center (John 3:16). Each render is read before the task is ticked.
+```
+
+- [ ] **Step 1: `check_project_change` per subject; `request_project_change` with D32–D33, this SPEC and the Figma node as references (glyph import first)**
+- [ ] **Step 2: `wait_project_change` until done; settle any handback from the SPEC**
+- [ ] **Step 3: Read every listed render**
+- [ ] **Step 4: Record the produced names in `d2m-api.md`**
+- [ ] **Step 5: Commit** — d2m's commits land on the branch
+
+### Task 22: The containers wire vertical alignment and the new tool bar
+App: iphone
+Phase: 12
+Recipe: /ios-error-surface
+
+**Files:**
+- Modify: `iphone/MakeReady/State/Models/ActivityDocument.swift` — `TextObject.verticalAlignment`
+- Modify: `iphone/MakeReady/UI2/Containers/Programs/ActivitiesEditorMapper.swift`, `ActivitiesEditorContainer.swift` — the D33 tool bar state and callbacks
+- Modify: `iphone/MakeReady/UI2/Viewer/ActivityViewerMapper.swift`, `iphone/MakeReady/UI2/Containers/Programs/ActivityThumbnail.swift` — D32 placement
+- Test: `iphone/MakeReadyCaptureTests/BibleEditorTests.swift`, `ActivityViewerMapperTests.swift`
+
+**Interfaces:**
+- Consumes: Task 21's names (`d2m-api.md`); `BibleScripture.pageHeight` (Task 17).
+- Produces: `TextObject.verticalAlignment: VerticalAlignment?` (nil reads `.top`).
+
+**Behaviour:**
+- the Align panel writes horizontal alignment (scripture and citation), `verticalAlignment` and `verseNumbers`; Size, Line height and Padding write `size`, `lineHeight`, `inset` (citation follows padding) (D33)
+- editor, player and thumbnail place the block per D32 on a 956 page; a taller page draws as top (D32)
+- a document without `verticalAlignment` decodes `.top` and never gains the field on save unless changed
+
+**Tests:**
+
+```swift
+func testTheAlignPanelWritesVerticalAlignmentAndVerseNumbers() async {
+    await model.setBibleStyle(.vertical(.center)); await model.setBibleStyle(.verseNumbers(.inline))
+    XCTAssertEqual(model.document.textObjects[0].verticalAlignment, .center)
+    XCTAssertEqual(model.document.textObjects[0].verseNumbers, .inline)
+}
+func testCenterMovesAShortPassageButNotATallOne() {
+    XCTAssertGreaterThan(ActivityViewerMapper.page(for: Self.john316Centered).scriptureTop, 96)
+    XCTAssertEqual(ActivityViewerMapper.page(for: Self.john3AllCentered).scriptureTop, 96)
+}
+func testALegacyScriptureReadsTop() throws {
+    XCTAssertEqual(try Self.decode(Self.legacyScriptureJSON).verticalAlignment ?? .top, .top)
+}
+```
+
+(Real entry-point names from the files and `d2m-api.md`.)
+
+- [ ] **Step 1: Write the listed tests**
+- [ ] **Step 2: Run the iphone-xctest suite for both classes, watch them fail**
+- [ ] **Step 3: Implement to the Behaviour**
+- [ ] **Step 4: Run them and `ActivitiesEditorContainerTests`, watch them pass**
+- [ ] **Step 5: Commit** — `feat(bible-verse-picker): vertical alignment and the reorganised Bible tool bar`
 
