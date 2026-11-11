@@ -40,3 +40,4 @@ Or run `/builder:resume --path docs/features/bible-verse-picker`, which prints t
 - 2026-11-11 unparked by a person — named to /builder:agent or /builder:fleet
 - 2026-11-11 cause cleared — the walk env restarted with API_BIBLE_KEY exported; readiness re-run at 4a4497ed: every Bible endpoint + smart search 200 on :3110; state → built
 - 2026-11-11 parked (human-step) — readiness passed with the key present; walk=none · human=yes → waiting for your walk
+- 2026-11-11 unparked by a person — named to /builder:agent or /builder:fleet
