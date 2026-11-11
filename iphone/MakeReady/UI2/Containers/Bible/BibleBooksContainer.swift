@@ -36,8 +36,9 @@ struct BibleBooksContainer: View {
             .id(model.fillGeneration)
         }
         .task {
-            // An earlier visit's answer is not this visit's.
-            await BibleActions().search("", record: false)
+            // An earlier visit's answer is not this visit's — but a return from a pushed page is the same visit, and
+            // keeps its results (D17). The task restarts on every reappearance, so only the first one clears.
+            if model.isFirstAppearance() { await BibleActions().search("", record: false) }
             await BibleActions().loadRecents()
         }
         .onDisappear {
@@ -134,6 +135,14 @@ final class BibleBooksModel {
         debouncer = BibleSearchDebouncer(delay: BibleBooksContainer.searchDebounce) { [weak self] query, record in
             self?.run(query, record: record)
         }
+    }
+
+    @ObservationIgnored private var appeared = false
+
+    /// True once, on the page's first appearance; false on every return from a page pushed over it.
+    func isFirstAppearance() -> Bool {
+        defer { appeared = true }
+        return !appeared
     }
 
     func run(_ query: String, record: Bool) {

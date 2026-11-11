@@ -7,7 +7,7 @@ import Observation
 struct BiblePickFlow: Equatable {
     /// Who asked for a passage, so the caller — not the picker — does the create or replace (D2, D15).
     enum Caller: Equatable {
-        /// A new `bible` activity in a lesson, after `afterActivityId` (nil = first).
+        /// A new `bible` activity in a lesson, after `afterActivityId` (nil = last).
         case newActivity(lessonId: String, afterActivityId: String?)
         /// An existing `bible` activity whose passage is being changed (D12).
         case change(activityId: String)

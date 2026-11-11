@@ -188,7 +188,8 @@ struct ActivityNewContainer: View {
         private var isCreatingBible = false
         /// The open picker's flow id, until its pick arrives (D2).
         private(set) var pendingFlowId: UUID?
-        /// D37: the activity the new one follows (the editor's grid sets it); nil = first.
+        /// D37: the activity the new one follows (the editor's grid sets it); nil = last, the New Activity page's
+        /// placeholder slot.
         var afterActivityId: String?
         /// A stopped Bible save, for Retry to resume (D14).
         private var stopped: (plan: BibleSave.Plan, failure: BibleSave.Failure)?
@@ -242,10 +243,14 @@ struct ActivityNewContainer: View {
 
         // MARK: Bible tile (bible-verse-picker D14, D15)
 
-        /// D15: opens Books for a new activity in this lesson; Back from there creates nothing.
+        /// D15: opens Books for a new activity in this lesson; Back from there creates nothing and leaves the tile
+        /// working — Books' Back ends the flow, so a pending id whose flow is gone with no pick waiting is stale.
         func selectBible() {
-            guard let navigator, pendingFlowId == nil, !isCreatingBible else { return }
             let app = AppState.shared
+            if let id = pendingFlowId, app.biblePickFlows[id] == nil, BiblePassagePick.shared.pending[id] == nil {
+                pendingFlowId = nil
+            }
+            guard let navigator, pendingFlowId == nil, !isCreatingBible else { return }
             let used = app.draftVersionId(forLesson: lessonId)
                 .map { BibleScripture.used(in: app.activities(forVersion: $0)) } ?? []
             let flowId = UUID()

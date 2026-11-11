@@ -70,6 +70,17 @@ final class BibleScriptureTests: XCTestCase {
         XCTAssertEqual(BibleScripture.citation(.init(bookNumber: 43, chapterStart: 3, verseStart: 16, chapterEnd: 3, verseEnd: 16, startOffset: nil, endOffset: nil, translation: nil), bookName: "John"), "John 3:16")
     }
 
+    /// D10: a single verse that ends mid-verse is its first part ("a"); one that starts mid-verse is "b".
+    func testASingleVerseCitesWhichPartItKeeps() {
+        func cite(_ start: Int?, _ end: Int?) -> String {
+            BibleScripture.title(for: .init(bookNumber: 43, chapterStart: 3, verseStart: 16, chapterEnd: 3, verseEnd: 16,
+                                            startOffset: start, endOffset: end, translation: "ENGKJV"), bookName: "John")
+        }
+        XCTAssertEqual(cite(nil, 20), "John 3:16a")
+        XCTAssertEqual(cite(9, nil), "John 3:16b")
+        XCTAssertEqual(cite(nil, nil), "John 3:16")
+    }
+
     func testTitleIsTheCitationWithoutTheTranslationCode() {
         XCTAssertEqual(BibleScripture.title(for: Self.pick16b18.passage, bookName: "John"), "John 3:16b-18")
     }

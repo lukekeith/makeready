@@ -37,9 +37,14 @@ enum BibleScripture {
         let startPartial = (passage.startOffset ?? 0) > 0
         let endPartial = passage.endOffset != nil
         let start = CanvasTextObject.Reference.Point(
-            book: bookName, chapter: passage.chapterStart, verse: passage.verseStart,
-            isPartial: sameVerse ? (startPartial || endPartial) : startPartial)
-        let end = sameVerse ? nil : CanvasTextObject.Reference.Point(
+            book: bookName, chapter: passage.chapterStart, verse: passage.verseStart, isPartial: startPartial)
+        guard !sameVerse else {
+            // One verse: the formatter marks only a partial start ("b"); one that only ends mid-verse is its first
+            // part, "a". Both ends partial keeps "b".
+            let reference = BibleReferenceFormatter.format(.init(start: start, end: nil))
+            return endPartial && !startPartial ? reference + "a" : reference
+        }
+        let end = CanvasTextObject.Reference.Point(
             book: bookName, chapter: passage.chapterEnd, verse: passage.verseEnd, isPartial: endPartial)
         return BibleReferenceFormatter.format(.init(start: start, end: end))
     }

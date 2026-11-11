@@ -5,6 +5,8 @@ import SwiftUI
 @MainActor
 protocol ActivitiesEditorNavigating: AnyObject {
     func push(_ destination: UI2Destination)
+    /// bible-verse-picker D12: push several pages, in order, as one path write.
+    func pushAll(_ destinations: [UI2Destination])
     func replace(with destination: UI2Destination)
     func pop()
     /// bible-verse-picker D2: the stack depth a Bible pick returns to.
@@ -13,6 +15,7 @@ protocol ActivitiesEditorNavigating: AnyObject {
 
 extension ActivitiesEditorNavigating {
     var depth: Int { 0 }
+    func pushAll(_ destinations: [UI2Destination]) { destinations.forEach(push) }
 }
 
 /// text-activity D16/D17/D22/D33/D39/D40/D46: the `.activitiesEditor` destination. It owns the
@@ -212,6 +215,7 @@ struct ActivitiesEditorContainer: View {
         }
 
         func push(_ destination: UI2Destination) { navigator.push(destination) }
+        func pushAll(_ destinations: [UI2Destination]) { navigator.pushAll(destinations) }
         func replace(with destination: UI2Destination) { navigator.replaceTop(current, destination) }
         func pop() { navigator.popIfTop(current) }
         var depth: Int { navigator.depth() }
@@ -700,7 +704,8 @@ struct ActivitiesEditorContainer: View {
 
         // Change passage (D12–D14)
 
-        /// D12: pushes the picker at the current passage (Reader at its chapter, selection shown).
+        /// D12: pushes the picker at the current passage — Books with the Reader at the passage's first verse on top,
+        /// in one path write, so the Reader's Back goes to Books; the Reader shows `initial` selected.
         private func startChangePassage() {
             guard let navigator, let passage = document.passages.first else { return }
             let app = AppState.shared
@@ -709,7 +714,10 @@ struct ActivitiesEditorContainer: View {
             app.biblePickFlows[flowId] = BiblePickFlow(caller: .change(activityId: activityId), returnDepth: navigator.depth,
                                                        used: BibleScripture.used(in: others), initial: passage)
             changeFlowId = flowId
-            navigator.push(.bibleBooks(flowId: flowId))
+            navigator.pushAll([
+                .bibleBooks(flowId: flowId),
+                .bibleReader(book: passage.bookNumber, chapter: passage.chapterStart, verse: passage.verseStart, flowId: flowId)
+            ])
         }
 
         /// D2: takes the pick Select delivered and applies it.
@@ -742,7 +750,10 @@ struct ActivitiesEditorContainer: View {
                 version: base.version,
                 posts: base.posts.enumerated().map { withHighlights($0.element, kept[$0.offset + 1]) },
                 order: base.order,
-                put: base.put.map { ($0.activityId, withHighlights($0.document, kept[0])) })
+                // D11/D13: the original keeps the leader's page; only the passage's own fields change.
+                put: base.put.map {
+                    ($0.activityId, BiblePassageEditing.replacingPassage(in: document, with: withHighlights($0.document, kept[0])))
+                })
 
             guard removed > 0 else { return await runChange(plan, from: 0, created: []) }
             pendingChange = plan

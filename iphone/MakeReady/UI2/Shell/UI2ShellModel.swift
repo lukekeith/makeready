@@ -171,6 +171,12 @@ struct UI2ShellModel {
         setPath(path(for: tab) + [destination], for: tab)
     }
 
+    /// bible-verse-picker D12: several pages pushed in order, as ONE path write — Back from the top one
+    /// returns to the page below it.
+    mutating func push(contentsOf destinations: [UI2Destination], on tab: TabBar.Tab) {
+        setPath(path(for: tab) + destinations, for: tab)
+    }
+
     mutating func pop(on tab: TabBar.Tab) {
         guard var path = paths[tab], !path.isEmpty else { return }
         path.removeLast()

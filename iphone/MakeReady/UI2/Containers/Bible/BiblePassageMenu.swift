@@ -83,6 +83,27 @@ enum BiblePassageEditing {
         return document.updating { $0[path: ["content", "objects", .index(index), "highlights"]] = json }
     }
 
+    /// D11/D13: `current` with only the passage replaced from `fresh` (a D10 document for the new passage): the
+    /// scripture object's `text`, `startNumber`, `reference` and `highlights`, the citation object's `text`, the
+    /// passages and the fallback title. Every other field and object — moves, restyling, objects the leader added,
+    /// the page's actions — is kept. A document missing either object takes `fresh` whole.
+    static func replacingPassage(in current: ActivityDocument, with fresh: ActivityDocument) -> ActivityDocument {
+        let objects = ActivitiesEditorMapper.rawObjects(current), freshObjects = ActivitiesEditorMapper.rawObjects(fresh)
+        guard let scripture = objects.firstIndex(where: { isRole("scripture", $0) }),
+              let citation = objects.firstIndex(where: { isRole("citation", $0) }),
+              let newScripture = freshObjects.first(where: { isRole("scripture", $0) }),
+              let newCitation = freshObjects.first(where: { isRole("citation", $0) }) else { return fresh }
+        var updated = current.updating { raw in
+            for key in ["text", "startNumber", "reference", "highlights"] {
+                raw[path: ["content", "objects", .index(scripture), .key(key)]] = newScripture[path: [.key(key)]]
+            }
+            raw[path: ["content", "objects", .index(citation), "text"]] = newCitation[path: ["text"]]
+            raw[path: ["fallback", "title"]] = fresh.raw[path: ["fallback", "title"]]
+        }
+        updated.passages = fresh.passages
+        return updated
+    }
+
     /// The document without its scripture and citation objects or its passages (D11).
     static func removingPassage(from document: ActivityDocument) -> ActivityDocument {
         let kept = ActivitiesEditorMapper.rawObjects(document).filter { !isRole("scripture", $0) && !isRole("citation", $0) }

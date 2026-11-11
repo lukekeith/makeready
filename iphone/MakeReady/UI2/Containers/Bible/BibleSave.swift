@@ -28,14 +28,16 @@ enum BibleSave {
 
     // MARK: Planning
 
-    /// A new passage: every part is POSTed, then placed right after `after` (nil = first) among `existing`.
+    /// A new passage: every part is POSTed, then placed right after `after` among `existing`. With no `after` (or
+    /// one not in `existing`) the parts go last — the New Activity page's placeholder slot (D15) — where the server
+    /// already appends them, so no reorder is sent; inserting after the last activity is the same append.
     static func plan(new parts: [BiblePick], version: String, existing: [String], after: String?,
                      background: ActivityBackground? = nil) -> Plan {
         let documents = parts.map { BibleScripture.document(for: $0, background: background) }
         var order = existing
-        let at = after.flatMap { existing.firstIndex(of: $0) }.map { $0 + 1 } ?? 0
+        let at = after.flatMap { existing.firstIndex(of: $0) }.map { $0 + 1 } ?? existing.count
         order.insert(contentsOf: documents.indices.map(slot), at: at)
-        return Plan(version: version, posts: documents, order: order, put: nil)
+        return Plan(version: version, posts: documents, order: at == existing.count ? nil : order, put: nil)
     }
 
     /// A changed passage: parts after the first are POSTed and placed right after `activityId`, which is then

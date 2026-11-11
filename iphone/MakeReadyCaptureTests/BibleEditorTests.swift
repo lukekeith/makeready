@@ -149,4 +149,60 @@ final class BibleEditorTests: XCTestCase {
         model.cancelPresentation()
         XCTAssertEqual(model.document.textObjects.count, 2)
     }
+
+    // MARK: Final review
+
+    /// D12: Change passage opens the Reader at the current passage, over Books, in one path write.
+    func testChangePassageOpensTheReaderAtTheCurrentPassageOverBooks() async {
+        let nav = RecordingEditorNavigator()
+        let model = model()
+        model.navigator = nav
+        await model.tapObject(0)
+        model.choose(.changePassage)
+        model.menuHidden()
+        guard let flowId = model.changeFlowId else { return XCTFail("no change flow") }
+        defer { AppState.shared.endBiblePickFlow(flowId) }
+        XCTAssertEqual(nav.pushedTogether, [[.bibleBooks(flowId: flowId),
+                                             .bibleReader(book: 43, chapter: 3, verse: 16, flowId: flowId)]])
+        XCTAssertEqual(AppState.shared.biblePickFlows[flowId]?.initial, Self.bibleDoc.passages.first)
+    }
+
+    /// D11/D13: a changed passage keeps the leader's page — moves, restyling, added objects and page actions — and
+    /// replaces only the passage's own text, numbering, reference, highlights, citation and title.
+    func testChangingThePassageKeepsThePageEdits() async {
+        let edited = Self.bibleDoc.updating { raw in
+            raw[path: ["content", "objects", .index(0), "transform", "x"]] = .number(123)
+            raw[path: ["content", "objects", .index(0), "font"]] = .string("display")
+            raw[path: ["content", "objects", .index(1), "color"]] = .string("#FFCC00")
+            raw[path: ["content", "objects", .index(1), "transform", "rotation"]] = .number(0.5)
+            if case .array(var objects)? = raw[path: ["content", "objects"]] {
+                objects.append(.object(["id": .string("extra"), "text": .string("Read slowly"), "font": .string("sans"),
+                                        "size": .number(20), "color": .string("#FFFFFF"), "alignment": .string("center"),
+                                        "transform": .object(["x": .number(220), "y": .number(800), "width": .number(300),
+                                                              "scale": .number(1), "rotation": .number(0)])]))
+                raw[path: ["content", "objects"]] = .array(objects)
+            }
+            raw[path: ["actions"]] = .array([.object(["id": .string("act1"), "label": .string("Pray")])])
+        }
+        let model = model(edited)
+        await model.changePassage(pick: Self.pick16to21)
+        XCTAssertEqual(stub.log, ["PUT a1"])
+        let raw = model.document.raw
+        XCTAssertEqual(raw[path: ["content", "objects", .index(0), "transform", "x"]], .number(123))
+        XCTAssertEqual(raw[path: ["content", "objects", .index(0), "font"]], .string("display"))
+        XCTAssertEqual(raw[path: ["content", "objects", .index(1), "color"]], .string("#FFCC00"))
+        XCTAssertEqual(raw[path: ["content", "objects", .index(1), "transform", "rotation"]], .number(0.5))
+        XCTAssertEqual(raw[path: ["content", "objects", .index(2), "id"]], .string("extra"))
+        XCTAssertEqual(raw[path: ["actions"]], edited.raw[path: ["actions"]])
+        let fresh = BibleScripture.document(for: Self.pick16to21, background: nil)
+        let objects = model.document.textObjects
+        XCTAssertEqual(objects[0].text, fresh.textObjects[0].text)
+        XCTAssertEqual(objects[0].startNumber, 16)
+        XCTAssertEqual(raw[path: ["content", "objects", .index(0), "reference"]], fresh.raw[path: ["content", "objects", .index(0), "reference"]])
+        XCTAssertEqual(objects[0].highlights.map(\.id), ["h1"])
+        XCTAssertEqual(objects[1].text, "John 3:16-21 ENGKJV")
+        XCTAssertEqual(raw[path: ["fallback", "title"]], .string("John 3:16-21"))
+        XCTAssertEqual(model.document.passages.first?.verseEnd, 21)
+        XCTAssertEqual(ActivitiesEditorMapper.rawObjects(model.document).count, 3)
+    }
 }

@@ -463,4 +463,12 @@ final class UI2ShellModelTests: XCTestCase {
         path.navigator.popToAndPush(1, .programsHome)
         XCTAssertEqual(path.model.path(for: .home), [.mediaHome, .programsHome]); XCTAssertEqual(path.writes, 1)
     }
+
+    /// bible-verse-picker D12: Change passage pushes Books and the Reader over it in one write.
+    func testPushAllIsOnePathWrite() {
+        let path = PathRecorder(depth: 1)
+        path.navigator.pushAll([.mediaHome, .programsHome])
+        XCTAssertEqual(path.model.path(for: .home).suffix(2), [.mediaHome, .programsHome])
+        XCTAssertEqual(path.depth, 3); XCTAssertEqual(path.writes, 1)
+    }
 }

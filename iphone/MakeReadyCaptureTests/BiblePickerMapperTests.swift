@@ -118,6 +118,14 @@ final class BiblePickerMapperTests: XCTestCase {
         XCTAssertFalse(BibleBooksContainer.shouldPruneFlow(depth: 2, returnDepth: 2, pickDelivered: true))
     }
 
+    /// D17: only the page's first appearance drops an earlier visit's answer; a return from a pushed page keeps it.
+    func testOnlyTheFirstAppearanceClearsAnEarlierAnswer() {
+        let model = BibleBooksModel()
+        XCTAssertTrue(model.isFirstAppearance())
+        XCTAssertFalse(model.isFirstAppearance())
+        XCTAssertTrue(BibleBooksModel().isFirstAppearance())
+    }
+
     func testTypingSearchesUnrecordedAfter300msAndReturnRecords() async {
         var calls: [(String, Bool)] = []
         let d = BibleSearchDebouncer(delay: .milliseconds(300)) { q, rec in calls.append((q, rec)) }

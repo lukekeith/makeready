@@ -68,9 +68,18 @@ final class BibleSaveTests: XCTestCase {
         XCTAssertEqual(stub.log.last, "PATCH a,p1,p2,p3,b")
     }
 
-    func testANewPassageWithNoInsertPointGoesFirst() {
-        let plan = BibleSave.plan(new: Self.twoParts, version: "v", existing: ["a"], after: nil)
-        XCTAssertEqual(BibleSave.resolvedOrder(plan, created: ["x", "y"]), ["x", "y", "a"])
+    /// D15: with no insert point (the New Activity page) the parts take the placeholder slot at the end, where the
+    /// server appends them, so no reorder is sent.
+    func testANewPassageWithNoInsertPointGoesLastWithoutAReorder() async {
+        let plan = BibleSave.plan(new: Self.twoParts, version: "v", existing: ["a", "b"], after: nil)
+        XCTAssertNil(plan.order)
+        _ = await BibleSave.run(plan, actions: stub.actions, from: 0)
+        XCTAssertEqual(stub.log, ["POST", "POST"])
+    }
+
+    /// Inserting after the last activity is the same append.
+    func testANewPassageAfterTheLastActivitySendsNoReorder() {
+        XCTAssertNil(BibleSave.plan(new: Self.twoParts, version: "v", existing: ["a", "b"], after: "b").order)
     }
 
     func testAPartDocumentIsABibleDocumentTitledByItsCitation() {

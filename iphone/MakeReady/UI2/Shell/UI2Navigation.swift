@@ -17,6 +17,8 @@ struct UI2Navigator {
     var replaceTop: (UI2Destination, UI2Destination) -> Void = { _, _ in }
     /// bible-verse-picker D2: pop to `depth` entries and optionally push a page, as ONE path write.
     var popToAndPush: (Int, UI2Destination?) -> Void = { _, _ in }
+    /// bible-verse-picker D12: push several pages, in order, as ONE path write (Books with the Reader on top).
+    var pushAll: ([UI2Destination]) -> Void = { _ in }
     /// Current visible stack ownership; changes on every path mutation, including equal-ID replacement.
     var ownership: () -> UUID? = { nil }
 }
@@ -33,6 +35,7 @@ extension UI2Navigator {
             depth: { model.wrappedValue.path(for: tab).count },
             replaceTop: { model.wrappedValue.replaceTop($0, with: $1, on: tab) },
             popToAndPush: { model.wrappedValue.popToAndPush(depth: $0, push: $1, on: tab) },
+            pushAll: { model.wrappedValue.push(contentsOf: $0, on: tab) },
             ownership: { model.wrappedValue.tab == tab ? model.wrappedValue.navigationOwnership(for: tab) : nil }
         )
     }
