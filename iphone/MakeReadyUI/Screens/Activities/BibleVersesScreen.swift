@@ -99,7 +99,7 @@ struct BibleVersesScreen: View {
         }
     }
 
-    /// One C-052 `.day(n)` per verse, row-major; each 40×48 chip centred in its column;
+    /// One C-052 `.label("n")` per verse, row-major; each chip fills its column, 48 tall (owner 2026-11-11: same rule as the bible-books grid — column count and gap set the width);
     /// `space-element-gap` between columns and rows (OQ-bible-verses-002). A short last row is
     /// left-aligned and keeps the column width.
     private var verseGrid: some View {
@@ -112,7 +112,7 @@ struct BibleVersesScreen: View {
                 HStack(spacing: Token.Space.elementGap) {
                     ForEach(row, id: \.self) { verse in
                         DayChip(
-                            content: .day(verse),
+                            content: .label(String(verse)),
                             state: .default,
                             isEmpty: false,
                             fillToken: nil,
@@ -120,7 +120,6 @@ struct BibleVersesScreen: View {
                             onTap: { onSelect(verse) }
                         )
                         .ui2Element(Self.partName("C-052 DayChip", ordinal: verse))
-                        .frame(maxWidth: .infinity)
                     }
                     ForEach(row.count..<Self.columns, id: \.self) { _ in
                         Color.clear.frame(maxWidth: .infinity, maxHeight: 0)

@@ -76,7 +76,7 @@ struct BibleChaptersScreen: View {
 
     // MARK: §2 2. Chapter grid
 
-    /// One C-052 `.day(n)` per chapter, row-major; each 40×48 chip centred in its column;
+    /// One C-052 `.label("n")` per chapter, row-major; each chip fills its column, 48 tall (owner 2026-11-11: same rule as the bible-books grid — column count and gap set the width);
     /// `space-element-gap` between columns and rows (OQ-bible-chapters-001). A short last row
     /// keeps the column width.
     private var chapterGrid: some View {
@@ -89,7 +89,7 @@ struct BibleChaptersScreen: View {
                 HStack(spacing: Token.Space.elementGap) {
                     ForEach(row, id: \.self) { chapter in
                         DayChip(
-                            content: .day(chapter),
+                            content: .label(String(chapter)),
                             state: .default,
                             isEmpty: false,
                             fillToken: nil,
@@ -97,7 +97,6 @@ struct BibleChaptersScreen: View {
                             onTap: { onSelect(chapter) }
                         )
                         .ui2Element(Self.partName("C-052 DayChip", ordinal: chapter))
-                        .frame(maxWidth: .infinity)
                     }
                     ForEach(row.count..<Self.columns, id: \.self) { _ in
                         Color.clear.frame(maxWidth: .infinity, maxHeight: 0)
