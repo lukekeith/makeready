@@ -416,8 +416,8 @@ struct ActivitiesEditorContainer: View {
             document = ActivitiesEditorMapper.apply(edit, to: document)
         }
 
-        /// D28: one Bible style panel change. Face writes the scripture and the citation; weight, line height and verse
-        /// numbers the scripture alone; size the scripture and the citation at 14/18 of it; the page padding, colour and
+        /// D28/D33: one Bible tool bar change. Face writes the scripture and the citation; weight, line height and verse
+        /// numbers and vertical alignment the scripture alone; size the scripture and the citation at 14/18 of it; the page padding, colour and
         /// alignment both. Reached from the Idle tool bar (D28), so there is no edit session: Done saves it.
         func setBibleStyle(_ change: ActivitiesEditorScreen.BibleStyleChange) {
             guard kind == "bible", let layout = BibleScripture.layout(of: document) else { return }
@@ -440,6 +440,9 @@ struct ActivitiesEditorContainer: View {
                     if let citation { raw[path: citation + ["inset"]] = .number(Double(inset)) }
                 case .verseNumbers(let mode):
                     raw[path: scripture + ["verseNumbers"]] = .string(mode)
+                case .verticalAlignment(let code):
+                    // D32: the scripture's field alone — the citation moves with the block.
+                    raw[path: scripture + ["verticalAlignment"]] = .string(code)
                 case .color(let hex):
                     raw[path: scripture + ["color"]] = .string(hex)
                     if let citation { raw[path: citation + ["color"]] = .string(hex) }

@@ -137,6 +137,37 @@ final class ActivityViewerMapperTests: XCTestCase {
         XCTAssertEqual(gradients(doc).first??.blobs.count, 4)
         XCTAssertNil(gradients(ActivitiesEditorMapper.choosingColour("#123456", in: doc)).first ?? nil)
     }
+
+    // MARK: D32 — vertical alignment
+
+    private static func centered(_ doc: ActivityDocument, _ value: String = "center") -> ActivityDocument {
+        doc.updating { $0[path: ["content", "objects", .index(0), "verticalAlignment"]] = .string(value) }
+    }
+    static var john316Centered: ActivityDocument { centered(BibleEditorTests.bibleDoc) }
+    static var john3AllCentered: ActivityDocument { centered(BibleEditorTests.john3AllDoc) }
+
+    /// D32: centre moves a short passage down the page, but a page taller than 956 has no slack and reads top.
+    func testCenterMovesAShortPassageButNotATallOne() {
+        let short = Self.john316Centered, tall = Self.john3AllCentered, plain = BibleEditorTests.bibleDoc
+        XCTAssertGreaterThan(ActivityViewerMapper.page(for: short)?.scriptureTop ?? 0, 96)
+        XCTAssertEqual(ActivityViewerMapper.page(for: tall)?.scriptureTop, 96)
+        XCTAssertEqual(ActivityViewerMapper.page(for: plain)?.scriptureTop, 96)
+    }
+
+    /// D32: bottom puts the block's last line 96 above the page's bottom; the player and thumbnail place it there.
+    func testBottomAndCenterPlaceThePlayerAndThumbnailBlock() throws {
+        let plain = BibleEditorTests.bibleDoc, centered = Self.john316Centered
+        let bottomDoc = Self.centered(plain, "bottom")
+        let top = try XCTUnwrap(ActivityViewerMapper.page(for: plain))
+        let block = top.scripture.height + 16 + (top.citation?.height ?? 0)
+        let bottom = try XCTUnwrap(ActivityViewerMapper.page(for: bottomDoc))
+        XCTAssertEqual(bottom.scriptureTop + block, 956 - 96, accuracy: 0.5)
+        let middle = try XCTUnwrap(ActivityViewerMapper.page(for: centered))
+        XCTAssertEqual(middle.scriptureTop, 96 + (956 - 192 - block) / 2, accuracy: 0.5)
+        let placed = BibleScripture.placed(centered).objects
+        XCTAssertEqual(placed[0].transform.y - middle.scripture.height / 2, middle.scriptureTop, accuracy: 0.5)
+        XCTAssertEqual(ActivityThumbnail.objects(for: centered).count, 2)
+    }
 }
 
 // MARK: - Fixtures

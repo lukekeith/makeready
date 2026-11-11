@@ -19,8 +19,9 @@ enum ActivitiesEditorMapper {
     /// save/load flags on top. D17: the highlight tool, the effects tool and the eyedropper are off.
     static func state(document: ActivityDocument, media: [String: MediaMapEntry], slides: [ContentActivity],
                       activeID: String, kind: String = "text") -> ActivitiesEditorScreen.State {
-        // D26: a `bible` activity's scripture and citation are placed by the page, never by their `transform`.
-        let placed = BibleScripture.placed(document)
+        // D26: a `bible` activity's scripture and citation are placed by the page, never by their `transform`. D32: the
+        // editor screen applies vertical alignment itself (State.bibleVerticalAlignment), so the frames stay un-shifted.
+        let placed = BibleScripture.placed(document, aligned: false)
         let objects = placed.objects
         let raw = rawObjects(document)
         let background = document.background
@@ -113,6 +114,8 @@ enum ActivitiesEditorMapper {
         state.bibleVerseNumbers = (scripture.verseNumbers ?? .inline).rawValue
         state.bibleColor = scripture.color
         state.bibleAlignment = scripture.alignment
+        // D32: the screen shifts the block itself, so the frames stay top-at-96 and only the choice is passed.
+        state.bibleVerticalAlignment = (scripture.verticalAlignment ?? .top).rawValue
     }
 
     /// D18: the document's font keys, passed to the screen as keys — it draws `display`, `sans`,

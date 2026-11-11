@@ -262,6 +262,9 @@ extension BibleScripture {
         var scripture: Placement
         var citation: Placement?
         var height: Double
+        /// D32: the scripture's top on the page after vertical alignment — 96 for `top`, and always 96 on a page
+        /// taller than 956 (no slack). `scripture` and `citation` stay at the top-at-96 frames.
+        var scriptureTop: Double
     }
 
     /// D28: the default padding from the page edge.
@@ -293,19 +296,32 @@ extension BibleScripture {
             citationBox = Placement(centerX: pageWidth / 2, centerY: top + citationHeight / 2, width: width, height: citationHeight)
             citationIndex = index
         }
+        let height = Double(pageHeight(scriptureHeight: CGFloat(scriptureHeight), citationHeight: CGFloat(citationHeight)))
+        // D32: the block moves only when the page is 956 tall; a taller page has no slack and reads top.
+        let slack = height > minimumPageHeight ? 0
+            : max(minimumPageHeight - bottomInset - (topInset + scriptureHeight + citationGap + citationHeight), 0)
+        let shift: Double
+        switch scripture.verticalAlignment ?? .top {
+        case .top: shift = 0
+        case .center: shift = slack / 2
+        case .bottom: shift = slack
+        }
         return PageLayout(
             scriptureIndex: scriptureIndex, citationIndex: citationIndex, scripture: scriptureBox, citation: citationBox,
-            height: Double(pageHeight(scriptureHeight: CGFloat(scriptureHeight), citationHeight: CGFloat(citationHeight))))
+            height: height, scriptureTop: topInset + shift)
     }
 
     /// The document's text objects with the page's placement applied (D26): a page-laid-out object takes the
     /// layout's centre and width and an identity scale and rotation; every other object is returned as it is.
-    static func placed(_ document: ActivityDocument) -> (objects: [TextObject], layout: PageLayout?) {
+    /// `aligned` applies D32's vertical alignment (player, thumbnail); the editor screen shifts the block itself, so
+    /// its mapper asks for `aligned: false`.
+    static func placed(_ document: ActivityDocument, aligned: Bool = true) -> (objects: [TextObject], layout: PageLayout?) {
         var objects = document.textObjects
         guard let layout = layout(of: document) else { return (objects, nil) }
+        let shift = aligned ? layout.scriptureTop - topInset : 0
         func place(_ index: Int?, _ box: Placement?) {
             guard let index, let box, objects.indices.contains(index) else { return }
-            objects[index].transform = .init(x: box.centerX, y: box.centerY, width: box.width, scale: 1, rotation: 0)
+            objects[index].transform = .init(x: box.centerX, y: box.centerY + shift, width: box.width, scale: 1, rotation: 0)
         }
         place(layout.scriptureIndex, layout.scripture)
         place(layout.citationIndex, layout.citation)

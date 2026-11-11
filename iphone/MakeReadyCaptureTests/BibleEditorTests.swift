@@ -329,4 +329,35 @@ final class BibleEditorTests: XCTestCase {
         let s = ActivitiesEditorContainer.screenState(model, app: AppState.shared)
         XCTAssertEqual([s.bibleColor, s.bibleAlignment], ["#FFCC00", "right"])
     }
+    // MARK: D32 / D33 — vertical alignment and the Align panel
+
+    /// D33: the Align panel's vertical row and verse-number row write the scripture.
+    func testTheAlignPanelWritesVerticalAlignmentAndVerseNumbers() {
+        let model = model()
+        model.setBibleStyle(.verticalAlignment("center")); model.setBibleStyle(.verseNumbers("inline"))
+        XCTAssertEqual(model.document.textObjects[0].verticalAlignment, .center)
+        XCTAssertEqual(model.document.textObjects[0].verseNumbers, .inline)
+        XCTAssertNil(model.document.textObjects[1].verticalAlignment, "the citation follows the scripture's block, not its own field")
+    }
+
+    /// D32: a document without the field reads top and is not given the field by a save or an unrelated style change.
+    func testALegacyScriptureReadsTopAndNeverGainsTheField() throws {
+        XCTAssertEqual(try BibleScriptureTests.decode(BibleScriptureTests.legacyScriptureJSON).verticalAlignment ?? .top, .top)
+        let model = model()
+        model.setBibleStyle(.size(24))
+        let raw = model.document.raw[path: ["content", "objects", .index(0), "verticalAlignment"]]
+        XCTAssertNil(raw)
+        let object = try BibleScriptureTests.decode(BibleScriptureTests.legacyScriptureJSON)
+        let back = try JSONSerialization.jsonObject(with: JSONEncoder().encode(object)) as? [String: Any]
+        XCTAssertNil(back?["verticalAlignment"])
+    }
+
+    /// D32/D33: the editor screen does the shift itself, so the state carries the choice and the top-at-96 frames.
+    func testTheEditorStateCarriesVerticalAlignmentWithoutPreShifting() {
+        let centered = Self.bibleDoc.updating { $0[path: ["content", "objects", .index(0), "verticalAlignment"]] = .string("center") }
+        let s = state(centered, kind: "bible")
+        XCTAssertEqual(s.bibleVerticalAlignment, "center")
+        XCTAssertEqual(s.objectYs[0] - s.objectHeights[0] / 2, 96, accuracy: 0.5)
+        XCTAssertEqual(state(Self.bibleDoc, kind: "bible").bibleVerticalAlignment, "top")
+    }
 }

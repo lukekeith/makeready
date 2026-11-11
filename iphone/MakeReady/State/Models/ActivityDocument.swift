@@ -20,6 +20,12 @@ struct TextObject: Codable, Hashable, Identifiable {
         var rotation: Double
     }
 
+    /// D32: the scripture + citation block at the top, middle or bottom of the page (nested: the module must not
+    /// shadow SwiftUI's `VerticalAlignment`).
+    enum VerticalAlignment: String, Codable, Hashable {
+        case top, center, bottom
+    }
+
     /// Inline styling over a UTF-16 range of `text`.
     struct Mark: Codable, Hashable {
         var start: Int
@@ -61,6 +67,9 @@ struct TextObject: Codable, Hashable, Identifiable {
     }
     /// D28: padding from the page edge, 16-64 pt; nil = the 32 pt default (not written when absent).
     var inset: Double?
+    /// D32: where a scripture's block sits between the page's 96 pt insets. nil = the field is absent, which reads
+    /// `.top` and is never written until the leader picks one.
+    var verticalAlignment: VerticalAlignment?
     /// The `verseNumbers` the document carries; nil = the field is absent and is never written.
     var writtenVerseNumbers: VerseNumbers?
     /// Set by `ActivityDocument.textObjects` on a citation whose activity has a scripture object
@@ -93,7 +102,7 @@ struct TextObject: Codable, Hashable, Identifiable {
 extension TextObject {
     private enum CodingKeys: String, CodingKey {
         case id, text, font, weight, size, lineHeight, color, alignment, transform, marks, highlights
-        case role, listStyle, startNumber, reference, verseNumbers, inset
+        case role, listStyle, startNumber, reference, verseNumbers, inset, verticalAlignment
     }
 
     /// Only `id`, `text` and `transform` are required; the rest take the editor's defaults.
@@ -116,6 +125,7 @@ extension TextObject {
         reference = try? c.decodeIfPresent(ScriptureReference.self, forKey: .reference)
         writtenVerseNumbers = try? c.decodeIfPresent(VerseNumbers.self, forKey: .verseNumbers)
         inset = try? c.decodeIfPresent(Double.self, forKey: .inset)
+        verticalAlignment = try? c.decodeIfPresent(VerticalAlignment.self, forKey: .verticalAlignment)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -137,6 +147,7 @@ extension TextObject {
         try c.encodeIfPresent(reference, forKey: .reference)
         try c.encodeIfPresent(writtenVerseNumbers, forKey: .verseNumbers)
         try c.encodeIfPresent(inset, forKey: .inset)
+        try c.encodeIfPresent(verticalAlignment, forKey: .verticalAlignment)
     }
 }
 
