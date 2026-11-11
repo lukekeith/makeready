@@ -113,12 +113,13 @@ function passageMatchesReference(p: BiblePassage, r: ScriptureReference): boolea
   )
 }
 
-/** SC6 (D27, D28): verse-number mode, inset and line height on a `role: scripture` object; absent stays valid. */
+/** SC6 (D27, D28) and SC7 (D32): verse-number mode, inset, line height and vertical alignment on a `role: scripture` object; absent stays valid. */
 const scriptureStyle = z
   .object({
     verseNumbers: z.enum(['gutter', 'hidden', 'inline']).optional(),
     inset: z.number().min(16).max(64).optional(),
     lineHeight: z.number().min(1).max(2).optional(),
+    verticalAlignment: z.enum(['top', 'center', 'bottom']).optional(),
   })
   .passthrough()
 

@@ -306,6 +306,18 @@ describe('bible passages (bible-verse-picker)', () => {
     })
   })
 
+  describe('scripture vertical alignment (SC7)', () => {
+    const withScripture = (o: any) => doc([scripture(o), textObj('c', 'citation')], [passage])
+
+    it('accepts the three vertical alignments', () => {
+      for (const v of ['top', 'center', 'bottom'])
+        expect(parseActivityDocument(withScripture({ verticalAlignment: v }), 'bible').ok).toBe(true)
+    })
+    it('rejects an unknown vertical alignment', () => {
+      expect(parseActivityDocument(withScripture({ verticalAlignment: 'middle' }), 'bible').ok).toBe(false)
+    })
+  })
+
   it('a converter-shaped legacy document stays valid', () => {
     const legacy = doc([textObj('a', 'scripture'), textObj('b', 'scripture'), textObj('c', 'citation')],
       [{ bookNumber: 43, chapterStart: 3, verseStart: 16, chapterEnd: 3, verseEnd: 16 }])
