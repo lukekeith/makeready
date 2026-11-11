@@ -563,6 +563,8 @@ struct ActivitiesEditorScreen: View {
     /// §22.1 (D28 fix): a bible activity in Idle — the eight-tool row (§23.1) shows and works above the
     /// chips rail with no object selected; its tools act on the page's scripture.
     private var isBibleIdle: Bool { state.isBible && !state.loadFailed && mode == .idle }
+    /// §24.3: the tool row is the Bible set when `mode == .idle && state.isBible`, else the text tools.
+    private var isBibleToolSet: Bool { state.isBible && mode == .idle }
 
     /// §22.2: the scripture as shown — the `bibleVerse` object the Idle tools act on.
     private var bibleScripture: CommittedObject? {
@@ -1462,7 +1464,7 @@ struct ActivitiesEditorScreen: View {
                 swatchMaterial: true
             )
             .ui2Element("C-094 TextColorPalette")
-        case .font where (mode == .editing || isBibleIdle) && state.isBible:
+        case .font where isBibleIdle:
             // §21.3 (D29): the Bible font panel's face — the four font keys as C-035 `Font` chips,
             // centred (§19.3); the rest of the panel is the top rail.
             ChipStrip(items: Self.fontItems, selectedID: bibleStyle.face,
@@ -1491,18 +1493,18 @@ struct ActivitiesEditorScreen: View {
             // §10.4: the page's actions, then + Add.
             ChipStrip(items: actionItems, selectedID: selectedActionID ?? "", onSelect: selectAction, chipMaterial: true)
                 .ui2Element("C-106 ChipStrip 3")
-        case .alignment where (mode == .editing || isBibleIdle) && state.isBible:
+        case .alignment where isBibleIdle:
             // §23.2 (D33): Align opens ONE panel — horizontal, vertical, verse numbers.
             pinnedTopRail(maxHeight: Self.bibleAlignPanelMaxHeight) { bibleAlignPanel }
-        case .size where (mode == .editing || isBibleIdle) && state.isBible:
+        case .size where isBibleIdle:
             // §23.4 (D33): Size is its own tool and opens its own slider.
             bibleSlider(label: "Size", value: \.size, range: Self.bibleSizeRange, step: Self.bibleSizeStep,
                         format: { "\(Int($0.rounded())) pt" }, change: BibleStyleChange.size)
-        case .lineHeight where (mode == .editing || isBibleIdle) && state.isBible:
+        case .lineHeight where isBibleIdle:
             bibleSlider(label: "Line height", value: \.lineHeight, range: Self.bibleLineHeightRange,
                         step: Self.bibleLineHeightStep,
                         format: { String(format: "%.1f×", $0) }, change: BibleStyleChange.lineHeight)
-        case .padding where (mode == .editing || isBibleIdle) && state.isBible:
+        case .padding where isBibleIdle:
             bibleSlider(label: "Padding", value: \.inset, range: Self.bibleInsetRange, step: Self.bibleInsetStep,
                         format: { "\(Int($0.rounded())) pt" }, change: BibleStyleChange.inset)
         case .alignment where mode == .editing:
@@ -1575,7 +1577,7 @@ struct ActivitiesEditorScreen: View {
     /// (§10.1): taller content scrolls inside it.
     @ViewBuilder private var topRail: some View {
         switch openTool {
-        case .font where (mode == .editing || isBibleIdle) && state.isBible:
+        case .font where isBibleIdle:
             // §23.3 (D33): the Font panel is face + weight only — the weight chips above the face
             // strip, as the text activity's Font tool lays them out.
             ChipStrip(items: Self.weightItems, selectedID: Self.weightID(Self.weight(code: bibleStyle.weight)),
@@ -1998,8 +2000,9 @@ struct ActivitiesEditorScreen: View {
 
     /// §2 item 5: hidden tools are not in the layout, the accessibility tree or the focus order.
     private var visibleTools: [Tool] {
-        // §23.1 (D33): a `bible` activity shows exactly its eight tools.
-        if state.isBible { return Self.bibleTools }
+        // §23.1 (D33) / §24.3: a `bible` activity shows exactly its eight tools in Idle only;
+        // `.editing` on a bible page keeps the text tools for the mode (§24.2).
+        if isBibleToolSet { return Self.bibleTools }
         return Tool.allCases.filter { tool in
             switch tool {
             case .highlight: return state.showsHighlightTool
@@ -2034,7 +2037,7 @@ struct ActivitiesEditorScreen: View {
         HStack(spacing: Self.toolRowGap) {
             ForEach(Array(visibleTools.enumerated()), id: \.element) { index, tool in
                 IconButton(
-                    glyph: Self.glyph(for: tool, isBible: state.isBible),
+                    glyph: Self.glyph(for: tool, isBible: isBibleToolSet),
                     tone: .default,
                     style: .plain,
                     selected: isSelected(tool),
@@ -3234,6 +3237,32 @@ extension ActivitiesEditorScreen.State {
         s.bibleVerticalAlignment = "center"
         return s
     }()
+    /// §24.4 bible-editing-caption — a bible activity in `.editing` on a caption the leader added:
+    /// the text-activity tool row with the per-object alignment rail open (§24.2).
+    static let bibleEditingCaption: Self = {
+        var s = bibleToolbar
+        s.editorMode = "editing"
+        s.openTool = "alignment"
+        s.editingIndex = 2
+        s.objectIDs += ["caption"]
+        s.objectTexts += ["Read it slowly"]
+        s.objectFonts += ["sans"]
+        s.objectColors += [white]
+        s.objectWeights += ["bold"]
+        s.objectSizes += [24]
+        s.objectAlignments += ["center"]
+        s.objectListStyles += [""]
+        s.objectStartNumbers += [1]
+        s.objectXs += [220]
+        s.objectYs += [640]
+        s.objectScales += [1]
+        s.objectRotations += [0]
+        s.objectWidths += [392]
+        s.objectHeights += [30]
+        s.objectLocks += [false]
+        s.objectPageLaidOut += [false]
+        return s
+    }()
     /// §21.5: John 3:1–36 (KJV), one verse per line.
     private static let john3: [String] = [
         "There was a man of the Pharisees, named Nicodemus, a ruler of the Jews:",
@@ -3549,6 +3578,12 @@ extension ActivitiesEditorScreen.State {
 
 #Preview("Bible vertical center") {
     ActivitiesEditorScreen(state: .bibleVerticalCenter)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Bible editing caption") {
+    ActivitiesEditorScreen(state: .bibleEditingCaption)
         .safeAreaPadding(.top, 59)
         .frame(width: 440, height: 956, alignment: .top)
 }
