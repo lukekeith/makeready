@@ -879,6 +879,8 @@ function saveSearchHistory(req: any, query: string, resultCount: number) {
  * as row `id`. Returns false when the row does not exist or is not the caller's.
  */
 async function deleteRecentQuery(identity: { userId: string } | { memberId: string }, id: string): Promise<boolean> {
+  // The id column is a uuid: a malformed id would be a Postgres cast error (500), not "not found"
+  if (!z.string().uuid().safeParse(id).success) return false
   const row = await prisma.searchHistory.findFirst({ where: { id, ...identity } })
   if (!row) return false
   await prisma.searchHistory.deleteMany({
