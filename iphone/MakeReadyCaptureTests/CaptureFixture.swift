@@ -791,7 +791,13 @@ struct CaptureComponent: Codable {
     let trailing: String?                      // C-037 — "chevron" | "cancel" | "none"
     let chips: [CaptureDataItem]?              // C-037 — [C-043 MetaChip] props
     // C-037 update 2026-10-24 (selectable form): `subject` gains "program"; additive field.
-    let selection: String?                     // C-037 — "none" | "unselected" | "selected"
+    // RETYPED 2026-11-11 (/d2m:component:build C-140), in the same either-shape pattern as
+    // `selected` and `enabledDays`. This was `String?` (C-037's "none" | "unselected" | "selected").
+    // C-140 BibleVerseReader §4's prop is ALSO named `selection` and is an OBJECT
+    // {startVerse, startOffset, endVerse, endOffset}, and the build rules forbid bending a
+    // contract's prop name to fit an existing field — so the field decodes both shapes. C-037 reads
+    // `.stringValue`; C-140 reads `.verseSelection`.
+    let selection: CaptureStringOrVerseSelection? // C-037 — "none" | "unselected" | "selected"; OR C-140's range
     // ── screen create-study-program ──
     // Reused as-is: `text`, `errorMessage` (same names, same types).
     let creating: Bool?
@@ -1443,6 +1449,49 @@ struct CaptureComponent: Codable {
     let sheetTitle: String?
     let sheetBodyText: String?
     let sheetPrompt: String?
+    // ── preview props ──
+    // C-140 BibleVerseReader build 2026-11-11. `selection` exists above (RETYPED to decode C-140's
+    // object as well); the rest are additive, under the contract's own names and types.
+    let chapterHeading: String?                // C-140
+    let verses: [CaptureUI2BibleVerse]?        // C-140 — BibleVerseReader.Verse
+    let usedRanges: [CaptureUI2VerseSelection]? // C-140 — [BibleVerseReader.Selection]
+    let copyright: String?                     // C-140
+    let scrollToVerse: Int?                    // C-140
+    let hasPreviousChapter: Bool?              // C-140
+    let hasNextChapter: Bool?                  // C-140
+    // ── screen bible-reader ──
+    // `title`, `selection`, `loading`, `failed` and the C-140 fields above are reused.
+    let translationCode: String?
+    let translationCodes: [String]?
+    let translationNames: [String]?
+    let canSelect: Bool?
+    // ── screen bible-books ──
+    // `translationCode`, `translationCodes`, `translationNames` and `query` are reused.
+    let searchFocused: Bool?
+    let oldTestamentNumbers: [Int]?
+    let oldTestamentLabels: [String]?
+    let oldTestamentFills: [String]?
+    let newTestamentNumbers: [Int]?
+    let newTestamentLabels: [String]?
+    let newTestamentFills: [String]?
+    let usedBooks: [Int]?
+    let recents: [String]?
+    let bookResultNumbers: [Int]?
+    let bookResultNames: [String]?
+    let bookResultDescriptions: [String]?
+    let bookResultFills: [String]?
+    let verseResultTitles: [String]?
+    let verseResultDescriptions: [String]?
+    let searching: Bool?
+    let searchEmpty: Bool?
+    // ── screen bible-chapters ──
+    // `title` is reused.
+    let chapterCount: Int?
+    let usedChapters: [Int]?
+    // ── screen bible-verses ──
+    // `title` and `loading` are reused.
+    let verseCount: Int?
+    let usedVerses: [Int]?
 }
 
 /// C-123 §4 `look` — "Fixtures encode `look` as an object: `{\"kind\": \"<case>\", …associated
@@ -2467,5 +2516,46 @@ struct CaptureWeekdays: Codable, Sequence, ExpressibleByArrayLiteral {
 
     func makeIterator() -> IndexingIterator<[Int]> {
         indices.makeIterator()
+    }
+}
+
+/// C-140 §4 `BibleVerseReader.Verse` — `{number, text}`.
+struct CaptureUI2BibleVerse: Codable {
+    let number: Int
+    let text: String
+}
+
+/// C-140 §4 `BibleVerseReader.Selection` — UTF-16 offsets, end exclusive.
+struct CaptureUI2VerseSelection: Codable {
+    let startVerse: Int
+    let startOffset: Int
+    let endVerse: Int
+    let endOffset: Int
+}
+
+/// `selection` decodes C-037's String OR C-140's `{startVerse, startOffset, endVerse, endOffset}` —
+/// see the RETYPED note on the field.
+struct CaptureStringOrVerseSelection: Codable {
+    let stringValue: String?
+    let verseSelection: CaptureUI2VerseSelection?
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let s = try? container.decode(String.self) {
+            stringValue = s
+            verseSelection = nil
+        } else {
+            stringValue = nil
+            verseSelection = try container.decode(CaptureUI2VerseSelection.self)
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        if let verseSelection {
+            try container.encode(verseSelection)
+        } else {
+            try container.encode(stringValue)
+        }
     }
 }
