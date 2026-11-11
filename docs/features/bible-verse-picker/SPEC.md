@@ -214,24 +214,24 @@ constraints: every server change is independent.
 
 ## Testing
 
-- **server** (vitest): D9 normalizer; D22 validation (paired/unpaired, reversed, cross-chapter, legacy doc valid);
+**server** (vitest): D9 normalizer; D22 validation (paired/unpaired, reversed, cross-chapter, legacy doc valid);
   SC4 scope and dedupe; SC5 `record:false` writes no history.
-- **iphone** (XCTest, one class per file named after it): passage → document mapping (D10) incl. partial verses and
+**iphone** (XCTest, one class per file named after it): passage → document mapping (D10) incl. partial verses and
   the citation string (`b`/`a`, hyphen); D13 re-anchoring (kept / removed counts, translation change removes all);
-  D14 split points and save ordering; D16 used computation; D7 popularity ordering; BibleActions decoding incl.
+  D27 verse-number defaults, D29 page height and save ordering; D16 used computation; D7 popularity ordering; BibleActions decoding incl.
   every smart-search `type`.
-- **Cross-app E2E walk** (device, Local server; chapter text comes from API.Bible, so the walk needs network):
-  1. Lesson → ＋ → Bible verse → Books shows OT/NT colour groups; Minor Prophets read as one colour.
-  2. Search "john 3:16" → verse result → Reader at 3:16; hold "loved" and drag to "life" in 3:18 → Select.
-  3. Editor shows the scripture numbered 16–18 and "John 3:16b-18 ENGKJV" (the default translation's code); the
+**Cross-app E2E walk** (device, Local server; chapter text comes from API.Bible, so the walk needs network):
+1. Lesson → ＋ → Bible verse → Books shows OT/NT colour groups; Minor Prophets read as one colour.
+2. Search "john 3:16" → verse result → Reader at 3:16; hold "loved" and drag to "life" in 3:18 → Select.
+3. Editor shows the scripture numbered 16–18 and "John 3:16b-18 ENGKJV" (the default translation's code); the
      text can't be typed into.
-  4. Highlight "eternal life"; tap the scripture → Change passage → extend to 3:21 → highlight kept.
-  5. Change to 3:1–2 → confirmation names the removed highlight.
-  6. Pick John 3:1–36 → one Bible activity; the editor page scrolls to the citation below 3:36; the passage can't be dragged or rotated.
-  6b. Verse numbers: switch gutter → hidden → inline; padding 16 → 64; line height 1.0 → 2.0; size 40 — the page grows and still scrolls.
-  6c. In the player, the tall page scrolls; at its bottom an upward drag pages to the next activity.
-  7. Switch to WEB in the Reader → chapter reloads at the current verse, selection cleared.
-- **Human verification script:** the walk above, steps 1–7, on device.
+4. Highlight "eternal life"; tap the scripture → Change passage → extend to 3:21 → highlight kept.
+5. Change to 3:1–2 → confirmation names the removed highlight.
+6. Pick John 3:1–36 → one Bible activity; the editor page scrolls to the citation below 3:36; the passage can't be dragged or rotated.
+7. Verse numbers: switch gutter → hidden → inline; padding 16 → 64; line height 1.0 → 2.0; size 40 — the page grows and still scrolls.
+8. In the player, the tall page scrolls; at its bottom an upward drag pages to the next activity.
+9. Switch to WEB in the Reader → chapter reloads at the current verse, selection cleared.
+**Human verification script:** the walk above, steps 1–9, on device.
 
 ## Out of scope
 
