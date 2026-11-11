@@ -57,3 +57,4 @@ seed a Bible cache fixture (new server scope, and only covers the seeded chapter
 - 2026-11-11 unparked by the fleet for the walk lane; d2m screens now exist (old cause cleared)
 - 2026-11-11 parked (human-step) — walk env has no API_BIBLE_KEY; every Bible surface 500s before the walk
 - 2026-11-11 unparked by a person — named to /builder:agent or /builder:fleet
+- 2026-11-11 cause cleared — the walk env restarted with API_BIBLE_KEY exported; readiness re-run at 4a4497ed: every Bible endpoint + smart search 200 on :3110; state → built

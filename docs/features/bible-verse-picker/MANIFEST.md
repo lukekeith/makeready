@@ -1,7 +1,7 @@
 size: lg
-state: building
-next: /builder:resume --path docs/features/bible-verse-picker
-head: 42153e34
+state: built
+next: /builder:agent-walk --path docs/features/bible-verse-picker
+head: 4a4497ed
 ticket: none
 branch: builder/bible-verse-picker
 pr: none
@@ -13,7 +13,7 @@ tests: walk=none review=end human=yes
 target: main
 walk: none
 verify: none
-ready: pending "API.Bible key in walk env"
+ready: yes 2026-11-11 4a4497ed
 ui2: none
 auto: on 2026-11-10
 blocked: none
