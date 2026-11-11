@@ -230,8 +230,11 @@ struct UI2Shell: View {
         case let .activityViewer(lessonVersionId, activityId):
             ActivityViewerContainer(lessonVersionId: lessonVersionId, activityId: activityId)  // text-activity D39
         case let .chooseActivityBackground(activityId): MediaHomeContainer(mode: .pickActivityBackground(activityId: activityId))  // D40
-        // bible-verse-picker D2: placeholders — Tasks 10-11 replace each with its container (the four screens are d2m-built).
-        case .bibleBooks, .bibleChapters, .bibleVerses, .bibleReader: EmptyView()
+        // bible-verse-picker D2: the Reader is Task 11's; until it lands it renders nothing.
+        case let .bibleBooks(flowId): BibleBooksContainer(flowId: flowId)
+        case let .bibleChapters(book, flowId): BibleChaptersContainer(book: book, flowId: flowId)
+        case let .bibleVerses(book, chapter, flowId): BibleVersesContainer(book: book, chapter: chapter, flowId: flowId)
+        case .bibleReader: EmptyView()
         }
     }
 
