@@ -18,7 +18,7 @@ enum ActivitiesEditorMapper {
     /// The screen's Idle state for `document`. The container sets the mode, the edited index and the
     /// save/load flags on top. D17: the highlight tool, the effects tool and the eyedropper are off.
     static func state(document: ActivityDocument, media: [String: MediaMapEntry], slides: [ContentActivity],
-                      activeID: String) -> ActivitiesEditorScreen.State {
+                      activeID: String, kind: String = "text") -> ActivitiesEditorScreen.State {
         let objects = canvasObjects(document)
         let raw = rawObjects(document)
         let background = document.background
@@ -31,10 +31,12 @@ enum ActivitiesEditorMapper {
             }
         }
         let ordered = slides.sorted { $0.position < $1.position }
-        return ActivitiesEditorScreen.State(
+        // bible-verse-picker D21: only a `bible` activity shows the highlight tool; its referenced scripture and
+        // citation are locked (D11), a legacy object without `reference` is ordinary text (D23).
+        var state = ActivitiesEditorScreen.State(
             editorMode: "idle",
             openTool: "",
-            showsHighlightTool: false,
+            showsHighlightTool: kind == "bible",
             showsEffectsTool: false,
             showsEyedropper: false,
             slideIDs: ordered.map(\.id),
@@ -81,6 +83,9 @@ enum ActivitiesEditorMapper {
             saveFailed: false,
             loadFailed: false
         )
+        state.objectIDs = objects.map(\.id)
+        state.objectLocks = document.textObjects.map(\.isLockedScripture)
+        return state
     }
 
     /// D18: the document's font keys, passed to the screen as keys — it draws `display`, `sans`,

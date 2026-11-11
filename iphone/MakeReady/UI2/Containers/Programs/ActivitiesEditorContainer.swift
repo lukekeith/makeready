@@ -58,19 +58,45 @@ struct ActivitiesEditorContainer: View {
             onBackground: { command in model.changeBackground(command) },
             onActionsChange: { actions in model.changeActions(actions) },
             onPageRailsClosed: { Task { await model.closePageRails() } },
+            onDeleteHighlight: { Task { await model.deleteSelectedHighlight() } },
             onRetry: { Task { await model.retry() } },
-            onDiscard: { model.discard() }
+            onDiscard: { model.discard() },
+            onHighlightRange: { index, start, end in model.highlightRange(objectIndex: index, start: start, end: end) },
+            onEndHighlighting: { Task { await model.endHighlighting() } }
         )
         // The screen seeds its sheets' buffers and its alert from `State` once, at init; a new
         // generation (loaded, a failed save, a discard) re-seeds them.
         .id(model.screenGeneration)
         .ui2PushedPageFill()
+        // bible-verse-picker D12: Change passage · Highlight; the chosen row runs once the menu has hidden.
+        .actionMenuPresentation(isPresented: model.isPassageMenuOpen, onDismiss: { model.cancelPresentation() },
+                                onHidden: { model.menuHidden() }) {
+            ActionMenuOverlay(
+                actions: BiblePassageMenu.items,
+                onSelect: { item in
+                    model.choose(ActivitiesEditorScreen.lockedObjectMenuRows.first { $0.label == item.label }?.id)
+                },
+                onDone: { model.cancelPresentation() }
+            )
+        }
+        // D13: the count of highlights a change removes, before anything saves.
+        .actionMenuPresentation(isPresented: model.isChangeConfirmationOpen, onDismiss: { model.cancelPresentation() }) {
+            confirmationOverlay(model.shownChangeConfirmation, onConfirm: { Task { await model.confirmChange() } })
+        }
+        // D11: deleting a locked object deletes the whole passage, after asking.
+        .actionMenuPresentation(isPresented: model.isDeleteConfirmationOpen, onDismiss: { model.cancelPresentation() }) {
+            confirmationOverlay(BiblePassageMenu.deleteConfirmation, onConfirm: { Task { await model.confirmDelete() } })
+        }
         .onAppear {
             model.navigator = LiveNavigator(navigator: navigator, current: .activitiesEditor(activityId: activityId))
             backSwipe?.blocksBackSwipe = { true }
             backSwipe?.onBlockedBackSwipe = { [model] in Task { await model.back() } }
             // D40: the Media pick mode delivers here; the page is back on top.
             model.takeBackgroundPick()
+        }
+        // D12: a changed passage returns the same way, keyed by the change flow's id.
+        .onChange(of: model.changeFlowId.flatMap { BiblePassagePick.shared.pending[$0] }) { _, pick in
+            if pick != nil { Task { await model.receiveChangePick() } }
         }
         // D2: the Bible picker's Select delivers its pick through the mailbox; the grid's model saves it.
         .onChange(of: model.bibleGrid?.pendingFlowId.flatMap { BiblePassagePick.shared.pending[$0] }) { _, pick in
@@ -90,6 +116,18 @@ struct ActivitiesEditorContainer: View {
         .task(id: state.pageImageURL) {
             if await UI2ImageLoader.seed([state.pageImageURL], context: "ActivitiesEditorContainer") { imagesSeeded += 1 }
         }
+    }
+
+    private func confirmationOverlay(_ confirmation: BiblePassageMenu.Confirmation,
+                                     onConfirm: @escaping () -> Void) -> some View {
+        ActionMenuOverlay(
+            title: confirmation.title,
+            message: confirmation.message,
+            actions: [confirmation.action],
+            doneLabel: confirmation.cancel,
+            onSelect: { _ in onConfirm() },
+            onDone: { model.cancelPresentation() }
+        )
     }
 
     /// Changes whenever a chip's screenshot could: a saved document, an added activity, a new poster.
@@ -115,10 +153,17 @@ struct ActivitiesEditorContainer: View {
     static func screenState(_ model: Model, app: AppState) -> ActivitiesEditorScreen.State {
         var state = ActivitiesEditorMapper.state(document: model.document, media: app.mediaMap,
                                                  slides: app.activities(forVersion: model.lessonVersionId),
-                                                 activeID: model.activityId)
+                                                 activeID: model.activityId, kind: model.kind)
         state = ActivitiesEditorMapper.withBackgroundRail(state, document: model.document, library: app.mediaLibrary.all,
                                                           hasMoreImages: app.mediaLibrary.count < app.mediaLibraryTotal)
         state.editorMode = model.editingIndex >= 0 ? "editing" : "idle"
+        // D12/D21: Highlight enters the mode on one locked object, with no keyboard.
+        if let id = model.highlightingObjectID, state.objectIDs.contains(id) {
+            state.editorMode = "highlighting"
+            state.openTool = "highlight"
+            state.highlightingObjectID = id
+            state.selectedHighlightID = model.selectedHighlightID
+        }
         state.editingIndex = model.editingIndex
         state.saving = model.isSaving
         state.saveFailed = model.saveError != nil
@@ -202,6 +247,8 @@ struct ActivitiesEditorContainer: View {
         private(set) var activityKey: String
         private(set) var lessonId: String
         private(set) var lessonVersionId: String
+        /// The open activity's kind: `bible` shows the highlight tool and locks its scripture (D21).
+        private(set) var kind: String
         /// The edit buffer: the whole document, as the next Done will PUT it.
         private(set) var document: ActivityDocument
         /// The document as the server last accepted it (Discard changes goes back to it).
@@ -224,7 +271,7 @@ struct ActivitiesEditorContainer: View {
         private var inFlight: Task<Bool, Never>?
 
         init(activityId: String, activityKey: String, document: ActivityDocument = ActivityDocument(raw: .object([:])),
-             lessonId: String = "", lessonVersionId: String = "", phase: Phase = .ready,
+             lessonId: String = "", lessonVersionId: String = "", phase: Phase = .ready, kind: String = "text",
              actions: ActivityActionsProtocol? = nil,
              newActivityActions: ActivityNewContainer.Actions? = nil,
              log: ((Error, String) -> Void)? = nil) {
@@ -236,6 +283,7 @@ struct ActivitiesEditorContainer: View {
             self.lessonId = lessonId
             self.lessonVersionId = lessonVersionId
             self.phase = phase
+            self.kind = kind
             // Resolved here, not as default arguments: those are evaluated off the main actor.
             self.actions = actions ?? ActivityActions()
             self.log = log ?? Model.record
@@ -248,7 +296,7 @@ struct ActivitiesEditorContainer: View {
                let version = app.lessonVersions[activity.lessonVersionId], version.status == .draft,
                ActivitiesEditorMapper.isEditable(activity.document) {
                 return Model(activityId: activity.id, activityKey: activity.activityKey, document: activity.document,
-                             lessonId: version.lessonId, lessonVersionId: version.id)
+                             lessonId: version.lessonId, lessonVersionId: version.id, kind: activity.kind)
             }
             return Model(activityId: activityId, activityKey: "", phase: .loading)
         }
@@ -291,6 +339,7 @@ struct ActivitiesEditorContainer: View {
                 activityKey = row.activityKey
                 lessonId = lesson.id
                 lessonVersionId = row.lessonVersionId
+                kind = row.kind
                 document = row.document
                 savedDocument = row.document
                 phase = .ready
@@ -329,6 +378,11 @@ struct ActivitiesEditorContainer: View {
                 if let droppedIndex, droppedIndex < target { target -= 1 }
             }
             guard target >= 0, target < ActivitiesEditorMapper.rawObjects(document).count else { return }
+            // D12: a locked scripture or citation opens the passage menu; it is never typed into.
+            if isLocked(target) {
+                presentation = .menu(object: target)
+                return
+            }
             editStart = document
             editingIndex = target
             editAddedObject = false
@@ -342,6 +396,9 @@ struct ActivitiesEditorContainer: View {
 
         /// D33: one object edit patches only its fields.
         func edit(_ edit: ActivitiesEditorScreen.ObjectEdit) {
+            var edit = edit
+            // D11: a locked object takes every restyle but no text.
+            if isLocked(edit.index) { edit.text = nil }
             document = ActivitiesEditorMapper.apply(edit, to: document)
         }
 
@@ -549,6 +606,200 @@ struct ActivitiesEditorContainer: View {
             lessonVersionId = row.lessonVersionId
         }
 
+        // MARK: Bible scripture (bible-verse-picker D11–D14)
+
+        /// The menu or confirmation over the canvas, if any.
+        private(set) var presentation: BiblePassageMenu.Presentation?
+        /// D12: the object Highlight put in highlighting mode (an id in `State.objectIDs`).
+        private(set) var highlightingObjectID: String?
+        /// The highlight just added in highlighting mode, selected for the Selection row.
+        private(set) var selectedHighlightID = ""
+        /// The open change flow's id, until its pick arrives (D2).
+        private(set) var changeFlowId: UUID?
+        /// The last change confirmation shown, so the overlay keeps its words while it slides out.
+        private(set) var shownChangeConfirmation = BiblePassageMenu.changeConfirmation(removed: 0)
+        private var pendingChoice: (row: ActivitiesEditorScreen.LockedObjectMenuRow.ID, object: Int)?
+        /// A change waiting for the leader's confirmation, and one that stopped part-way (Retry resumes it).
+        private var pendingChange: BibleSave.Plan?
+        private var stoppedChange: (plan: BibleSave.Plan, failure: BibleSave.Failure)?
+
+        var isPassageMenuOpen: Bool { if case .menu = presentation { return true } else { return false } }
+        var isChangeConfirmationOpen: Bool { if case .change = presentation { return true } else { return false } }
+        var isDeleteConfirmationOpen: Bool { if case .delete = presentation { return true } else { return false } }
+
+        /// D11/D23: a referenced scripture or citation object — never an ordinary one.
+        private func isLocked(_ index: Int) -> Bool {
+            guard kind == "bible" else { return false }
+            let objects = document.textObjects
+            return objects.indices.contains(index) && objects[index].isLockedScripture
+        }
+
+        /// A menu row was chosen: it runs once the menu has hidden (`menuHidden`).
+        func choose(_ row: ActivitiesEditorScreen.LockedObjectMenuRow.ID?) {
+            guard case .menu(let object)? = presentation, let row else { return }
+            pendingChoice = (row, object)
+            presentation = nil
+        }
+
+        func menuHidden() {
+            guard let choice = pendingChoice else { return }
+            pendingChoice = nil
+            switch choice.row {
+            case .highlight:
+                let objects = document.textObjects
+                guard objects.indices.contains(choice.object) else { return }
+                selectedHighlightID = ""
+                highlightingObjectID = objects[choice.object].id
+            case .changePassage:
+                startChangePassage()
+            }
+        }
+
+        /// Dismisses whatever is showing without acting on it.
+        func cancelPresentation() {
+            if case .change? = presentation { pendingChange = nil }
+            presentation = nil
+        }
+
+        // Highlighting (D21)
+
+        /// A range selected in the highlighting object: a range inside an existing highlight removes it, any other adds one.
+        func highlightRange(objectIndex: Int, start: Int, end: Int) {
+            let objects = document.textObjects
+            guard objects.indices.contains(objectIndex), start < end, start >= 0,
+                  end <= objects[objectIndex].text.utf16.count else { return }
+            var list = objects[objectIndex].highlights
+            if let hit = list.firstIndex(where: { $0.start <= start && end <= $0.end }) {
+                list.remove(at: hit)
+                selectedHighlightID = ""
+            } else {
+                let added = TextObject.Highlight(id: "h" + UUID().uuidString.prefix(8).lowercased(), start: start, end: end)
+                list.append(added)
+                selectedHighlightID = added.id
+            }
+            document = BiblePassageEditing.setting(highlights: list, at: objectIndex, in: document)
+        }
+
+        /// The Selection row's trash.
+        func deleteSelectedHighlight() async {
+            guard !selectedHighlightID.isEmpty else { return }
+            let objects = document.textObjects
+            for (index, object) in objects.enumerated() where object.highlights.contains(where: { $0.id == selectedHighlightID }) {
+                document = BiblePassageEditing.setting(highlights: object.highlights.filter { $0.id != selectedHighlightID },
+                                                       at: index, in: document)
+            }
+            selectedHighlightID = ""
+        }
+
+        /// Tool 5 again, or Done, while highlighting: the mode ends and the highlights save.
+        func endHighlighting() async {
+            highlightingObjectID = nil
+            selectedHighlightID = ""
+            _ = await saveIfChanged()
+        }
+
+        // Change passage (D12–D14)
+
+        /// D12: pushes the picker at the current passage (Reader at its chapter, selection shown).
+        private func startChangePassage() {
+            guard let navigator, let passage = document.passages.first else { return }
+            let app = AppState.shared
+            let flowId = UUID()
+            let others = app.activities(forVersion: lessonVersionId).filter { $0.id != activityId }
+            app.biblePickFlows[flowId] = BiblePickFlow(caller: .change(activityId: activityId), returnDepth: navigator.depth,
+                                                       used: BibleScripture.used(in: others), initial: passage)
+            changeFlowId = flowId
+            navigator.push(.bibleBooks(flowId: flowId))
+        }
+
+        /// D2: takes the pick Select delivered and applies it.
+        func receiveChangePick() async {
+            guard let flowId = changeFlowId, let pick = BiblePassagePick.shared.take(for: flowId) else { return }
+            changeFlowId = nil
+            await changePassage(pick: pick)
+        }
+
+        /// D13/D14: re-anchors the highlights onto the new passage (splitting it when it no longer fits); if any would be
+        /// removed the leader is asked first, otherwise the change saves.
+        func changePassage(pick: BiblePick) async {
+            guard phase == .ready, kind == "bible", await leave(),
+                  let old = BiblePassageEditing.currentPick(of: document) else { return }
+            let parts = BibleScripture.split(pick) { BibleScripture.fits(verses: $0, width: BibleScripture.textWidth) }
+            var existing = AppState.shared.activities(forVersion: lessonVersionId).sorted { $0.position < $1.position }.map(\.id)
+            if !existing.contains(activityId) { existing.append(activityId) }
+            let base = BibleSave.plan(change: activityId, parts: parts, version: lessonVersionId, existing: existing,
+                                      background: document.background)
+
+            let previous = BiblePassageEditing.highlights(of: document)
+            let kept = parts.map { BibleScripture.reanchor(highlights: previous.scripture, old: old, new: $0).kept }
+            let keptIDs = Set(kept.flatMap { $0.map(\.id) })
+            let removed = previous.scripture.filter { !keptIDs.contains($0.id) }.count + previous.citation
+
+            func withHighlights(_ document: ActivityDocument, _ highlights: [TextObject.Highlight]) -> ActivityDocument {
+                BiblePassageEditing.setting(highlights: highlights, in: document)
+            }
+            let plan = BibleSave.Plan(
+                version: base.version,
+                posts: base.posts.enumerated().map { withHighlights($0.element, kept[$0.offset + 1]) },
+                order: base.order,
+                put: base.put.map { ($0.activityId, withHighlights($0.document, kept[0])) })
+
+            guard removed > 0 else { return await runChange(plan, from: 0, created: []) }
+            pendingChange = plan
+            shownChangeConfirmation = BiblePassageMenu.changeConfirmation(removed: removed)
+            presentation = .change(shownChangeConfirmation)
+        }
+
+        /// The confirmation's Change.
+        func confirmChange() async {
+            guard case .change? = presentation, let plan = pendingChange else { return }
+            presentation = nil
+            pendingChange = nil
+            await runChange(plan, from: 0, created: [])
+        }
+
+        /// D14: Retry resumes from the failed request, never re-POSTing a created part.
+        func retryChange() async {
+            guard let stopped = stoppedChange else { return }
+            await runChange(stopped.plan, from: stopped.failure.step, created: stopped.failure.created)
+        }
+
+        private func runChange(_ plan: BibleSave.Plan, from step: Int, created: [String]) async {
+            switch await BibleSave.run(plan, actions: newActivityActions, from: step, created: created) {
+            case .success:
+                stoppedChange = nil
+                if let put = plan.put {
+                    document = put.document
+                    savedDocument = put.document
+                }
+                screenGeneration += 1
+            case .failure(let failure):
+                stoppedChange = (plan, failure)
+                if UI2ImageLoader.isCancellation(failure.underlying) { return }
+                AppState.shared.recordError(failure.underlying, context: "ActivitiesEditorContainer.changePassage", surface: true,
+                                            friendlyMessage: "Couldn't change the passage",
+                                            retry: { [weak self] in Task { await self?.retryChange() } })
+            }
+        }
+
+        // Delete (D11)
+
+        /// Deleting a locked object asks first; confirming deletes the whole passage, both objects.
+        func requestDelete(objectIndex: Int) {
+            guard isLocked(objectIndex) else { return }
+            presentation = .delete(BiblePassageMenu.deleteConfirmation)
+        }
+
+        func confirmDelete() async {
+            guard case .delete? = presentation else { return }
+            presentation = nil
+            endEditing()
+            highlightingObjectID = nil
+            document = BiblePassageEditing.removingPassage(from: document)
+            screenGeneration += 1
+            _ = await saveIfChanged()
+        }
+
         // MARK: Leaving
 
         /// Back: unsaved changes save first (an open edit commits), and a failed save stays on the page with
@@ -587,8 +838,11 @@ struct ActivitiesEditorContainer: View {
             activityId = target.id
             activityKey = target.activityKey
             lessonVersionId = target.lessonVersionId
+            kind = target.kind
             document = target.document
             savedDocument = target.document
+            highlightingObjectID = nil
+            presentation = nil
             endEditing()
             saveError = nil
             canvasContent = editable ? .activity : .readOnly
