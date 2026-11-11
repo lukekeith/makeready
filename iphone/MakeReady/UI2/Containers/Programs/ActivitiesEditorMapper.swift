@@ -111,6 +111,8 @@ enum ActivitiesEditorMapper {
         state.bibleLineHeight = CGFloat(scripture.lineHeight)
         state.bibleInset = CGFloat(scripture.inset ?? BibleScripture.defaultInset)
         state.bibleVerseNumbers = (scripture.verseNumbers ?? .inline).rawValue
+        state.bibleColor = scripture.color
+        state.bibleAlignment = scripture.alignment
     }
 
     /// D18: the document's font keys, passed to the screen as keys — it draws `display`, `sans`,

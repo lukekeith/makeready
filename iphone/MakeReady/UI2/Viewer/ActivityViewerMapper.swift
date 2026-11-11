@@ -432,6 +432,14 @@ private extension ActivitiesPlayerScreen.State {
         }
         objectPages.append(page)
         objectPageLaidOut.append(pageLaidOut)
+        // D26/D27/D28: the player lays a page-laid-out passage out the way the editor does; other objects keep today's drawing.
+        objectLineHeights.append(pageLaidOut ? CGFloat(object.lineHeight) : nil)
+        switch pageLaidOut ? object.verseNumbers : nil {
+        case .gutter?: objectVerseNumbers.append(.gutter)
+        case .hidden?: objectVerseNumbers.append(.hidden)
+        default: objectVerseNumbers.append(.inline)
+        }
+        objectInsets.append(pageLaidOut ? object.inset.map { CGFloat($0) } : nil)
         objectTexts.append(object.text)
         objectFonts.append(ActivitiesEditorMapper.fontKey(object.font))
         objectColors.append(object.color)

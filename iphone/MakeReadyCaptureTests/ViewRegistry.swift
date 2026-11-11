@@ -3535,6 +3535,16 @@ private func buildScreenActivitiesPlayer(_ fixture: CaptureFixture) throws -> An
             objectWidths: c.objectWidths ?? [],
             objectHeights: c.objectHeights ?? [],
             objectPageLaidOut: c.objectPageLaidOut ?? [],    // §3 Tall pages (the editor's key)
+            // §3 Bible layout: line height, verse numbers and inset, per object.
+            objectLineHeights: (c.objectLineHeights ?? []).map { $0.map { CGFloat($0) } },
+            objectVerseNumbers: (c.objectVerseNumbers ?? []).map { name -> MakeReadyUI.CanvasTextObject.VerseNumbers in
+                switch name {
+                case "gutter": return .gutter
+                case "hidden": return .hidden
+                default: return .inline
+                }
+            },
+            objectInsets: (c.objectInsets ?? []).map { $0.map { CGFloat($0) } },
             markObjects: c.markObjects ?? [],
             markStarts: c.markStarts ?? [],
             markEnds: c.markEnds ?? [],
@@ -4056,7 +4066,9 @@ private func buildScreenActivitiesEditor(_ fixture: CaptureFixture) throws -> An
             bibleSize: c.bibleSize.map { CGFloat($0) } ?? sample.bibleSize,
             bibleLineHeight: c.bibleLineHeight.map { CGFloat($0) } ?? sample.bibleLineHeight,
             bibleInset: c.bibleInset.map { CGFloat($0) } ?? sample.bibleInset,
-            bibleVerseNumbers: c.bibleVerseNumbers ?? sample.bibleVerseNumbers
+            bibleVerseNumbers: c.bibleVerseNumbers ?? sample.bibleVerseNumbers,
+            bibleColor: c.bibleColor ?? sample.bibleColor,
+            bibleAlignment: c.bibleAlignment ?? sample.bibleAlignment
         )
     )
     .safeAreaPadding(.top, device.safeArea.top)

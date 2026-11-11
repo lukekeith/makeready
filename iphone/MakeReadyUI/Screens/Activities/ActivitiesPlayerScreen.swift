@@ -133,6 +133,15 @@ struct ActivitiesPlayerScreen: View {
         /// §3 Tall pages: per object, C-092 `pageLaidOut` (the editor's `objectPageLaidOut`); a
         /// missing or false entry renders as today.
         var objectPageLaidOut: [Bool] = []
+        /// §3 Bible layout (bible-verse-picker D26–D28): per object, C-092 `lineHeight` as a
+        /// multiple of the size; nil or a missing entry is natural leading.
+        var objectLineHeights: [CGFloat?] = []
+        /// §3 Bible layout: per object, C-092 `verseNumbers`; a missing entry is `.inline`.
+        var objectVerseNumbers: [CanvasTextObject.VerseNumbers] = []
+        /// §3 Bible layout: per object, the inset from each page edge in wu — the object's frame
+        /// is the reference width less twice it (the editor's `bibleInset`); nil or a missing
+        /// entry is today's frame.
+        var objectInsets: [CGFloat?] = []
         /// `marks` (02 §3), UTF-16 offsets: object index, range, `bold` · `italic` · `link`, href.
         var markObjects: [Int]
         var markStarts: [Int]
@@ -428,7 +437,7 @@ struct ActivitiesPlayerScreen: View {
         ZStack(alignment: .topLeading) {
             ForEach(page.objects, id: \.index) { object in
                 textObject(object)
-                    .frame(width: object.transform.width ?? Self.slotWidth)
+                    .frame(width: object.inset.map { Self.referenceWidth - 2 * $0 } ?? object.transform.width ?? Self.slotWidth)
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { measuredHeights[object.index] = $0 }
                     .ui2Element(objectName(object))
                     // §3 Accessibility: reading order top to bottom by `y`, then array order.
@@ -464,11 +473,13 @@ struct ActivitiesPlayerScreen: View {
             font: object.font,
             weight: object.weight,
             size: object.size,
+            lineHeight: object.lineHeight,
             color: object.color,
             alignment: object.alignment,
             label: object.label,
             listStyle: object.listStyle,
             startNumber: object.startNumber,
+            verseNumbers: object.verseNumbers,
             marks: object.marks,
             animation: object.animation,
             animationStart: state.animationStart,
@@ -701,6 +712,9 @@ extension ActivitiesPlayerScreen {
         var transform: CanvasTextObject.Transform
         var seedHeight: CGFloat
         var pageLaidOut: Bool
+        var lineHeight: CGFloat?
+        var verseNumbers: CanvasTextObject.VerseNumbers
+        var inset: CGFloat?
     }
 
     fileprivate struct Action {
@@ -829,7 +843,10 @@ extension ActivitiesPlayerScreen {
                 width: width > 0 ? CGFloat(width) : nil
             ),
             seedHeight: measured > 0 ? CGFloat(measured) : size * Self.lineHeightFactor * lines,
-            pageLaidOut: Self.value(state.objectPageLaidOut, index, false)
+            pageLaidOut: Self.value(state.objectPageLaidOut, index, false),
+            lineHeight: Self.value(state.objectLineHeights, index, nil),
+            verseNumbers: Self.value(state.objectVerseNumbers, index, .inline),
+            inset: Self.value(state.objectInsets, index, nil)
         )
     }
 
@@ -1127,6 +1144,10 @@ extension ActivitiesPlayerScreen.State {
         s.objectWidths = [392, 392]
         s.objectHeights = [2720, 17.5]
         s.objectPageLaidOut = [true, true]
+        // §3 Bible layout: gutter numbers at 1.4 leading, 32 wu inset (the scripture only).
+        s.objectLineHeights = [1.4, nil]
+        s.objectVerseNumbers = [.gutter, .inline]
+        s.objectInsets = [32, nil]
         s.thumbFraction = 0.5
         s.rest(on: 2, topAction: "menu")
         return s

@@ -1162,6 +1162,9 @@ struct CaptureComponent: Codable {
     let bibleLineHeight: Double?               // ×, 1.0–2.0
     let bibleInset: Double?                    // pt, 16–64
     let bibleVerseNumbers: String?             // gutter · hidden · inline
+    // activities-editor §22 (chat change 2026-11-11, D28 fix). Additive:
+    let bibleColor: String?                    // #RRGGBB; "" = the scripture's own
+    let bibleAlignment: String?                // left · center · right; "" = the scripture's own
     let showsEffectsTool: Bool?
     let showsEyedropper: Bool?
     let showsWell: Bool?                       // C-094 TextColorPalette
@@ -1426,6 +1429,12 @@ struct CaptureComponent: Codable {
     let anchor: Int?
     let drag: Double?
     let inner: [Double]?
+    // §3 Bible layout (chat change 2026-11-11, bible-verse-picker D26–D28). Additive, parallel to
+    // objectTexts: line height (× size, null = natural), verse numbers (gutter · hidden · inline),
+    // inset from each page edge in wu (null = today's frame).
+    let objectLineHeights: [Double?]?
+    let objectVerseNumbers: [String]?
+    let objectInsets: [Double?]?
     let railVisible: Bool?
     let pageIndexes: [Int]?
     let pageKinds: [String]?

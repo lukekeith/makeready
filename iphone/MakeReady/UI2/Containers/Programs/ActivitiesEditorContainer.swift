@@ -416,7 +416,8 @@ struct ActivitiesEditorContainer: View {
         }
 
         /// D28: one Bible style panel change. Face writes the scripture and the citation; weight, line height and verse
-        /// numbers the scripture alone; size the scripture and the citation at 14/18 of it; the page padding both.
+        /// numbers the scripture alone; size the scripture and the citation at 14/18 of it; the page padding, colour and
+        /// alignment both. Reached from the Idle tool bar (D28), so there is no edit session: Done saves it.
         func setBibleStyle(_ change: ActivitiesEditorScreen.BibleStyleChange) {
             guard kind == "bible", let layout = BibleScripture.layout(of: document) else { return }
             let scripture: [JSONPathComponent] = ["content", "objects", .index(layout.scriptureIndex)]
@@ -438,6 +439,12 @@ struct ActivitiesEditorContainer: View {
                     if let citation { raw[path: citation + ["inset"]] = .number(Double(inset)) }
                 case .verseNumbers(let mode):
                     raw[path: scripture + ["verseNumbers"]] = .string(mode)
+                case .color(let hex):
+                    raw[path: scripture + ["color"]] = .string(hex)
+                    if let citation { raw[path: citation + ["color"]] = .string(hex) }
+                case .alignment(let code):
+                    raw[path: scripture + ["alignment"]] = .string(code)
+                    if let citation { raw[path: citation + ["alignment"]] = .string(code) }
                 }
             }
         }
@@ -711,14 +718,6 @@ struct ActivitiesEditorContainer: View {
         /// Dismisses whatever is showing without acting on it.
         func cancelPresentation() {
             if case .change? = presentation { pendingChange = nil }
-            // D28/D31: a menu closed without a row leaves the leader on that object with the Bible style tools (Color,
-            // Alignment, Font) — the scripture can't be typed into, so this is the restyle path D11 left unreachable.
-            if case .menu(let object)? = presentation, phase == .ready, editingIndex < 0, isLocked(object),
-               BibleScripture.layout(of: document) != nil {
-                editStart = document
-                editingIndex = object
-                editAddedObject = false
-            }
             presentation = nil
         }
 

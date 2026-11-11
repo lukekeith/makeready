@@ -93,6 +93,20 @@ final class ActivityViewerMapperTests: XCTestCase {
         XCTAssertEqual(s.pageHeights[0], placed?.height)
     }
 
+    /// D26/D27/D28: the player is handed the scripture's line height, verse-number mode and padding, so it draws the
+    /// passage the way the editor and the thumbnail do; the citation carries its own (no verse numbers).
+    func testThePlayerGetsTheScriptureLayoutInputs() {
+        let a = ContentActivity(id: "a0", lessonVersionId: "v1", activityKey: "k0", position: 0, kind: "bible",
+                                title: "T", document: BibleEditorTests.bibleDoc, estimatedSeconds: nil)
+        let s = ActivityViewerMapper.state(payload: .payload([a], media: [:]), engine: .fixture(pages: 2),
+                                           viewport: 440, playback: .idle)
+        XCTAssertEqual(s.objectVerseNumbers.first, .gutter)
+        XCTAssertEqual(s.objectLineHeights.first, 1.4)
+        XCTAssertEqual(s.objectInsets.first, 32)
+        XCTAssertEqual(s.objectLineHeights.count, s.objectTexts.count)
+        XCTAssertEqual(s.objectInsets.count, s.objectTexts.count)
+    }
+
     /// D30: the engine scrolls inside a tall page — its height in points is the layout's, scaled to the viewport.
     func testTheEngineSeesATallPageAsTall() {
         let a = ContentActivity(id: "a0", lessonVersionId: "v1", activityKey: "k0", position: 0, kind: "bible",

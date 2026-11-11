@@ -181,6 +181,11 @@ struct ActivitiesEditorScreen: View {
         var bibleLineHeight: CGFloat = 1.4
         var bibleInset: CGFloat = 24
         var bibleVerseNumbers: String = "gutter"
+        /// §22.2 (D28 fix): the scripture's colour `#RRGGBB` and alignment `left` · `center` ·
+        /// `right` — the seeds the Idle Colour and Alignment tools mark; "" = the scripture
+        /// object's own.
+        var bibleColor: String = ""
+        var bibleAlignment: String = ""
 
         /// §10.8 `gradient`: `base` `#RRGGBB`, `blobs`, `hidden`.
         struct Gradient: Equatable {
@@ -301,6 +306,10 @@ struct ActivitiesEditorScreen: View {
         case inset(CGFloat)
         /// `gutter` · `hidden` · `inline`.
         case verseNumbers(String)
+        /// §22.2: `#RRGGBB` — the Colour tool in Idle on a bible activity.
+        case color(String)
+        /// §22.2: `left` · `center` · `right` — the Alignment tool in Idle on a bible activity.
+        case alignment(String)
     }
 
     /// §3 Tools — the tool row, order 1–7.
@@ -540,6 +549,15 @@ struct ActivitiesEditorScreen: View {
     /// Editing and Highlighting swap the header to Cancel · Done and the container to the tool
     /// row (§2 items 2 + 4).
     private var isToolMode: Bool { !state.loadFailed && (mode == .editing || mode == .highlighting) }
+
+    /// §22.1 (D28 fix): a bible activity in Idle — the five-tool row shows and works above the
+    /// chips rail with no object selected; its tools act on the page's scripture.
+    private var isBibleIdle: Bool { state.isBible && !state.loadFailed && mode == .idle }
+
+    /// §22.2: the scripture as shown — the `bibleVerse` object the Idle tools act on.
+    private var bibleScripture: CommittedObject? {
+        shownObjects.first { $0.listStyle == .bibleVerse }.map(bibleStyled)
+    }
 
     var body: some View {
         if state.loadFailed {
@@ -1363,8 +1381,15 @@ struct ActivitiesEditorScreen: View {
             if isToolMode {
                 topRail
                 middleRail
-                toolRow
+                toolRow()
             } else {
+                // §22.1 (D28 fix): on a bible activity in Idle the five-tool row sits directly
+                // above the chips rail, which stays; the rails open above the row (§10).
+                if isBibleIdle {
+                    topRail
+                    middleRail
+                    toolRow(aboveChips: true)
+                }
                 // C-081 §5: the editor passes `bottomInset: 16`, measured from the bar's position
                 // before the inset (the chrome ignores the bottom safe area) — SPEC D11, D23.
                 // §14.2: chips and ＋ only report; ＋ is disabled while the type grid shows.
@@ -1372,10 +1397,11 @@ struct ActivitiesEditorScreen: View {
                                onSelectSlide: onSelectSlide,
                                addEnabled: state.canvasContent != "typeGrid", onAdd: onAdd)
                     .ui2Element("C-081 ActivityNavBar")
+                    // §15.1 (D29): nothing opaque spans the width while editing; the chips rail is
+                    // unchanged.
+                    .background(Token.layoutBackground)
             }
         }
-        // §15.1 (D29): nothing opaque spans the width while editing; the chips rail is unchanged.
-        .background { if !isToolMode { Token.layoutBackground } }
         // The stack states its own height; the canvas takes what is left (§2).
         .fixedSize(horizontal: false, vertical: true)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { containerHeight = $0 }
@@ -1387,6 +1413,23 @@ struct ActivitiesEditorScreen: View {
     /// §10.1 middle rail — the open tool's choices.
     @ViewBuilder private var middleRail: some View {
         switch openTool {
+        case .color where isBibleIdle:
+            // §22.2: Colour in Idle acts on the scripture — the swatch matching `bibleColor`
+            // (else the scripture's own) is outlined; a pick reports `.color`.
+            TextColorPalette(
+                currentColor: bibleScripture?.color ?? Token.textPrimary,
+                swatches: Self.palettePages,
+                page: palettePage,
+                onSelect: { picked in
+                    guard let hex = Self.presetHex(picked) else { return }
+                    setBibleStyle(.color(hex))
+                },
+                onPageChange: { palettePage = $0 },
+                onWellTap: onEyedropper,
+                showsWell: state.showsEyedropper,
+                swatchMaterial: true
+            )
+            .ui2Element("C-094 TextColorPalette")
         case .color where mode == .editing:
             // §3 tool 1: C-094 — the well shows the object's colour, the equal swatch is
             // outlined (OQ-011); pages 2–3 are undesigned (04-color.md OQ-04-1) and empty.
@@ -1407,7 +1450,7 @@ struct ActivitiesEditorScreen: View {
                 swatchMaterial: true
             )
             .ui2Element("C-094 TextColorPalette")
-        case .font where mode == .editing && state.isBible:
+        case .font where (mode == .editing || isBibleIdle) && state.isBible:
             // §21.3 (D29): the Bible font panel's face — the four font keys as C-035 `Font` chips,
             // centred (§19.3); the rest of the panel is the top rail.
             ChipStrip(items: Self.fontItems, selectedID: bibleStyle.face,
@@ -1436,8 +1479,13 @@ struct ActivitiesEditorScreen: View {
             // §10.4: the page's actions, then + Add.
             ChipStrip(items: actionItems, selectedID: selectedActionID ?? "", onSelect: selectAction, chipMaterial: true)
                 .ui2Element("C-106 ChipStrip 3")
+        case .alignment where isBibleIdle:
+            // §22.2: Alignment in Idle marks `bibleAlignment` (else the scripture's own) and
+            // reports `.alignment`.
+            alignmentRail(selected: bibleScripture?.alignment ?? .left,
+                          onSelect: { setBibleStyle(.alignment($0)) })
         case .alignment where mode == .editing:
-            alignmentRail
+            alignmentRail(selected: draftAlignment, onSelect: selectAlignment)
         default:
             // Tool 5 has no rail.
             EmptyView()
@@ -1447,16 +1495,17 @@ struct ActivitiesEditorScreen: View {
     /// §3 tool 3 (D36): three C-102 IconButtons — align left, centre, right — centred (D34) 8pt
     /// above the tool row, each on the rail controls' blur (§15.1). The one matching
     /// `draftAlignment` is `selected`; a tap applies it at once and the rail stays open.
-    private var alignmentRail: some View {
+    private func alignmentRail(selected: CanvasTextObject.Alignment,
+                               onSelect: @escaping (String) -> Void) -> some View {
         HStack(spacing: Token.Space.elementGap) {
             ForEach(Array(Self.alignmentOptions.enumerated()), id: \.offset) { index, option in
                 IconButton(
                     glyph: option.glyph,
                     tone: .default,
                     style: .plain,
-                    selected: draftAlignment == option.alignment,
+                    selected: selected == option.alignment,
                     accessibilityLabel: option.label,
-                    onTap: { selectAlignment(option.code) }
+                    onTap: { onSelect(option.code) }
                 )
                 // FLAGGED LITERAL — activities-editor §2: 32pt tools, the tool row's tile.
                 .frame(width: Self.toolSize, height: Self.toolSize)
@@ -1479,7 +1528,7 @@ struct ActivitiesEditorScreen: View {
     /// (§10.1): taller content scrolls inside it.
     @ViewBuilder private var topRail: some View {
         switch openTool {
-        case .font where mode == .editing && state.isBible:
+        case .font where (mode == .editing || isBibleIdle) && state.isBible:
             pinnedTopRail(maxHeight: Self.biblePanelMaxHeight) { biblePanel }
         case .font where mode == .editing:
             // §3 tool 4: the weight row above the font strip. C-106 is 8 + 36 + 8 tall, so the
@@ -1585,6 +1634,8 @@ struct ActivitiesEditorScreen: View {
         case .lineHeight(let lineHeight): bibleStyle.lineHeight = lineHeight
         case .inset(let inset): bibleStyle.inset = inset
         case .verseNumbers(let mode): bibleStyle.verseNumbers = mode
+        case .color(let hex): bibleStyle.color = hex
+        case .alignment(let code): bibleStyle.alignment = code
         }
         onBibleStyleChange(change)
     }
@@ -1930,7 +1981,9 @@ struct ActivitiesEditorScreen: View {
     /// 32pt, left to right. §15.1 (D29, supersedes the pitch layout): the visible tools sit in ONE
     /// container centred horizontally — 4pt padding, 8pt radius, 16pt gap, the dark blur material —
     /// hugging its contents; §19.1 (D34.1): the band hugs it too (40pt, 16pt above the keyboard).
-    private var toolRow: some View {
+    /// §22.1: `aboveChips` — the bible Idle row sits directly above the C-081 chips rail, one
+    /// §19 element gap above it, instead of above the keyboard or the bottom safe area.
+    private func toolRow(aboveChips: Bool = false) -> some View {
         HStack(spacing: Self.toolRowGap) {
             ForEach(Array(visibleTools.enumerated()), id: \.element) { index, tool in
                 IconButton(
@@ -1952,7 +2005,8 @@ struct ActivitiesEditorScreen: View {
         .frame(maxWidth: .infinity)
         // §19.1 (D34.1): the row hugs its own 40pt band (4 + 32 + 4) — no longer C-081's bar
         // height; its bottom edge sits 16pt above the keyboard or the bottom safe area.
-        .padding(.bottom, Token.Space.pageMargin + max(safeBottom - keyboardOverlap, 0))
+        .padding(.bottom, aboveChips ? Token.Space.elementGap
+                                     : Token.Space.pageMargin + max(safeBottom - keyboardOverlap, 0))
     }
 
     /// §3 Tools: category tools (1, 2, 3, 4, 6, 7) take `selected` while their rails are open
@@ -2115,6 +2169,9 @@ struct ActivitiesEditorScreen: View {
         var lineHeight: CGFloat
         var inset: CGFloat
         var verseNumbers: String
+        /// §22.2: "" = the scripture object's own.
+        var color: String
+        var alignment: String
 
         init(_ state: State) {
             face = state.bibleFace
@@ -2123,6 +2180,8 @@ struct ActivitiesEditorScreen: View {
             lineHeight = state.bibleLineHeight
             inset = state.bibleInset
             verseNumbers = state.bibleVerseNumbers
+            color = state.bibleColor
+            alignment = state.bibleAlignment
         }
     }
 
@@ -2137,6 +2196,11 @@ struct ActivitiesEditorScreen: View {
         styled.size = bibleStyle.size
         styled.lineHeight = bibleStyle.lineHeight
         styled.verseNumbers = Self.verseNumbers(bibleStyle.verseNumbers)
+        // §22.2: the Idle Colour and Alignment picks show at once; "" keeps the object's own.
+        if !bibleStyle.color.isEmpty { styled.colorHex = bibleStyle.color }
+        if let alignment = Self.alignmentOptions.first(where: { $0.code == bibleStyle.alignment }) {
+            styled.alignment = alignment.alignment
+        }
         if styled.pageLaidOut {
             styled.transform.width = Self.referenceWidth - 2 * bibleStyle.inset
         }
@@ -2936,6 +3000,8 @@ extension ActivitiesEditorScreen.State {
     /// (serif 18pt, verses numbered 16–18), both locked.
     private static let bibleLocked: Self = {
         var s = base
+        // §22.4: a bible activity — Idle shows the five-tool row above the chips.
+        s.isBible = true
         s.showsHighlightTool = true
         s.canSave = true
         s.objectIDs = ["citation", "scripture"]
@@ -3014,6 +3080,16 @@ extension ActivitiesEditorScreen.State {
         s.isBible = true
         s.editorMode = "editing"
         s.editingIndex = 1
+        s.openTool = "font"
+        s.objectYs = [140, 300]
+        s.objectWidths = [392, 392]
+        s.objectPageLaidOut = [true, true]
+        return s
+    }()
+    /// §22.4 bible-idle-style-panel — a bible activity in Idle with the Bible style panel open:
+    /// no object selected, the five-tool row above the chips rail.
+    static let bibleIdleStylePanel: Self = {
+        var s = bibleLocked
         s.openTool = "font"
         s.objectYs = [140, 300]
         s.objectWidths = [392, 392]
@@ -3299,6 +3375,12 @@ extension ActivitiesEditorScreen.State {
 
 #Preview("Bible style panel") {
     ActivitiesEditorScreen(state: .bibleStylePanel)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Bible idle style panel") {
+    ActivitiesEditorScreen(state: .bibleIdleStylePanel)
         .safeAreaPadding(.top, 59)
         .frame(width: 440, height: 956, alignment: .top)
 }

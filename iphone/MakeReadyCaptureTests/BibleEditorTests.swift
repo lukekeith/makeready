@@ -305,16 +305,19 @@ final class BibleEditorTests: XCTestCase {
         XCTAssertGreaterThan(grown.pageHeight, s.pageHeight)
     }
 
-    /// D31: dismissing the passage menu without a row leaves the leader on that object with the style tools.
-    func testDismissingThePassageMenuOpensTheStyleTools() async {
+    /// D28: the tool bar is on in Idle, so its Color and Alignment write the scripture and the citation with no edit
+    /// session; dismissing the passage menu without a row enters no edit mode (the workaround is gone).
+    func testIdleBibleToolsRestyleTheScriptureWithoutEditing() async {
         let model = model()
+        model.setBibleStyle(.color("#FFCC00")); model.setBibleStyle(.alignment("right"))
+        XCTAssertEqual(model.document.textObjects.map(\.color), ["#FFCC00", "#FFCC00"])
+        XCTAssertEqual(model.document.textObjects.map(\.alignment), ["right", "right"])
+        XCTAssertEqual(model.editingIndex, -1)
         await model.tapObject(1)
         model.cancelPresentation()
         XCTAssertNil(model.presentation)
-        XCTAssertEqual(model.editingIndex, 1)
-        let s = ActivitiesEditorContainer.screenState(model, app: AppState.shared)
-        XCTAssertEqual(s.editorMode, "editing")
-        await model.tapOff()
         XCTAssertEqual(model.editingIndex, -1)
+        let s = ActivitiesEditorContainer.screenState(model, app: AppState.shared)
+        XCTAssertEqual([s.bibleColor, s.bibleAlignment], ["#FFCC00", "right"])
     }
 }
