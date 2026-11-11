@@ -1,53 +1,51 @@
 # bible-verse-picker — parked
-parked: 2026-11-10 8337e8af · by build phase 4 (Task 8 partial, Tasks 10–11 not started)
-kind: human-step
-blocked: "the four Bible picker screens (books, chapters, verses, reader) don't exist in d2m, and only the owner's /ui2-screen can create them — next: /ui2-screen for bible-books, bible-chapters, bible-verses, bible-reader, then /builder:agent"
+parked: 2026-11-11 ac927896 · by the fleet (the run that parked it wrote no record)
+kind: stuck
+blocked: "the four Bible picker screens (books, chapters, verses, reader) do not exist in d2m, and only the owner's /ui2-screen can create them — next: /ui2-screen for bible-books, bible-chapters, bible-verses, bible-reader, then /builder:agent"
 
 ## What is stuck
-The picker's four pages (Books with search + translation, Chapters, Verses, the Reader with word selection)
-are d2m-built views (SPEC §iphone: "Requested through d2m"), plus one new component, BibleVerseReader (D4).
-d2m has no screen with any of these slugs, and nothing a build agent can call creates one. Until they
-exist, the four picker destinations render an empty page, so a leader cannot yet pick a passage in the app.
-
-Everything else is built and green: the server half (contract frozen 2026-11-10), the iPhone models,
-BibleActions/AppState, the picker flow + one-write return (Task 9), and the editor's whole Bible handling
-(Tasks 12–15). DayChip, SearchResultRow, CanvasTextObject, ActivitiesEditorScreen and the five bible
-colour tokens landed through d2m (commit dc12ee75).
+the four Bible picker screens (books, chapters, verses, reader) do not exist in d2m, and only the owner's /ui2-screen can create them
 
 ## What was tried
-- `request_project_change` subject `bible-reader` → `unknown_subject` (Task 8)
-- `request_project_change` subject `new:BibleVerseReader` → `unknown_subject`: d2m mints a new component only
-  on a request to an EXISTING screen (Task 8)
-- `list_screens` search "bible" → no screens
-- The d2m-channel tool schema was checked by the controller: `request_project_change` takes a component code
-  or an existing screen slug; no tool creates a screen. Calling d2m's HTTP API directly was deliberately not
-  done — screen specs are the owner's `/ui2-screen` program, which `/builder:*` never writes.
+- 3 fleet run(s) in all — `git log --oneline -- docs/features/bible-verse-picker` lists what each changed
 
 ## Evidence
-- `.builder/bible-verse-picker/task-8-report.md` (git-ignored) — "request_project_change with subject
-  new:BibleVerseReader and with bible-reader both fail unknown_subject. new:<Name> minting is allowed only on a
-  request to an EXISTING screen, and no screen bible-* exists (list_screens "bible" → none)."
-- `server/fixtures/screens/bible-books.ts`, `bible-reader.ts` — the screen fixtures already exist (Task 4).
-- SPEC §Decisions D3–D7, D17 and §iphone — the requirements for the four screens and BibleVerseReader;
-  F17 is the build-time risk for the reader's gestures.
+- the run that parked it: /Users/lukekeith/www/makeready/.builder/fleet/logs/bible-verse-picker-03.log — its last lines:
+
+```
+
+**Needs your attention:** d2m wrote its output uncommitted into your main checkout (`/Users/lukekeith/www/makeready`, branch `feature/text-activity`). That's 8 files under `iphone/MakeReadyUI/`, `iphone/MakeReadyCaptureTests/` and `docs/ui2/design-system/tokens.md`. The same changes are committed on this branch, so once you've checked them you can revert them there with `git checkout --`. I left them alone.
+
+**Every test tier showed one red check, but it isn't caused by this branch.** The client design-token check flags `group-members-page.scss`. `client/` is unchanged on this branch, and running that check on `main` (388d0abf) gives the same 16 hits. Each run blamed a different commit, so I closed the phases over it. It will show up again when this merges into `main`.
+
+**Decisions I made, and what each costs if wrong:**
+- **Build order changed:** I built Tasks 9 and 12–15 before 10–11, since none of them use the missing screens. Task 13's "open the picker" step may need a touch-up if the screens change the flow.
+- **Two corrected values in the screen test data:** I used offset 28 instead of the plan's 9, which landed mid-word. The highlight covers "everlasting life", because the KJV text has no "eternal life". Wrong, it's a test-data tweak.
+- **Invalid passages are dropped when saving:** an entry missing a required number is removed, because the server would refuse it anyway. Wrong, a malformed old passage is lost on first edit.
+- **Book categories come from the spec's book ranges,** not a per-book field. No behaviour change either way.
+- **Old search types renamed to `Legacy*`** so the new types own the names. Wrong, it's a rename back.
+- **Empty search sends no request.** Wrong, it costs one request.
+- **The text-fitting check that splits a long passage assumes a 1.2 line height,** because the plan gave none. Wrong, the split point could be off by a line.
+- **Carried into Task 11:** a whole-verse selection must save with no end offset (the spec says "absent = whole verse"). Otherwise every whole-verse citation gets a wrong "a" marker, like "John 3:16a".
+
+**Left for the final review to judge:**
+- A Bible save that hits "not a draft" reports an error instead of reloading and retrying as the Text tile does.
+- New Bible activities use the default background rather than a generated gradient.
+- A locked scripture object can't be deleted from the screen; the delete works only in the model.
+- "Add note" isn't wired.
+- Change passage drops any per-object restyling.
+
+The full record is in `docs/features/bible-verse-picker/PARKED.md`.
+
+📍 bible-verse-picker: building, phase 4/5 (iphone), parked. The four picker screens don't exist in d2m, and only `/ui2-screen` can create them. Next: `/ui2-screen` for bible-books, bible-chapters, bible-verses and bible-reader, then `/builder:agent`.
+```
 
 ## Where to dig
-- `iphone/MakeReady/UI2/Shell/UI2Shell.swift` `page(for:)` — the four `.bible*` destinations render
-  `EmptyView()` (Task 9 placeholder); Tasks 10–11 replace them with containers.
-- `.builder/bible-verse-picker/d2m-api.md` — the names d2m shipped so far; Task 8's rest appends the screens'.
+- start from the run's last lines above and the evidence it names; nothing has been ruled out yet
 
 ## Recommended next step
-Create the four screens in d2m with `/ui2-screen` (doc source: this SPEC — D3–D7, D17, §iphone; slugs
-`bible-books`, `bible-chapters`, `bible-verses`, `bible-reader`), then `/builder:agent`. The build resumes at
-the rest of Task 8 (request the four screens + `new:BibleVerseReader` on `bible-reader`), then Tasks 10–11,
-then closes phase 4 and runs the final review.
-Alternatives: building the pages as hand-written SwiftUI outside MakeReadyUI (violates D3 and the d2m rule,
-and the design would be invented); shipping without a picker (the feature's core is missing).
-
-Also for the owner: d2m wrote its Task-8 output UNCOMMITTED into the main checkout
-(/Users/lukekeith/www/makeready, branch feature/text-activity) — 8 files under iphone/MakeReadyUI/,
-iphone/MakeReadyCaptureTests/ and docs/ui2/design-system/tokens.md. The same diff is committed here as
-dc12ee75; those 8 files there can be reverted with `git checkout --` once you have checked them.
+/ui2-screen for bible-books, bible-chapters, bible-verses, bible-reader, then /builder:agent
 
 ## History
 - 2026-11-10 parked — d2m cannot create the four picker screens; the screens are the owner's /ui2-screen step
+- 2026-11-11 parked — the four Bible picker screens (books, chapters, verses, reader) do not exist in d2m, and only the owner's /ui2-screen can create them
