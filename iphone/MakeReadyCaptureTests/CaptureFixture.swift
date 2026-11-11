@@ -1040,6 +1040,9 @@ struct CaptureComponent: Codable {
     let marks: [CaptureUI2TextMark]?           // C-092 — UTF-16 offsets into `text`
     let animationLoop: Bool?                   // C-092 — `animation.loop`
     let animationElapsed: Double?              // C-092 harness — seconds the clock has run; absent = stopped
+    // C-092 change 2026-11-10 (SPEC D11/D21, bible-verse-picker). Additive:
+    let isLocked: Bool?                        // C-092 — no text input, caret or deletion
+    let isHighlighting: Bool?                  // C-092 — highlighting mode (hold-drag selection)
     // ── preview props ──
     // C-105 Button build 2026-10-13. Reused as-is under the contract's own names: `label`
     // (`String?`) and `leadingGlyph` (`String?` — a library glyph name, C-040's). Additive:
@@ -1135,6 +1138,10 @@ struct CaptureComponent: Codable {
     // OQ-C-081-6 (restored 2026-11-09): each chip's screenshot URL, parallel to `slideIDs`; "" = none.
     let slideImages: [String]?
     let showsHighlightTool: Bool?
+    // activities-editor §20 (chat change 2026-11-10, Bible D21). Additive:
+    let objectLocks: [Bool]?                   // per object isLocked, parallel to objectTexts
+    let objectIDs: [String]?                   // per object id, parallel to objectTexts
+    let highlightingObjectID: String?          // the object in highlighting mode; absent = none
     let showsEffectsTool: Bool?
     let showsEyedropper: Bool?
     let showsWell: Bool?                       // C-094 TextColorPalette
@@ -1366,6 +1373,9 @@ struct CaptureComponent: Codable {
     let resultImageURLs: [String?]?
     // ── preview props ──
     let isEmpty: Bool?                         // C-052 DayChip — §3d, a day with no content
+    let fillToken: String?                     // C-052 DayChip — §3e, a colour token's member name
+    let isUsed: Bool?                          // C-052 DayChip — §3e, used by this lesson
+    let dotToken: String?                      // C-085 SearchResultRow — kind=book, a colour token's member name
     // ── preview props ──
     // C-133 ActivityRail. Reused as-is: `pageCount` (`Int?`, C-097's). Additive:
     let activePage: Int?                       // C-133 — zero-based page on the viewport's midline
@@ -1559,11 +1569,13 @@ struct CaptureContentOrChildren: Codable {
     }
 }
 
-/// C-052 §4 `content: DayChip.Content` — exactly one key set: `{"day": 2}` → `.day(2)`, or
-/// `{"weekday": {"letter": "M", "name": "Monday"}}` → `.weekday(letter:name:)`.
+/// C-052 §4 `content: DayChip.Content` — exactly one key set: `{"day": 2}` → `.day(2)`,
+/// `{"weekday": {"letter": "M", "name": "Monday"}}` → `.weekday(letter:name:)`, or
+/// `{"label": "Gen"}` → `.label("Gen")` (2026-11-10).
 struct CaptureUI2DayChipContent: Codable {
     let day: Int?
     let weekday: CaptureUI2DayChipWeekday?
+    let label: String?
 }
 
 /// C-052 `.weekday(letter:name:)` — the field names are the contract's.
@@ -1617,6 +1629,7 @@ struct CaptureUI2BibleReference: Codable {
         let book: String
         let chapter: Int
         let verse: Int?
+        let isPartial: Bool?                   // C-092 — "b" on start, "a" on end
     }
     let start: Point
     let end: Point?
@@ -1624,7 +1637,7 @@ struct CaptureUI2BibleReference: Codable {
 
     init(from decoder: Decoder) throws {
         if let plain = try? decoder.singleValueContainer().decode(String.self) {
-            start = Point(book: "", chapter: 0, verse: nil)
+            start = Point(book: "", chapter: 0, verse: nil, isPartial: nil)
             end = nil
             text = plain
             return

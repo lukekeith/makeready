@@ -8,16 +8,19 @@
 
 import SwiftUI
 
-/// C-052 DayChip — one filled shape and one centred text run, in two looks (§2):
-/// `day` (the 40×48 rounded box holding an ordinal program-day number) and `weekday`
-/// (the 32×32 circle holding one uppercase weekday letter).
+/// C-052 DayChip — one filled shape and one centred text run, in three looks (§2):
+/// `day` (the 40×48 rounded box holding an ordinal program-day number), `weekday`
+/// (the 32×32 circle holding one uppercase weekday letter) and `label` (2026-11-10: a
+/// column-wide × 48 rounded box holding a short text label, e.g. a book abbreviation).
 ///
 /// §1 deviation 5: no border, no shadow, no icon, no press look — except §3d's dashed outline
-/// for a day with no content. §3a: within one look the fill is the only delta when `isEmpty` is
-/// false; `look` changes shape, size and label type, never the fill.
+/// for a day with no content and §3e's solid outline for a used chip. §3a: within one look the
+/// fill is the only delta when `isEmpty`, `isUsed` and `fillToken` are at their defaults;
+/// `look` changes shape, size and label type, never the fill.
 ///
-/// **Fixed, not content-sized.** §1 deviation 1: a fixed box with `overflow: clip`; a label
-/// wider than the box is clipped, not wrapped and not grown (OQ-C-052-4, ruled).
+/// **Day and weekday are fixed, not content-sized.** §1 deviation 1: a fixed box with
+/// `overflow: clip`; a label wider than the box is clipped, not wrapped and not grown
+/// (OQ-C-052-4, ruled). The `label` look fills its column and never clips (§2).
 ///
 /// Chrome-free: frame, background and outer padding belong to the call site (R-16).
 struct DayChip: View {
@@ -30,6 +33,9 @@ struct DayChip: View {
         /// `letter` is the single uppercase initial drawn ("M"); `name` is the full weekday
         /// name used as the accessibility label ("Monday").
         case weekday(letter: String, name: String)
+        /// §2 (2026-11-10): a text chip whose width fills its grid column, 48 tall. The string
+        /// is drawn as given ("Gen", "Phil", "1Jn") and is never truncated.
+        case label(String)
     }
 
     /// §4 `state` — selects the fill (§3a). `Active` = selected / on, never
@@ -50,6 +56,15 @@ struct DayChip: View {
     /// (R-03), so no existing caller changes.
     var isEmpty: Bool = false
 
+    /// §4 `fillToken` (2026-11-10) — a colour token's Swift member name (`"bibleOlive"`) that
+    /// replaces the Default fill (§3e). `nil` = today's fill; a name that resolves to no token
+    /// draws today's fill. Ignored for `.weekday` and while `isEmpty` applies. Defaulted (R-03).
+    var fillToken: String?
+
+    /// §4 `isUsed` (2026-11-10) — used by this lesson: a 2pt solid `color-accent` outline inside
+    /// the box; the fill never changes (§3e). Ignored for `.weekday`. Defaulted (R-03).
+    var isUsed: Bool = false
+
     /// §4 `onTap` — what it means (select a day, toggle a weekday) is the consumer's call.
     /// No render effect; a defaulted no-op (R-03, R-33).
     var onTap: () -> Void = {}
@@ -61,7 +76,7 @@ struct DayChip: View {
         .buttonStyle(.plain)
         // §4 Accessibility (R-17): a button, selected when Active, labelled per look.
         .accessibilityLabel(accessibilityLabel)
-        .accessibilityValue(isEmptyDay ? "No content" : "")
+        .accessibilityValue(accessibilityValue)
         .accessibilityAddTraits(state == .active ? [.isButton, .isSelected] : .isButton)
         .ui2Element("DayChip")     // capture element map — UI2Element.swift
     }
@@ -78,21 +93,28 @@ struct DayChip: View {
                     // outline, drawn inside the box so the size stays 40 × 48.
                     RoundedRectangle(cornerRadius: Token.Radius.cardSm)
                         .fill(fill)
-                        .overlay {
-                            if isOutlined {
-                                RoundedRectangle(cornerRadius: Token.Radius.cardSm)
-                                    .strokeBorder(
-                                        Token.accent,
-                                        style: StrokeStyle(lineWidth: Self.outlineWidth, dash: Self.outlineDash)
-                                    )
-                            }
-                        }
+                        .overlay { outline }
                         .ui2Element("Chip")
                 )
                 // §1 deviation 1: `overflow: clip`, cut by the chip's own rounded rect.
                 .clipShape(RoundedRectangle(cornerRadius: Token.Radius.cardSm))
                 // §3c (owner ruling 2026-11-06): the day target is the chip's own 40 × 48 box,
                 // with no expansion beyond it.
+                .contentShape(Rectangle())
+        case .label(let text):
+            label(text, style: Token.TypeStyle.body, lineBox: Self.dayLineBox, part: "Label")
+                // §2 (2026-11-10): the consumer's grid sets the width — the chip takes the whole
+                // column — and the height is 48. Centred on both axes; no clip (never truncated).
+                .frame(maxWidth: .infinity)
+                .frame(height: Self.dayHeight)
+                .background(
+                    // §2: `radius-card-sm` (4), fill per state / `fillToken`; §3e's used outline.
+                    RoundedRectangle(cornerRadius: Token.Radius.cardSm)
+                        .fill(fill)
+                        .overlay { outline }
+                        .ui2Element("Chip")
+                )
+                // §3c: the label target is the chip's own box, column width × 48.
                 .contentShape(Rectangle())
         case .weekday(let letter, _):
             label(letter, style: Token.TypeStyle.titleCard, lineBox: Self.weekdayLineBox, part: "Letter")
@@ -120,11 +142,33 @@ struct DayChip: View {
             .designTextStyle(style)
             // §2: `color-text-primary`, both looks (deviation 2, ruled via OQ-C-022-4);
             // §3d: the outline chip's number is `color-text-secondary`.
-            .foregroundColor(isOutlined ? Token.textSecondary : Token.textPrimary)
+            .foregroundColor(isEmptyDay && state == .default ? Token.textSecondary : Token.textPrimary)
             .lineLimit(1)
             .fixedSize()
             .frame(height: lineBox)
             .ui2Element(part)
+    }
+
+    /// §3d's 1pt dashed outline (empty, unselected day) or §3e's 2pt solid outline (used);
+    /// both drawn inside the box so the size does not change. Used wins over empty.
+    @ViewBuilder
+    private var outline: some View {
+        if isUsedChip {
+            RoundedRectangle(cornerRadius: Token.Radius.cardSm)
+                .strokeBorder(Token.accent, lineWidth: Self.usedOutlineWidth)
+        } else if isOutlined {
+            RoundedRectangle(cornerRadius: Token.Radius.cardSm)
+                .strokeBorder(
+                    Token.accent,
+                    style: StrokeStyle(lineWidth: Self.outlineWidth, dash: Self.outlineDash)
+                )
+        }
+    }
+
+    /// §3e: `isUsed` has a designed meaning in the day and label looks only.
+    private var isUsedChip: Bool {
+        if case .weekday = content { return false }
+        return isUsed
     }
 
     /// §3d: `isEmpty` has a designed meaning in the day look only.
@@ -133,27 +177,54 @@ struct DayChip: View {
         return isEmpty
     }
 
-    /// §3d: the outline draws for an unselected empty day; selection wins (§3a).
+    /// §3d: the dashed outline draws for an unselected empty day; selection wins (§3a), and
+    /// §3e's used outline wins over it.
     private var isOutlined: Bool {
-        isEmptyDay && state == .default
+        isEmptyDay && state == .default && !isUsedChip
     }
 
-    /// §3a: the one delta within a look, the same two tokens in both looks; §3d's outline has
-    /// no fill.
+    /// §3a: the one delta within a look, the same two tokens in every look; §3d's empty day
+    /// has no fill; §3e's `fillToken` replaces the Default fill (day and label looks only).
     private var fill: Color {
-        if isOutlined { return .clear }
+        if isEmptyDay && state == .default { return .clear }
         switch state {
-        // §1 deviation 3: white at 20% alpha, not a grey — it composites against the ground.
-        case .default: return Token.white20
+        case .default:
+            if let category = categoryFill { return category }
+            // §1 deviation 3: white at 20% alpha, not a grey — it composites against the ground.
+            return Token.white20
         case .active: return Token.accent
         }
     }
+
+    /// §3e: `fillToken` resolved against the token table by Swift member name, never a hex.
+    /// The weekday look ignores it; an unknown name resolves to nil (today's fill).
+    private var categoryFill: Color? {
+        if case .weekday = content { return nil }
+        guard let fillToken else { return nil }
+        return Self.fillTokens[fillToken]
+    }
+
+    /// §2 token table (2026-11-10): the colour tokens `fillToken` may name, keyed by member name.
+    private static let fillTokens: [String: Color] = [
+        "bibleOlive": Token.bibleOlive,
+        "bibleTeal": Token.bibleTeal,
+        "bibleGreen": Token.bibleGreen,
+        "bibleBrown": Token.bibleBrown,
+        "bibleMaroon": Token.bibleMaroon
+    ]
 
     private var accessibilityLabel: String {
         switch content {
         case .day(let number): "Day \(number)"
         case .weekday(_, let name): name
+        case .label(let text): text
         }
+    }
+
+    /// §4 Accessibility: "No content" for an empty day, "Used" for a used day or label chip.
+    private var accessibilityValue: String {
+        if isUsedChip { return "Used" }
+        return isEmptyDay ? "No content" : ""
     }
 
     /// §2: the day look's fixed box.
@@ -162,6 +233,8 @@ struct DayChip: View {
     /// §3d: the outline's stroke width and dash, read from Figma's `state=Incomplete` (`4788:45576`).
     private static let outlineWidth: CGFloat = 1
     private static let outlineDash: [CGFloat] = [2, 2]
+    /// §3e: the used chip's solid outline width.
+    private static let usedOutlineWidth: CGFloat = 2
     /// §2: the weekday look's fixed circle.
     private static let weekdaySide: CGFloat = 32
     /// §3c / OQ-C-052-5: the weekday look's expanded target, both axes.

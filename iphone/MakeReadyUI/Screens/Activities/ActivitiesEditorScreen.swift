@@ -154,6 +154,15 @@ struct ActivitiesEditorScreen: View {
         /// active guides are `snapPosition`'s at its seeded position, and C-091's reserved zones
         /// draw only while its box enters one. −1 = none (the snap-centre / -edge / -gap previews).
         var snapIndex: Int = -1
+        /// §20.1 (D11): per object, `isLocked` (parallel to `objectTexts`; a short array leaves the
+        /// rest unlocked) — no text input, no keyboard, no text deletion; still movable, scalable,
+        /// rotatable, restylable and highlightable. Set only for `bible` activities' scripture.
+        var objectLocks: [Bool] = []
+        /// §20.1: each object's id, parallel to `objectTexts` — what `highlightingObjectID` names.
+        var objectIDs: [String] = []
+        /// §20.1 / §20.2: the object in highlighting mode — drawn at full size with its spans;
+        /// nil = none (the text activity's Highlighting, unchanged).
+        var highlightingObjectID: String?
 
         /// §10.8 `gradient`: `base` `#RRGGBB`, `blobs`, `hidden`.
         struct Gradient: Equatable {
@@ -243,6 +252,22 @@ struct ActivitiesEditorScreen: View {
         }
     }
 
+    /// §20.3 (D12): one row of the locked-object C-066 menu the container presents.
+    struct LockedObjectMenuRow: Equatable, Identifiable {
+        enum ID: String { case changePassage, highlight }
+        let id: ID
+        let label: String
+        /// The row's Glyph raw name (C-066 / ActionMenuRow `glyph`).
+        let glyph: String
+    }
+
+    /// §20.3: the rows a tap on a locked scripture or citation object in Idle offers, in order
+    /// Change passage · Highlight. The screen presents nothing; the container shows them.
+    static let lockedObjectMenuRows: [LockedObjectMenuRow] = [
+        .init(id: .changePassage, label: "Change passage", glyph: GlyphName.bookOpen.rawValue),
+        .init(id: .highlight, label: "Highlight", glyph: GlyphName.textHighlight.rawValue)
+    ]
+
     /// §3 Tools — the tool row, order 1–7.
     enum Tool: String, CaseIterable {
         case color, background, alignment, font, highlight, animation, actions
@@ -304,6 +329,11 @@ struct ActivitiesEditorScreen: View {
     var onAddNote: () -> Void = {}
     var onRetry: () -> Void = {}
     var onDiscard: () -> Void = {}
+    /// §20.1: a selected range in the highlighting object — UTF-16 offsets into its text, `end`
+    /// exclusive, reported by C-092's highlighting mode on lift.
+    var onHighlightRange: (_ objectIndex: Int, _ start: Int, _ end: Int) -> Void = { _, _, _ in }
+    /// §20.2: tool 5 again, or Done, while `highlightingObjectID` is set.
+    var onEndHighlighting: () -> Void = {}
 
     // §9.1: the screen's display state of `State.objects` — an edit applies here and is reported
     // through `onEditObject`, without waiting for the container's echo; a new `State` re-seeds it.
@@ -406,7 +436,9 @@ struct ActivitiesEditorScreen: View {
         onDeleteHighlight: @escaping () -> Void = {},
         onAddNote: @escaping () -> Void = {},
         onRetry: @escaping () -> Void = {},
-        onDiscard: @escaping () -> Void = {}
+        onDiscard: @escaping () -> Void = {},
+        onHighlightRange: @escaping (_ objectIndex: Int, _ start: Int, _ end: Int) -> Void = { _, _, _ in },
+        onEndHighlighting: @escaping () -> Void = {}
     ) {
         self.state = state
         self.onBack = onBack
@@ -432,6 +464,8 @@ struct ActivitiesEditorScreen: View {
         self.onAddNote = onAddNote
         self.onRetry = onRetry
         self.onDiscard = onDiscard
+        self.onHighlightRange = onHighlightRange
+        self.onEndHighlighting = onEndHighlighting
         _shownObjects = SwiftUI.State(initialValue: Self.committedObjects(state))
         let actions = Self.pageActions(state)
         _actions = SwiftUI.State(initialValue: actions)
@@ -698,7 +732,8 @@ struct ActivitiesEditorScreen: View {
             trailingEnabled: isToolMode || state.canSave,
             onLeading: onBack,
             onCancel: onCancel,
-            onDone: onDone
+            // §20.2: Done ends the highlighting mode of a locked object.
+            onDone: highlightingIndex != nil ? onEndHighlighting : onDone
         )
         // §2 deviation 7: the 1px hairline under C-040 is the screen's, not the component's.
         .overlay(alignment: .bottom) {
@@ -854,9 +889,13 @@ struct ActivitiesEditorScreen: View {
     /// transform and the edit slot — position, scale and rotation in one curve — and never jumps.
     private func canvasObject(_ object: CommittedObject, index: Int) -> some View {
         let isEdited = index == editedIndex
+        // §20.2: the highlighting object takes the edit slot at full size, with its spans.
+        let isSlotted = isEdited || index == highlightingIndex
+        // §20.1 (D11): a locked object takes no text input — editing it is tools only, no caret.
+        let isLocked = object.isLocked
         return CanvasTextObject(
             text: object.text,
-            onChange: { if isEdited { apply(.init(index: index, text: $0)) } },
+            onChange: { if isEdited && !isLocked { apply(.init(index: index, text: $0)) } },
             font: object.font,
             weight: object.weight,
             size: object.size,
@@ -869,12 +908,17 @@ struct ActivitiesEditorScreen: View {
             effect: isEdited ? draftEffect : .none,
             // C-092 draws scale 1 and rotation 0 while editing (§3: re-opening shows the object at
             // `size`, unscaled); its committed transform returns on Done.
-            transform: isEdited ? .identity : object.transform,
+            transform: isSlotted ? .identity : object.transform,
             // §10.10: drag, pinch and rotate are the canvas-wide recognizers' (`CanvasManipulation`);
             // the object only says it is under the first touch.
             manipulation: .host,
-            editing: isEdited,
+            editing: isEdited && !isLocked,
+            // §20.1 (D11): C-092 itself refuses text input on a locked object.
+            isLocked: isLocked,
+            // §20.2 (D21): the highlighting object takes C-092's hold-drag selection.
+            isHighlighting: index == highlightingIndex,
             highlights: isEdited ? [] : object.highlights,
+            onHighlightRange: { start, end in onHighlightRange(index, start, end) },
             // D25: the object the finger-down grabbed — the topmost grab area may not be this box.
             onTap: {
                 let target = tapTarget ?? index
@@ -890,11 +934,14 @@ struct ActivitiesEditorScreen: View {
             if index == editedIndex { measuredDraftHeight = height } else { measuredHeights[index] = height }
         }
         .ui2Element(index == 0 ? "C-092 CanvasTextObject" : "C-092 CanvasTextObject \(index + 1)")
-        .position(isEdited ? CGPoint(x: draftCentreX, y: Self.editSlotY) : object.transform.position)
-        .zIndex(isEdited ? 1 : 0)
+        .position(isEdited ? CGPoint(x: draftCentreX, y: Self.editSlotY)
+                  : isSlotted ? CGPoint(x: Self.referenceWidth / 2, y: Self.editSlotY)
+                  : object.transform.position)
+        .zIndex(isSlotted ? 1 : 0)
         // §13.2: Idle ↔ Editing is one animation — one ease-out for position, scale and rotation,
         // no delayed dispatch. A gesture frame never changes `editedIndex`, so it stays 1:1.
         .animation(Self.editTransition, value: editedIndex)
+        .animation(Self.editTransition, value: highlightingIndex)
     }
 
     // MARK: - §10.10: pinch and rotate anywhere on the canvas
@@ -1186,6 +1233,14 @@ struct ActivitiesEditorScreen: View {
     }
 
     private var edited: CommittedObject? { editedIndex.map { shownObjects[$0] } }
+
+    /// §20.2: the index of the object `highlightingObjectID` names, while Highlighting; nil
+    /// otherwise (a text activity never sets it).
+    private var highlightingIndex: Int? {
+        guard mode == .highlighting, let id = state.highlightingObjectID,
+              let index = state.objectIDs.firstIndex(of: id), shownObjects.indices.contains(index) else { return nil }
+        return index
+    }
 
     /// §2 item 3 (D8): an inline action previews as C-105, 24 wu below the last object.
     @ViewBuilder
@@ -1764,7 +1819,8 @@ struct ActivitiesEditorScreen: View {
         endField()
         switch tool {
         case .highlight:
-            onToggleHighlight()
+            // §20.2: tool 5 again ends a locked object's highlighting mode.
+            if highlightingIndex != nil { onEndHighlighting() } else { onToggleHighlight() }
         default:
             // §10.1: tapping the open tool again closes its rails.
             setOpenTool(openTool == tool ? nil : tool)
@@ -1889,6 +1945,8 @@ struct ActivitiesEditorScreen: View {
         var startNumber: Int
         var transform: CanvasTextObject.Transform
         var highlights: [CanvasTextObject.TextRange]
+        /// §20.1 (D11).
+        var isLocked = false
 
         var color: Color { ActivitiesEditorScreen.hexColor(colorHex) ?? Token.textPrimary }
     }
@@ -1912,7 +1970,8 @@ struct ActivitiesEditorScreen: View {
                     rotation: .degrees(element(state.objectRotations, index, 0)),
                     width: objectWidth(state, index)
                 ),
-                highlights: highlights(state, forObject: index)
+                highlights: highlights(state, forObject: index),
+                isLocked: element(state.objectLocks, index, false)
             )
         }
         if !state.verseTexts.isEmpty {
@@ -2632,6 +2691,51 @@ extension ActivitiesEditorScreen.State {
         s.firstVerse = 8
         return s
     }()
+    /// §20.4: a `bible` activity's starter document — the citation (14pt) over the scripture
+    /// (serif 18pt, verses numbered 16–18), both locked.
+    private static let bibleLocked: Self = {
+        var s = base
+        s.showsHighlightTool = true
+        s.canSave = true
+        s.objectIDs = ["citation", "scripture"]
+        s.objectTexts = [
+            "John 3:16b-18 ENGKJV",
+            [
+                "that whosoever believeth in him should not perish, but have everlasting life.",
+                "For God sent not his Son into the world to condemn the world; but that the world through him might be saved.",
+                "He that believeth on him is not condemned: but he that believeth not is condemned already, because he hath not believed in the name of the only begotten Son of God."
+            ].joined(separator: "\n")
+        ]
+        s.objectFonts = ["sans", "serif"]
+        s.objectColors = [white, white]
+        s.objectWeights = ["medium", "regular"]
+        s.objectSizes = [14, 18]
+        s.objectAlignments = ["left", "left"]
+        s.objectListStyles = ["", "bibleVerse"]
+        s.objectStartNumbers = [1, 16]
+        s.objectXs = [220, 220]
+        s.objectYs = [300, 470]
+        s.objectScales = [1, 1]
+        s.objectRotations = [0, 0]
+        s.objectHeights = [17.5, 270]
+        s.objectLocks = [true, true]
+        return s
+    }()
+    /// §20.5 bible-idle-locked — Idle, both objects locked.
+    static let bibleIdleLocked = bibleLocked
+    /// §20.5 bible-highlighting — the scripture in highlighting mode, a range selected.
+    static let bibleHighlighting: Self = {
+        var s = bibleLocked
+        s.editorMode = "highlighting"
+        s.openTool = "highlight"
+        s.highlightingObjectID = "scripture"
+        s.highlightIDs = ["h1"]
+        s.highlightObjects = [1]
+        s.highlightStarts = [78]
+        s.highlightEnds = [117]
+        s.selectedHighlightID = "h1"
+        return s
+    }()
     /// §6 Background sheet (D4) over an image, its focal point and wash set.
     static let backgroundSheet: Self = {
         var s = editing(sampleText, tool: "background")
@@ -2848,6 +2952,18 @@ extension ActivitiesEditorScreen.State {
 
 #Preview("Bible verse") {
     ActivitiesEditorScreen(state: .bibleVerse)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Bible idle locked") {
+    ActivitiesEditorScreen(state: .bibleIdleLocked)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Bible highlighting") {
+    ActivitiesEditorScreen(state: .bibleHighlighting)
         .safeAreaPadding(.top, 59)
         .frame(width: 440, height: 956, alignment: .top)
 }

@@ -20,9 +20,10 @@ import SwiftUI
 /// background, draws no hairline (deviation 10, the consumer's) and adds no outer padding.
 struct SearchResultRow: View {
 
-    /// §4 `kind` — "Selects the badge glyph and the image's shape". Nested per R-36; one case per
-    /// §4 value (R-06).
-    enum Kind: String {
+    /// §4 `kind` — "Selects the badge glyph (or, for `book`, the dot) and the image's shape".
+    /// Nested per R-36; one case per §4 value (R-06). "`Kind` is an enum with one case carrying a
+    /// value, `book(dotToken:)`; every other case is plain, so existing call sites are unchanged."
+    enum Kind: Hashable {
         case member
         case media
         case program
@@ -31,6 +32,27 @@ struct SearchResultRow: View {
         case event
         case post
         case photo
+        /// §2 Dot (SPEC D6 / D17): `dotToken` is a colour token's member name ("bibleMaroon").
+        case book(dotToken: String)
+        /// §2 (SPEC D6 / D17): a reference, a named passage or a recent query; description ≤ 2 lines.
+        case verse
+
+        /// The plain cases by name, so a `Kind(rawValue:)` call site is unchanged. `book` carries a
+        /// value and has no raw form: it is built with `.book(dotToken:)`.
+        init?(rawValue: String) {
+            switch rawValue {
+            case "member": self = .member
+            case "media": self = .media
+            case "program": self = .program
+            case "group": self = .group
+            case "lesson": self = .lesson
+            case "event": self = .event
+            case "post": self = .post
+            case "photo": self = .photo
+            case "verse": self = .verse
+            default: return nil
+            }
+        }
     }
 
     /// §4 `trailing` — "`remove` draws `close-large-carbon` with its 44pt target (recents);
@@ -97,7 +119,12 @@ struct SearchResultRow: View {
     /// with or without `imageURL`, so every title starts at the same x". The Badge sits at the
     /// slot's leading edge, y-centred.
     @ViewBuilder private var leadingSlot: some View {
-        if let imageURL {
+        if case .book(let dotToken) = kind {
+            // §2 Dot: "in place of the Badge (deviation 12) … A book never has an image".
+            dot(dotToken)
+                .frame(width: Self.slotSize, alignment: .leading)
+        } else if let imageURL, kind != .verse {
+            // §4 `imageURL`: "every kind except `book` and `verse`, which ignore it".
             rowImage(imageURL)
         } else {
             badge
@@ -142,10 +169,32 @@ struct SearchResultRow: View {
         switch kind {
         case .member, .group:
             return AnyShape(Circle())
-        case .program, .media, .lesson, .event, .post, .photo:
+        case .program, .media, .lesson, .event, .post, .photo, .book, .verse:
+            // `book` and `verse` never draw an image (§4 `imageURL`); listed for exhaustiveness.
             return AnyShape(RoundedRectangle(cornerRadius: Token.Radius.cardSm))
         }
     }
+
+    /// §2 Dot (`kind=book`): "a 12×12 disc, `radius-circle`, filled with the colour token named by
+    /// `dotToken` … resolved by the row; an unknown name draws the dot in `color-white-50`.
+    /// Decorative." `radius-circle` is 50% (parsed:false), drawn as Circle.
+    private func dot(_ dotToken: String) -> some View {
+        Circle()
+            .fill(Self.dotTokens[dotToken] ?? Token.white50)
+            .frame(width: Self.dotSize, height: Self.dotSize)
+            .accessibilityHidden(true)
+            .ui2Element("Dot")
+    }
+
+    /// §2 Tokens: "the five `bible*` colour tokens through `dotToken` (existing rows from C-052)",
+    /// keyed by member name — the DayChip `fillToken` table's shape.
+    private static let dotTokens: [String: Color] = [
+        "bibleOlive": Token.bibleOlive,
+        "bibleTeal": Token.bibleTeal,
+        "bibleGreen": Token.bibleGreen,
+        "bibleBrown": Token.bibleBrown,
+        "bibleMaroon": Token.bibleMaroon
+    ]
 
     /// §2 Badge (inline part, OQ-C-085-001): "24×24 disc, `radius-circle`, fill
     /// `color-card-border` (deviation 8); holds ONE 18×18 glyph centred, tinted
@@ -184,18 +233,38 @@ struct SearchResultRow: View {
     }
 
     /// §2 Description (when non-nil): "`type-body` (SF Pro Regular 14/14),
-    /// `color-text-secondary` (deviation 9); one line, tail-truncated" (OQ-C-085-004).
+    /// `color-text-secondary` (deviation 9); one line, tail-truncated" (OQ-C-085-004). "`verse`
+    /// only: up to 2 lines, wrapping, tail-truncated after the second (deviation 12)" — it sizes to
+    /// its text (74 or 88), never padded to two lines.
     @ViewBuilder private var descriptionText: some View {
         if let description {
-            Text(description)
-                .designTextStyle(Token.TypeStyle.body)
-                .foregroundStyle(Token.textSecondary)
-                .lineLimit(1)
-                .truncationMode(.tail)
+            if kind == .verse {
+                // One line when it fits (74), else two line boxes (88 = 16 + 20 + 8 + 28 + 16).
+                ViewThatFits(in: .horizontal) {
+                    descriptionLine(description, lines: 1)
+                        .fixedSize(horizontal: true, vertical: false)
+                    descriptionLine(description, lines: 2)
+                }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .frame(height: Self.lineBox(Token.TypeStyle.body))
                 .ui2Element("Description")
+            } else {
+                descriptionLine(description, lines: 1)
+                    .ui2Element("Description")
+            }
         }
+    }
+
+    /// The description run pinned to `lines` line boxes of `type-body` (14 each), so §2's heights
+    /// hold whatever the font's natural leading.
+    private func descriptionLine(_ text: String, lines: Int) -> some View {
+        Text(text)
+            .designTextStyle(Token.TypeStyle.body)
+            .foregroundStyle(Token.textSecondary)
+            .lineLimit(lines)
+            .truncationMode(.tail)
+            .fixedSize(horizontal: false, vertical: lines > 1)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: Self.lineBox(Token.TypeStyle.body) * CGFloat(lines))
     }
 
     /// §2 Trailing.
@@ -237,7 +306,8 @@ struct SearchResultRow: View {
 
     /// §2 badge glyph per `kind`: member / media / program from the designed badge set;
     /// group / lesson / event / post per OQ-C-085-002 ("group → users, lesson → file-text,
-    /// event → calendar-days, post → message-circle"); photo → `image` per D67.
+    /// event → calendar-days, post → message-circle"); photo → `image` per D67; verse →
+    /// `book-open` per D17 ("shares program's glyph"). `book` draws the dot, never the badge.
     private static func glyphName(_ kind: Kind) -> GlyphName {
         switch kind {
         case .member: return .userFilledCarbon
@@ -248,6 +318,7 @@ struct SearchResultRow: View {
         case .event: return .calendarDays
         case .post: return .messageCircle
         case .photo: return .image
+        case .verse, .book: return .bookOpen
         }
     }
 
@@ -260,7 +331,7 @@ struct SearchResultRow: View {
     }
 
     /// §4 Accessibility: "the kind's name (\"Program\", \"Member\", \"Media\", \"Group\",
-    /// \"Lesson\", \"Event\", \"Post\", \"Photo\")".
+    /// \"Lesson\", \"Event\", \"Post\", \"Photo\", \"Book\", \"Verse\")".
     private static func kindName(_ kind: Kind) -> String {
         switch kind {
         case .member: return "Member"
@@ -271,6 +342,8 @@ struct SearchResultRow: View {
         case .event: return "Event"
         case .post: return "Post"
         case .photo: return "Photo"
+        case .book: return "Book"
+        case .verse: return "Verse"
         }
     }
 
@@ -281,6 +354,8 @@ struct SearchResultRow: View {
     private static let slotSize: CGFloat = 42
     // GAP — C-085 §2: glyphs "18×18"; the glyph size scale has no 18 step.
     private static let glyphSize: CGFloat = 18
+    // GAP — C-085 §2: "dot diameter 12 (D17)", no token row.
+    private static let dotSize: CGFloat = 12
     // GAP — C-085 §2 / deviation 6: "a 44pt invisible hit target", no token row.
     private static let hitTarget: CGFloat = 44
 

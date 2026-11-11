@@ -875,25 +875,38 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         // either-shape `CaptureContentOrChildren` (C-091's slot is the other shape); `state`
         // reuses the existing `String?` field under the contract's own name.
         let ui2C052Content: MakeReadyUI.DayChip.Content
-        switch (c.content?.dayChip?.day, c.content?.dayChip?.weekday) {
-        case let (day?, nil):
+        switch (c.content?.dayChip?.day, c.content?.dayChip?.weekday, c.content?.dayChip?.label) {
+        case let (day?, nil, nil):
             ui2C052Content = .day(day)
-        case let (nil, weekday?):
+        case let (nil, weekday?, nil):
             ui2C052Content = .weekday(letter: weekday.letter, name: weekday.name)
+        case let (nil, nil, label?):
+            ui2C052Content = .label(label)
         default:
             throw ViewRegistryError.unknownView(
-                "component.ui2.C-052: props.content must be {\"day\": n} or {\"weekday\": {\"letter\", \"name\"}}"
+                "component.ui2.C-052: props.content must be {\"day\": n}, {\"weekday\": {\"letter\", \"name\"}} or {\"label\": s}"
             )
         }
+        let ui2C052IsLabel: Bool
+        if case .label = ui2C052Content { ui2C052IsLabel = true } else { ui2C052IsLabel = false }
         guard let ui2C052Raw = c.state,
               let ui2C052State = MakeReadyUI.DayChip.State(rawValue: ui2C052Raw) else {
             throw ViewRegistryError.unknownView("component.ui2.C-052: props.state must be Default|Active")
         }
         return declareCase(
-            MakeReadyUI.DayChip(content: ui2C052Content, state: ui2C052State, isEmpty: c.isEmpty ?? false),
-            // C-052 §2 fixes the component's own footprint (40×48 day, 32×32 weekday), so the
-            // call site fixes no width — it supplies the outer margin and the ground only.
-            PreviewFrame(alignment: .leading, intrinsic: true)
+            MakeReadyUI.DayChip(
+                content: ui2C052Content,
+                state: ui2C052State,
+                isEmpty: c.isEmpty ?? false,
+                fillToken: c.fillToken,
+                isUsed: c.isUsed ?? false
+            ),
+            // C-052 §2 fixes the day and weekday footprints (40×48, 32×32), so the call site fixes
+            // no width for them. The label look fills its column (2026-11-10): one 5-column grid
+            // column at 375pt (~60pt) is the width the call site gives it.
+            ui2C052IsLabel
+                ? PreviewFrame(width: 60, alignment: .leading)
+                : PreviewFrame(alignment: .leading, intrinsic: true)
         )
     case "component.ui2.C-057":
         guard let c = fixture.state?.component else {
@@ -4016,7 +4029,10 @@ private func buildScreenActivitiesEditor(_ fixture: CaptureFixture) throws -> An
             readOnlyTitle: c.readOnlyTitle ?? sample.readOnlyTitle,
             readOnlyPosterURL: readOnlyPosterURL,
             sliderDocked: c.sliderDocked ?? sample.sliderDocked,
-            snapIndex: c.snapIndex ?? sample.snapIndex
+            snapIndex: c.snapIndex ?? sample.snapIndex,
+            objectLocks: c.objectLocks ?? sample.objectLocks,
+            objectIDs: c.objectIDs ?? sample.objectIDs,
+            highlightingObjectID: c.highlightingObjectID ?? sample.highlightingObjectID
         )
     )
     .safeAreaPadding(.top, device.safeArea.top)
@@ -4556,9 +4572,19 @@ private func buildUI2C085(_ fixture: CaptureFixture) throws -> AnyView {
     }
     // C-085 §4: `kind`, `title` and `trailing` are required (R-07), so a nil is a fixture bug;
     // `description` and `imageURL` default to nil. `onTap` / `onRemove` are no-ops in a still capture.
-    guard let ui2C085Kind = c.kind.flatMap(MakeReadyUI.SearchResultRow.Kind.init(rawValue:)) else {
+    // `book` carries its §4 `dotToken` (a colour token's member name), so it is built from
+    // `props.dotToken`; every plain case decodes by name.
+    let ui2C085Kind: MakeReadyUI.SearchResultRow.Kind
+    if c.kind == "book" {
+        guard let dotToken = c.dotToken else {
+            throw ViewRegistryError.unknownView("component.ui2.C-085: kind book needs props.dotToken")
+        }
+        ui2C085Kind = .book(dotToken: dotToken)
+    } else if let kind = c.kind.flatMap(MakeReadyUI.SearchResultRow.Kind.init(rawValue:)) {
+        ui2C085Kind = kind
+    } else {
         throw ViewRegistryError.unknownView(
-            "component.ui2.C-085: props.kind must be member|media|program|group|lesson|event|post|photo")
+            "component.ui2.C-085: props.kind must be member|media|program|group|lesson|event|post|photo|book|verse")
     }
     guard let ui2C085Title = c.title else {
         throw ViewRegistryError.unknownView("component.ui2.C-085: props.title is required")
@@ -4961,8 +4987,13 @@ private func buildUI2C092(_ fixture: CaptureFixture) throws -> AnyView {
     }
     let ui2C092Reference = c.reference.map { r in
         MakeReadyUI.CanvasTextObject.Reference(
-            start: .init(book: r.start.book, chapter: r.start.chapter, verse: r.start.verse),
-            end: r.end.map { .init(book: $0.book, chapter: $0.chapter, verse: $0.verse) }
+            start: .init(
+                book: r.start.book, chapter: r.start.chapter, verse: r.start.verse,
+                isPartial: r.start.isPartial ?? false
+            ),
+            end: r.end.map {
+                .init(book: $0.book, chapter: $0.chapter, verse: $0.verse, isPartial: $0.isPartial ?? false)
+            }
         )
     }
     var ui2C092Transform = MakeReadyUI.CanvasTextObject.Transform.identity
@@ -5000,6 +5031,8 @@ private func buildUI2C092(_ fixture: CaptureFixture) throws -> AnyView {
             effect: ui2C092Effect,
             transform: ui2C092Transform,
             editing: ui2C092Editing,
+            isLocked: c.isLocked ?? false,
+            isHighlighting: c.isHighlighting ?? false,
             highlights: ui2C092Highlights
         )
         .padding(.vertical, ui2C092Turned ? CGFloat(ui2C092Size) * ui2C092Transform.scale * 1.5 : 0),

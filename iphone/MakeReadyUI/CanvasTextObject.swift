@@ -73,6 +73,9 @@ struct CanvasTextObject: View {
             var chapter: Int
             /// nil = a whole chapter.
             var verse: Int?
+            /// §4: the quotation begins mid-verse on `start` ("b") or ends mid-verse on `end`
+            /// ("a"). Ignored on a whole-chapter point.
+            var isPartial: Bool = false
         }
 
         var start: Point
@@ -176,10 +179,20 @@ struct CanvasTextObject: View {
     /// §4 — an absolute transform in wu measured from where the gesture started; fired here under
     /// `manipulation = .own`, by the host under `.host`. Never fires in `viewer`.
     let onTransform: (Transform) -> Void
-    /// §4 — first responder with the caret; the keyboard is the screen's. Ignored in `viewer`.
+    /// §4 — first responder with the caret; the keyboard is the screen's. Ignored in `viewer`,
+    /// while `isLocked` and while `isHighlighting`.
     let editing: Bool
+    /// §4 (SPEC D11) — no text input, caret, keyboard or deletion; still movable, scalable,
+    /// rotatable, restylable and highlightable. Ignored in `viewer`.
+    let isLocked: Bool
+    /// §4 (SPEC D21) — highlighting mode: touch-and-hold-drag selects a word-snapped range.
+    /// Editor only.
+    let isHighlighting: Bool
     /// §4 — ranges drawn as highlight spans.
     let highlights: [TextRange]
+    /// §4 — a finished selection, `(start, end)` in UTF-16 offsets into `text`, end exclusive.
+    /// Fires in `isHighlighting` only.
+    let onHighlightRange: (Int, Int) -> Void
     /// §4 — a tap with no movement on a committed object (C-091 turns it into Editing).
     let onTap: () -> Void
     /// §4 — a tap on a `link` mark in `viewer` (the href).
@@ -210,7 +223,10 @@ struct CanvasTextObject: View {
         onTouchDown: @escaping () -> Void = {},
         onTransform: @escaping (Transform) -> Void = { _ in },
         editing: Bool,
+        isLocked: Bool = false,
+        isHighlighting: Bool = false,
         highlights: [TextRange] = [],
+        onHighlightRange: @escaping (Int, Int) -> Void = { _, _ in },
         onTap: @escaping () -> Void = {},
         onOpenLink: @escaping (String) -> Void = { _ in }
     ) {
@@ -235,7 +251,10 @@ struct CanvasTextObject: View {
         self.onTouchDown = onTouchDown
         self.onTransform = onTransform
         self.editing = editing
+        self.isLocked = isLocked
+        self.isHighlighting = isHighlighting
         self.highlights = highlights
+        self.onHighlightRange = onHighlightRange
         self.onTap = onTap
         self.onOpenLink = onOpenLink
     }
@@ -246,8 +265,16 @@ struct CanvasTextObject: View {
     @State private var gestureBase: Transform?
     /// R-02: whether this finger-down has already been reported through `onTouchDown`.
     @State private var touchReported = false
+    /// R-02 / §4 `isHighlighting`: the in-progress word-snapped range (UTF-16, end exclusive),
+    /// held only while the finger is down; a cancelled touch resets it and reports nothing.
+    @GestureState private var selection: Range<Int>?
+    /// §4 `isHighlighting`: where each item's glyphs were drawn, for the selection's hit test.
+    @State private var selectionGeometry = CanvasTextSelectionGeometry()
     /// §2 Animation: Reduce Motion ignores the clock and holds the rest pose.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// The block's own space: the selection gesture and each item's measured origin share it.
+    private static let selectionSpace = "CanvasTextObject.selection"
 
     /// §2 Editing — the placeholder copy (OQ-activities-editor-014).
     private static let placeholder = "Type something…"
@@ -261,8 +288,12 @@ struct CanvasTextObject: View {
     /// FLAGGED LITERAL — C-092 §2 Effects: Pixel adds 3 wu per side to the bounds.
     private let pixelInset: CGFloat = 3
 
-    /// §2 Modes: `editing` is ignored in `viewer`.
-    private var isEditing: Bool { mode == .editor && editing }
+    /// §2 Modes: `editing` is ignored in `viewer`; §4 Locked and highlighting: and while
+    /// `isLocked` or `isHighlighting` — the block never becomes first responder.
+    private var isEditing: Bool { mode == .editor && editing && !isLocked && !isHighlighting }
+
+    /// §4 `isLocked`: an empty locked block draws nothing (no placeholder).
+    private var showsPlaceholder: Bool { mode == .editor && !isLocked }
 
     var body: some View {
         switch mode {
@@ -274,10 +305,14 @@ struct CanvasTextObject: View {
                     .contentShape(Rectangle())
                     .onTapGesture { if !isEditing { onTap() } }
                     .simultaneousGesture(touchDown, including: isEditing ? .subviews : .all)
+                    // §4 `isHighlighting`: no move / pinch / rotate while it is on — the touch is
+                    // the selection's.
                     .simultaneousGesture(
                         manipulationGesture,
-                        including: isEditing || manipulation == .host ? .subviews : .all
+                        including: isEditing || isHighlighting || manipulation == .host ? .subviews : .all
                     )
+                    .simultaneousGesture(selectionGesture, including: isHighlighting ? .all : .subviews)
+                    .coordinateSpace(.named(Self.selectionSpace))
             )
                 .accessibilityElement(children: isEditing ? .contain : .ignore)
                 .accessibilityLabel(isEditing ? "" : spokenLabel)
@@ -370,7 +405,7 @@ struct CanvasTextObject: View {
     /// has no placeholder, so empty `text` draws nothing.
     @ViewBuilder
     private func placeholderRow(_ motion: CanvasTextRenderer.Motion) -> some View {
-        if mode == .editor {
+        if showsPlaceholder {
             SwiftUI.Text(verbatim: Self.placeholder)
                 .font(typeface)
                 .foregroundStyle(Token.white50)
@@ -398,8 +433,16 @@ struct CanvasTextObject: View {
                     box: boxColor,
                     caret: isEditing && index == items.count - 1 ? .end : .none,
                     motion: motion,
-                    sparkles: index == 0
+                    sparkles: index == 0,
+                    selectionItem: isHighlighting ? index : nil
                 ))
+                // §4 `isHighlighting`: the item's origin in the block, so its drawn glyph runs
+                // can be hit-tested. Markers and the reference line are never recorded.
+                .onGeometryChange(for: CGPoint.self) { proxy in
+                    proxy.frame(in: .named(Self.selectionSpace)).origin
+                } action: { origin in
+                    selectionGeometry.itemOrigins[index] = origin
+                }
                 .ui2Element(items.count == 1 ? "Text" : "Item \(index + 1)")
         }
     }
@@ -414,7 +457,10 @@ struct CanvasTextObject: View {
                 .customAttribute(CanvasTextSegment(
                     word: segment.word,
                     grapheme: segment.grapheme,
-                    highlighted: segment.highlighted
+                    highlighted: segment.highlighted,
+                    selecting: segment.selecting,
+                    offset: segment.offset,
+                    length: segment.text.utf16.count
                 ))
             // §2 Highlights (legibility fix): glyphs inside a span draw `color-black`.
             let inked = segment.highlighted ? piece.foregroundStyle(Token.black) : piece
@@ -532,6 +578,79 @@ struct CanvasTextObject: View {
             .onEnded { _ in touchReported = false }
     }
 
+    // MARK: - Highlighting (§4 Locked and highlighting, SPEC D21)
+
+    /// A touch-and-hold, then drag: the hold anchors the selection at the word under the finger,
+    /// the drag extends it. Reported once, on lift, through `onHighlightRange`; a cancelled touch
+    /// resets `selection` and reports nothing. Attached only while `isHighlighting`.
+    private var selectionGesture: some Gesture {
+        LongPressGesture()
+            .sequenced(before:
+                // pan-ok: a free 2-D selection drag over the text, only after the hold
+                DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.selectionSpace))
+            )
+            .updating($selection) { value, state, _ in
+                state = selectedRange(value)
+            }
+            .onEnded { value in
+                guard let range = selectedRange(value), !range.isEmpty else { return }
+                onHighlightRange(range.lowerBound, range.upperBound)
+            }
+    }
+
+    private func selectedRange(_ value: SequenceGesture<LongPressGesture, DragGesture>.Value) -> Range<Int>? {
+        guard case .second(true, let drag?) = value,
+              let anchor = offset(at: drag.startLocation),
+              let current = offset(at: drag.location) else { return nil }
+        return wordSnapped(anchor, current)
+    }
+
+    /// The UTF-16 offset of the character drawn nearest `point` (block space): the nearest run
+    /// line first, then across it, then proportionally within the run.
+    private func offset(at point: CGPoint) -> Int? {
+        var best: (dy: CGFloat, dx: CGFloat, offset: Int)?
+        for (item, runs) in selectionGeometry.runs {
+            let origin = selectionGeometry.itemOrigins[item] ?? .zero
+            for run in runs where run.length > 0 {
+                let rect = run.rect.offsetBy(dx: origin.x, dy: origin.y)
+                let dy = max(rect.minY - point.y, 0, point.y - rect.maxY)
+                let dx = max(rect.minX - point.x, 0, point.x - rect.maxX)
+                if let best, (dy, dx) >= (best.dy, best.dx) { continue }
+                let fraction = rect.width > 0 ? min(max((point.x - rect.minX) / rect.width, 0), 1) : 0
+                let within = min(Int(fraction * CGFloat(run.length)), run.length - 1)
+                best = (dy, dx, run.start + within)
+            }
+        }
+        return best.map { min($0.offset, max(text.utf16.count - 1, 0)) }
+    }
+
+    /// §4: the range snaps outward to whole words — the start to the beginning of the word it
+    /// falls in, the end to the end of the word it falls in. A word is the platform's Unicode word
+    /// segment, so a space or punctuation is never a boundary by itself: an offset between words
+    /// moves inward to the nearest word. Nil when no word lies between the two.
+    private func wordSnapped(_ first: Int, _ second: Int) -> Range<Int>? {
+        let lower = min(first, second)
+        let upper = max(first, second)
+        let words = wordRanges
+        guard let start = words.first(where: { $0.upperBound > lower }),
+              let end = words.last(where: { $0.lowerBound <= upper }),
+              start.lowerBound < end.upperBound else { return nil }
+        return start.lowerBound..<end.upperBound
+    }
+
+    /// Unicode word segments of `text` (ICU word boundaries), as UTF-16 ranges (D7).
+    private var wordRanges: [Range<Int>] {
+        let string = text as NSString
+        var ranges: [Range<Int>] = []
+        string.enumerateSubstrings(
+            in: NSRange(location: 0, length: string.length),
+            options: [.byWords, .substringNotRequired]
+        ) { _, range, _, _ in
+            ranges.append(range.location..<(range.location + range.length))
+        }
+        return ranges
+    }
+
     private var currentTransform: Transform { transform }
 
     // MARK: - Clock
@@ -547,12 +666,17 @@ struct CanvasTextObject: View {
         box: Color?,
         caret: CanvasTextRenderer.Caret,
         motion: CanvasTextRenderer.Motion,
-        sparkles: Bool = false
+        sparkles: Bool = false,
+        selectionItem: Int? = nil
     ) -> CanvasTextRenderer {
         CanvasTextRenderer(
             motion: motion,
             box: box,
             highlightColor: Token.highlight,
+            // §4 `isHighlighting`: the in-progress range on accent20 (owner-named).
+            selectionColor: Token.accent20,
+            selectionGeometry: selectionItem.map { _ in selectionGeometry },
+            selectionItem: selectionItem,
             caret: caret,
             animation: animation,
             effect: effect,
@@ -569,6 +693,10 @@ struct CanvasTextObject: View {
         let word: Int
         let grapheme: Int
         let highlighted: Bool
+        /// §4 `isHighlighting`: inside the in-progress selection.
+        let selecting: Bool
+        /// The segment's first UTF-16 offset in `text`.
+        let offset: Int
         let bold: Bool
         let italic: Bool
         let href: String?
@@ -583,6 +711,7 @@ struct CanvasTextObject: View {
     /// share a segment.
     private struct CharacterStyle: Equatable {
         var highlighted = false
+        var selecting = false
         var bold = false
         var italic = false
         var href: String?
@@ -604,6 +733,7 @@ struct CanvasTextObject: View {
             var current = ""
             var currentWord = 0
             var currentGrapheme = 0
+            var currentOffset = 0
             var currentStyle = CharacterStyle()
             var previousWasSpace = true
             var count = 0
@@ -611,7 +741,8 @@ struct CanvasTextObject: View {
                 guard !current.isEmpty else { return }
                 segments.append(Segment(
                     text: current, word: currentWord, grapheme: currentGrapheme,
-                    highlighted: currentStyle.highlighted, bold: currentStyle.bold,
+                    highlighted: currentStyle.highlighted, selecting: currentStyle.selecting,
+                    offset: currentOffset, bold: currentStyle.bold,
                     italic: currentStyle.italic, href: currentStyle.href
                 ))
                 current = ""
@@ -625,6 +756,7 @@ struct CanvasTextObject: View {
                 if current.isEmpty {
                     currentWord = segmentWord
                     currentGrapheme = grapheme
+                    currentOffset = utf16Offset
                     currentStyle = style
                 }
                 current.append(character)
@@ -654,6 +786,9 @@ struct CanvasTextObject: View {
         }
         for highlight in highlights {
             apply(highlight.start, highlight.end) { $0.highlighted = true }
+        }
+        if let selection {
+            apply(selection.lowerBound, selection.upperBound) { $0.selecting = true }
         }
         for mark in marks {
             switch mark.kind {
@@ -725,7 +860,7 @@ struct CanvasTextObject: View {
     /// §2 Accessibility (R-17): `text` (the placeholder copy when empty in the editor), each
     /// marker spoken before its item, the formatted reference last. The label box is decorative.
     private var spokenLabel: String {
-        guard !text.isEmpty else { return mode == .editor ? Self.placeholder : "" }
+        guard !text.isEmpty else { return showsPlaceholder ? Self.placeholder : "" }
         var parts: [String] = []
         for (index, line) in text.split(separator: "\n", omittingEmptySubsequences: false).enumerated() {
             switch listStyle {
@@ -832,31 +967,43 @@ extension CanvasTextObject.Font {
 /// §2 Reference: a pure function of the `Reference` value (R-04). OQ-C-092-004 (owner): a hyphen
 /// without spaces within a chapter ("1:1-2"), a spaced en dash across chapters or books
 /// ("1:1 – 2:3"). The ruling makes this ONE formatter shared with the Bible reader; the preview
-/// module cannot import the app, so it lives here until promotion.
+/// module cannot import the app, so it lives here until promotion. §4 partial verses: a partial
+/// start verse takes "b", a partial end verse "a" ("John 3:16b-18a", "John 3:16b"); whole verses
+/// are unchanged.
 enum BibleReferenceFormatter {
     static func format(_ reference: CanvasTextObject.Reference) -> String {
         let start = reference.start
-        guard let end = reference.end, end != start else { return point(start, withBook: true) }
+        // An end equal to the start (partial flag included) collapses to the single verse.
+        guard let end = reference.end, end != start else { return point(start, suffix: "b", withBook: true) }
         if end.book != start.book {
             // Across books: the end repeats its book.
-            return "\(point(start, withBook: true)) – \(point(end, withBook: true))"
+            return "\(point(start, suffix: "b", withBook: true)) – \(point(end, suffix: "a", withBook: true))"
         }
         if end.chapter == start.chapter {
-            if let first = start.verse, let last = end.verse {
+            if let first = verse(start, suffix: "b"), let last = verse(end, suffix: "a") {
                 return "\(start.book) \(start.chapter):\(first)-\(last)"
             }
-            return point(start, withBook: true)
+            return point(start, suffix: "b", withBook: true)
         }
         if start.verse == nil && end.verse == nil {
             // Whole chapters within one book.
             return "\(start.book) \(start.chapter)-\(end.chapter)"
         }
         // Across chapters of one book: the end drops the repeated book name.
-        return "\(point(start, withBook: true)) – \(point(end, withBook: false))"
+        return "\(point(start, suffix: "b", withBook: true)) – \(point(end, suffix: "a", withBook: false))"
     }
 
-    private static func point(_ point: CanvasTextObject.Reference.Point, withBook: Bool) -> String {
-        let place = point.verse.map { "\(point.chapter):\($0)" } ?? "\(point.chapter)"
+    /// The verse number with its partial marker; nil for a whole-chapter point.
+    private static func verse(_ point: CanvasTextObject.Reference.Point, suffix: String) -> String? {
+        point.verse.map { "\($0)\(point.isPartial ? suffix : "")" }
+    }
+
+    private static func point(
+        _ point: CanvasTextObject.Reference.Point,
+        suffix: String,
+        withBook: Bool
+    ) -> String {
+        let place = verse(point, suffix: suffix).map { "\(point.chapter):\($0)" } ?? "\(point.chapter)"
         return withBook ? "\(point.book) \(place)" : place
     }
 }
@@ -896,6 +1043,25 @@ private struct CanvasTextSegment: TextAttribute {
     let word: Int
     let grapheme: Int
     let highlighted: Bool
+    /// §4 `isHighlighting`: inside the in-progress selection (accent20, glyphs unchanged).
+    let selecting: Bool
+    /// The segment's first UTF-16 offset in `text`, and its UTF-16 length.
+    let offset: Int
+    let length: Int
+}
+
+/// §4 `isHighlighting`: where each item's glyph runs were drawn (in the item Text's own space)
+/// and where each item sits in the block. Written by the renderer as it draws and read by the
+/// selection gesture; a plain reference, not observed, so writing it triggers no view update.
+final class CanvasTextSelectionGeometry {
+    struct Run {
+        let rect: CGRect
+        let start: Int
+        let length: Int
+    }
+
+    var runs: [Int: [Run]] = [:]
+    var itemOrigins: [Int: CGPoint] = [:]
 }
 
 /// Draws one Text of the block, back to front (§2 Label): label box per wrapped line, highlight
@@ -914,6 +1080,11 @@ private struct CanvasTextRenderer: TextRenderer {
     let motion: Motion
     let box: Color?
     let highlightColor: Color
+    /// §4 `isHighlighting`: the in-progress selection's fill.
+    let selectionColor: Color
+    /// §4 `isHighlighting`: set on an item's Text while highlighting, so its runs are recorded.
+    let selectionGeometry: CanvasTextSelectionGeometry?
+    let selectionItem: Int?
     let caret: Caret
     let animation: CanvasTextObject.Animation
     let effect: CanvasTextObject.Effect
@@ -941,6 +1112,7 @@ private struct CanvasTextRenderer: TextRenderer {
     }
 
     func draw(layout: Text.Layout, in ctx: inout GraphicsContext) {
+        recordRuns(layout)
         drawBoxes(layout, in: &ctx)
         drawHighlights(layout, in: &ctx)
         drawGlyphs(layout, in: &ctx)
@@ -959,29 +1131,53 @@ private struct CanvasTextRenderer: TextRenderer {
         }
     }
 
-    // 2 — §2 Highlights: one span per wrapped line, span height = that line's box.
+    // 0 — §4 `isHighlighting`: each segment run's rect and UTF-16 range, for the hit test.
+    private func recordRuns(_ layout: Text.Layout) {
+        guard let selectionGeometry, let selectionItem else { return }
+        var runs: [CanvasTextSelectionGeometry.Run] = []
+        for line in layout {
+            for run in line {
+                guard let segment = run[CanvasTextSegment.self] else { continue }
+                runs.append(.init(rect: run.typographicBounds.rect, start: segment.offset, length: segment.length))
+            }
+        }
+        selectionGeometry.runs[selectionItem] = runs
+    }
+
+    // 2 — §2 Highlights: one span per wrapped line, span height = that line's box. §4
+    // `isHighlighting`: the in-progress selection draws the same way, on its own colour, above.
     private func drawHighlights(_ layout: Text.Layout, in ctx: inout GraphicsContext) {
+        drawSpans(layout, color: highlightColor, in: &ctx) { $0.highlighted }
+        drawSpans(layout, color: selectionColor, in: &ctx) { $0.selecting }
+    }
+
+    private func drawSpans(
+        _ layout: Text.Layout,
+        color: Color,
+        in ctx: inout GraphicsContext,
+        where covered: (CanvasTextSegment) -> Bool
+    ) {
         for line in layout {
             let lineRect = line.typographicBounds.rect
             var span: CGRect?
             for run in line {
                 let runRect = run.typographicBounds.rect
-                if run[CanvasTextSegment.self]?.highlighted == true {
+                if let segment = run[CanvasTextSegment.self], covered(segment) {
                     span = span.map { $0.union(runRect) } ?? runRect
                 } else if let open = span {
-                    fillSpan(open, line: lineRect, in: &ctx)
+                    fillSpan(open, line: lineRect, color: color, in: &ctx)
                     span = nil
                 }
             }
-            if let open = span { fillSpan(open, line: lineRect, in: &ctx) }
+            if let open = span { fillSpan(open, line: lineRect, color: color, in: &ctx) }
         }
     }
 
-    private func fillSpan(_ span: CGRect, line: CGRect, in ctx: inout GraphicsContext) {
+    private func fillSpan(_ span: CGRect, line: CGRect, color: Color, in ctx: inout GraphicsContext) {
         let rect = CGRect(x: span.minX, y: line.minY, width: span.width, height: line.height)
         ctx.fill(
             RoundedRectangle(cornerRadius: Token.Radius.cardSm).path(in: rect),
-            with: .color(highlightColor)
+            with: .color(color)
         )
     }
 
