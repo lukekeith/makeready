@@ -1,14 +1,14 @@
 size: lg
 state: planned
 next: /builder:resume --path docs/features/bible-verse-picker
-head: dd225118
+head: 94e65c76
 ticket: none
 branch: builder/bible-verse-picker
 pr: none
 apps: server+iphone
 contract: open
 hold: none
-go-ahead: none
+go-ahead: auto (recommended) 2026-11-10
 tests: walk=none review=end human=yes
 target: main
 walk: none
