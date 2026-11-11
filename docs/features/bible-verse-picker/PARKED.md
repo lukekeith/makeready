@@ -21,6 +21,10 @@ Nothing is broken. The build is finished, all phases are closed, and walk readin
 ## Where to dig
 - Nothing to dig. Walk walk.md on device with the app pointed at a server running this branch.
 
+## Your choices
+1. Walk it yourself now — `/builder:resume --path docs/features/bible-verse-picker`
+2. Leave it for now
+
 ## Recommended next step
 Walk it on device, then `/builder:signoff --path docs/features/bible-verse-picker <your words>`.
 Or run `/builder:resume --path docs/features/bible-verse-picker`, which prints the walk script.
