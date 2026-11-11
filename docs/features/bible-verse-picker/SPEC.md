@@ -154,7 +154,7 @@ passage shape. Bible recents are **not** shared with Search home (it uses `/api/
 | SC2 | EDIT | activity-document `textObject.reference` (bible) | validated when present on `role: scripture`: `{start:{book:int, chapter:int, verse:int, offset?:int}, end:{…}, translation:string}`, equal to its passage (D22) | D10, D22 | landed 91f06e58 (no migration) |
 | SC3 | EDIT | `GET /api/bible/:code/:book/:chapter` verse `text` | normalized per D9; chapters fetched with titles off; chapter cache key versioned | D9 | landed e58a5d14 (no migration) |
 | SC4 | ADD | route `DELETE /api/search/recent/:id` | caller's own rows of that query only | D17 | landed 68377805, 35c3b244 (no migration) |
-| SC6 | EDIT | activity-document `textObject` (`role: scripture`) | `+verseNumbers?: "gutter"\|"hidden"\|"inline"` (absent = inline), `+inset?: number` 16–64; `lineHeight` on scripture bounded 1.0–2.0 | D27, D28 | open (reopened 2026-11-11, Task 16) |
+| SC6 | EDIT | activity-document `textObject` (`role: scripture`) | `+verseNumbers?: "gutter"\|"hidden"\|"inline"` (absent = inline), `+inset?: number` 16–64; `lineHeight` on scripture bounded 1.0–2.0 | D27, D28 | ✅ landed 67ba8916 (zod only, no migration) |
 | SC5 | EDIT | `POST /api/search/smart` body | `+record?: boolean` (default true) — false skips `saveSearchHistory` | D17 | landed 68377805 (no migration) |
 
 **Data plan:** no table changes — `passages` and `reference` live in the activity document JSON, and `SearchHistory`
