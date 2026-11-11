@@ -70,8 +70,17 @@ export function textDocument(objects: ReturnType<typeof textObject>[], e: Envelo
 }
 
 export function bibleDocument(
-  objects: ReturnType<typeof textObject>[],
-  passages: Array<{ bookNumber: number; chapterStart: number; verseStart: number; chapterEnd: number; verseEnd: number }>,
+  objects: Array<ReturnType<typeof textObject> & { listStyle?: string; startNumber?: number; reference?: unknown; highlights?: unknown[] }>,
+  passages: Array<{
+    bookNumber: number
+    chapterStart: number
+    verseStart: number
+    chapterEnd: number
+    verseEnd: number
+    startOffset?: number
+    endOffset?: number
+    translation?: string
+  }>,
   e: Envelope = {},
 ) {
   return envelope('bible', { ...canvas(objects), passages }, e)
