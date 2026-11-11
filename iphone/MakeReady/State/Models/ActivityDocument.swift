@@ -46,6 +46,25 @@ struct TextObject: Codable, Hashable, Identifiable {
     var transform: Transform
     var marks: [Mark]
     var highlights: [Highlight]
+    /// "scripture" / "citation" mark a Bible activity's locked objects (D10, D11); nil on ordinary text.
+    var role: String?
+    var listStyle: String?
+    var startNumber: Int?
+    /// The passage a scripture object quotes (SC2). A malformed `reference` reads as nil; the
+    /// document's raw JSON still holds it (D23).
+    var reference: ScriptureReference?
+    /// Set by `ActivityDocument.textObjects` on a citation whose activity has a scripture object
+    /// carrying a `reference`; a citation is locked through that object, not through its own JSON.
+    var siblingScriptureHasReference = false
+
+    /// D11/D23: a scripture object with a `reference` (or the citation of one) is locked in the editor.
+    var isLockedScripture: Bool {
+        switch role {
+        case "scripture": return reference != nil
+        case "citation": return reference != nil || siblingScriptureHasReference
+        default: return false
+        }
+    }
 
     /// `marks` and `highlights` count UTF-16 code units in every client (02 §3); Swift `String`
     /// distances count characters, so this converts at the boundary. Nil when the offsets are out
@@ -64,6 +83,7 @@ struct TextObject: Codable, Hashable, Identifiable {
 extension TextObject {
     private enum CodingKeys: String, CodingKey {
         case id, text, font, weight, size, lineHeight, color, alignment, transform, marks, highlights
+        case role, listStyle, startNumber, reference
     }
 
     /// Only `id`, `text` and `transform` are required; the rest take the editor's defaults.
@@ -80,7 +100,39 @@ extension TextObject {
         alignment = try c.decodeIfPresent(String.self, forKey: .alignment) ?? "left"
         marks = try c.decodeIfPresent([Mark].self, forKey: .marks) ?? []
         highlights = try c.decodeIfPresent([Highlight].self, forKey: .highlights) ?? []
+        role = try? c.decodeIfPresent(String.self, forKey: .role)
+        listStyle = try? c.decodeIfPresent(String.self, forKey: .listStyle)
+        startNumber = try? c.decodeIfPresent(Int.self, forKey: .startNumber)
+        reference = try? c.decodeIfPresent(ScriptureReference.self, forKey: .reference)
     }
+}
+
+/// A scripture object's quoted range (SC2). `book` is the book number (43 = John), not a name.
+struct ScriptureReference: Codable, Hashable {
+    struct Point: Codable, Hashable {
+        var book: Int
+        var chapter: Int
+        var verse: Int
+        /// UTF-16 offset into the verse's canonical text (D8/D9); nil = the verse edge.
+        var offset: Int?
+    }
+
+    var start: Point
+    var end: Point
+    var translation: String
+}
+
+/// One entry of a `bible` document's `content.passages` (D8). A missing `translation` is a legacy
+/// passage (D22); a missing offset means the whole verse.
+struct BiblePassage: Codable, Hashable {
+    var bookNumber: Int
+    var chapterStart: Int
+    var verseStart: Int
+    var chapterEnd: Int
+    var verseEnd: Int
+    var startOffset: Int?
+    var endOffset: Int?
+    var translation: String?
 }
 
 struct CanvasContent: Codable, Hashable {
@@ -265,11 +317,11 @@ struct ActivityDocument: Codable, Hashable {
     private static let supportedSchemaVersion = 1
 
     /// The document exactly as the server sent it, unknown fields included.
-    let raw: JSONValue
-    let renderable: Renderable
-    let background: ActivityBackground
+    private(set) var raw: JSONValue
+    private(set) var renderable: Renderable
+    private(set) var background: ActivityBackground
     /// The actions this build can draw, in document order.
-    let actions: [ActivityAction]
+    private(set) var actions: [ActivityAction]
 
     init(raw: JSONValue) {
         self.raw = raw
@@ -297,6 +349,49 @@ struct ActivityDocument: Codable, Hashable {
         var value = raw
         edit(&value)
         return ActivityDocument(raw: value)
+    }
+
+    // MARK: Bible passages
+
+    /// The canvas's text objects; a citation also learns whether its scripture object carries a `reference`.
+    var textObjects: [TextObject] {
+        guard case .canvas(let canvas) = renderable else { return [] }
+        let scriptureHasReference = canvas.objects.contains { $0.role == "scripture" && $0.reference != nil }
+        return canvas.objects.map { object in
+            var object = object
+            object.siblingScriptureHasReference = object.role == "citation" && scriptureHasReference
+            return object
+        }
+    }
+
+    /// `content.passages`, skipping any entry missing a required int (D22).
+    var passages: [BiblePassage] {
+        get { Self.validPassages(in: raw).map(\.passage) }
+        set {
+            let existing = Self.validPassages(in: raw)
+            let written: [JSONValue] = newValue.enumerated().map { index, passage in
+                // Overlay onto the entry already there so keys this build doesn't know survive.
+                var object: [String: JSONValue] = [:]
+                if index < existing.count, case .object(let current) = existing[index].json { object = current }
+                object["bookNumber"] = .number(Double(passage.bookNumber))
+                object["chapterStart"] = .number(Double(passage.chapterStart))
+                object["verseStart"] = .number(Double(passage.verseStart))
+                object["chapterEnd"] = .number(Double(passage.chapterEnd))
+                object["verseEnd"] = .number(Double(passage.verseEnd))
+                object["startOffset"] = passage.startOffset.map { .number(Double($0)) }
+                object["endOffset"] = passage.endOffset.map { .number(Double($0)) }
+                object["translation"] = passage.translation.map { .string($0) }
+                return .object(object)
+            }
+            var value = raw
+            value[path: ["content", "passages"]] = .array(written)
+            self = ActivityDocument(raw: value)
+        }
+    }
+
+    private static func validPassages(in raw: JSONValue) -> [(json: JSONValue, passage: BiblePassage)] {
+        guard case .array(let items)? = raw[path: ["content", "passages"]] else { return [] }
+        return items.compactMap { item in decodeValue(BiblePassage.self, item).map { (item, $0) } }
     }
 
     // MARK: Decoding
