@@ -15,6 +15,11 @@
 		BPK300000000000000000003 /* BibleChaptersContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BPK300000000000000000001 /* BibleChaptersContainer.swift */; };
 		BPK400000000000000000002 /* BibleVersesContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BPK400000000000000000001 /* BibleVersesContainer.swift */; };
 		BPK400000000000000000003 /* BibleVersesContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BPK400000000000000000001 /* BibleVersesContainer.swift */; };
+		BPK600000000000000000002 /* BibleReaderMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = BPK600000000000000000001 /* BibleReaderMapper.swift */; };
+		BPK600000000000000000003 /* BibleReaderMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = BPK600000000000000000001 /* BibleReaderMapper.swift */; };
+		BPK700000000000000000002 /* BibleReaderContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BPK700000000000000000001 /* BibleReaderContainer.swift */; };
+		BPK700000000000000000003 /* BibleReaderContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BPK700000000000000000001 /* BibleReaderContainer.swift */; };
+		BPK800000000000000000002 /* BibleReaderMapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BPK800000000000000000001 /* BibleReaderMapperTests.swift */; };
 		BPK500000000000000000002 /* BiblePickerMapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BPK500000000000000000001 /* BiblePickerMapperTests.swift */; };
 		000E500D0C6BF54F8F89C2A3 /* UI2MembersComponentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DB8BF575CABAA62353707C1 /* UI2MembersComponentTests.swift */; };
 		0038777D231772805E442870 /* CourierPrime-BoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 594AAEA8871E3A2E3F08F3FB /* CourierPrime-BoldItalic.ttf */; };
@@ -1196,6 +1201,9 @@
 		BPK300000000000000000001 /* BibleChaptersContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleChaptersContainer.swift; sourceTree = "<group>"; };
 		BPK400000000000000000001 /* BibleVersesContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleVersesContainer.swift; sourceTree = "<group>"; };
 		BPK500000000000000000001 /* BiblePickerMapperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiblePickerMapperTests.swift; sourceTree = "<group>"; };
+		BPK600000000000000000001 /* BibleReaderMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleReaderMapper.swift; sourceTree = "<group>"; };
+		BPK700000000000000000001 /* BibleReaderContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleReaderContainer.swift; sourceTree = "<group>"; };
+		BPK800000000000000000001 /* BibleReaderMapperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleReaderMapperTests.swift; sourceTree = "<group>"; };
 		001D190CE74A411A8561B558 /* DataComponent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataComponent.swift; sourceTree = "<group>"; };
 		001E7230FA584A33992A699C /* SearchContactsPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchContactsPage.swift; sourceTree = "<group>"; };
 		00DF3BDA8C7D46B8B58A9645 /* CardVideo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardVideo.swift; sourceTree = "<group>"; };
@@ -1959,6 +1967,8 @@
 				BPK200000000000000000001 /* BibleBooksContainer.swift */,
 				BPK300000000000000000001 /* BibleChaptersContainer.swift */,
 				BPK400000000000000000001 /* BibleVersesContainer.swift */,
+				BPK600000000000000000001 /* BibleReaderMapper.swift */,
+				BPK700000000000000000001 /* BibleReaderContainer.swift */,
 			);
 			path = Bible;
 			sourceTree = "<group>";
@@ -2556,6 +2566,7 @@
 				BAT0004000000000000001 /* BibleActionsTests.swift */,
 				BPF0004000000000000001 /* BiblePickFlowTests.swift */,
 				BPK500000000000000000001 /* BiblePickerMapperTests.swift */,
+				BPK800000000000000000001 /* BibleReaderMapperTests.swift */,
 				BSC0004000000000000001 /* BibleScriptureTests.swift */,
 				BSV0004000000000000001 /* BibleSaveTests.swift */,
 				BET0004000000000000001 /* BibleEditorTests.swift */,
@@ -3823,6 +3834,7 @@
 				BAT0003000000000000001 /* BibleActionsTests.swift in Sources */,
 				BPF0003000000000000001 /* BiblePickFlowTests.swift in Sources */,
 				BPK500000000000000000002 /* BiblePickerMapperTests.swift in Sources */,
+				BPK800000000000000000002 /* BibleReaderMapperTests.swift in Sources */,
 				BSC0003000000000000001 /* BibleScriptureTests.swift in Sources */,
 				BSV0003000000000000001 /* BibleSaveTests.swift in Sources */,
 				BET0003000000000000001 /* BibleEditorTests.swift in Sources */,
@@ -3898,6 +3910,8 @@
 				BPK200000000000000000002 /* BibleBooksContainer.swift in Sources */,
 				BPK300000000000000000002 /* BibleChaptersContainer.swift in Sources */,
 				BPK400000000000000000002 /* BibleVersesContainer.swift in Sources */,
+				BPK600000000000000000002 /* BibleReaderMapper.swift in Sources */,
+				BPK700000000000000000002 /* BibleReaderContainer.swift in Sources */,
 				BMOD0001000000000000001 /* BibleModels.swift in Sources */,
 				BBC0001000000000000001 /* BibleBookCatalog.swift in Sources */,
 				STMD0001000000000000001 /* StudyModels.swift in Sources */,
@@ -4439,6 +4453,8 @@
 				BPK200000000000000000003 /* BibleBooksContainer.swift in Sources */,
 				BPK300000000000000000003 /* BibleChaptersContainer.swift in Sources */,
 				BPK400000000000000000003 /* BibleVersesContainer.swift in Sources */,
+				BPK600000000000000000003 /* BibleReaderMapper.swift in Sources */,
+				BPK700000000000000000003 /* BibleReaderContainer.swift in Sources */,
 				BMOD0001000000000000002 /* BibleModels.swift in Sources */,
 				BBC0001000000000000002 /* BibleBookCatalog.swift in Sources */,
 				F764A8CE536B5E7FE34C652E /* StudyModels.swift in Sources */,

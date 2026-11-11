@@ -230,11 +230,11 @@ struct UI2Shell: View {
         case let .activityViewer(lessonVersionId, activityId):
             ActivityViewerContainer(lessonVersionId: lessonVersionId, activityId: activityId)  // text-activity D39
         case let .chooseActivityBackground(activityId): MediaHomeContainer(mode: .pickActivityBackground(activityId: activityId))  // D40
-        // bible-verse-picker D2: the Reader is Task 11's; until it lands it renders nothing.
+        // bible-verse-picker D2: the four picker pages.
         case let .bibleBooks(flowId): BibleBooksContainer(flowId: flowId)
         case let .bibleChapters(book, flowId): BibleChaptersContainer(book: book, flowId: flowId)
         case let .bibleVerses(book, chapter, flowId): BibleVersesContainer(book: book, chapter: chapter, flowId: flowId)
-        case .bibleReader: EmptyView()
+        case let .bibleReader(book, chapter, verse, flowId): BibleReaderContainer(book: book, chapter: chapter, verse: verse, flowId: flowId)
         }
     }
 
