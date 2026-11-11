@@ -113,6 +113,15 @@ function passageMatchesReference(p: BiblePassage, r: ScriptureReference): boolea
   )
 }
 
+/** SC6 (D27, D28): verse-number mode, inset and line height on a `role: scripture` object; absent stays valid. */
+const scriptureStyle = z
+  .object({
+    verseNumbers: z.enum(['gutter', 'hidden', 'inline']).optional(),
+    inset: z.number().min(16).max(64).optional(),
+    lineHeight: z.number().min(1).max(2).optional(),
+  })
+  .passthrough()
+
 /** D22: strict scripture rules apply only to scripture objects carrying `reference`, each paired with its passage. */
 const bibleContent = canvasContent
   .extend({ passages: z.array(biblePassage).optional() })
@@ -120,6 +129,11 @@ const bibleContent = canvasContent
     const passages = content.passages ?? []
     const claimed = new Set<number>()
     content.objects.forEach((object, i) => {
+      if (object.role === 'scripture') {
+        for (const issue of scriptureStyle.safeParse(object).error?.issues ?? []) {
+          ctx.addIssue({ ...issue, path: ['objects', i, ...issue.path] })
+        }
+      }
       if (object.role !== 'scripture' || object.reference === undefined) return
       const at = ['objects', i, 'reference']
       const shape = scriptureReference.safeParse(object.reference)

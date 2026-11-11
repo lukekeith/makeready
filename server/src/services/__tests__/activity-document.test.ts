@@ -280,6 +280,32 @@ describe('bible passages (bible-verse-picker)', () => {
     expect(parseActivityDocument(doc(objects as any[], passages as any[]), 'bible')).toMatchObject({ ok: false, code: 'VALIDATION' })
   })
 
+  describe('scripture verse-number mode and inset (SC6)', () => {
+    const withScripture = (o: any) => doc([scripture(o), textObj('c', 'citation')], [passage])
+    const parse = (o: any) => parseActivityDocument(withScripture(o), 'bible')
+
+    it('accepts the three verse-number modes and an inset in range', () => {
+      for (const mode of ['gutter', 'hidden', 'inline']) expect(parse({ verseNumbers: mode, inset: 32 }).ok).toBe(true)
+      expect(parse({ inset: 16, lineHeight: 1 }).ok).toBe(true)
+      expect(parse({ inset: 64, lineHeight: 2 }).ok).toBe(true)
+    })
+    it('rejects an unknown mode, an inset out of range and a line height out of range', () => {
+      expect(parse({ verseNumbers: 'margin' })).toMatchObject({ ok: false, code: 'VALIDATION' })
+      expect(parse({ inset: 8 }).ok).toBe(false)
+      expect(parse({ inset: 80 }).ok).toBe(false)
+      expect(parse({ lineHeight: 2.5 }).ok).toBe(false)
+      expect(parse({ lineHeight: 0.9 }).ok).toBe(false)
+    })
+    it('keeps a scripture object without the new fields valid', () => {
+      expect(parse({}).ok).toBe(true)
+    })
+    it('bounds a legacy scripture object (no reference) the same way', () => {
+      const legacy = (o: any) => doc([{ ...textObj('a', 'scripture'), ...o }], [{ bookNumber: 43, chapterStart: 3, verseStart: 16, chapterEnd: 3, verseEnd: 16 }])
+      expect(parseActivityDocument(legacy({ verseNumbers: 'gutter', inset: 32 }), 'bible').ok).toBe(true)
+      expect(parseActivityDocument(legacy({ inset: 8 }), 'bible').ok).toBe(false)
+    })
+  })
+
   it('a converter-shaped legacy document stays valid', () => {
     const legacy = doc([textObj('a', 'scripture'), textObj('b', 'scripture'), textObj('c', 'citation')],
       [{ bookNumber: 43, chapterStart: 3, verseStart: 16, chapterEnd: 3, verseEnd: 16 }])
