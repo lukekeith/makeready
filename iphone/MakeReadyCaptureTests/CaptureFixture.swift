@@ -1165,6 +1165,8 @@ struct CaptureComponent: Codable {
     // activities-editor §22 (chat change 2026-11-11, D28 fix). Additive:
     let bibleColor: String?                    // #RRGGBB; "" = the scripture's own
     let bibleAlignment: String?                // left · center · right; "" = the scripture's own
+    // activities-editor §23 (chat change 2026-11-11, D32/D33). Additive:
+    let bibleVerticalAlignment: String?        // top · center · bottom
     let showsEffectsTool: Bool?
     let showsEyedropper: Bool?
     let showsWell: Bool?                       // C-094 TextColorPalette

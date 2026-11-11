@@ -4068,7 +4068,8 @@ private func buildScreenActivitiesEditor(_ fixture: CaptureFixture) throws -> An
             bibleInset: c.bibleInset.map { CGFloat($0) } ?? sample.bibleInset,
             bibleVerseNumbers: c.bibleVerseNumbers ?? sample.bibleVerseNumbers,
             bibleColor: c.bibleColor ?? sample.bibleColor,
-            bibleAlignment: c.bibleAlignment ?? sample.bibleAlignment
+            bibleAlignment: c.bibleAlignment ?? sample.bibleAlignment,
+            bibleVerticalAlignment: c.bibleVerticalAlignment ?? sample.bibleVerticalAlignment
         )
     )
     .safeAreaPadding(.top, device.safeArea.top)
