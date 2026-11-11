@@ -16,5 +16,5 @@ verify: none
 ready: pending "API.Bible key in walk env"
 ui2: none
 auto: on 2026-11-10
-blocked: "the walk env has no API.Bible key, so every Bible screen and search in the picker fails before an agent can walk it — next: export API_BIBLE_KEY in the shell that runs the fleet, then /builder:agent"
+blocked: none
 agent-walk: on 2026-11-10
