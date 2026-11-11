@@ -61,11 +61,11 @@ struct ActivitiesEditorContainer: View {
             onBackground: { command in model.changeBackground(command) },
             onActionsChange: { actions in model.changeActions(actions) },
             onPageRailsClosed: { Task { await model.closePageRails() } },
+            onToggleHighlight: { model.startHighlighting() },
             onDeleteHighlight: { Task { await model.deleteSelectedHighlight() } },
             onRetry: { Task { await model.retry() } },
             onDiscard: { model.discard() },
             onHighlightRange: { index, start, end in model.highlightRange(objectIndex: index, start: start, end: end) },
-            onToggleHighlight: { model.startHighlighting() },
             onEndHighlighting: { Task { await model.endHighlighting() } },
             onBibleStyleChange: { change in model.setBibleStyle(change) }
         )
