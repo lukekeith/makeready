@@ -1,12 +1,12 @@
 size: lg
 state: building
 next: /builder:resume --path docs/features/bible-verse-picker
-head: 199b6f02
+head: 6216956f
 ticket: none
 branch: builder/bible-verse-picker
 pr: none
 apps: server+iphone
-contract: open (reopened 2026-11-11)
+contract: frozen 2026-11-11
 hold: none
 go-ahead: Luke Keith 2026-11-11
 tests: walk=none review=end human=yes
