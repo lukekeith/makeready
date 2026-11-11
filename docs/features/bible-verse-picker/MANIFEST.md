@@ -1,7 +1,7 @@
 size: lg
 state: built
 next: /builder:resume --path docs/features/bible-verse-picker
-head: 6fb4be9d
+head: bdec3d36
 ticket: none
 branch: builder/bible-verse-picker
 pr: none

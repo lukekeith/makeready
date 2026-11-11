@@ -41,6 +41,8 @@
 | 11 | iphone | 21 | d2m has imported the Figma glyphs and built the reorganised Bible tool bar and Align panel |
 | 12 | iphone | 22 | Vertical alignment and the new tool bar work in the editor, player and thumbnails |
 | 13 | iphone | 23 | The reference is ordinary, editable text above the passage, with no translation code |
+| 14 | iphone | 24 | d2m has given ActivitiesEditorScreen a tool bar tone input (light · dark) |
+| 15 | iphone | 25 | The editor picks the tone from the page background on text and bible activities |
 
 ---
 
@@ -1199,4 +1201,74 @@ func testPageHeightIgnoresTheReference() {
 - [ ] **Step 3: Implement to the Behaviour**
 - [ ] **Step 4: Run them and `ActivitiesEditorContainerTests`, `BibleSaveTests`, watch them pass**
 - [ ] **Step 5: Commit** — `feat(bible-verse-picker): the reference is ordinary text above the passage`
+
+### Task 24: d2m — the tool bar tone input
+App: iphone
+Phase: 14
+Recipe: d2m handover (`request_project_change`, then `wait_project_change`)
+
+**Files:**
+- Modify (by d2m): `iphone/MakeReadyUI/Screens/Activities/ActivitiesEditorScreen.swift`, its fixtures and `ViewRegistry.swift`
+- Reference: this SPEC (D35)
+
+**Interfaces:**
+- Produces (named by d2m; record in `d2m-api.md`): an `ActivitiesEditorScreen.State` input for the tool bar tone (`light` = today's white, `dark`), default `light`, applied to every tool bar icon and label in Idle and object editing.
+
+**Behaviour:**
+- `dark` draws the tool bar icons and labels in a dark token chosen by d2m from the register; `light` is unchanged (D35)
+
+**Tests:**
+
+```text
+d2m captures: ActivitiesEditorScreen toolbar-dark-on-light (a white solid background) and toolbar-light-on-dark.
+Each render is read before the task is ticked.
+```
+
+- [ ] **Step 1: `check_project_change`; `request_project_change` with D35 and this SPEC as the reference**
+- [ ] **Step 2: `wait_project_change` until done; settle any handback from the SPEC**
+- [ ] **Step 3: Read both renders**
+- [ ] **Step 4: Record the input's name in `d2m-api.md`**
+- [ ] **Step 5: Commit** — d2m's commits land on the branch
+
+### Task 25: The containers pick the tool bar tone from the background
+App: iphone
+Phase: 15
+Recipe: test-driven-development · tiny
+
+**Files:**
+- Modify: `iphone/MakeReady/UI2/Containers/Programs/ActivitiesEditorMapper.swift` — the tone from the document background
+- Test: `iphone/MakeReadyCaptureTests/ActivitiesEditorMapperTests.swift`
+
+**Interfaces:**
+- Consumes: Task 24's input name (`d2m-api.md`); `ActivityDocument.Background`.
+- Produces: `ActivitiesEditorMapper.toolbarTone(for: ActivityDocument.Background?) -> Tone`.
+
+**Behaviour:**
+- solid: WCAG relative luminance of its colour ≥ 0.5 → dark, else light; gradient: mean luminance of its stops; image/video or none: light (D35)
+- applied to `text` and `bible` activities; recomputed on every background change (D35)
+
+**Tests:**
+
+```swift
+func testALightSolidBackgroundGetsDarkIcons() {
+    XCTAssertEqual(ActivitiesEditorMapper.toolbarTone(for: .solid("#FFFFFF")), .dark)
+    XCTAssertEqual(ActivitiesEditorMapper.toolbarTone(for: .solid("#FFF4B0")), .dark)
+    XCTAssertEqual(ActivitiesEditorMapper.toolbarTone(for: .solid("#0D101A")), .light)
+}
+func testAGradientUsesTheMeanOfItsStops() {
+    XCTAssertEqual(ActivitiesEditorMapper.toolbarTone(for: .gradient(["#FFFFFF", "#EEEEEE"])), .dark)
+    XCTAssertEqual(ActivitiesEditorMapper.toolbarTone(for: .gradient(["#000000", "#333333"])), .light)
+}
+func testAnImageKeepsLightIcons() {
+    XCTAssertEqual(ActivitiesEditorMapper.toolbarTone(for: .image(Self.mediaRef)), .light)
+}
+```
+
+(`.solid`, `.gradient`, `.image` stand for the real `ActivityDocument.Background` cases.)
+
+- [ ] **Step 1: Write the listed tests**
+- [ ] **Step 2: Run the iphone-xctest suite for `ActivitiesEditorMapperTests`, watch them fail**
+- [ ] **Step 3: Implement to the Behaviour**
+- [ ] **Step 4: Run it and `ActivitiesEditorContainerTests`, watch them pass**
+- [ ] **Step 5: Commit** — `feat(bible-verse-picker): tool bar tone follows the page background`
 
