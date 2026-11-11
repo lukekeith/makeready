@@ -1,14 +1,14 @@
 size: lg
 state: built
 next: /builder:agent-walk --path docs/features/bible-verse-picker
-head: d0c35331
+head: e2cd6b3c
 ticket: none
 branch: builder/bible-verse-picker
 pr: none
 apps: server+iphone
-contract: frozen 2026-11-10
+contract: open (reopened 2026-11-11)
 hold: none
-go-ahead: auto (recommended) 2026-11-10
+go-ahead: none
 tests: walk=none review=end human=yes
 target: main
 walk: none

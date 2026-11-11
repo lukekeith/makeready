@@ -33,6 +33,10 @@
 | 3 | iphone | 8 | d2m has built the four picker screens, BibleVerseReader, the C-052/C-085 variants, five colour tokens and the D21 editor changes |
 | 4 | iphone | 9–11 | The picker runs: four pushed pages, search, translation switching, word selection and Select returning a pick by flow id |
 | 5 | iphone | 12–15 | The editor creates, locks, highlights, changes and splits Bible activities, and thumbnails draw verse numbers |
+| 6 | server | 16 | SC6: scripture objects carry `verseNumbers` and `inset`; the contract re-freezes |
+| 7 | iphone | 17 | The scripture document has no split: verse-number defaults, D28 style defaults and the D29 page height |
+| 8 | iphone | 18 | d2m has built the gutter/hidden modes, the scrolling Bible page with the D28 style panel, and the player's in-page scroll |
+| 9 | iphone | 19 | The editor, player and thumbnails run page-laid-out scripture end to end |
 
 ---
 
@@ -851,3 +855,178 @@ func testThePlayerNeverDrawsTheScriptureReference() {
 - [ ] **Step 3: Implement to the Behaviour**
 - [ ] **Step 4: Run them, watch them pass**
 - [ ] **Step 5: Commit** — `fix(bible-verse-picker): bible thumbnails keep verse numbers and highlights (F13)`
+
+### Task 16: SC6 — verse-number mode and inset on scripture objects
+App: server
+Phase: 6
+Recipe: test-driven-development · tiny
+
+**Files:**
+- Modify: `server/src/services/activity-document.ts:30-60, 57-98` — the scripture fields
+- Test: `server/src/services/__tests__/activity-document.test.ts`
+
+**Interfaces:**
+- §Contract rows `POST /api/lesson-versions/:id/activities` and `PUT /api/content-activities/:id` (EDIT: SC6).
+
+**Behaviour:**
+- a `role: scripture` text object in a `bible` document may carry `verseNumbers` ∈ {`gutter`, `hidden`, `inline`} and `inset` (a number, 16 ≤ inset ≤ 64); any other value → 400 VALIDATION (SC6, D27, D28)
+- on that object `lineHeight`, when present, is 1.0 ≤ lineHeight ≤ 2.0 (D28)
+- a document with neither field stays valid; legacy converter documents stay valid (D22, Backward compatibility)
+
+**Tests:**
+
+```ts
+it('accepts the three verse-number modes and an inset in range', () => {
+  for (const mode of ['gutter', 'hidden', 'inline'])
+    expect(parseActivityDocument('bible', withScripture({ verseNumbers: mode, inset: 32 })).ok).toBe(true)
+})
+it('rejects an unknown mode, an inset out of range and a line height out of range', () => {
+  expect(parseActivityDocument('bible', withScripture({ verseNumbers: 'margin' })).ok).toBe(false)
+  expect(parseActivityDocument('bible', withScripture({ inset: 8 })).ok).toBe(false)
+  expect(parseActivityDocument('bible', withScripture({ inset: 80 })).ok).toBe(false)
+  expect(parseActivityDocument('bible', withScripture({ lineHeight: 2.5 })).ok).toBe(false)
+})
+it('keeps a scripture object without the new fields valid', () => {
+  expect(parseActivityDocument('bible', withScripture({})).ok).toBe(true)
+})
+```
+
+(`parseActivityDocument` and `withScripture` stand for the file's parse entry and the test file's existing D22 fixture builder — use the real names.)
+
+- [ ] **Step 1: Write the listed tests**
+- [ ] **Step 2: Run the server vitest file, watch them fail**
+- [ ] **Step 3: Implement to the Behaviour**
+- [ ] **Step 4: Run it, watch it pass**
+- [ ] **Step 5: Commit** — `feat(bible-verse-picker): scripture verse-number mode and inset (SC6)`
+
+### Task 17: Scripture document without split — defaults and page height
+App: iphone
+Phase: 7
+Recipe: test-driven-development
+
+**Files:**
+- Modify: `iphone/MakeReady/State/Models/ActivityDocument.swift` — `TextObject.verseNumbers`, `inset` accessors (encode/decode)
+- Modify: `iphone/MakeReady/UI2/Containers/Bible/BibleScripture.swift` — remove `split`/`fits`; defaults; `pageHeight`
+- Modify: `iphone/MakeReady/UI2/Containers/Bible/BibleSave.swift` — plans for exactly one activity (no extra POSTs)
+- Modify: `iphone/MakeReadyCaptureTests/BibleScriptureTests.swift`, `BibleSaveTests.swift` — drop the split tests (D14 superseded)
+
+**Interfaces:**
+- Consumes: `BiblePick`, `TextObject` (Tasks 5, 12).
+- Produces: `TextObject.verseNumbers: VerseNumbers?` (`.gutter` · `.hidden` · `.inline`, nil reads `.inline`), `TextObject.inset: Double?`; `BibleScripture.pageHeight(scriptureHeight: CGFloat, citationHeight: CGFloat) -> CGFloat`; `BibleSave.plan(new: BiblePick, version:existing:after:)`, `BibleSave.plan(change: String, pick: BiblePick, version:)`.
+
+**Behaviour:**
+- `document(for:)` writes `verseNumbers` = `.hidden` for a one-verse pick, `.gutter` for two or more; `inset` 32; `lineHeight` 1.4; size 18; serif 400 (D27, D28)
+- a pick is one activity: no split, no length cap; a new pick POSTs one activity then `PATCH …/order` to the slot; a change PUTs the original only (D29, D15)
+- `pageHeight` = max(956, 96 + scripture + 16 + citation + 96) (D29)
+- a document without `verseNumbers` decodes to `.inline`; encoding never writes the field when it was absent (D27, Backward compatibility)
+
+**Tests:**
+
+```swift
+func testDefaultsHideNumbersForOneVerseAndGutterForSeveral() {
+    XCTAssertEqual(BibleScripture.document(for: Self.pick16, background: nil).textObjects[0].verseNumbers, .hidden)
+    XCTAssertEqual(BibleScripture.document(for: Self.pick16b18, background: nil).textObjects[0].verseNumbers, .gutter)
+    XCTAssertEqual(BibleScripture.document(for: Self.pick16b18, background: nil).textObjects[0].inset, 32)
+}
+func testPageHeightNeverDropsBelowTheTextPage() {
+    XCTAssertEqual(BibleScripture.pageHeight(scriptureHeight: 200, citationHeight: 20), 956)
+    XCTAssertEqual(BibleScripture.pageHeight(scriptureHeight: 1400, citationHeight: 20), 1628)
+}
+func testALegacyScriptureReadsInline() throws {
+    XCTAssertEqual(try Self.decode(Self.legacyScriptureJSON).verseNumbers, .inline)
+}
+func testAWholeChapterIsOneActivity() async {
+    _ = await BibleSave.run(BibleSave.plan(new: Self.john3All, version: "v", existing: ["a", "b"], after: "a"), actions: stub.actions, from: 0)
+    XCTAssertEqual(stub.log, ["POST", "PATCH a,p1,b"])
+}
+```
+
+- [ ] **Step 1: Write the listed tests; delete the split tests**
+- [ ] **Step 2: Run the iphone-xctest suite for `BibleScriptureTests` and `BibleSaveTests`, watch them fail**
+- [ ] **Step 3: Implement to the Behaviour**
+- [ ] **Step 4: Run them and `ActivityDocumentTests`, watch them pass**
+- [ ] **Step 5: Commit** — `feat(bible-verse-picker): one activity per passage, verse-number defaults, page height`
+
+### Task 18: d2m — verse-number modes, the scrolling Bible page, the style panel, the player's in-page scroll
+App: iphone
+Phase: 8
+Recipe: d2m handover (`request_project_change`, then `wait_project_change`)
+
+**Files:**
+- Modify (by d2m): `iphone/MakeReadyUI/CanvasTextObject.swift` (C-092), `iphone/MakeReadyUI/Screens/Activities/ActivitiesEditorScreen.swift`, `iphone/MakeReadyUI/Screens/Activities/ActivitiesPlayerScreen.swift`, fixtures and `ViewRegistry.swift` as d2m writes them
+- Reference: this SPEC (D26–D30), committed on `builder/bible-verse-picker`
+
+**Interfaces:**
+- Produces (named by d2m; record the real names in the workspace `d2m-api.md`): C-092 `verseNumbers` input (`gutter` · `hidden` · `inline`, default `inline`) and a `pageLaidOut` flag that hides transform handles; ActivitiesEditorScreen `State.pageHeight` (vertical scroll when > 956, tool bar fixed), the D28 Bible style panel inputs (face, weight, size, line height, inset, verse numbers) with their change callbacks, Animation/effects hidden for `bible`; ActivitiesPlayerScreen in-page vertical scroll for a page taller than the screen with D30's edge hand-off to the pager.
+
+**Behaviour:**
+- `gutter`: one line-start per verse, number right-aligned in a column left of the text, text wraps in its own column; `hidden`: run-on paragraph, no numbers; `inline`: today's superscript drawing (D27)
+- page-laid-out objects show no move/scale/rotate handles and ignore drag/pinch/rotate (D26)
+- the editor page scrolls vertically when taller than 956; background fills the full height (D29)
+- the style panel offers exactly D28's controls and ranges; Color/Background unchanged (D28)
+- the player scrolls a tall page first and pages at its top/bottom edge (D30)
+
+**Tests:**
+
+```text
+d2m captures, per subject, one state each: C-092 gutter · hidden · inline (John 3:16-18);
+ActivitiesEditorScreen bible-tall (John 3:1-36, scrolled to the citation) and bible-style-panel;
+ActivitiesPlayerScreen bible-tall-mid-scroll. Each render is read before the task is ticked.
+```
+
+- [ ] **Step 1: `check_project_change` per subject; `request_project_change` with D26–D30 and this SPEC as the reference**
+- [ ] **Step 2: `wait_project_change` until done; settle any handback from the SPEC**
+- [ ] **Step 3: Read every listed render**
+- [ ] **Step 4: Record the produced names in `d2m-api.md`**
+- [ ] **Step 5: Commit** — d2m's commits land on the branch; commit `d2m-api.md` only if tracked
+
+### Task 19: The editor, player and thumbnails run page-laid-out scripture
+App: iphone
+Phase: 9
+Recipe: /ios-error-surface
+
+**Files:**
+- Modify: `iphone/MakeReady/UI2/Containers/Programs/ActivitiesEditorMapper.swift` — `pageLaidOut`, `verseNumbers`, `pageHeight`, the style panel state for `bible`
+- Modify: `iphone/MakeReady/UI2/Containers/Programs/ActivitiesEditorContainer.swift` — style panel callbacks write the scripture (and the citation's face/colour/alignment/inset); transform callbacks ignored for page-laid-out objects
+- Modify: `iphone/MakeReady/UI2/Viewer/ActivityViewerMapper.swift` — layout from D26, `verseNumbers`, page height
+- Modify: `iphone/MakeReady/UI2/Containers/Programs/ActivityThumbnail.swift` — D26 layout, top 440×956
+- Test: `iphone/MakeReadyCaptureTests/BibleEditorTests.swift`, `ActivityViewerMapperTests.swift`, `ActivityThumbnailTests.swift`
+
+**Interfaces:**
+- Consumes: Task 18's names (`d2m-api.md`); `BibleScripture.pageHeight`, `TextObject.verseNumbers/inset` (Task 17).
+
+**Behaviour:**
+- `bible` scripture/citation map with `pageLaidOut` true; their stored `transform` is never changed by the editor (D26)
+- the style panel edits face, weight, size 14–40, line height 1.0–2.0, inset 16–64, verse numbers; the citation follows face, colour, alignment and inset (D28)
+- the toolbar for `bible` has no Animation/effects (D28); the menu and highlighting stand (D31)
+- player and thumbnail place scripture and citation per D26 and size the page per D29; the thumbnail crops to the top 956 (D30)
+
+**Tests:**
+
+```swift
+func testPageLaidOutObjectsIgnoreTransforms() async {
+    let before = model.document.textObjects[0].transform
+    await model.moveObject(0, by: CGSize(width: 40, height: 40))
+    XCTAssertEqual(model.document.textObjects[0].transform, before)
+}
+func testTheStylePanelWritesScriptureAndCitationTogether() async {
+    await model.setBibleStyle(.inset(48)); await model.setBibleStyle(.face(.sans))
+    XCTAssertEqual(model.document.textObjects[0].inset, 48); XCTAssertEqual(model.document.textObjects[1].inset, 48)
+    XCTAssertEqual(model.document.textObjects[1].font, "sans")
+}
+func testBibleHidesAnimation() {
+    XCTAssertFalse(ActivitiesEditorMapper.state(Self.bibleDoc).showsEffectsTool)
+}
+func testAWholeChapterPageIsTallerThanTheScreen() {
+    XCTAssertGreaterThan(ActivityViewerMapper.page(for: Self.john3AllDoc).height, 956)
+}
+```
+
+(`model.moveObject`, `setBibleStyle`, `ActivitiesEditorMapper.state` and `ActivityViewerMapper.page(for:)` stand for the real entry points — use their names from the files and `d2m-api.md`.)
+
+- [ ] **Step 1: Write the listed tests**
+- [ ] **Step 2: Run the iphone-xctest suite for the three classes, watch them fail**
+- [ ] **Step 3: Implement to the Behaviour**
+- [ ] **Step 4: Run them and `ActivitiesEditorContainerTests`, watch them pass**
+- [ ] **Step 5: Commit** — `feat(bible-verse-picker): page-laid-out scripture in the editor, player and thumbnails`
+
