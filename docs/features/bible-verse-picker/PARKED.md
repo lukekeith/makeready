@@ -56,3 +56,4 @@ on-device walk you chose for this feature.
 - 2026-11-11 parked (human-step) — readiness passed with the key present; walk=none · human=yes → waiting for your walk
 - 2026-11-11 unparked by a person — named to /builder:agent or /builder:fleet
 - 2026-11-11 readiness re-run at be39f31a (post-revision HEAD, SC6 live, all Bible endpoints 200); parked again (human-step) — walk=none · human=yes → waiting for your walk
+- 2026-11-11 unparked by a person — named to /builder:agent or /builder:fleet

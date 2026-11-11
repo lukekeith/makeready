@@ -16,5 +16,5 @@ verify: none
 ready: yes 2026-11-11 be39f31a
 ui2: none
 auto: on 2026-11-10
-blocked: "waiting for your walk — next: /builder:resume --path docs/features/bible-verse-picker"
+blocked: none
 agent-walk: on 2026-11-10
