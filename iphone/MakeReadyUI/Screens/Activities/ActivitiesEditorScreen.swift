@@ -446,6 +446,9 @@ struct ActivitiesEditorScreen: View {
     // §11 Fixed canvas (D24, held only while the finger is down): the content extent fixed at drag
     // start so placement never re-runs under the finger, and the object's last transform.
     @SwiftUI.State private var dragExtent: ClosedRange<CGFloat>??
+    /// §30.2 (D46): page y 0's screen position (wu) as last laid out — a scrolled Bible page's
+    /// grab areas follow it. nil until the canvas first lays out.
+    @SwiftUI.State private var canvasContentTop: CGFloat?
     @SwiftUI.State private var dragged: (index: Int, transform: CanvasTextObject.Transform)?
     // §9.1a: the object's transform when the in-flight gesture began — a gesture that ends where
     // it started reports nothing.
@@ -859,7 +862,11 @@ struct ActivitiesEditorScreen: View {
         let pinned = actions.contains { $0.placement == .pinned }
         // §21.1 (D26): a tall page states its own height — C-091 sizes the page from it — else
         // §2: fixed at drag start, so neither the page nor any object re-places under the finger.
-        let extent = isTallPage ? tallPageExtent(pinned: pinned) : (dragExtent ?? measuredExtent(objects))
+        // §30.2 (D46): a Bible page ≤ 956 scrolls too, but its page positions never change — the
+        // extent is a point mid-page, so C-091's placement keeps step 1's offset and page = viewport.
+        let extent = isTallPage ? tallPageExtent(pinned: pinned)
+            : state.isBible ? Self.bibleFixedExtent
+            : (dragExtent ?? measuredExtent(objects))
         let offset = pageOffset(viewport: viewport)
         return ActivityCanvas<AnyView>(
             background: background,
@@ -881,12 +888,15 @@ struct ActivitiesEditorScreen: View {
             // §21.1 (D26): a page taller than 956 scrolls inside the canvas and §2's scroll insets
             // apply again, so the first and last content clear the bars; autoscroll stays off (a
             // page-laid-out object cannot be dragged).
-            scrollInsets: isTallPage
+            // §30.2 (D46): a Bible page ALWAYS scrolls within the same insets — the header's height
+            // above, the bottom container's below — so content behind either bar scrolls into view.
+            scrollInsets: canvasScrolls
                 ? .init(top: headerBottom, bottom: (containerHeight + keyboardOverlap) / unit)
                 : .init(),
-            // §11 (D24): otherwise the canvas is fixed to the screen in every mode — no scroll range,
-            // no scroll insets, no autoscroll. The header and bottom area stay opaque over it.
-            scrolls: isTallPage
+            // §11 (D24): otherwise (`text` pages) the canvas is fixed to the screen in every mode —
+            // no scroll range, no scroll insets, no autoscroll. The header and bottom area stay
+            // opaque over it.
+            scrolls: canvasScrolls
         )
         .coordinateSpace(.named(Self.screenSpace))
         .overlay(alignment: .topLeading) {
@@ -992,6 +1002,11 @@ struct ActivitiesEditorScreen: View {
             actionPreviews(objects)
                 // The edited object renders above the others (OQ-010), still under the previews.
                 .zIndex(2)
+        }
+        // §30.2 (D46): where page y 0 sits on screen now (wu), so the bridge's grab areas follow a
+        // scrolled Bible page — the touch that starts on an editable object acts on it.
+        .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named(Self.screenSpace)).minY } action: { top in
+            canvasContentTop = top / unit
         }
     }
 
@@ -1133,7 +1148,9 @@ struct ActivitiesEditorScreen: View {
     /// whole screen; content y is page y less C-091's fixed offset, §11). The edited object sits
     /// at the edit slot, unscaled and unrotated, as `editedObject` draws it.
     private func grabAreas(unit: CGFloat, viewport: CGFloat) -> [GrabArea] {
-        let offset = pageOffset(viewport: viewport)
+        // §30.2 (D46): on a scrolling Bible page the boxes follow the page under the bars — the
+        // content's measured top is step 1's offset less the scroll.
+        let offset = state.isBible ? (canvasContentTop ?? pageOffset(viewport: viewport)) : pageOffset(viewport: viewport)
         return shownObjects.indices.map { index in
             if index == editedIndex {
                 return GrabArea(center: CGPoint(x: draftCentreX * unit, y: (Self.editSlotY + offset) * unit),
@@ -1601,6 +1618,15 @@ struct ActivitiesEditorScreen: View {
     private func buttonRail(options: [(code: String, glyph: GlyphName, label: String)],
                             selectedCode: String, element: String,
                             onSelect: @escaping (String) -> Void) -> some View {
+        buttonTriple(options: options, selectedCode: selectedCode, element: element, onSelect: onSelect)
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, Token.Space.elementGap)
+    }
+
+    /// §3 tool 3 / §23.2 / §30.3: the C-102 buttons of one rail, 8 pt apart.
+    private func buttonTriple(options: [(code: String, glyph: GlyphName, label: String)],
+                              selectedCode: String, element: String,
+                              onSelect: @escaping (String) -> Void) -> some View {
         HStack(spacing: Token.Space.elementGap) {
             ForEach(Array(options.enumerated()), id: \.offset) { index, option in
                 IconButton(
@@ -1620,20 +1646,27 @@ struct ActivitiesEditorScreen: View {
                 .ui2Element(index == 0 ? element : "\(element) \(index + 1)")
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.bottom, Token.Space.elementGap)
     }
 
-    /// §23.2 (D33): the Align panel, top → bottom — horizontal (C-102 ×3, `.alignment`), vertical
-    /// (D32: C-102 ×3, `.verticalAlignment`) and verse numbers (D27: C-035 chips in a centred
-    /// C-106, `.verseNumbers`). A tap applies at once; the panel stays open.
+    /// §30.3 (D47, replaces §23.2's two rows): the Align panel, top → bottom — ONE row of six
+    /// C-102s, left · centre · right (`.alignment`) then top · middle · bottom
+    /// (`.verticalAlignment`), 8 pt within each triple and 16 pt between them; then verse numbers
+    /// (D27: C-035 chips in a centred C-106, `.verseNumbers`). A tap applies at once; the panel
+    /// stays open.
     private var bibleAlignPanel: some View {
-        VStack(spacing: 0) {
-            alignmentRail(selected: bibleScripture?.alignment ?? .left,
-                          onSelect: { setBibleStyle(.alignment($0)) })
-            buttonRail(options: Self.verticalAlignmentOptions,
-                       selectedCode: Self.verticalAlignmentCode(bibleStyle.verticalAlignment),
-                       element: "C-102 IconButton Vertical", onSelect: { setBibleStyle(.verticalAlignment($0)) })
+        let horizontal = Self.alignmentOptions
+        let selected = bibleScripture?.alignment ?? .left
+        return VStack(spacing: 0) {
+            HStack(spacing: Self.alignTripleGap) {
+                buttonTriple(options: horizontal.map { ($0.code, $0.glyph, $0.label) },
+                             selectedCode: horizontal.first { $0.alignment == selected }?.code ?? "",
+                             element: "C-102 IconButton Align", onSelect: { setBibleStyle(.alignment($0)) })
+                buttonTriple(options: Self.verticalAlignmentOptions,
+                             selectedCode: Self.verticalAlignmentCode(bibleStyle.verticalAlignment),
+                             element: "C-102 IconButton Vertical", onSelect: { setBibleStyle(.verticalAlignment($0)) })
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, Token.Space.elementGap)
             ChipStrip(items: Self.verseNumberItems, selectedID: bibleStyle.verseNumbers,
                       onSelect: { id in setBibleStyle(.verseNumbers(id)) }, chipMaterial: true, toolbarTone: state.toolbarTone)
                 .ui2Element("C-106 ChipStrip 3")
@@ -2341,10 +2374,10 @@ struct ActivitiesEditorScreen: View {
         return styled
     }
 
-    /// §23.5 (D32): how far the page-laid-out block (scripture + citation) moves down from the
-    /// container's top-at-96 frames — none for `top`, half the slack for `center`, all of it for
-    /// `bottom`, where the slack is the room between the block's bottom and 96 wu above the 956
-    /// page's bottom. A page taller than 956 has no slack.
+    /// §30.1 (D45, replaces §23.5's 96 wu): how far the page-laid-out block (scripture + citation)
+    /// moves down from the container's top-at-143 frames — none for `top`, half the slack for
+    /// `center`, all of it for `bottom`, where the slack is `956 − bottomInset − block bottom` and
+    /// the bottom inset is 85 wu (110 with a pinned action). A page taller than 956 has no slack.
     private var bibleVerticalShift: CGFloat {
         guard state.isBible, state.pageHeight <= Self.referenceHeight else { return 0 }
         let fraction: CGFloat
@@ -2359,7 +2392,8 @@ struct ActivitiesEditorScreen: View {
             bottom = max(bottom, styled.transform.position.y + objectHeight(styled, index: index) / 2)
         }
         guard bottom.isFinite else { return 0 }
-        return max(Self.referenceHeight - Self.bibleBlockInset - bottom, 0) * fraction
+        let bottomInset = hasPinnedAction ? Self.bibleBlockBottomPinned : Self.bibleBlockBottom
+        return max(Self.referenceHeight - bottomInset - bottom, 0) * fraction
     }
 
     private static func verseNumbers(_ name: String) -> CanvasTextObject.VerseNumbers {
@@ -2479,6 +2513,10 @@ struct ActivitiesEditorScreen: View {
 
     /// §21.1 (D26): the page is taller than the 956 reference — it scrolls inside the canvas.
     private var isTallPage: Bool { state.pageHeight > Self.referenceHeight }
+
+    /// §30.2 (D46): the canvas scrolls for a tall page (§21.1) and for every Bible page; a `text`
+    /// page never scrolls (§11).
+    private var canvasScrolls: Bool { isTallPage || state.isBible }
 
     /// §21.1: the `contentExtent` that makes C-091's placement give exactly `pageHeight` with
     /// offset 0 — top at C-091's T, bottom `pageHeight` less its B (and the pinned band).
@@ -2980,12 +3018,21 @@ struct ActivitiesEditorScreen: View {
     private static let bibleLineHeightStep: CGFloat = 0.1
     private static let bibleInsetRange: ClosedRange<CGFloat> = 16...64
     private static let bibleInsetStep: CGFloat = 4
-    /// FLAGGED LITERAL — activities-editor §23.2: the Align panel's pinned height — two button
-    /// rows (40 + 8 each) and the verse-numbers strip (52); a panel taller than the room left
+    /// FLAGGED LITERAL — activities-editor §23.2 / §30.3: the Align panel's pinned height — one
+    /// button row (40 + 8) and the verse-numbers strip (52); a panel taller than the room left
     /// above the keyboard scrolls under the tool row.
-    private static let bibleAlignPanelMaxHeight: CGFloat = 148
-    /// §23.5 (D32): the page-laid-out block's 96 wu top and bottom insets on the 956 wu page.
-    private static let bibleBlockInset: CGFloat = 96
+    private static let bibleAlignPanelMaxHeight: CGFloat = 100
+    /// FLAGGED LITERAL — activities-editor §30.1 (D45): the page-laid-out block's top at 143 wu
+    /// (the container's frames) and its bottom inset, 85 wu or 110 wu with a pinned action.
+    private static let bibleBlockTop: CGFloat = 143
+    private static let bibleBlockBottom: CGFloat = 85
+    private static let bibleBlockBottomPinned: CGFloat = 110
+    /// §30.2 (D46): a Bible page ≤ 956's `contentExtent` — a point mid-page, which fits any
+    /// viewport, so C-091 keeps step 1's offset and the page stays the viewport (positions never move).
+    private static let bibleFixedExtent: ClosedRange<CGFloat> = (referenceHeight / 2)...(referenceHeight / 2)
+    /// FLAGGED LITERAL — activities-editor §30.3 (D47): the six-button row's gap between the
+    /// horizontal and vertical triples (undrawn default); 8 pt within each triple.
+    private static let alignTripleGap: CGFloat = Token.Space.step16
     /// FLAGGED LITERAL — activities-editor §21.3: a slider row's 44pt height (undrawn default).
     private static let bibleSliderRowHeight: CGFloat = 44
     /// §21.3: the verse-number options, in order.
@@ -3352,8 +3399,9 @@ extension ActivitiesEditorScreen.State {
         s.openTool = "size"
         return s
     }()
-    /// §23.7 bible-vertical-center — John 3:16 on a 956 page, the block (scripture over citation)
-    /// centred between the 96 wu insets; the container's frames are the top-at-96 layout.
+    /// §23.7 / §30.4 bible-vertical-center — John 3:16 on a 956 page, the block (scripture over
+    /// citation) centred between the 143 wu top and 85 wu bottom insets; the container's frames are
+    /// the top-at-143 layout (§30.1).
     static let bibleVerticalCenter: Self = {
         var s = bibleToolbar
         s.objectIDs = ["scripture", "citation"]
@@ -3366,9 +3414,16 @@ extension ActivitiesEditorScreen.State {
         s.objectSizes = [18, 14]
         s.objectListStyles = ["bibleVerse", ""]
         s.objectStartNumbers = [16, 1]
-        s.objectYs = [146, 229]
+        s.objectYs = [193, 276]
         s.objectHeights = [100, 17.5]
         s.bibleVerticalAlignment = "center"
+        return s
+    }()
+    /// §30.4 bible-top-below-header — the same block top-aligned: the scripture starts at 143 wu,
+    /// below the header.
+    static let bibleTopBelowHeader: Self = {
+        var s = bibleVerticalCenter
+        s.bibleVerticalAlignment = "top"
         return s
     }()
     /// §24.4 bible-editing-caption — a bible activity in `.editing` on a caption the leader added:
