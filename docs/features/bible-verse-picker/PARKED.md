@@ -1,48 +1,55 @@
 # bible-verse-picker — parked
-parked: 2026-11-11 b74801fd · by agent-walk (fleet walk lane)
+parked: 2026-11-12 6d7f3eae · by the fleet (the run that parked it wrote no record)
 kind: human-step
-blocked: "waiting for your walk — next: /builder:resume --path docs/features/bible-verse-picker"
+blocked: "revising — next: /builder:revise --path docs/features/bible-verse-picker"
 
 ## What is stuck
-Nothing is broken. The build is finished, including revision 2 (SC7 scripture vertical alignment on the
-server, the d2m Figma glyphs and the reorganised Bible tool bar, and the container wiring for them).
-The final review's fix wave landed at ee3a6bd5, and walk readiness passed at HEAD b74801fd. The test plan
-is `walk=none · review=end · human=yes`, so no agent walks it. The owner walks it on device, then signs off.
+revising
 
 ## What was tried
-- 2026-11-11 walk lane, fresh attempt after an unpark: checked whether the park still holds. It does,
-  because it is the test plan's own human step, not a fault.
-- Walk readiness at b74801fd: this branch adds no migrations (`git diff --diff-filter=A main...HEAD --
-  server/atlas/migrations` is empty), and main is an ancestor of HEAD. The walk server on :3110 (pid 25922)
-  runs from this worktree's server/ and started at 15:57:57, after the HEAD commit at 15:56:57. That
-  means it runs SC7's zod change in services/activity-document.ts, which needs nothing regenerated.
-  API_BIBLE_KEY is set in its environment. agent_walk.smoke passes on health, :8102 and :9010. These
-  all return 200: /api/bible/translations, /translations/ENGKJV/books, /ENGKJV/43/3,
-  /ENGKJV/43/3/verses?start=16&end=18, /WEB/43/3/verses?start=1&end=36, /api/search/recent, and
-  POST /api/search/smart {"query":"John 3:16"}. .builder/walk-server.log has no errors.
-- Recorded `state: built` and `ready: yes 2026-11-11 b74801fd` (71f9c32b).
+- 12 fleet run(s) in all — `git log --oneline -- docs/features/bible-verse-picker` lists what each changed
 
 ## Evidence
-- Verifier: commit tier GREEN at 7534eea, phase tier GREEN at ee3a6bd (1 flake, 1 known), merge tier
-  GREEN at be39f31 (2 flakes, 2 known).
-- .builder/bible-verse-picker/walk.md lists per-app items plus cross-app E1–E9. Its iphone block carries
-  R1–R4 for D32/D33 (vertical alignment, the tool bar), which SPEC §Testing predates. The file is git-ignored.
-- .builder/bible-verse-picker/handoff.md holds the build's rulings. Three are for the walk:
-  1. Locked scripture opens the D12 menu, so restyling is reached only through the idle Bible tool bar (D28).
-  2. The idle tool bar icons draw over scripture with no backing.
-  3. Bible save reports 409 NOT_DRAFT instead of reloading and retrying.
+- the run that parked it: /Users/lukekeith/www/makeready/.builder/fleet/logs/bible-verse-picker-12.log — its last lines:
+
+```
+· The latest revision of the Bible verse picker (Tasks 23–25) is built and committed, and it's now waiting for the fleet's walk lane. The old park reason ("waiting for your walk") no longer applied, because you'd revised the spec and approved three new phases since then.
+
+**What landed (all iPhone, 3 phases, 3 tasks)**
+- **Phase 13 · Task 23 (`b842babd`)**: the Bible reference (D34) is now ordinary text above the passage, without the translation code. It can be edited, moved and restyled like any text, and it's no longer locked or counted in the page height. Change passage updates it only while you haven't edited it.
+- **Phase 14 · Task 24 (`16b30ce9`)**: d2m added a light/dark tool bar tone setting to the editor screen. It asked one question (how to recolour the icon buttons, which set their own colour) and I gave its recommended answer: an optional icon colour, off by default.
+- **Phase 15 · Task 25 (`32d67a86`)**: on text and Bible activities, the tool bar icons turn dark when the page background is light (D35). Image and video backgrounds keep white icons.
+- **Final review fixes (`84165195`)**: an honest test name and assertions, the spec's test steps updated for D34/D35, new walk steps E10–E11, outdated code comments refreshed, superseded decisions marked, and tests for "Song of Solomon" and "1 John" when Change passage updates the reference.
+
+**Tests**: every phase passed the verifier, and the last run, on `84165195`, passed all 55 iPhone test files with one known flaky test. No server code changed, and the contract is unchanged (still frozen since 2026-11-11). I skipped walk readiness, as `--no-dev-env` requires; the manifest says the dev environment is pending for the walk lane (`6d7f3eae`).
+
+**Decisions I made, and what each costs if wrong**
+1. **Deleting the reference**: I didn't add a way to delete it. D34 says it behaves "exactly like text on a text activity", and an existing text object can't be deleted there either. Today, emptying the reference leaves an invisible empty object on the page. **Your question for the walk:** should emptying any existing text object remove it on Done, on both text and Bible activities?
+2. **Deleting the scripture**: the reference stays, since it's now independent text, and the delete confirmation no longer mentions it. If wrong, it's a wording change.
+3. **Reference position**: the test checks the box centre (top at 40 pt plus half a line), because positions are stored by centre and D34 fixes the top. If wrong, the test needs re-anchoring.
+4. **Tool bar labels**: the tool bar has only icons, so the tone covers every icon. Selected and disabled tools keep their usual look. If a label stays white somewhere, that's another d2m request.
+5. **Gradient brightness**: I averaged the base colour and every blob colour; a hidden gradient counts as its solid colour. If wrong, a gradient heavy with blobs could get the wrong tone near the threshold.
+
+**Left for later**
+- The d2m editor previews still show the old locked reference ending in "ENGKJV". This affects preview samples only and needs a d2m request.
+- Two things to check during the walk: whether the reference at 40 pt hides under the player's top bar, and whether dark icons are readable on a mid-grey page just past the threshold.
+- d2m's edits landed uncommitted in your main checkout again (`/Users/lukekeith/www/makeready`, now including `IconButton.swift`). I copied them here and left that checkout as it was.
+
+The walk script (`.builder/bible-verse-picker/walk.md`) now covers E1–E11. I reworded the hand-written iPhone steps that still described the old reference.
+
+📍 bible-verse-picker: all phases closed at `84165195`, waiting for the fleet's walk lane — next: /builder:resume --path docs/features/bible-verse-picker
+```
+- the walk env's start log: /Users/lukekeith/www/makeready/.builder/fleet/logs/bible-verse-picker-start.log
 
 ## Where to dig
-- Nothing to dig. Walk walk.md on device, with the app pointed at a server that runs this branch.
-  SC7 is a server change, so a docker dev server must be restarted (`docker restart makeready-server`).
+- start from the run's last lines above and the evidence it names; nothing has been ruled out yet
 
 ## Your choices
-1. Walk it yourself now: `/builder:resume --path docs/features/bible-verse-picker`
+1. Revise it — `/builder:revise --path docs/features/bible-verse-picker`
 2. Leave it for now
 
 ## Recommended next step
-Walk it on device, then run `/builder:signoff --path docs/features/bible-verse-picker <your words>`.
-`/builder:resume --path docs/features/bible-verse-picker` prints the walk script first.
+/builder:revise --path docs/features/bible-verse-picker
 
 ## History
 - 2026-11-10 parked — d2m cannot create the four picker screens; the screens are the owner's /ui2-screen step
@@ -60,3 +67,4 @@ Walk it on device, then run `/builder:signoff --path docs/features/bible-verse-p
 - 2026-11-11 unparked by a person — named to /builder:agent or /builder:fleet
 - 2026-11-11 readiness re-run at b74801fd (revision 2 + final-review fixes, SC7 live, all Bible endpoints 200); walk=none · human=yes → parked again (human-step), waiting for your walk
 - 2026-11-11 unparked by a person — named to /builder:agent or /builder:fleet
+- 2026-11-12 parked — revising
