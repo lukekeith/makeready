@@ -1,7 +1,7 @@
 size: lg
-state: signed-off
-next: /builder:resume --path docs/features/bible-verse-picker
-head: e1ee9685
+state: built
+next: /builder:agent-walk --path docs/features/bible-verse-picker
+head: 54161988
 ticket: none
 branch: builder/bible-verse-picker
 pr: none
@@ -11,9 +11,9 @@ hold: none
 go-ahead: Luke Keith 2026-11-11
 tests: walk=none review=end human=yes
 target: main
-walk: Luke Keith 2026-11-12
+walk: none
 verify: none
-ready: yes 2026-11-12 81d12f97
+ready: pending "dev env (fleet walk lane)"
 ui2: none
 auto: on 2026-11-10
 blocked: none
