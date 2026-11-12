@@ -46,7 +46,7 @@ enum BibleSave {
              put: (activityId, BibleScripture.document(for: pick, background: background)))
     }
 
-    /// The document's fallback title — the citation without the translation (D10).
+    /// The document's fallback title — the reference without the translation (D10, D34).
     static func title(of document: ActivityDocument) -> String {
         if case .string(let title)? = document.raw[path: ["fallback", "title"]] { return title }
         return ""

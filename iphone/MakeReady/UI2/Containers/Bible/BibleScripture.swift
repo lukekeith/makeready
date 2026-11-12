@@ -256,7 +256,7 @@ extension BibleScripture {
         var height: Double
     }
 
-    /// One `bible` page as the page lays it out (D26): the scripture and citation placements by their index in
+    /// One `bible` page as the page lays it out (D26): the scripture placement by its index in
     /// `textObjects` and the page's height (D29). The reference is not part of the layout (D34).
     struct PageLayout: Equatable {
         var scriptureIndex: Int

@@ -20,7 +20,7 @@ struct TextObject: Codable, Hashable, Identifiable {
         var rotation: Double
     }
 
-    /// D32: the scripture + citation block at the top, middle or bottom of the page (nested: the module must not
+    /// D32: the scripture block at the top, middle or bottom of the page (nested: the module must not
     /// shadow SwiftUI's `VerticalAlignment`).
     enum VerticalAlignment: String, Codable, Hashable {
         case top, center, bottom
@@ -52,7 +52,7 @@ struct TextObject: Codable, Hashable, Identifiable {
     var transform: Transform
     var marks: [Mark]
     var highlights: [Highlight]
-    /// "scripture" / "citation" mark a Bible activity's locked objects (D10, D11); nil on ordinary text.
+    /// "scripture" marks a Bible activity's locked passage; "citation" marks the reference, which is ordinary text (D10, D11, D34); nil on other text.
     var role: String?
     var listStyle: String?
     var startNumber: Int?

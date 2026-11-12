@@ -1137,6 +1137,7 @@
 		BPM0001000000000000002 /* BiblePassageMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = BPM0002000000000000001 /* BiblePassageMenu.swift */; };
 		BET0003000000000000001 /* BibleEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BET0004000000000000001 /* BibleEditorTests.swift */; };
 		BSV0003000000000000001 /* BibleSaveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BSV0004000000000000001 /* BibleSaveTests.swift */; };
+		BPE0003000000000000001 /* BiblePassageEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BPE0004000000000000001 /* BiblePassageEditingTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -1977,6 +1978,7 @@
 		BSC0002000000000000001 /* BibleScripture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleScripture.swift; sourceTree = "<group>"; };
 		BSV0002000000000000001 /* BibleSave.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleSave.swift; sourceTree = "<group>"; };
 		BSV0004000000000000001 /* BibleSaveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleSaveTests.swift; sourceTree = "<group>"; };
+		BPE0004000000000000001 /* BiblePassageEditingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiblePassageEditingTests.swift; sourceTree = "<group>"; };
 		BPM0002000000000000001 /* BiblePassageMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiblePassageMenu.swift; sourceTree = "<group>"; };
 		BET0004000000000000001 /* BibleEditorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleEditorTests.swift; sourceTree = "<group>"; };
 		BSC0004000000000000001 /* BibleScriptureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleScriptureTests.swift; sourceTree = "<group>"; };
@@ -2569,6 +2571,7 @@
 				BPK800000000000000000001 /* BibleReaderMapperTests.swift */,
 				BSC0004000000000000001 /* BibleScriptureTests.swift */,
 				BSV0004000000000000001 /* BibleSaveTests.swift */,
+				BPE0004000000000000001 /* BiblePassageEditingTests.swift */,
 				BET0004000000000000001 /* BibleEditorTests.swift */,
 			);
 			path = MakeReadyCaptureTests;
@@ -3837,6 +3840,7 @@
 				BPK800000000000000000002 /* BibleReaderMapperTests.swift in Sources */,
 				BSC0003000000000000001 /* BibleScriptureTests.swift in Sources */,
 				BSV0003000000000000001 /* BibleSaveTests.swift in Sources */,
+				BPE0003000000000000001 /* BiblePassageEditingTests.swift in Sources */,
 				BET0003000000000000001 /* BibleEditorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

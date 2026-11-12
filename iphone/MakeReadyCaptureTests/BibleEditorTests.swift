@@ -77,14 +77,17 @@ final class BibleEditorTests: XCTestCase {
         XCTAssertEqual(model.editingIndex, 1)
     }
 
-    func testTheReferenceTypesMovesAndDeletesAsText() {
+    /// D34 ruling: the reference is unlocked text, so it edits and moves as text; the editor has no delete path for any
+    /// existing object (text activities included), so all this pins is that a delete request on it asks nothing.
+    func testTheReferenceTypesAndMovesAsUnlockedTextAndDeleteAsksNothing() {
         let model = model()
         model.edit(.init(index: 1, text: "For God so loved", transform: .init(x: 100, y: 500, scale: 2, rotation: 15)))
         let citation = model.document.textObjects[1]
         XCTAssertEqual(citation.text, "For God so loved")
         XCTAssertEqual([citation.transform.x, citation.transform.y, citation.transform.scale, citation.transform.rotation], [100, 500, 2, 15])
         model.requestDelete(objectIndex: 1)
-        XCTAssertNil(model.presentation, "D34: deleting the reference asks nothing")
+        XCTAssertFalse(state(model.document, kind: "bible").objectLocks[1], "D34: the reference is unlocked")
+        XCTAssertNil(model.presentation, "D34: a delete request on the reference presents no confirmation")
     }
 
     func testTappingLegacyScriptureEditsItAsOrdinaryText() async {
