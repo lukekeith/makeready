@@ -2454,7 +2454,7 @@ struct ActivitiesEditorScreen: View {
     private var draftLayoutWidth: CGFloat { edited?.transform.width ?? Self.editSlotWidth }
 
     /// §3 tool 3: the edit slot re-anchors 24 wu from the canvas edge.
-    private var draftCentreX: CGFloat {
+    private var slotCentreX: CGFloat {
         switch draftAlignment {
         case .center: return Self.referenceWidth / 2
         case .left: return Self.editSlotInset + draftLayoutWidth / 2
@@ -2462,26 +2462,46 @@ struct ActivitiesEditorScreen: View {
         }
     }
 
-    /// §2 item 3 handle / thumb separation (2): while the object's left edge is inside the slider
-    /// column the handles ride 14 wu inside the text edge, so the left one clears the thumb.
-    private var handleInset: CGFloat {
-        draftCentreX - draftLayoutWidth / 2 < Self.sliderColumn ? Self.handleInsetWhenCrowded : 0
+    /// §2 item 3 (D40, owner 2026-11-11): the width handles sit OUTSIDE the text box — the bar's
+    /// inner edge `handleGap` from the text, never on a glyph. While the box's left handle would
+    /// fall in the size-slider column, the edited block is nudged in just far enough to clear it
+    /// (it returns to its own place on Done); when the block is too wide for both handles at the
+    /// full gap, the gap shrinks (to 0 at the widest) instead of the handles touching the text.
+    private var draftHandleLayout: (centreX: CGFloat, gap: CGFloat) {
+        let width = draftLayoutWidth
+        // Where the box edge may sit with a zero gap: the left bar (its full width) clears the
+        // slider column, the right bar stays wholly on the canvas.
+        let leftLimit = Self.sliderColumn + Self.handleBarWidth
+        let rightLimit = Self.referenceWidth - Self.handleBarWidth
+        let fullGap = Self.handleGap
+        // The largest gap both handles can have with the block anywhere between the limits.
+        let room = (rightLimit - leftLimit - width) / 2
+        let gap = min(fullGap, max(room, 0))
+        let minLeft = leftLimit + gap                     // the box's left edge may not go further left
+        let maxLeft = rightLimit - gap - width            // nor its right edge further right
+        let left = min(max(slotCentreX - width / 2, minLeft), max(maxLeft, minLeft))
+        return (left + width / 2, gap)
     }
 
+    /// The edited block's centre while editing — the slot, nudged per D40.
+    private var draftCentreX: CGFloat { draftHandleLayout.centreX }
+
     private func widthHandles(pageOffset: CGFloat) -> ActivityCanvas<AnyView>.WidthHandles {
-        .init(
-            frame: CGRect(x: draftCentreX - draftLayoutWidth / 2 + handleInset,
+        let layout = draftHandleLayout
+        let outset = layout.gap + Self.handleBarWidth / 2
+        return .init(
+            frame: CGRect(x: layout.centreX - draftLayoutWidth / 2 - outset,
                           y: Self.editSlotY + pageOffset - draftHeight / 2,
-                          width: draftLayoutWidth - 2 * handleInset,
+                          width: draftLayoutWidth + 2 * outset,
                           height: draftHeight),
             rotation: .zero
         )
     }
 
-    /// §2 item 3: `onResizeWidth` reports the handles' width; the inset goes back on, then clamps.
+    /// §2 item 3: `onResizeWidth` reports the handles' span; the outset comes off, then clamps.
     private func resizeDraft(_ handleWidth: CGFloat) {
         guard let editedIndex else { return }
-        let width = handleWidth + 2 * handleInset
+        let width = handleWidth - 2 * (draftHandleLayout.gap + Self.handleBarWidth / 2)
         apply(.init(index: editedIndex, width: min(max(width, Self.minObjectWidth), Self.editSlotWidth)))
     }
 
@@ -2884,7 +2904,10 @@ struct ActivitiesEditorScreen: View {
     private static let sliderDockDelay: Duration = .seconds(2)
     private static let sliderDockAnimation = Animation.easeOut(duration: 0.25)
     private static let sliderColumn: CGFloat = 38
-    private static let handleInsetWhenCrowded: CGFloat = 14
+    /// FLAGGED LITERAL — D40 (owner 2026-11-11): the gap between a width handle's bar and the text.
+    private static let handleGap: CGFloat = 6
+    /// C-091's width-handle bar width (`ActivityCanvas.handleSize.width`), mirrored for placement.
+    private static let handleBarWidth: CGFloat = 6
     /// FLAGGED LITERAL — activities-editor §2: Selection row 8 wu above the container.
     private static let selectionRowGap: CGFloat = 8
     /// FLAGGED LITERAL — activities-editor §2: inline action 24 wu below; C-105 is 36 tall;
