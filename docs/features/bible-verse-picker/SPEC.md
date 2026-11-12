@@ -1,5 +1,5 @@
 # bible-verse-picker — spec
-> ✅ SIGNED OFF 2026-11-12 — e1ee9685 · by Luke Keith: "It works really well"
+> ✅ SIGNED OFF 2026-11-12 — 1935272d · by Luke Keith: "It works well"
 > lg · ticket none
 
 ## Idea

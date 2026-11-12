@@ -1,7 +1,7 @@
 size: lg
-state: built
+state: signed-off
 next: /builder:resume --path docs/features/bible-verse-picker
-head: 8b07a624
+head: 1935272d
 ticket: none
 branch: builder/bible-verse-picker
 pr: none
@@ -11,7 +11,7 @@ hold: none
 go-ahead: Luke Keith 2026-11-11
 tests: walk=none review=end human=yes
 target: main
-walk: none
+walk: Luke Keith 2026-11-12
 verify: none
 ready: yes 2026-11-12 a4833a17
 ui2: none
