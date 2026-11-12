@@ -1,51 +1,24 @@
 # bible-verse-picker — parked
-parked: 2026-11-12 bffe1486 · by the fleet (the run that parked it wrote no record)
-kind: stuck
-blocked: "the walk env would not start (walk env didn't come up — see /Users/lukekeith/www/makeready/.builder/fleet/logs/bible-verse-picker-start.log) and an agent run could not fix it — next: run agent_walk.start in /Users/lukekeith/www/makeready.fleet/bible-verse-picker and fix what it prints, then /builder:agent"
+parked: 2026-11-12 ac903add · by the walk lane
+kind: human-step
+blocked: "waiting for your walk — next: /builder:resume --path docs/features/bible-verse-picker"
 
 ## What is stuck
-the walk env would not start (walk env didn't come up — see /Users/lukekeith/www/makeready/.builder/fleet/logs/bible-verse-picker-start.log) and an agent run could not fix it
+Nothing is broken. The test plan is walk=none · human=yes: no agent walks it, and you walk it on the device.
 
 ## What was tried
-- 13 fleet run(s) in all — `git log --oneline -- docs/features/bible-verse-picker` lists what each changed
+- The walk env came up this time: the fleet ran agent_walk.copy and sync, which last run's park was missing.
+- Walk readiness at 81d12f97: 82 migrations with 0 pending on makeready_walk, API_BIBLE_KEY set, and translations, chapter NASB/43/3 and smart search (direct and grouped) all return 200, with no errors in the server log.
 
 ## Evidence
-- the run that parked it: /Users/lukekeith/www/makeready/.builder/fleet/logs/bible-verse-picker-13.log — its last lines:
-
-```
-· No install at all in the worktree. Run the sync step to see whether it fails.
-· Sync works. Now the full reset:
-· Reset passes once installed. Check start + smoke too, in one foreground command that cleans up after itself:
-· Servers stopped. Both came up but smoke failed — check which probe fails:
-· Client returns 500. Check Laravel's log:
-· Second problem: the worktree's client has no `.env`, so no `APP_KEY`. Check how builder.md's walk env expects this to be provided:
-· builder.md's `copy:` should have put `client/.env` (and `server/bin/atlas`) into this worktree. Checking whether those copies happened:
-· I didn't commit anything. Nothing in this branch's code, migrations or dependencies is broken. The cause is in the fleet's worktree setup: it never ran builder.md's `agent_walk.copy` and `agent_walk.sync` steps for this worktree. It was unparked for a retry, which may be how those steps got skipped.
-
-**What I found**
-- The worktree has no `node_modules` at all. That is why the reset fails at `npm run migrate:apply` with `sh: dotenv: command not found` (exit 127).
-- The files the copy step should have brought over from the main checkout aren't here either: `client/.env`, `server/bin/atlas` and `.mcp.json` are all missing. All three exist in the main checkout.
-
-**What I ran to check**
-- **Sync:** `npm ci`, `prisma generate` and `composer install` all succeed.
-- **Reset:** after the sync, the full reset passes. It applied 82 migrations, ran the seed, and loaded the fixtures (3 users, 2 orgs, 24 members and so on), exiting 0.
-- **Start and smoke:** the server's `:3110/health` returns 200 and s3mock on `:9010` is up. The client on `:8102` returns **500** with Laravel's `MissingAppKeyException` ("No application encryption key has been specified"). That's because `client/.env` was never copied in, and `APP_KEY` isn't set in the walk env either. So even with the reset fixed, the smoke check would still fail until the copy step runs.
-
-**Fix needed outside the branch:** the fleet has to run `agent_walk.copy` (`client/.env`, `server/bin/atlas`, `.mcp.json`, `scripts/builder-verify.mjs`) and then `agent_walk.sync` on this worktree before the reset. With both done, the reset and start should come up cleanly.
-
-**State I'm leaving behind**
-- The installed `node_modules` and `client/vendor` are still in the worktree; both are gitignored. I didn't copy `client/.env`, because that's the fleet's copy step to do.
-- The `makeready_walk` database has been reset and seeded.
-- The client and server processes I started are stopped, and nothing is listening on `:3110` or `:8102`.
-- The working tree is clean.
-```
-- the walk env's start log: /Users/lukekeith/www/makeready/.builder/fleet/logs/bible-verse-picker-start.log
+- The walk script is .builder/bible-verse-picker/walk.md: cross-app E1–E11.
+- The hand-off is .builder/bible-verse-picker/handoff.md.
 
 ## Where to dig
-- start from the run's last lines above and the evidence it names; nothing has been ruled out yet
+- Nothing to dig. The next step is a person's.
 
 ## Recommended next step
-run agent_walk.start in /Users/lukekeith/www/makeready.fleet/bible-verse-picker and fix what it prints, then /builder:agent
+Walk E1–E11 on the device, then type /builder:signoff --path docs/features/bible-verse-picker <your words>.
 
 ## History
 - 2026-11-10 parked — d2m cannot create the four picker screens; the screens are the owner's /ui2-screen step
@@ -68,3 +41,4 @@ run agent_walk.start in /Users/lukekeith/www/makeready.fleet/bible-verse-picker 
 - 2026-11-12 parked — the walk env would not start (walk env didn't come up — see /Users/lukekeith/www/makeready/.builder/fleet/logs/bible-verse-picker-start.log) and an agent run could not fix it
 - 2026-11-12 unparked by the fleet — automatic retry 1 of 2
 - 2026-11-12 cause cleared — the fleet ran agent_walk.copy + sync this time (client/.env, atlas, node_modules, client/vendor present); walk env up on :3110/:8102/:9010, smoke 200; readiness at 81d12f97: 82 migrations, 0 pending on makeready_walk, API_BIBLE_KEY set, translations/chapter/smart search 200, no server-log errors; state → built
+- 2026-11-12 parked (human-step) — readiness passed at 81d12f97; walk=none · human=yes → waiting for your walk
