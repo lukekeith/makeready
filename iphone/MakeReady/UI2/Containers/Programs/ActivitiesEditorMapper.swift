@@ -88,6 +88,8 @@ enum ActivitiesEditorMapper {
         )
         state.objectIDs = objects.map(\.id)
         state.objectLocks = document.textObjects.map(\.isLockedScripture)
+        // D35: text and bible activities pick the tool bar tone from the page background; recomputed on every state build.
+        if kind == "text" || kind == "bible" { state.toolbarTone = toolbarTone(for: background) }
         if kind == "bible", let layout = placed.layout { applyBibleLayout(layout, objects: objects, to: &state) }
         return state
     }
@@ -114,6 +116,29 @@ enum ActivitiesEditorMapper {
         state.bibleAlignment = scripture.alignment
         // D32: the screen shifts the block itself, so the frames stay top-at-96 and only the choice is passed.
         state.bibleVerticalAlignment = (scripture.verticalAlignment ?? .top).rawValue
+    }
+
+    /// D35: dark icons on a light page. A solid colour's WCAG relative luminance, or a visible gradient's mean over its
+    /// stops (the base and each blob colour), at or above 0.5 gives `.dark`; an image, no background or an unreadable
+    /// colour gives `.light`.
+    static func toolbarTone(for background: ActivityBackground?) -> ActivitiesEditorScreen.ToolbarTone {
+        guard let background, background.image == nil else { return .light }
+        var colours = [background.color]
+        if let gradient = background.gradient, !gradient.hidden { colours = [gradient.base] + gradient.blobs.map(\.color) }
+        let luminances = colours.compactMap(relativeLuminance)
+        guard !luminances.isEmpty else { return .light }
+        return luminances.reduce(0, +) / Double(luminances.count) >= 0.5 ? .dark : .light
+    }
+
+    /// WCAG relative luminance of `#RRGGBB` (an alpha pair after it is ignored); nil when unreadable.
+    private static func relativeLuminance(_ hex: String) -> Double? {
+        let digits = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
+        guard digits.count == 6 || digits.count == 8, let value = UInt32(digits.prefix(6), radix: 16) else { return nil }
+        func linear(_ shift: UInt32) -> Double {
+            let channel = Double((value >> shift) & 0xFF) / 255
+            return channel <= 0.03928 ? channel / 12.92 : pow((channel + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * linear(16) + 0.7152 * linear(8) + 0.0722 * linear(0)
     }
 
     /// D18: the document's font keys, passed to the screen as keys — it draws `display`, `sans`,
