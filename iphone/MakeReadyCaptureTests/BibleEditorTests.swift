@@ -314,7 +314,7 @@ final class BibleEditorTests: XCTestCase {
     func testTheStateCarriesThePageLayout() {
         let s = state(Self.bibleDoc, kind: "bible")
         XCTAssertEqual(s.objectPageLaidOut, [true, false])
-        XCTAssertEqual(s.objectYs[0] - s.objectHeights[0] / 2, 96, accuracy: 0.5)
+        XCTAssertEqual(s.objectYs[0] - s.objectHeights[0] / 2, 143, accuracy: 0.5)
         XCTAssertEqual(s.objectYs[1], Self.bibleDoc.textObjects[1].transform.y)
         XCTAssertEqual(s.objectXs, [220, 220])
         XCTAssertEqual(s.objectWidths, [376, 376])
@@ -371,12 +371,12 @@ final class BibleEditorTests: XCTestCase {
         XCTAssertNil(back?["verticalAlignment"])
     }
 
-    /// D32/D33: the editor screen does the shift itself, so the state carries the choice and the top-at-96 frames.
+    /// D32/D33: the editor screen does the shift itself, so the state carries the choice and the top-at-143 frames (D45).
     func testTheEditorStateCarriesVerticalAlignmentWithoutPreShifting() {
         let centered = Self.bibleDoc.updating { $0[path: ["content", "objects", .index(0), "verticalAlignment"]] = .string("center") }
         let s = state(centered, kind: "bible")
         XCTAssertEqual(s.bibleVerticalAlignment, "center")
-        XCTAssertEqual(s.objectYs[0] - s.objectHeights[0] / 2, 96, accuracy: 0.5)
+        XCTAssertEqual(s.objectYs[0] - s.objectHeights[0] / 2, 143, accuracy: 0.5)
         XCTAssertEqual(state(Self.bibleDoc, kind: "bible").bibleVerticalAlignment, "top")
     }
 }

@@ -103,9 +103,9 @@ final class BibleScriptureTests: XCTestCase {
     func testTheDocumentUsesTheD10Layout() {
         let doc = BibleScripture.document(for: Self.pick16b18, background: nil)
         let s = doc.textObjects[0], c = doc.textObjects[1]
-        XCTAssertEqual(s.font, "serif"); XCTAssertEqual(s.size, 18); XCTAssertEqual(s.alignment, "left")
+        XCTAssertEqual(s.font, "display"); XCTAssertEqual(s.size, 18); XCTAssertEqual(s.alignment, "left")
         XCTAssertEqual(s.transform.width, 376)
-        XCTAssertEqual(c.role, "citation"); XCTAssertEqual(c.font, "serif"); XCTAssertEqual(c.size, 14)
+        XCTAssertEqual(c.role, "citation"); XCTAssertEqual(c.font, "display"); XCTAssertEqual(c.size, 14)
         XCTAssertLessThan(c.transform.y, s.transform.y, "D34: the reference sits above the passage")
         XCTAssertTrue(s.isLockedScripture); XCTAssertFalse(c.isLockedScripture)
         // D34: left edge at the scripture's inset, width 440 - 2 * inset, the scripture's colour and alignment.
@@ -116,8 +116,9 @@ final class BibleScriptureTests: XCTestCase {
     func testTheReferenceHasNoTranslationAndSitsAbove() {
         let c = BibleScripture.document(for: Self.pick16b18, background: nil).textObjects[1]
         XCTAssertEqual(c.text, "John 3:16b-18")
-        // D34: top at 40 on the 440 reference; transform.y is the box centre, one 14 pt line (about 20) tall.
-        XCTAssertEqual(c.transform.y, 50, accuracy: 2)
+        // D34/D45: top at 107 (just under the header) on the 440 reference; transform.y is the box centre,
+        // one 14 pt line (about 20) tall.
+        XCTAssertEqual(c.transform.y, 117, accuracy: 3)
     }
 
     func testChangePassageKeepsAnEditedReference() {
@@ -162,12 +163,13 @@ final class BibleScriptureTests: XCTestCase {
 
     func testTheDefaultsAreTheD28Style() {
         let s = BibleScripture.document(for: Self.pick16b18, background: nil).textObjects[0]
-        XCTAssertEqual(s.size, 18); XCTAssertEqual(s.lineHeight, 1.4); XCTAssertEqual(s.font, "serif"); XCTAssertEqual(s.weight, 400)
+        XCTAssertEqual(s.size, 18); XCTAssertEqual(s.lineHeight, 1.4); XCTAssertEqual(s.font, "display"); XCTAssertEqual(s.weight, 400)
     }
 
     func testPageHeightNeverDropsBelowTheTextPage() {
         XCTAssertEqual(BibleScripture.pageHeight(scriptureHeight: 200), 956)
-        XCTAssertEqual(BibleScripture.pageHeight(scriptureHeight: 1400), 1592, "D34: the reference no longer counts")
+        XCTAssertEqual(BibleScripture.pageHeight(scriptureHeight: 1400), 1628, "D34/D45: 143 top + 85 bottom")
+        XCTAssertEqual(BibleScripture.pageHeight(scriptureHeight: 1400, pinned: true), 1653, "D45: a pinned action reserves 110")
     }
 
     static let legacyScriptureJSON = """

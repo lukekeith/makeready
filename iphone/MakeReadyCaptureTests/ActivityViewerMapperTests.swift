@@ -150,9 +150,9 @@ final class ActivityViewerMapperTests: XCTestCase {
     /// D32: centre moves a short passage down the page, but a page taller than 956 has no slack and reads top.
     func testCenterMovesAShortPassageButNotATallOne() {
         let short = Self.john316Centered, tall = Self.john3AllCentered, plain = BibleEditorTests.bibleDoc
-        XCTAssertGreaterThan(ActivityViewerMapper.page(for: short)?.scriptureTop ?? 0, 96)
-        XCTAssertEqual(ActivityViewerMapper.page(for: tall)?.scriptureTop, 96)
-        XCTAssertEqual(ActivityViewerMapper.page(for: plain)?.scriptureTop, 96)
+        XCTAssertGreaterThan(ActivityViewerMapper.page(for: short)?.scriptureTop ?? 0, 143)
+        XCTAssertEqual(ActivityViewerMapper.page(for: tall)?.scriptureTop, 143)
+        XCTAssertEqual(ActivityViewerMapper.page(for: plain)?.scriptureTop, 143)
     }
 
     /// D32: bottom puts the block's last line 96 above the page's bottom; the player and thumbnail place it there.
@@ -162,9 +162,9 @@ final class ActivityViewerMapperTests: XCTestCase {
         let top = try XCTUnwrap(ActivityViewerMapper.page(for: plain))
         let block = top.scripture.height
         let bottom = try XCTUnwrap(ActivityViewerMapper.page(for: bottomDoc))
-        XCTAssertEqual(bottom.scriptureTop + block, 956 - 96, accuracy: 0.5)
+        XCTAssertEqual(bottom.scriptureTop + block, 956 - 85, accuracy: 0.5)
         let middle = try XCTUnwrap(ActivityViewerMapper.page(for: centered))
-        XCTAssertEqual(middle.scriptureTop, 96 + (956 - 192 - block) / 2, accuracy: 0.5)
+        XCTAssertEqual(middle.scriptureTop, 143 + (956 - 143 - 85 - block) / 2, accuracy: 0.5)
         let placed = BibleScripture.placed(centered).objects
         XCTAssertEqual(placed[0].transform.y - middle.scripture.height / 2, middle.scriptureTop, accuracy: 0.5)
         XCTAssertEqual(ActivityThumbnail.objects(for: centered).count, 2)

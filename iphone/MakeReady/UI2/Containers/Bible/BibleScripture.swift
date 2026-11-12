@@ -13,18 +13,22 @@ enum BibleScripture {
     private static let minimumPageHeight = 956.0
     /// D28: the default padding from the page edge.
     private static let sideInset = 32.0
-    private static let topInset = 96.0
-    private static let bottomInset = 96.0
-    /// D34: the reference's starting top, above the scripture.
-    private static let citationTop = 40.0
+    /// D45: the page's clear top band (the editor header / the player's top chrome, §18 `Snap.top` = 107)
+    /// plus room for the reference line above the passage (D34).
+    private static let topInset = 143.0
+    /// D45: the player's end space (`Snap.bottom`), and with a pinned action its pinned band (`Snap.bottomPinned`).
+    private static let bottomInset = 85.0
+    private static let bottomInsetPinned = 110.0
+    /// D34/D45: the reference's starting top — the top of the clear band, just under the header.
+    private static let citationTop = 107.0
     private static let scriptureSize = 18.0
     private static let citationSize = 14.0
     /// D28: the default line height multiple.
     private static let lineHeight = 1.4
 
     /// D29/D34: the page is at least the text page, and grows to hold the laid-out scripture; the reference is not counted.
-    static func pageHeight(scriptureHeight: CGFloat) -> CGFloat {
-        max(minimumPageHeight, topInset + scriptureHeight + bottomInset)
+    static func pageHeight(scriptureHeight: CGFloat, pinned: Bool = false) -> CGFloat {
+        max(minimumPageHeight, topInset + scriptureHeight + (pinned ? bottomInsetPinned : bottomInset))
     }
 
     /// The default scripture layout width.
@@ -103,7 +107,7 @@ enum BibleScripture {
             "id": .string(UUID().uuidString.lowercased()),
             "role": .string(role),
             "text": .string(text),
-            "font": .string("serif"),
+            "font": .string("display"),   // D44: Poppins by default
             "weight": .number(400),
             "size": .number(size),
             "lineHeight": .number(lineHeight),
@@ -235,12 +239,12 @@ enum BibleScripture {
         let style = NSMutableParagraphStyle()
         style.minimumLineHeight = size * lineHeight
         style.maximumLineHeight = size * lineHeight
-        let font = UIFont.systemFont(ofSize: size)
-        let serif = font.fontDescriptor.withDesign(.serif).map { UIFont(descriptor: $0, size: size) } ?? font
+        // D44: measured in the default face, Poppins (`display`) at 400.
+        let font = ActivityViewerMapper.measuringFont(key: "display", weight: 400, size: size)
         let box = (text as NSString).boundingRect(
             with: CGSize(width: width, height: .greatestFiniteMagnitude),
             options: [.usesLineFragmentOrigin, .usesFontLeading],
-            attributes: [.font: serif, .paragraphStyle: style], context: nil)
+            attributes: [.font: font, .paragraphStyle: style], context: nil)
         return ceil(box.height)
     }
 }
@@ -283,9 +287,11 @@ extension BibleScripture {
         let scriptureHeight = scriptureHeight(scripture, width: width)
         let scriptureBox = Placement(centerX: pageWidth / 2, centerY: topInset + scriptureHeight / 2,
                                      width: width, height: scriptureHeight)
-        let height = Double(pageHeight(scriptureHeight: CGFloat(scriptureHeight)))
+        let pinned = document.actions.contains { $0.placement == .pinned }
+        let height = Double(pageHeight(scriptureHeight: CGFloat(scriptureHeight), pinned: pinned))
         // D32: the block moves only when the page is 956 tall; a taller page has no slack and reads top.
-        let slack = height > minimumPageHeight ? 0 : max(minimumPageHeight - bottomInset - (topInset + scriptureHeight), 0)
+        let bottom = pinned ? bottomInsetPinned : bottomInset
+        let slack = height > minimumPageHeight ? 0 : max(minimumPageHeight - bottom - (topInset + scriptureHeight), 0)
         let shift: Double
         switch scripture.verticalAlignment ?? .top {
         case .top: shift = 0
@@ -328,8 +334,10 @@ extension BibleScripture {
             }
             return rows(verses, object: scripture, lineHeight: lineHeight, width: max(width - widest - gutterGap, 1))
         case .inline:
+            // D41: inline runs on as one paragraph, each number inside the text.
             let numbered = verses.enumerated().map { "\(first + $0.offset) \($0.element)" }
-            return rows(numbered, object: scripture, lineHeight: lineHeight, width: width)
+            return textHeight(numbered.joined(separator: " "), object: scripture, size: scripture.size,
+                              lineHeight: lineHeight, width: width)
         }
     }
 
