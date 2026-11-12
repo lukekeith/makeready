@@ -1,4 +1,5 @@
 # bible-verse-picker — spec
+> ✅ SIGNED OFF 2026-11-12 — e1ee9685 · by Luke Keith: "It works really well"
 > lg · ticket none
 
 ## Idea
@@ -291,34 +292,3 @@ constraints: every server change is independent.
 | F17 | The Reader's chapter swipe and touch-and-hold drag compete with the shell edge-swipe and vertical scroll | D4 corrected; build-time risk on the BibleVerseReader task |
 | F18 | A whole-verse `Highlight`/`VerseNote` model already exists and overlays chapter responses (`bible.ts:360-376, 1002-1395`) | Input for spec 2 (member-highlights); untouched here |
 | F19 | contract: client ⬜ claim gave the wrong reason — the client does read chapter text and recents | §Apps client row restated; still ⬜ (no change needed there) |
-
-## Plan
-
-The plan, task by task: `docs/features/bible-verse-picker/PLAN.md` (§PLAN.md).
-
-- Phase 1 · Task 1 · Canonical verse text, titles off, versioned chapter cache
-- Phase 1 · Task 2 · Validate passages with offsets and paired scripture references
-- Phase 1 · Task 3 · Smart search `record`, per-query recent delete, canonical direct hits
-- Phase 1 · Task 4 · Picker fixtures, then freeze the contract
-- Phase 2 · Task 5 · Decode passages and scripture objects
-- Phase 2 · Task 6 · The book catalog — categories, unique abbreviations, chapter stepping
-- Phase 2 · Task 7 · `BibleActions` and the AppState Bible domain
-- Phase 3 · Task 8 · File the d2m handover requests and wait for the builds
-- Phase 4 · Task 9 · Picker destinations, flow state and the one-write return
-- Phase 4 · Task 10 · Books (with search and translation), Chapters and Verses pages
-- Phase 4 · Task 11 · The Reader page — selection, chapter swipe, translation, Select
-- Phase 5 · Task 12 · Scripture document logic — mapping, used, re-anchoring, splitting
-- Phase 5 · Task 13 · The Bible tile creates activities, split and ordered
-- Phase 5 · Task 14 · The editor — locked scripture, the passage menu, highlighting, change passage
-- Phase 5 · Task 15 · Thumbnails and the player draw verse numbers and highlights
-- Phase 6 · Task 16 · SC6 — verse-number mode and inset on scripture objects
-- Phase 7 · Task 17 · Scripture document without split — defaults and page height
-- Phase 8 · Task 18 · d2m — verse-number modes, the scrolling Bible page, the style panel, the player's in-page scroll
-- Phase 9 · Task 19 · The editor, player and thumbnails run page-laid-out scripture
-- Phase 10 · Task 20 · SC7 — vertical alignment on scripture objects
-- Phase 11 · Task 21 · d2m — Figma glyphs and the reorganised Bible tool bar
-- Phase 12 · Task 22 · The containers wire vertical alignment and the new tool bar
-- Phase 13 · Task 23 · The reference becomes ordinary text above the passage
-- Phase 14 · Task 24 · d2m — the tool bar tone input
-- Phase 15 · Task 25 · The containers pick the tool bar tone from the background
-- Phase 16 · Task 26 · d2m — the Reader scrolls, nothing clips, a brighter selection
