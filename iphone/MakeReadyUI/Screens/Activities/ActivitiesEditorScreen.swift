@@ -108,6 +108,8 @@ struct ActivitiesEditorScreen: View {
         /// §3 Manipulating: the 1 px centre guide and the "Drag to delete" target.
         var centerGuide: Bool
         var deleteTargetShown: Bool
+        /// §31.7 (D48): previews only — the target drawn armed (1.15×) with `deleteTargetShown`.
+        var deleteTargetArmed: Bool = false
         /// §3 Saving: the commit's background write is in flight (D39) — no visual change.
         var saving: Bool
         /// §3 Error: the save failed and the "Couldn't save activity" alert is up.
@@ -395,6 +397,9 @@ struct ActivitiesEditorScreen: View {
     var onEndHighlighting: () -> Void = {}
     /// §21.4 (D29): a Bible font panel change — chips at once, a slider once when the finger lifts.
     var onBibleStyleChange: (BibleStyleChange) -> Void = { _ in }
+    /// §31.4 (D48): a movable object was dropped on the delete target — its index into
+    /// `State.objects`. The container removes it and re-supplies `State.objects`.
+    var onDeleteObject: (Int) -> Void = { _ in }
 
     // §21.3: the Bible font panel's values as shown — each change applies here at once (a slider
     // per frame) and is reported through `onBibleStyleChange`; a new `State` re-seeds them.
@@ -465,6 +470,10 @@ struct ActivitiesEditorScreen: View {
     // that fires on lift-off is ignored; cleared at the next finger-down.
     @SwiftUI.State private var touchWasManipulation = false
     @SwiftUI.State private var activeManipulations: Set<CanvasManipulation.Kind> = []
+    // §31.1 (D48, held only while fingers are down): the live "Drag to delete" target, and whether
+    // a second finger, pinch or rotate has ruled it out for the rest of this gesture (§31.2).
+    @SwiftUI.State private var liveDeleteTarget: ActivityCanvas<AnyView>.DeleteTarget?
+    @SwiftUI.State private var deleteRuledOut = false
     @SwiftUI.State private var moveBase: CGPoint = .zero
     @SwiftUI.State private var scaleBase: CGFloat = 1
     @SwiftUI.State private var rotationBase: Double = 0
@@ -512,7 +521,8 @@ struct ActivitiesEditorScreen: View {
         onDiscard: @escaping () -> Void = {},
         onHighlightRange: @escaping (_ objectIndex: Int, _ start: Int, _ end: Int) -> Void = { _, _, _ in },
         onEndHighlighting: @escaping () -> Void = {},
-        onBibleStyleChange: @escaping (BibleStyleChange) -> Void = { _ in }
+        onBibleStyleChange: @escaping (BibleStyleChange) -> Void = { _ in },
+        onDeleteObject: @escaping (Int) -> Void = { _ in }
     ) {
         self.state = state
         self.onBack = onBack
@@ -541,6 +551,7 @@ struct ActivitiesEditorScreen: View {
         self.onHighlightRange = onHighlightRange
         self.onEndHighlighting = onEndHighlighting
         self.onBibleStyleChange = onBibleStyleChange
+        self.onDeleteObject = onDeleteObject
         _bibleStyle = SwiftUI.State(initialValue: BibleStyle(state))
         _shownObjects = SwiftUI.State(initialValue: Self.committedObjects(state))
         let actions = Self.pageActions(state)
@@ -870,12 +881,17 @@ struct ActivitiesEditorScreen: View {
         let offset = pageOffset(viewport: viewport)
         return ActivityCanvas<AnyView>(
             background: background,
-            mode: mode,
+            // §31.1 (D48): C-091 draws the target in `manipulating` only, so a live one-finger drag
+            // shows the canvas that mode while the target is up.
+            mode: liveDeleteTarget != nil ? .manipulating : mode,
             content: { AnyView(canvasContent(objects, unit: unit)) },
             onTapEmpty: { point in tapCanvas(at: point) },
             // §18.7 (D33): the guides active now — the centre guide is one of them.
             activeGuides: canvasGuides(viewport: viewport, unit: unit),
-            deleteTarget: state.deleteTargetShown ? .visible : nil,
+            // §31.1 (D48): the live target is the screen's; `State.deleteTargetShown` is previews only.
+            deleteTarget: liveDeleteTarget
+                ?? (state.deleteTargetShown ? (state.deleteTargetArmed ? .armed : .visible) : nil),
+            bottomSafeArea: safeBottom,
             verticalAnchor: .center,
             contentExtent: extent,
             // §2 (D3): the screen only turns the guides on — §18.7 (D33): only while the
@@ -1108,7 +1124,7 @@ struct ActivitiesEditorScreen: View {
                 // §10.10: while editing, two fingers pinch and rotate the edited object; it never moves.
                 return kind != .move || editedIndex == nil
             },
-            onUpdate: { manipulate($0, unit: unit, viewport: size.height / unit) },
+            onUpdate: { manipulate($0, unit: unit, viewport: size.height / unit, size: size) },
             onTouchDown: { point in
                 // D25: the canvas picks the object at the first finger-down, by geometry.
                 let target = point.flatMap {
@@ -1193,16 +1209,22 @@ struct ActivitiesEditorScreen: View {
     /// §10.10: the move follows the touches' centroid (1:1 in wu), pinch writes `scale` and rotate
     /// `rotation`, simultaneously, about the object's centre. §9.1a: each frame goes to the display
     /// only; when the last recognizer ends, `endGesture` reports the final transform once.
-    private func manipulate(_ update: CanvasManipulation.Update, unit: CGFloat, viewport: CGFloat) {
+    private func manipulate(_ update: CanvasManipulation.Update, unit: CGFloat, viewport: CGFloat, size: CGSize) {
         if update.phase == .ended {
             activeManipulations.remove(update.kind)
+            // §31.2: a second finger lifting first still leaves this gesture ruled out.
+            if update.kind != .move { liveDeleteTarget = nil }
             guard activeManipulations.isEmpty else { return }
+            // §31.4: all fingers up while armed deletes; a cancelled gesture never does.
+            let drop = liveDeleteTarget == .armed && !update.cancelled
+            liveDeleteTarget = nil
+            deleteRuledOut = false
             dragExtent = nil
             // §18.7: guides draw only while active.
             snapEngaged = SnapEngaged()
             rotationEngaged = nil
             liveGuides = []
-            endGesture()
+            if drop { deleteDragged() } else { endGesture() }
             return
         }
         guard let index = dragged?.index ?? manipulationTarget, shownObjects.indices.contains(index) else { return }
@@ -1211,6 +1233,7 @@ struct ActivitiesEditorScreen: View {
         case .began:
             if activeManipulations.isEmpty, dragExtent == nil { dragExtent = .some(measuredExtent(shownObjects)) }
             activeManipulations.insert(update.kind)
+            trackDeleteTarget(update, index: index, size: size)
             // Each recognizer starts from the object as it is now, so one restarting mid-gesture
             // (a finger lifted and put back) never snaps the object back.
             switch update.kind {
@@ -1220,13 +1243,21 @@ struct ActivitiesEditorScreen: View {
             }
         case .changed:
             guard activeManipulations.contains(update.kind) else { return }
+            trackDeleteTarget(update, index: index, size: size)
             var next = shown
             switch update.kind {
             case .move:
-                // §18.2: the position snaps per axis; the snapped value is what the frame shows.
-                next.position = snappedMove(CGPoint(x: moveBase.x + update.translation.width / unit,
-                                                    y: moveBase.y + update.translation.height / unit),
-                                            index: index, unit: unit, viewport: viewport)
+                let raw = CGPoint(x: moveBase.x + update.translation.width / unit,
+                                  y: moveBase.y + update.translation.height / unit)
+                if liveDeleteTarget == .armed {
+                    // §31.5: while armed the object does not snap.
+                    snapEngaged = SnapEngaged()
+                    liveGuides = []
+                    next.position = raw
+                } else {
+                    // §18.2: the position snaps per axis; the snapped value is what the frame shows.
+                    next.position = snappedMove(raw, index: index, unit: unit, viewport: viewport)
+                }
             case .pinch:
                 // §18.3: pinch never snaps.
                 next.scale = scaleBase * update.scale
@@ -1243,6 +1274,39 @@ struct ActivitiesEditorScreen: View {
         case .ended:
             break
         }
+    }
+
+    // MARK: - §31 (D48): drag to delete
+
+    /// §31.2–31.3: the target shows during a ONE-finger move of a movable object (not page-laid-out,
+    /// not locked) and arms while the finger is inside C-091's disc; a second finger, a pinch or a
+    /// rotate hides it for the rest of the gesture. A light selection haptic on each arming.
+    private func trackDeleteTarget(_ update: CanvasManipulation.Update, index: Int, size: CGSize) {
+        if update.kind != .move || update.touches > 1 || activeManipulations != [.move] { deleteRuledOut = true }
+        let object = shownObjects[index]
+        guard !deleteRuledOut, update.kind == .move, editedIndex == nil,
+              !object.pageLaidOut, !object.isLocked else {
+            liveDeleteTarget = nil
+            return
+        }
+        let disc = ActivityCanvas<AnyView>.deleteTargetFrame(viewportSize: size, bottomSafeArea: safeBottom)
+        let inside = hypot(update.location.x - disc.midX, update.location.y - disc.midY) <= disc.width / 2
+        let next: ActivityCanvas<AnyView>.DeleteTarget = inside ? .armed : .visible
+        if next == .armed && liveDeleteTarget != .armed { Self.snapHaptic() }
+        liveDeleteTarget = next
+    }
+
+    /// §31.4: dropped while armed — no `ObjectEdit` for the drag; the display goes back to where the
+    /// object started and `onDeleteObject` reports it. The container removes it and re-supplies
+    /// `State.objects`.
+    private func deleteDragged() {
+        guard let index = dragged?.index else { return }
+        let start = gestureStart
+        dragged = nil
+        gestureStart = nil
+        guard shownObjects.indices.contains(index) else { return }
+        if let start { apply(.init(index: index, transform: start), report: false) }
+        onDeleteObject(index)
     }
 
     // MARK: - §18 (D32, D33): snapping, wired
@@ -4118,6 +4182,10 @@ struct CanvasManipulation: UIViewRepresentable {
         var scale: CGFloat = 1
         /// `rotate`: radians since the rotation began.
         var rotation: Double = 0
+        /// `move`: how many fingers the pan is tracking (§31.2: a second finger rules out delete).
+        var touches: Int = 1
+        /// The recognizer was cancelled or failed rather than ending with the fingers up (§31.4).
+        var cancelled = false
     }
 
     /// Whether a touch at this point (in this view) is on the canvas.
@@ -4227,7 +4295,9 @@ struct CanvasManipulation: UIViewRepresentable {
             let moved = recognizer.translation(in: view)
             source?.onUpdate(.init(phase: phase, kind: .move,
                                    translation: CGSize(width: moved.x, height: moved.y),
-                                   location: recognizer.location(in: view)))
+                                   location: recognizer.location(in: view),
+                                   touches: recognizer.numberOfTouches,
+                                   cancelled: recognizer.state == .cancelled || recognizer.state == .failed))
         }
 
         @objc private func handlePinch(_ recognizer: UIPinchGestureRecognizer) {

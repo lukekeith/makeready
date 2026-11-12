@@ -4037,6 +4037,7 @@ private func buildScreenActivitiesEditor(_ fixture: CaptureFixture) throws -> An
             actionBodies: c.actionBodies ?? sample.actionBodies,
             centerGuide: c.centerGuide ?? sample.centerGuide,
             deleteTargetShown: c.deleteTargetShown ?? sample.deleteTargetShown,
+            deleteTargetArmed: c.deleteTargetArmed ?? sample.deleteTargetArmed,
             saving: c.saving ?? sample.saving,
             saveFailed: c.saveFailed ?? sample.saveFailed,
             loadFailed: c.loadFailed ?? sample.loadFailed,

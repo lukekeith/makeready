@@ -105,8 +105,11 @@ struct ActivityCanvas<Content: View>: View {
     /// 1pt `white-80` over the page. Empty (the default) draws nothing, so other users are unchanged.
     let activeGuides: [GuideSegment]
     typealias GuideSegment = ActivityCanvasGuideSegment
-    /// §4 — draw the "Drag to delete" target in `manipulating`.
+    /// §4 — draw the "Drag to delete" target in `manipulating`; placed by D48 (`deleteTargetFrame`).
     let deleteTarget: DeleteTarget?
+    /// D48 — the viewport's bottom safe-area inset, points. The canvas is laid out under the
+    /// safe area, so the host passes it; the delete target's bottom edge sits 16 pt above it.
+    let bottomSafeArea: CGFloat
     /// §4 — 02 §4 step 1.
     let verticalAnchor: VerticalAnchor
     /// §4 — top…bottom of all objects' rotated, scaled box (wu); nil = the page is the viewport.
@@ -150,10 +153,11 @@ struct ActivityCanvas<Content: View>: View {
     /// GAP — C-091 §2 Sizing: "the pinned action's height", no value stated. 46 = 846 (§2 layer 6,
     /// pill top) to 892 (01 §10: ≈30 above the 34 safe bottom of 956).
     private static var pinnedHeight: CGFloat { 46 }
-    /// FLAGGED LITERAL — C-091 §2 layer 5 (OQ-C-091-002): the delete disc is 44 wu, centred at
-    /// 88 % of the viewport height, 1.15× when armed.
-    private let deleteDisc: CGFloat = 44
-    private let deleteHeightFraction: CGFloat = 0.88
+    /// FLAGGED LITERAL — C-091 §2 layer 5 (OQ-C-091-002): the delete disc is 44 wu, 1.15× when
+    /// armed. D48 (owner, 2026-11-11) replaces the 88 % height rule: centred horizontally, bottom
+    /// edge 16 pt above the bottom safe-area inset.
+    private static var deleteDisc: CGFloat { 44 }
+    private static var deleteBottomGap: CGFloat { 16 }
     private let deleteArmedScale: CGFloat = 1.15
     /// FLAGGED LITERAL — C-091 §2 layer 5 (OQ-C-091-002): the 1 px centre guide.
     private let guideWidth: CGFloat = 1
@@ -195,6 +199,7 @@ struct ActivityCanvas<Content: View>: View {
         centerGuide: Bool = false,
         activeGuides: [GuideSegment] = [],
         deleteTarget: DeleteTarget? = nil,
+        bottomSafeArea: CGFloat = 0,
         verticalAnchor: VerticalAnchor = .center,
         contentExtent: ClosedRange<CGFloat>? = nil,
         reservedZones: Bool = false,
@@ -214,6 +219,7 @@ struct ActivityCanvas<Content: View>: View {
         self.centerGuide = centerGuide
         self.activeGuides = activeGuides
         self.deleteTarget = deleteTarget
+        self.bottomSafeArea = bottomSafeArea
         self.verticalAnchor = verticalAnchor
         self.contentExtent = contentExtent
         self.reservedZones = reservedZones
@@ -245,7 +251,7 @@ struct ActivityCanvas<Content: View>: View {
                     ScrollView(.vertical) {
                         VStack(spacing: 0) {
                             Color.clear.frame(height: scrollInsets.top * unit)
-                            page(viewport: viewport, layout: layout)
+                            page(viewport: viewport, layout: layout, unit: unit)
                                 .frame(width: referenceWidth, height: layout.height, alignment: .topLeading)
                                 .scaleEffect(unit, anchor: .topLeading)
                                 .frame(width: proxy.size.width, height: layout.height * unit, alignment: .topLeading)
@@ -289,7 +295,7 @@ struct ActivityCanvas<Content: View>: View {
     /// §2 Fixed canvas reuses it with `scroll` 0: the page is exactly the viewport.
     private func viewerWindow(viewport: CGFloat, layout: (offset: CGFloat, height: CGFloat),
                               unit: CGFloat, width: CGFloat, scroll: CGFloat? = nil) -> some View {
-        page(viewport: viewport, layout: layout)
+        page(viewport: viewport, layout: layout, unit: unit)
             .frame(width: referenceWidth, height: layout.height, alignment: .topLeading)
             .scaleEffect(unit, anchor: .topLeading)
             .frame(width: width, height: layout.height * unit, alignment: .topLeading)
@@ -382,7 +388,7 @@ struct ActivityCanvas<Content: View>: View {
         return scrolls ? scrolled : 0
     }
 
-    private func page(viewport: CGFloat, layout: (offset: CGFloat, height: CGFloat)) -> some View {
+    private func page(viewport: CGFloat, layout: (offset: CGFloat, height: CGFloat), unit: CGFloat) -> some View {
         ZStack(alignment: .topLeading) {
             ground(height: layout.height)
             if reservedZones && mode != .viewer {
@@ -401,7 +407,7 @@ struct ActivityCanvas<Content: View>: View {
                 snapGuides()
             }
             if mode == .manipulating {
-                manipulatingOverlays(viewport: viewport, pageHeight: layout.height)
+                manipulatingOverlays(viewport: viewport, pageHeight: layout.height, unit: unit)
             }
         }
         .coordinateSpace(.named(pageSpace))
@@ -522,7 +528,7 @@ struct ActivityCanvas<Content: View>: View {
     // MARK: - §2 layer 5: the Manipulating overlays (OQ-C-091-002, owner-ratified)
 
     @ViewBuilder
-    private func manipulatingOverlays(viewport: CGFloat, pageHeight: CGFloat) -> some View {
+    private func manipulatingOverlays(viewport: CGFloat, pageHeight: CGFloat, unit: CGFloat) -> some View {
         if centerGuide {
             Token.white100
                 .frame(width: guideWidth, height: pageHeight)
@@ -537,14 +543,32 @@ struct ActivityCanvas<Content: View>: View {
                     .fill(Token.black50)
                 Glyph(.trash2, size: .md, tint: Token.white100)
             }
-            .frame(width: deleteDisc, height: deleteDisc)
+            .frame(width: Self.deleteDisc, height: Self.deleteDisc)
             .scaleEffect(deleteTarget == .armed ? deleteArmedScale : 1)
             .ui2Element("Delete target")
-            .position(x: referenceWidth / 2, y: viewport * deleteHeightFraction + pageScroll)
+            .position(x: referenceWidth / 2,
+                      y: Self.deleteTargetCenterY(viewport: viewport, bottomSafeArea: bottomSafeArea, unit: unit)
+                        + pageScroll)
             .allowsHitTesting(false)
             .accessibilityElement()
             .accessibilityLabel(deleteTarget == .armed ? "Release to delete" : "Drag to delete")
         }
+    }
+
+    /// D48: the delete disc's centre y in viewport wu — its bottom edge `deleteBottomGap` pt above
+    /// the bottom safe-area inset (both in points, `unit` points per wu).
+    private static func deleteTargetCenterY(viewport: CGFloat, bottomSafeArea: CGFloat, unit: CGFloat) -> CGFloat {
+        viewport - (bottomSafeArea + deleteBottomGap) / max(unit, .leastNonzeroMagnitude) - deleteDisc / 2
+    }
+
+    /// D48: the delete disc (unarmed) in the viewport's points, so the host hit-tests the dragging
+    /// finger against exactly what the canvas draws. `viewportSize` is the canvas's size in points.
+    static func deleteTargetFrame(viewportSize: CGSize, bottomSafeArea: CGFloat) -> CGRect {
+        let unit = viewportSize.width / 440
+        let side = deleteDisc * unit
+        let centerY = deleteTargetCenterY(viewport: viewportSize.height / unit, bottomSafeArea: bottomSafeArea,
+                                          unit: unit) * unit
+        return CGRect(x: viewportSize.width / 2 - side / 2, y: centerY - side / 2, width: side, height: side)
     }
 
     // MARK: - activities-editor §18.7 (D33): the active snap guides

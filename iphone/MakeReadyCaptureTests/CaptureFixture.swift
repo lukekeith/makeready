@@ -1125,6 +1125,7 @@ struct CaptureComponent: Codable {
     let highlightStarts: [Int]?
     let highlightEnds: [Int]?
     let deleteTargetShown: Bool?
+    let deleteTargetArmed: Bool?               // activities-editor §31.7 (D48) — previews only
     let saveFailed: Bool?
     let editingIndex: Int?                     // activities-editor §9.1 — the edited object
     let loadFailed: Bool?                      // activities-editor §9.4 · activities-player §3

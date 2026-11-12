@@ -67,7 +67,9 @@ struct ActivitiesEditorContainer: View {
             onDiscard: { model.discard() },
             onHighlightRange: { index, start, end in model.highlightRange(objectIndex: index, start: start, end: end) },
             onEndHighlighting: { Task { await model.endHighlighting() } },
-            onBibleStyleChange: { change in model.setBibleStyle(change) }
+            onBibleStyleChange: { change in model.setBibleStyle(change) },
+            // D48: a text dropped on the trash circle is deleted and saved.
+            onDeleteObject: { index in Task { await model.dropDelete(objectIndex: index) } }
         )
         // The screen seeds its sheets' buffers and its alert from `State` once, at init; a new
         // generation (loaded, a failed save, a discard) re-seeds them.
@@ -857,6 +859,19 @@ struct ActivitiesEditorContainer: View {
             endEditing()
             highlightingObjectID = nil
             document = BiblePassageEditing.removingPassage(from: document)
+            screenGeneration += 1
+            _ = await saveIfChanged()
+        }
+
+        /// D48: a text object dropped on the trash circle is deleted at once, no confirmation, and saved. The
+        /// locked scripture is never dropped there (it cannot be dragged); it keeps D11's confirmation.
+        func dropDelete(objectIndex: Int) async {
+            guard !isLocked(objectIndex) else { return }
+            let before = document
+            document = ActivitiesEditorMapper.removeObject(at: objectIndex, from: document)
+            guard document != before else { return }
+            endEditing()
+            highlightingObjectID = nil
             screenGeneration += 1
             _ = await saveIfChanged()
         }
