@@ -1,7 +1,7 @@
 size: lg
 state: built
 next: /builder:agent-walk --path docs/features/bible-verse-picker
-head: 54161988
+head: a4833a17
 ticket: none
 branch: builder/bible-verse-picker
 pr: none
@@ -13,7 +13,7 @@ tests: walk=none review=end human=yes
 target: main
 walk: none
 verify: none
-ready: pending "dev env (fleet walk lane)"
+ready: yes 2026-11-12 a4833a17
 ui2: none
 auto: on 2026-11-10
 blocked: none
