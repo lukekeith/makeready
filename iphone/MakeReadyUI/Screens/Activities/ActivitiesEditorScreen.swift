@@ -1039,10 +1039,15 @@ struct ActivitiesEditorScreen: View {
             onHighlightRange: { start, end in onHighlightRange(index, start, end) },
             // D25: the object the finger-down grabbed — the topmost grab area may not be this box.
             onTap: {
+                // D42: while the text editor is active the canvas owns every tap (tap-off).
+                guard !isEditingText || index == highlightingIndex else { return }
                 let target = tapTarget ?? index
                 if target != editedIndex { tapObject(target) }
             }
         )
+        // D42: while the text editor is active only the edited object takes touches; a tap on any
+        // other falls through to the canvas, which ends the edit.
+        .allowsHitTesting(!isEditingText || isEdited || index == highlightingIndex)
         // §2 item 3 + §3 Editing: the edited object alone at the edit slot, centred on 478 wu
         // before C-091's offset; alignment anchors a narrower block 24 wu from the canvas edge
         // (tool 3). C-092 never offsets itself (its §2): the screen places a committed object at
@@ -2129,11 +2134,15 @@ struct ActivitiesEditorScreen: View {
             endField()
         } else if openTool == .background || openTool == .actions {
             setOpenTool(nil)
-        } else if point != nil, let tapTarget {
-            // D25: a tap inside a grab area opens that object (D20); inside the edited object's,
-            // it stays in the edit.
-            if tapTarget != editedIndex { tapObject(tapTarget) }
-        } else if mode == .editing || mode == .highlighting {
+        } else if point != nil, let tapTarget, tapTarget == editedIndex {
+            // D25: a tap inside the edited object's grab area stays in the edit.
+        } else if point != nil, let tapTarget, !isEditingText || tapTarget == highlightingIndex {
+            // D25: in Idle a tap inside a grab area opens that object (D20); the object being
+            // highlighted keeps its own taps.
+            tapObject(tapTarget)
+        } else if isEditingText {
+            // D42: while the text editor is active nothing else on the canvas is tappable — a tap
+            // on another object (a Bible passage included) is a tap-off, never that object's tap.
             onTapOff()
         } else if mode == .idle, let point {
             onTapEmpty(point)
@@ -2440,6 +2449,9 @@ struct ActivitiesEditorScreen: View {
         let bottom = state.pageHeight - Self.canvasEndSpace - (pinned ? Self.pinnedHeight : 0)
         return Self.canvasTopInset...max(bottom, Self.canvasTopInset)
     }
+
+    /// D42: the text editor is active (Editing, or Highlighting within an edit).
+    private var isEditingText: Bool { mode == .editing || mode == .highlighting }
 
     /// §21.2: the edited object is page-laid-out — no C-093 wedge, no width handles.
     private var editedIsPageLaidOut: Bool { edited?.pageLaidOut ?? false }
