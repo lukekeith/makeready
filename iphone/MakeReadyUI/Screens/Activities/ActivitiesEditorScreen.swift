@@ -479,6 +479,11 @@ struct ActivitiesEditorScreen: View {
     // §32.1 (D50): C-091's target zone — label + ring, rest size — in the canvas's points, as
     // `onDeleteTargetFrame` reports it.
     @SwiftUI.State private var deleteZone: CGRect?
+    /// D50 fix: each object's drawn frame in global points (where the finger and the zone live), and
+    /// the page point the dragged object docks at — fixed when it arms, so it lands on the ring
+    /// whatever offset the canvas placed the page at.
+    @SwiftUI.State private var drawnFrames: [Int: CGRect] = [:]
+    @SwiftUI.State private var dockPoint: CGPoint?
     // §32.2 (D50): the finger left the zone and disarmed it; no re-arming on the object's frame
     // until that frame has left the zone (or the finger comes back in), so the dock cannot flicker.
     @SwiftUI.State private var deleteRearmHeld = false
@@ -1115,6 +1120,11 @@ struct ActivitiesEditorScreen: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
             if index == editedIndex { measuredDraftHeight = height } else { measuredHeights[index] = height }
         }
+        // D50 fix: the object's real on-screen frame — the dock and the arming read it, never a
+        // page-offset estimate.
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
+            drawnFrames[index] = frame
+        }
         .ui2Element(index == 0 ? "C-092 CanvasTextObject" : "C-092 CanvasTextObject \(index + 1)")
         // §33.2 (D51): the slot is the slider's screen point in page space — 0 on a text page.
         .position(isDrafted ? CGPoint(x: draftCentreX, y: Self.editSlotY + editSlotShift(viewport: viewport))
@@ -1152,6 +1162,8 @@ struct ActivitiesEditorScreen: View {
             docked = state.deleteTargetShown && state.deleteTargetArmed && index == seeded
         }
         guard docked else { return nil }
+        // D50 fix: live, the point fixed at arming (measured on screen); previews keep the formula.
+        if let dockPoint { return dockPoint }
         // C-091 places the ring (D48), so its top edge is known without waiting for a measure.
         let ringTop = ActivityCanvas<AnyView>.deleteRingTop(viewport: viewport, bottomSafeArea: safeBottom, unit: unit)
         let shift = glyphShift(index)
@@ -1364,12 +1376,28 @@ struct ActivitiesEditorScreen: View {
         } else {
             let zoneWU = CGRect(x: zone.minX / unit, y: zone.minY / unit,
                                 width: zone.width / unit, height: zone.height / unit)
-            let meets = snapBox(index, offset: pageOffset(viewport: viewport)).intersects(zoneWU)
+            // D50 fix: the drawn frame (global points, like the zone), not the computed box.
+            let meets = drawnFrames[index].map { $0.intersects(zone) }
+                ?? snapBox(index, offset: pageOffset(viewport: viewport)).intersects(zoneWU)
             if !meets || fingerIn { deleteRearmHeld = false }
-            armed = meets && !deleteRearmHeld
+            // D50 fix (on-device log 2026-11-12): the finger and the zone share the viewport's point
+            // space, while the computed box sat ~115 pt above the drawn text, so a finger on the ring
+            // never armed. The finger inside the zone arms on its own; the box still arms early.
+            armed = fingerIn || (meets && !deleteRearmHeld)
         }
         let next: ActivityCanvas<AnyView>.DeleteTarget = armed ? .armed : .visible
-        if next == .armed && liveDeleteTarget != .armed { Self.snapHaptic() }
+        if next == .armed && liveDeleteTarget != .armed {
+            Self.snapHaptic()
+            // D50 fix: dock the object's centre on the ring's centre — the gap between its drawn
+            // centre and the ring's centre (both global points), moved in page wu from where it is.
+            if let drawn = drawnFrames[index] {
+                let ring = CGPoint(x: zone.midX, y: zone.maxY - Self.deleteRingPoints * unit / 2)
+                let here = shownObjects[index].transform.position
+                dockPoint = CGPoint(x: here.x + (ring.x - drawn.midX) / unit,
+                                    y: here.y + (ring.y - drawn.midY) / unit)
+            }
+        }
+        if next != .armed { dockPoint = nil }
         setDeleteTarget(next)
     }
 
@@ -3147,6 +3175,8 @@ struct ActivitiesEditorScreen: View {
     /// FLAGGED LITERAL — §32.2 (D50): the docked object's scale and its ≈ 100 ms ease-out dock.
     private static let dockScale: CGFloat = 0.2
     private static let dockAnimation = Animation.easeOut(duration: 0.1)
+    /// FLAGGED LITERAL — C-091 D50: the ring's diameter (wu), mirrored to find its centre in the zone.
+    private static let deleteRingPoints: CGFloat = 44
     /// FLAGGED LITERAL — §32.2 (D50): the zone grows by this (pt) before the finger disarms it —
     /// an undrawn default.
     private static let deleteHysteresis: CGFloat = 12
