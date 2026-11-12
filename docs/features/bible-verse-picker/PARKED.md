@@ -68,3 +68,4 @@ The walk script (`.builder/bible-verse-picker/walk.md`) now covers E1–E11. I r
 - 2026-11-11 readiness re-run at b74801fd (revision 2 + final-review fixes, SC7 live, all Bible endpoints 200); walk=none · human=yes → parked again (human-step), waiting for your walk
 - 2026-11-11 unparked by a person — named to /builder:agent or /builder:fleet
 - 2026-11-12 parked — revising
+- 2026-11-12 unparked by a person — named to /builder:agent or /builder:fleet
