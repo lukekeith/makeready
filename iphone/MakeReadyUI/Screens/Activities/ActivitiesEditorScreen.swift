@@ -721,6 +721,9 @@ struct ActivitiesEditorScreen: View {
             if showsActivity {
                 furniture(unit: unit)
                     .offset(y: -keyboardOverlap)
+                    // §28 (D39): the pinned pill is a page object too — dimmed while editing.
+                    .opacity(editedIndex != nil ? Self.editDimOpacity : 1)
+                    .animation(Self.editTransition, value: editedIndex)
             }
             if mode != .manipulating {
                 railStack
@@ -1054,6 +1057,9 @@ struct ActivitiesEditorScreen: View {
                   : CGPoint(x: object.transform.position.x,
                             y: object.transform.position.y + (laidOut ? bibleVerticalShift : 0)))
         .zIndex(isSlotted ? 1 : 0)
+        // §28 (D39): while one object is edited, every other object fades to 10 % so the edited
+        // text reads over any page; it rides the same edit transition in and out.
+        .opacity(editedIndex != nil && !isEdited ? Self.editDimOpacity : 1)
         // §13.2: Idle ↔ Editing is one animation — one ease-out for position, scale and rotation,
         // no delayed dispatch. A gesture frame never changes `editedIndex`, so it stays 1:1.
         .animation(Self.editTransition, value: editedIndex)
@@ -2857,6 +2863,8 @@ struct ActivitiesEditorScreen: View {
     /// §13.2 FLAGGED LITERAL — activities-editor §3 Transitions (no `motion-*` token holds it):
     /// the object between its transform and the edit slot, ease-out 150 ms, both directions.
     private static let editTransition = Animation.easeOut(duration: 0.15)
+    /// FLAGGED LITERAL — §28 (D39, owner 2026-11-11): the other objects' opacity while one is edited.
+    private static let editDimOpacity: Double = 0.1
     /// §10.3: the wash colour before one is chosen — `color-black`'s value.
     private static let defaultWashHex = "#000000"
     /// activities-editor §2 item 3: the edit slot — 392 wu wide (440 − 2 × 24), centred on 478 wu.
