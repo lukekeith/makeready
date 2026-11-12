@@ -40,6 +40,10 @@ struct IconButton: View {
     /// C-102 §4 `isDisabled` — glyph (and an outlined stroke) at `color-white-50`, no tap, the
     /// disabled trait; overrides `selected` (SPEC D9). Defaulted so existing callers compile.
     var isDisabled: Bool = false
+    /// C-102 §4 `glyphColor` (OQ-activities-editor-48) — overrides the tone's paint of the glyph
+    /// and an outlined stroke; nil (default) is the tone's own. Selected and disabled keep their
+    /// own look. Defaulted so existing callers do not change.
+    var glyphColor: Color?
     /// C-102 §4 `onTap` — fired on tap; never while `isDisabled`; the host decides what it
     /// means (R-03). No render effect; defaulted to a no-op.
     var onTap: () -> Void = {}
@@ -64,6 +68,7 @@ struct IconButton: View {
     /// `color-white-50` while disabled (§2 Disabled).
     private var toneColor: Color {
         if isDisabled { return Token.white50 }
+        if let glyphColor { return glyphColor }
         switch tone {
         case .default: return Token.navText          // OQ-C-102-3
         case .destructive: return Token.error        // designed — symbol 3411:2493
@@ -71,7 +76,7 @@ struct IconButton: View {
     }
 
     /// §2 Selected: the glyph turns `color-black` in either tone (OQ-C-102-6).
-    private var glyphColor: Color {
+    private var paintedGlyphColor: Color {
         isSelectedLook ? Token.black : toneColor
     }
 
@@ -106,7 +111,7 @@ struct IconButton: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: Geometry.glyph, height: Geometry.glyph)
-                .foregroundStyle(glyphColor)
+                .foregroundStyle(paintedGlyphColor)
                 .accessibilityHidden(true)                    // §4: the glyph is decorative
                 .ui2Element("Glyph")
                 .frame(width: Geometry.box, height: Geometry.box)

@@ -4069,7 +4069,9 @@ private func buildScreenActivitiesEditor(_ fixture: CaptureFixture) throws -> An
             bibleVerseNumbers: c.bibleVerseNumbers ?? sample.bibleVerseNumbers,
             bibleColor: c.bibleColor ?? sample.bibleColor,
             bibleAlignment: c.bibleAlignment ?? sample.bibleAlignment,
-            bibleVerticalAlignment: c.bibleVerticalAlignment ?? sample.bibleVerticalAlignment
+            bibleVerticalAlignment: c.bibleVerticalAlignment ?? sample.bibleVerticalAlignment,
+            toolbarTone: c.toolbarTone.flatMap(MakeReadyUI.ActivitiesEditorScreen.ToolbarTone.init(rawValue:))
+                ?? sample.toolbarTone
         )
     )
     .safeAreaPadding(.top, device.safeArea.top)

@@ -192,6 +192,10 @@ struct ActivitiesEditorScreen: View {
         /// bottom insets — `top` · `center` · `bottom`; anything else reads as `top`, and a page
         /// taller than 956 has no slack, so it reads as `top` whatever the value.
         var bibleVerticalAlignment: String = "top"
+        /// §25 (D35): the tone of every tool bar icon, Idle and editing — `.light` today's colours,
+        /// `.dark` `color-black`. The container computes it from the page background (WCAG
+        /// relative luminance ≥ 0.5 → `.dark`); the screen only takes it.
+        var toolbarTone: ToolbarTone = .light
 
         /// §10.8 `gradient`: `base` `#RRGGBB`, `blobs`, `hidden`.
         struct Gradient: Equatable {
@@ -213,6 +217,11 @@ struct ActivitiesEditorScreen: View {
             var id: String
             var thumbnailURL: String
         }
+    }
+
+    /// §25 (D35): the tool bar's tone — `.light` (default, today's) · `.dark` (`color-black`).
+    enum ToolbarTone: String, Equatable {
+        case light, dark
     }
 
     /// §10.8 `BackgroundCommand` — every choice the Background rail reports; the container owns
@@ -2042,6 +2051,9 @@ struct ActivitiesEditorScreen: View {
                     style: .plain,
                     selected: isSelected(tool),
                     accessibilityLabel: Self.toolLabel(tool),
+                    // §25 (D35, OQ-activities-editor-48): `.dark` paints the glyph `color-black`;
+                    // nil is C-102's own paint (`.light`, today's). Selected keeps C-102's look.
+                    glyphColor: state.toolbarTone == .dark ? Token.black : nil,
                     onTap: { tap(tool) }
                 )
                 // FLAGGED LITERAL — activities-editor §2: 32pt tools.
@@ -3200,6 +3212,26 @@ extension ActivitiesEditorScreen.State {
         s.objectPageLaidOut = [true, true]
         return s
     }()
+    /// §25.4 toolbar-dark-on-light — a white solid page: the tool bar takes `.dark`.
+    static let toolbarDarkOnLight: Self = {
+        var s = bibleToolbar
+        s.backgroundOption = "colour"
+        s.gradient = nil
+        s.pageColorHex = "#FFFFFF"
+        s.objectColors = ["#000000", "#000000"]
+        s.bibleColor = "#000000"
+        s.toolbarTone = .dark
+        return s
+    }()
+    /// §25.4 toolbar-light-on-dark — a dark solid page: the tool bar keeps `.light`.
+    static let toolbarLightOnDark: Self = {
+        var s = bibleToolbar
+        s.backgroundOption = "colour"
+        s.gradient = nil
+        s.pageColorHex = "#141F6B"
+        s.toolbarTone = .light
+        return s
+    }()
     /// §23.7 bible-align-panel — Align open in Idle: the horizontal, vertical and verse-number rows.
     static let bibleAlignPanel: Self = {
         var s = bibleToolbar
@@ -3554,6 +3586,18 @@ extension ActivitiesEditorScreen.State {
 
 #Preview("Bible toolbar") {
     ActivitiesEditorScreen(state: .bibleToolbar)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Toolbar dark on light") {
+    ActivitiesEditorScreen(state: .toolbarDarkOnLight)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Toolbar light on dark") {
+    ActivitiesEditorScreen(state: .toolbarLightOnDark)
         .safeAreaPadding(.top, 59)
         .frame(width: 440, height: 956, alignment: .top)
 }
