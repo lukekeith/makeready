@@ -43,6 +43,7 @@
 | 13 | iphone | 23 | The reference is ordinary, editable text above the passage, with no translation code |
 | 14 | iphone | 24 | d2m has given ActivitiesEditorScreen a tool bar tone input (light · dark) |
 | 15 | iphone | 25 | The editor picks the tone from the page background on text and bible activities |
+| 16 | iphone | 26 | The Bible Reader scrolls, clips nothing, and shows a clearly visible selection |
 
 ---
 
@@ -1271,4 +1272,36 @@ func testAnImageKeepsLightIcons() {
 - [ ] **Step 3: Implement to the Behaviour**
 - [ ] **Step 4: Run it and `ActivitiesEditorContainerTests`, watch them pass**
 - [ ] **Step 5: Commit** — `feat(bible-verse-picker): tool bar tone follows the page background`
+
+### Task 26: d2m — the Reader scrolls, nothing clips, a brighter selection
+App: iphone
+Phase: 16
+Recipe: d2m handover (`request_project_change`, then `wait_project_change`) · systematic-debugging for the scroll and clip
+
+**Files:**
+- Modify (by d2m): `iphone/MakeReadyUI/BibleVerseReader.swift` (C-140), `iphone/MakeReadyUI/Screens/Activities/BibleReaderScreen.swift` if the clip is in the screen, fixtures and `ViewRegistry.swift`
+- Possibly modify (here): `iphone/MakeReady/UI2/Containers/Bible/BibleReaderContainer.swift` — only if the root cause is in the host
+- Reference: this SPEC (D4, D36)
+
+**Interfaces:**
+- No new inputs: C-140 keeps its §4 props.
+
+**Behaviour:**
+- root cause first: on device the Reader neither scrolls nor shows the whole chapter. Lead to check: the word-selection gesture is `LongPressGesture().sequenced(before: DragGesture(minimumDistance: 0))` attached with exclusive `.gesture` on the verse rows inside C-140's own `ScrollView` (`BibleVerseReader.swift:170, 255-258`), which can take the vertical pan; and the frames around the reader in `BibleReaderScreen.swift:94-112`. State the cause in the d2m request's result before the fix (D36)
+- a plain vertical drag scrolls the chapter; touch-and-hold then drag selects; handles still adjust; the horizontal chapter swipe and the shell's edge-back still work (D4, D36)
+- the heading, every verse row and the copyright footer are fully visible when scrolled to them; nothing is cut at the sides or bottom (D36)
+- selection fill `accent50`; used underlay stays `accent20` (D36)
+
+**Tests:**
+
+```text
+d2m captures: C-140 selection (John 3:16b-18 selected, 3:1-2 used) and BibleReaderScreen populated scrolled to the
+copyright footer. Each render is read before the task is ticked; the scroll fix is walked on device by the owner (6g).
+```
+
+- [ ] **Step 1: `check_project_change` (C-140, bible-reader); `request_project_change` with D36, the lead above and this SPEC**
+- [ ] **Step 2: `wait_project_change` until done; settle any handback from the SPEC**
+- [ ] **Step 3: Read both renders**
+- [ ] **Step 4: Record any changed name in `d2m-api.md`**
+- [ ] **Step 5: Commit** — d2m's commits land on the branch
 
