@@ -67,3 +67,4 @@ run agent_walk.start in /Users/lukekeith/www/makeready.fleet/bible-verse-picker 
 - 2026-11-12 unparked by a person — named to /builder:agent or /builder:fleet
 - 2026-11-12 parked — the walk env would not start (walk env didn't come up — see /Users/lukekeith/www/makeready/.builder/fleet/logs/bible-verse-picker-start.log) and an agent run could not fix it
 - 2026-11-12 unparked by the fleet — automatic retry 1 of 2
+- 2026-11-12 cause cleared — the fleet ran agent_walk.copy + sync this time (client/.env, atlas, node_modules, client/vendor present); walk env up on :3110/:8102/:9010, smoke 200; readiness at 81d12f97: 82 migrations, 0 pending on makeready_walk, API_BIBLE_KEY set, translations/chapter/smart search 200, no server-log errors; state → built
