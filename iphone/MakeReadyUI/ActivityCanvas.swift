@@ -271,8 +271,10 @@ struct ActivityCanvas<Content: View>: View {
                     .scrollBounceBehavior(.basedOnSize)
                     // §2 Scrolling insets: at rest page y 0 sits at viewport y 0, the top inset above it.
                     .defaultScrollAnchor(columnAnchor(scrolled: 0, range: range))
-                    // While an object follows the finger the drag is the object's, not the page's.
-                    .scrollDisabled(range <= 0 || mode == .manipulating)
+                    // D49: the canvas scrolls in idle only — editing, highlighting and manipulating
+                    // lock it so the slider, handles and edited text get every drag. The offset,
+                    // range and insets are untouched; idle resumes from the kept offset.
+                    .scrollDisabled(range <= 0 || mode != .idle)
                     // A bar changing height resizes the column; the page stays where it was scrolled.
                     .onChange(of: column) {
                         if range > 0 { reader.scrollTo(columnID, anchor: columnAnchor(scrolled: scrolled, range: range)) }
