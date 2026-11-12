@@ -10,7 +10,7 @@ import SwiftUI
 
 /// C-140 BibleVerseReader — the Bible passage picker's reader body: a chapter heading, one row per
 /// verse (the number in a left gutter, the text beside it), word-level touch-and-hold selection with
-/// a handle at each end, verse-number taps, an `accent20` selection over a fainter used-range
+/// a handle at each end, verse-number taps, an `accent50` selection (D36) over a fainter used-range
 /// underlay, a horizontal chapter swipe, and its own vertical scroll ending in the copyright line.
 ///
 /// Controlled (R-01): `selection` is a value and `onSelectionChange` its change callback; the reader
@@ -167,7 +167,10 @@ struct BibleVerseReader: View {
                         row(verse)
                     }
                 }
-                .gesture(selectionGesture)
+                // D36: simultaneous, so a plain drag reaches the ScrollView (an exclusive `.gesture` took
+                // every drag on the rows and the chapter could not scroll); a completed hold sets
+                // `selecting`, which suspends scrolling below.
+                .simultaneousGesture(selectionGesture)
                 .simultaneousGesture(textTap)
                 .ui2Element("Verse rows")
             }
@@ -561,7 +564,7 @@ private struct VerseTextRenderer: TextRenderer {
     func draw(layout: Text.Layout, in ctx: inout GraphicsContext) {
         recordRuns(layout)
         drawSpans(layout, color: BibleVerseReader.usedUnderlay, in: &ctx) { $0.used }
-        drawSpans(layout, color: Token.accent20, in: &ctx) { $0.selected }
+        drawSpans(layout, color: Token.accent50, in: &ctx) { $0.selected }   // D36
         for line in layout {
             ctx.draw(line)
         }
