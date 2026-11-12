@@ -430,6 +430,9 @@ struct ActivitiesEditorScreen: View {
     @SwiftUI.State private var alertPresented: Bool
     // §4 C-091 `contentExtent`: "the screen measures the objects' rotated, scaled box in wu".
     @SwiftUI.State private var measuredHeights: [Int: CGFloat] = [:]
+    /// §29.1 (D43): each object's measured glyph rect (C-092 `onTextBounds`), kept like
+    /// `measuredHeights` — wu, unscaled and unrotated, origin at the layout box's top-left.
+    @SwiftUI.State private var measuredGlyphRects: [Int: CGRect] = [:]
     @SwiftUI.State private var measuredDraftHeight: CGFloat?
     // §2 item 6: the container rides the keyboard's top edge; the canvas does not resize.
     @SwiftUI.State private var keyboardTop = CGFloat.infinity
@@ -1043,7 +1046,9 @@ struct ActivitiesEditorScreen: View {
                 guard !isEditingText || index == highlightingIndex else { return }
                 let target = tapTarget ?? index
                 if target != editedIndex { tapObject(target) }
-            }
+            },
+            // §29.1 (D43): updated on every report; the edited object's draft layout is not kept.
+            onTextBounds: { rect in if index != editedIndex { measuredGlyphRects[index] = rect } }
         )
         // D42: while the text editor is active only the edited object takes touches; a tap on any
         // other falls through to the canvas, which ends the edit.
@@ -1229,8 +1234,11 @@ struct ActivitiesEditorScreen: View {
     /// engaged targets kept, the haptic fired on a new engage (§18.4). Returns page wu.
     private func snappedMove(_ raw: CGPoint, index: Int, unit: CGFloat, viewport: CGFloat) -> CGPoint {
         let offset = pageOffset(viewport: viewport)
+        // §29.2: the dragged object's own extent is its glyph rect, whose centre sits `shift` from
+        // the object's centre; snap that centre, then move the object by the same amount.
+        let shift = glyphShift(index)
         let result = Self.snapPosition(
-            CGPoint(x: raw.x, y: raw.y + offset),
+            CGPoint(x: raw.x + shift.dx, y: raw.y + offset + shift.dy),
             size: snapSize(index),
             rotation: shownObjects[index].transform.rotation,
             others: snapBoxes(excluding: index, offset: offset),
@@ -1244,7 +1252,7 @@ struct ActivitiesEditorScreen: View {
         if gainedX || gainedY { Self.snapHaptic() }
         snapEngaged = result.engaged
         liveGuides = result.guides
-        return CGPoint(x: result.position.x, y: result.position.y - offset)
+        return CGPoint(x: result.position.x - shift.dx, y: result.position.y - offset - shift.dy)
     }
 
     /// §18.7: the guides C-091 draws — the live move's, else (a Manipulating preview) the seeded
@@ -1283,17 +1291,46 @@ struct ActivitiesEditorScreen: View {
 
     private var hasPinnedAction: Bool { actions.contains { $0.placement == .pinned } }
 
-    /// An object's layout box as drawn, scaled (wu), before rotation.
-    private func snapSize(_ index: Int) -> CGSize {
+    /// An object's layout box as drawn, unscaled (wu).
+    private func layoutSize(_ index: Int) -> CGSize {
         let object = shownObjects[index]
-        return CGSize(width: (object.transform.width ?? Self.editSlotWidth) * object.transform.scale,
-                      height: objectHeight(object, index: index) * object.transform.scale)
+        return CGSize(width: object.transform.width ?? Self.editSlotWidth, height: objectHeight(object, index: index))
     }
 
-    /// An object's rotated bounding box in viewport wu.
+    /// §29.1 + §29.3: the glyph rect in the layout box's space; the layout box itself while the
+    /// object is not yet measured or its text is empty.
+    private func glyphRect(_ index: Int) -> CGRect {
+        let layout = CGRect(origin: .zero, size: layoutSize(index))
+        guard !shownObjects[index].text.isEmpty, let rect = measuredGlyphRects[index],
+              rect.width > 0, rect.height > 0 else { return layout }
+        return rect
+    }
+
+    /// §29.2: the snap rectangle's size — the glyph rect scaled (wu), before rotation.
+    private func snapSize(_ index: Int) -> CGSize {
+        let scale = shownObjects[index].transform.scale
+        let rect = glyphRect(index)
+        return CGSize(width: rect.width * scale, height: rect.height * scale)
+    }
+
+    /// §29.2: where the snap rectangle's centre sits from the object's centre (the layout box's
+    /// centre, which the object is drawn about), scaled and rotated (wu).
+    private func glyphShift(_ index: Int) -> CGVector {
+        let transform = shownObjects[index].transform
+        let layout = layoutSize(index)
+        let rect = glyphRect(index)
+        let dx = (rect.midX - layout.width / 2) * transform.scale
+        let dy = (rect.midY - layout.height / 2) * transform.scale
+        let radians = transform.rotation.radians
+        return CGVector(dx: dx * cos(radians) - dy * sin(radians), dy: dx * sin(radians) + dy * cos(radians))
+    }
+
+    /// §29.2: an object's snap rectangle — its glyph rect placed in its layout box, scaled and
+    /// rotated about the object's centre — as a rotated bounding box in viewport wu.
     private func snapBox(_ index: Int, offset: CGFloat) -> CGRect {
         let position = shownObjects[index].transform.position
-        return Self.rotatedBounds(center: CGPoint(x: position.x, y: position.y + offset),
+        let shift = glyphShift(index)
+        return Self.rotatedBounds(center: CGPoint(x: position.x + shift.dx, y: position.y + offset + shift.dy),
                                   size: snapSize(index), rotation: shownObjects[index].transform.rotation)
     }
 

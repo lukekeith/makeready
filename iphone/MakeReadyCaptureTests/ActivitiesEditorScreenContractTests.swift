@@ -115,4 +115,14 @@ final class ActivitiesEditorScreenContractTests: XCTestCase {
                                                          unit: 1, engaged: .init())
         XCTAssertEqual(result.position.y, 414, accuracy: 0.01)
     }
+
+    /// §29 (D43): the box passed in is the glyph rect — a short word 60 wu wide snaps its first
+    /// letter onto the 24 wu left padding guide (centre 54), not its 392 wu layout box.
+    func testAGlyphBoxSnapsItsFirstLetterToThePadding() {
+        let glyphs = CGSize(width: 60, height: 30)
+        let result = ActivitiesEditorScreen.snapPosition(CGPoint(x: 57, y: 500), size: glyphs, rotation: .zero,
+                                                         others: [], viewport: 956, pinnedAction: false,
+                                                         unit: 1, engaged: .init())
+        XCTAssertEqual(result.position.x, 54, accuracy: 0.01)
+    }
 }

@@ -210,6 +210,10 @@ struct CanvasTextObject: View {
     let onTap: () -> Void
     /// §4 — a tap on a `link` mark in `viewer` (the href).
     let onOpenLink: (String) -> Void
+    /// §4 (SPEC D43) — the laid-out lines' glyph bounds in wu: the block's own unscaled, unrotated
+    /// space, origin at the layout box's top-left, label box included when `label` is on. Fired
+    /// on every layout change; it changes no drawing.
+    let onTextBounds: (CGRect) -> Void
 
     /// R-05: one parameter per §4 prop, in the contract's order. Written out because the private focus state would otherwise
     /// make the memberwise initializer private.
@@ -243,7 +247,8 @@ struct CanvasTextObject: View {
         highlights: [TextRange] = [],
         onHighlightRange: @escaping (Int, Int) -> Void = { _, _ in },
         onTap: @escaping () -> Void = {},
-        onOpenLink: @escaping (String) -> Void = { _ in }
+        onOpenLink: @escaping (String) -> Void = { _ in },
+        onTextBounds: @escaping (CGRect) -> Void = { _ in }
     ) {
         self.text = text
         self.onChange = onChange
@@ -275,6 +280,7 @@ struct CanvasTextObject: View {
         self.onHighlightRange = onHighlightRange
         self.onTap = onTap
         self.onOpenLink = onOpenLink
+        self.onTextBounds = onTextBounds
     }
 
     /// R-02: focus is ephemeral feedback, mirrored from the `editing` prop.
@@ -293,6 +299,8 @@ struct CanvasTextObject: View {
 
     /// The block's own space: the selection gesture and each item's measured origin share it.
     private static let selectionSpace = "CanvasTextObject.selection"
+    /// §4 `onTextBounds`: the layout box's own space, origin at its top-left.
+    private static let boundsSpace = "CanvasTextObject.bounds"
 
     /// §2 Editing — the placeholder copy (OQ-activities-editor-014).
     private static let placeholder = "Type something…"
@@ -367,6 +375,7 @@ struct CanvasTextObject: View {
             .padding(.vertical, verticalInset)
             .frame(width: placement.width.map { min(max($0, widthLimits.lowerBound), widthLimits.upperBound) })
             .frame(maxWidth: placement.width == nil ? .infinity : nil, alignment: frameAlignment)
+            .coordinateSpace(.named(Self.boundsSpace))
             .overlay { if isEditing { inputField } }
     }
 
@@ -430,10 +439,22 @@ struct CanvasTextObject: View {
                         .ui2Element("Reference")
                 }
             }
+            // §4 `onTextBounds`: the lines' stack before it is widened to the layout width — each
+            // line sized to its own glyphs, placed where the alignment put it.
+            .onGeometryChange(for: CGRect.self) { proxy in
+                proxy.frame(in: .named(Self.boundsSpace))
+            } action: { rect in
+                onTextBounds(textBounds(rect))
+            }
             .frame(maxWidth: .infinity, alignment: frameAlignment)
             .lineSpacing(lineGap)
             .accessibilityHidden(isEditing)
         }
+    }
+
+    /// §4 `onTextBounds`: the glyph stack's rect grown by the label box's padding when it is on.
+    private func textBounds(_ glyphs: CGRect) -> CGRect {
+        label == .none ? glyphs : glyphs.insetBy(dx: -labelInsetX, dy: -labelInsetY)
     }
 
     /// §4 `verseNumbers = .inline` / `.hidden` (SPEC D41): the verses run on as one paragraph.
