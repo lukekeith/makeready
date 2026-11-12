@@ -17,6 +17,10 @@ Nothing is broken. The test plan is walk=none · human=yes: no agent walks it, a
 ## Where to dig
 - Nothing to dig. The next step is a person's.
 
+## Your choices
+1. Walk it yourself now — `/builder:resume --path docs/features/bible-verse-picker`
+2. Leave it for now
+
 ## Recommended next step
 Walk E1–E11 on the device, then type /builder:signoff --path docs/features/bible-verse-picker <your words>.
 
