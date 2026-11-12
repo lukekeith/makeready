@@ -66,3 +66,4 @@ run agent_walk.start in /Users/lukekeith/www/makeready.fleet/bible-verse-picker 
 - 2026-11-12 parked — revising
 - 2026-11-12 unparked by a person — named to /builder:agent or /builder:fleet
 - 2026-11-12 parked — the walk env would not start (walk env didn't come up — see /Users/lukekeith/www/makeready/.builder/fleet/logs/bible-verse-picker-start.log) and an agent run could not fix it
+- 2026-11-12 unparked by the fleet — automatic retry 1 of 2
