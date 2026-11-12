@@ -581,12 +581,20 @@ struct ActivitiesEditorScreen: View {
     }
 
     var body: some View {
-        if state.loadFailed {
-            loadFailedPage
-        } else {
-            editorPage
+        Group {
+            if state.loadFailed {
+                loadFailedPage
+            } else {
+                editorPage
+            }
         }
+        // §26.3 (D38): every `floatingControlMaterial` backing reads the tone from here.
+        .environment(\.editorToolbarTone, state.toolbarTone)
     }
+
+    /// §26.2 (D38): the ink of every control the screen draws over the page — `color-black` when
+    /// `toolbarTone` is `.dark`; nil keeps each control's own paint (`.light`, today's).
+    private var toneInk: Color? { state.toolbarTone == .dark ? Token.black : nil }
 
     /// §9.4 Load-failed: the ground under the Idle header (back only), no canvas, no bottom
     /// container. The banner is raised through `onLoadFailed`; 2 s later the back closure pops.
@@ -1547,6 +1555,8 @@ struct ActivitiesEditorScreen: View {
                     style: .plain,
                     selected: selectedCode == option.code,
                     accessibilityLabel: option.label,
+                    // §26.2 (D38): the rail's glyphs take the tone; selected keeps C-102's fill.
+                    glyphColor: toneInk,
                     onTap: { onSelect(option.code) }
                 )
                 // FLAGGED LITERAL — activities-editor §2: 32pt tools, the tool row's tile.
@@ -1644,7 +1654,7 @@ struct ActivitiesEditorScreen: View {
         HStack(spacing: Token.Space.elementGap) {
             SwiftUI.Text(verbatim: label)
                 .designTextStyle(Token.TypeStyle.footnote)
-                .foregroundStyle(Token.textPrimary)
+                .foregroundStyle(toneInk ?? Token.textPrimary)          // §26.2 (D38)
             SwiftUI.Slider(
                 value: Binding(get: { bibleStyle[keyPath: value] }, set: { bibleStyle[keyPath: value] = $0 }),
                 in: range, step: step,
@@ -1653,11 +1663,11 @@ struct ActivitiesEditorScreen: View {
                     if !editing { onBibleStyleChange(change(bibleStyle[keyPath: value])) }
                 }
             )
-            .tint(Token.white100)
+            .tint(toneInk ?? Token.white100)                                // §26.2 (D38)
             .accessibilityLabel(label)
             SwiftUI.Text(verbatim: format(bibleStyle[keyPath: value]))
                 .designTextStyle(Token.TypeStyle.footnote)
-                .foregroundStyle(Token.textPrimary)
+                .foregroundStyle(toneInk ?? Token.textPrimary)          // §26.2 (D38)
                 .monospacedDigit()
         }
         .padding(.horizontal, Token.Space.elementGap)
@@ -1743,7 +1753,7 @@ struct ActivitiesEditorScreen: View {
                     SwiftUI.Slider(value: Binding(get: { state.pageWashOpacity },
                                                   set: { onBackground(.wash(color: washHex, opacity: $0)) }),
                                    in: 0...1)
-                        .tint(Token.white100)
+                        .tint(toneInk ?? Token.white100)                // §26.2 (D38)
                         .padding(.horizontal, Token.Space.pageMargin)
                         .padding(.vertical, Token.Space.elementGap)
                         .accessibilityLabel("Wash opacity")
@@ -1780,7 +1790,7 @@ struct ActivitiesEditorScreen: View {
                 .scaledToFit()
                 // FLAGGED LITERAL — the 18pt glyph C-102 draws, in its default tone.
                 .frame(width: Self.shuffleGlyph, height: Self.shuffleGlyph)
-                .foregroundStyle(Token.navText)
+                .foregroundStyle(toneInk ?? Token.navText)              // §26.2 (D38)
                 .accessibilityHidden(true)
                 .frame(width: Self.paletteTileWidth, height: Self.paletteTileHeight)
                 .contentShape(RoundedRectangle(cornerRadius: Token.Radius.card))
@@ -1807,7 +1817,8 @@ struct ActivitiesEditorScreen: View {
             .overlay {
                 if index == selectedPaletteIndex {
                     RoundedRectangle(cornerRadius: Token.Radius.card)
-                        .strokeBorder(Token.white100, lineWidth: Self.hairline)
+                        // §26.2 (D38): the selected outline keeps contrast on a light page.
+                        .strokeBorder(toneInk ?? Token.white100, lineWidth: Self.hairline)
                 }
             }
         }
@@ -2666,14 +2677,14 @@ struct ActivitiesEditorScreen: View {
 
     /// §2 item 5: tool 7 is the library's `zap`. The others are interim glyphs (OQ-017 — the
     /// designed glyphs are not minted yet); tool 1's gradient sphere is artwork C-102 cannot
-    /// carry, so `palette` stands in. §23.1 (D33): on a Bible activity the Font tool draws the
-    /// library's `text-font` (Figma 4800:11365); a text activity keeps its glyph.
+    /// carry, so `palette` stands in. §26.1 (D37): the Font tool draws the
+    /// library's `text-font` (Figma 4800:11365) on text and bible activities alike.
     private static func glyph(for tool: Tool, isBible: Bool) -> GlyphName {
         switch tool {
         case .color: return .palette
         case .background: return .file
         case .alignment: return .menu
-        case .font: return isBible ? .textFont : .textContent
+        case .font: return .textFont
         case .highlight: return .edit
         case .animation: return .sparkles
         case .actions: return .zap
@@ -3713,16 +3724,31 @@ extension ActivitiesEditorScreen.State {
 // MARK: - §15.1 (D29): the floating controls' material
 
 private extension View {
-    /// §15.1: the dark blur material behind one floating control (or the tool-row container),
-    /// blurring the canvas behind it. FLAGGED LITERAL — the system dark ultra-thin material; no
-    /// `material` token family exists. The dark scheme is scoped to the material, not the control.
+    /// §15.1: the blur material behind one floating control (or the tool-row container),
+    /// blurring the canvas behind it. FLAGGED LITERAL — the system ultra-thin material; no
+    /// `material` token family exists. §26.3 (D38): tone `.dark` → the LIGHT material (dark glyphs
+    /// on a light blur); `.light` → today's dark one. The scheme is scoped to the material only.
     func floatingControlMaterial(cornerRadius: CGFloat) -> some View {
-        background {
+        modifier(FloatingControlMaterial(cornerRadius: cornerRadius))
+    }
+}
+
+private struct FloatingControlMaterial: ViewModifier {
+    let cornerRadius: CGFloat
+    @Environment(\.editorToolbarTone) private var tone
+
+    func body(content: Content) -> some View {
+        content.background {
             RoundedRectangle(cornerRadius: cornerRadius)
                 .fill(.ultraThinMaterial)
-                .environment(\.colorScheme, .dark)
+                .environment(\.colorScheme, tone == .dark ? .light : .dark)
         }
     }
+}
+
+private extension EnvironmentValues {
+    /// §26.3 (D38): the screen's `toolbarTone`, for the floating controls' backing.
+    @Entry var editorToolbarTone: ActivitiesEditorScreen.ToolbarTone = .light
 }
 
 // MARK: - §18 (D32, D33): snapping — pure static functions
