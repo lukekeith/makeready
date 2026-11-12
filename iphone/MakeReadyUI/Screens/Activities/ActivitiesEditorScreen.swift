@@ -570,6 +570,10 @@ struct ActivitiesEditorScreen: View {
     private var mode: ActivityCanvas<AnyView>.Mode {
         // §14.1: no edit mode outside the editable canvas — the Idle header and the chips rail.
         guard showsActivity else { return .idle }
+        // D48 fix: a live one-finger drag IS Manipulating on screen — the container never sets
+        // "manipulating", so without this the header and the opaque bottom bar stayed up and hid
+        // the trash circle drawn under them.
+        if liveDeleteTarget != nil { return .manipulating }
         switch state.editorMode {
         case "editing": return .editing
         case "highlighting": return .highlighting
@@ -1213,11 +1217,11 @@ struct ActivitiesEditorScreen: View {
         if update.phase == .ended {
             activeManipulations.remove(update.kind)
             // §31.2: a second finger lifting first still leaves this gesture ruled out.
-            if update.kind != .move { liveDeleteTarget = nil }
+            if update.kind != .move { setDeleteTarget(nil) }
             guard activeManipulations.isEmpty else { return }
             // §31.4: all fingers up while armed deletes; a cancelled gesture never does.
             let drop = liveDeleteTarget == .armed && !update.cancelled
-            liveDeleteTarget = nil
+            setDeleteTarget(nil)
             deleteRuledOut = false
             dragExtent = nil
             // §18.7: guides draw only while active.
@@ -1286,14 +1290,21 @@ struct ActivitiesEditorScreen: View {
         let object = shownObjects[index]
         guard !deleteRuledOut, update.kind == .move, editedIndex == nil,
               !object.pageLaidOut, !object.isLocked else {
-            liveDeleteTarget = nil
+            setDeleteTarget(nil)
             return
         }
         let disc = ActivityCanvas<AnyView>.deleteTargetFrame(viewportSize: size, bottomSafeArea: safeBottom)
         let inside = hypot(update.location.x - disc.midX, update.location.y - disc.midY) <= disc.width / 2
         let next: ActivityCanvas<AnyView>.DeleteTarget = inside ? .armed : .visible
         if next == .armed && liveDeleteTarget != .armed { Self.snapHaptic() }
-        liveDeleteTarget = next
+        setDeleteTarget(next)
+    }
+
+    /// D48: the trash circle fades in quickly as the drag starts, grows as the finger crosses into it
+    /// and fades out on release; the bars fade with it (Manipulating). One curve for all three.
+    private func setDeleteTarget(_ next: ActivityCanvas<AnyView>.DeleteTarget?) {
+        guard next != liveDeleteTarget else { return }
+        withAnimation(reduceMotion ? nil : Self.deleteTargetAnimation) { liveDeleteTarget = next }
     }
 
     /// §31.4: dropped while armed — no `ObjectEdit` for the drag; the display goes back to where the
@@ -3034,6 +3045,8 @@ struct ActivitiesEditorScreen: View {
     /// §13.2 FLAGGED LITERAL — activities-editor §3 Transitions (no `motion-*` token holds it):
     /// the object between its transform and the edit slot, ease-out 150 ms, both directions.
     private static let editTransition = Animation.easeOut(duration: 0.15)
+    /// FLAGGED LITERAL — D48: the trash circle's fade / arm, and the bars' fade with it.
+    private static let deleteTargetAnimation = Animation.easeOut(duration: 0.15)
     /// FLAGGED LITERAL — §28 (D39, owner 2026-11-11): the other objects' opacity while one is edited.
     private static let editDimOpacity: Double = 0.1
     /// §10.3: the wash colour before one is chosen — `color-black`'s value.
