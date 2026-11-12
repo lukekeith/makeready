@@ -15,7 +15,7 @@ struct BibleBook: Codable {
     let abbrev: String
 }
 
-struct BibleVerse: Codable {
+struct LegacyBibleVerse: Codable {
     let verse: Int
     let text: String
     let reference: String
@@ -54,7 +54,7 @@ struct DirectSearchResponse: Codable {
     let translation: String
     let book: BibleBook
     let chapter: Int
-    let verses: [BibleVerse]
+    let verses: [LegacyBibleVerse]
     let total: Int
 }
 
@@ -90,8 +90,8 @@ struct SuggestionsResponse: Codable {
 
 // MARK: - Unified Search Result
 
-enum BibleSearchResult {
-    case direct(book: BibleBook, chapter: Int, verses: [BibleVerse])
+enum LegacyBibleSearchResult {
+    case direct(book: BibleBook, chapter: Int, verses: [LegacyBibleVerse])
     case semantic(results: [SemanticResult])
     case grouped(books: [MatchedBook], verses: [SemanticResult])
     case empty
@@ -111,7 +111,7 @@ struct SearchResultItem: Identifiable {
     let title: String?       // Named-passage (pericope) results only
     let summary: String?     // 1-2 sentence passage summary (pericope results only)
 
-    init(from verse: BibleVerse, book: BibleBook, chapter: Int) {
+    init(from verse: LegacyBibleVerse, book: BibleBook, chapter: Int) {
         self.reference = verse.reference
         self.text = verse.text
         self.bookNumber = book.bookNumber
@@ -144,7 +144,7 @@ class BibleSearchService {
     private init() {}
 
     /// Perform smart search (auto-detects reference vs semantic)
-    func smartSearch(query: String, translation: String? = nil, limit: Int = 10) async throws -> BibleSearchResult {
+    func smartSearch(query: String, translation: String? = nil, limit: Int = 10) async throws -> LegacyBibleSearchResult {
         // AppState is @MainActor; hop to read the selected translation
         let translation = if let translation { translation } else { await MainActor.run { AppState.shared.selectedBibleTranslation } }
         guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -259,7 +259,7 @@ class BibleSearchService {
     }
 
     /// Convert search result to array of SearchResultItems for UI
-    func toSearchResultItems(_ result: BibleSearchResult) -> [SearchResultItem] {
+    func toSearchResultItems(_ result: LegacyBibleSearchResult) -> [SearchResultItem] {
         switch result {
         case .direct(let book, let chapter, let verses):
             return verses.map { SearchResultItem(from: $0, book: book, chapter: chapter) }
@@ -273,7 +273,7 @@ class BibleSearchService {
     }
 
     /// Extract matched books from a grouped search result
-    func toMatchedBooks(_ result: BibleSearchResult) -> [MatchedBook] {
+    func toMatchedBooks(_ result: LegacyBibleSearchResult) -> [MatchedBook] {
         if case .grouped(let books, _) = result { return books }
         return []
     }

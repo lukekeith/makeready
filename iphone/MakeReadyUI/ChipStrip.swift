@@ -45,6 +45,10 @@ struct ChipStrip: View {
     /// material behind each chip, for a strip floating over a canvas. Defaults off — every other
     /// strip draws exactly as before.
     var chipMaterial: Bool = false
+    /// §4 `toolbarTone` (activities-editor §27, D38) — forwarded to every C-035 chip. `.light`
+    /// (default) is today's paint. With `.dark` the `chipMaterial` backing is the LIGHT
+    /// ultra-thin material (activities-editor §27.5 / §26.3), so the black labels sit on a light blur.
+    var toolbarTone: ToolbarTone = .light
 
     /// The strip's measured width — layout only, never a prop (R-02). C-106 §2 (D34): the row
     /// is centred when it fits, so it is laid out at least as wide as the inset content area.
@@ -104,15 +108,17 @@ struct ChipStrip: View {
             // share one chip look and stay 52 tall.
             font: item.font ?? .sans,
             // C-035 names its Font-type action `onSelect`, not `onTap`.
-            onSelect: { onSelect(item.id) }
+            onSelect: { onSelect(item.id) },
+            toolbarTone: toolbarTone
         )
         .background {
             if chipMaterial {
                 // FLAGGED LITERAL — activities-editor §15.1: the system dark ultra-thin material
-                // (no `material` token family), in C-035's `radius-card` shape.
+                // (no `material` token family), in C-035's `radius-card` shape; the light one
+                // with `toolbarTone` `.dark` (§26.3).
                 RoundedRectangle(cornerRadius: Token.Radius.card)
                     .fill(.ultraThinMaterial)
-                    .environment(\.colorScheme, .dark)
+                    .environment(\.colorScheme, toolbarTone == .dark ? .light : .dark)
             }
         }
     }

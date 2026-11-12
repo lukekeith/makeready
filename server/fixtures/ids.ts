@@ -113,6 +113,13 @@ export const ACTIVITIES_PLAYER_IDS = {
   draftVersionId: fixtureId('lessonVersion', 211_002),
 }
 
+/** bible-verse-picker Task 4: the picker's "used" lesson — one draft holding a D10 John 3:16b-18 activity and the legacy sample (D23). */
+export const BIBLE_READER_IDS = {
+  programId: fixtureId('program', 212),
+  lessonId: fixtureId('lesson', 212_001),
+  lessonVersionId: fixtureId('lessonVersion', 212_001),
+}
+
 export const FIXTURE_IDS = {
   user: FIXTURE_USER_ID,
   org: FIXTURE_ORG_ID,
@@ -126,4 +133,5 @@ export const FIXTURE_IDS = {
   org2: FIXTURE_ORG2_ID,
   activitiesEditor: ACTIVITIES_EDITOR_IDS,
   activitiesPlayer: ACTIVITIES_PLAYER_IDS,
+  bibleReader: BIBLE_READER_IDS,
 }

@@ -40,6 +40,16 @@ struct IconButton: View {
     /// C-102 §4 `isDisabled` — glyph (and an outlined stroke) at `color-white-50`, no tap, the
     /// disabled trait; overrides `selected` (SPEC D9). Defaulted so existing callers compile.
     var isDisabled: Bool = false
+    /// C-102 §4 `glyphColor` (OQ-activities-editor-48) — overrides the tone's paint of the glyph
+    /// and an outlined stroke; nil (default) is the tone's own. Selected and disabled keep their
+    /// own look. Defaulted so existing callers do not change.
+    var glyphColor: Color?
+    /// C-102 §4 `toolbarTone` (activities-editor §27, D38) — the paint for a button over a LIGHT
+    /// page; not the `tone` axis. `.light` (default) is today's paint. `.dark`: `tone=default`
+    /// glyph `color-black`, outlined stroke `color-black` at 50%; `destructive` stays
+    /// `color-error`; selected is a `color-black` fill with a `color-white-100` glyph; disabled
+    /// dims to `color-black` at 30%.
+    var toolbarTone: ToolbarTone = .light
     /// C-102 §4 `onTap` — fired on tap; never while `isDisabled`; the host decides what it
     /// means (R-03). No render effect; defaulted to a no-op.
     var onTap: () -> Void = {}
@@ -63,16 +73,26 @@ struct IconButton: View {
     /// §2 tone paints: the stroke and the glyph share one colour per tone; both dim to
     /// `color-white-50` while disabled (§2 Disabled).
     private var toneColor: Color {
-        if isDisabled { return Token.white50 }
+        if isDisabled { return toolbarTone == .dark ? Token.black30 : Token.white50 }
+        if let glyphColor { return glyphColor }
         switch tone {
-        case .default: return Token.navText          // OQ-C-102-3
+        case .default: return toolbarTone == .dark ? Token.black : Token.navText   // OQ-C-102-3; D38
         case .destructive: return Token.error        // designed — symbol 3411:2493
         }
     }
 
-    /// §2 Selected: the glyph turns `color-black` in either tone (OQ-C-102-6).
-    private var glyphColor: Color {
-        isSelectedLook ? Token.black : toneColor
+    /// §4 `toolbarTone` `.dark`: the outlined stroke of `tone=default` is `color-black` at 50%;
+    /// everything else strokes in the glyph's paint.
+    private var strokeColor: Color {
+        if toolbarTone == .dark, tone == .default, !isDisabled, glyphColor == nil { return Token.black50 }
+        return toneColor
+    }
+
+    /// §2 Selected: the glyph turns `color-black` in either tone (OQ-C-102-6); with `toolbarTone`
+    /// `.dark` it is `color-white-100` on the black fill (D38).
+    private var paintedGlyphColor: Color {
+        guard isSelectedLook else { return toneColor }
+        return toolbarTone == .dark ? Token.white100 : Token.black
     }
 
     private var shape: RoundedRectangle {
@@ -106,7 +126,7 @@ struct IconButton: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: Geometry.glyph, height: Geometry.glyph)
-                .foregroundStyle(glyphColor)
+                .foregroundStyle(paintedGlyphColor)
                 .accessibilityHidden(true)                    // §4: the glyph is decorative
                 .ui2Element("Glyph")
                 .frame(width: Geometry.box, height: Geometry.box)
@@ -114,7 +134,7 @@ struct IconButton: View {
                 .overlay {
                     if style == .outlined {
                         // strokeBorder keeps the 1pt line inside the 34×34 box (§2).
-                        shape.strokeBorder(toneColor, lineWidth: Geometry.stroke)
+                        shape.strokeBorder(strokeColor, lineWidth: Geometry.stroke)
                     }
                 }
                 .contentShape(shape)
@@ -130,11 +150,11 @@ struct IconButton: View {
         }
     }
 
-    /// §2 Box fill: `color-transparent`, `color-white-100` while selected; an outlined box
-    /// also carries the backdrop blur under its fill.
+    /// §2 Box fill: `color-transparent`, `color-white-100` while selected (`color-black` with
+    /// `toolbarTone` `.dark`, D38); an outlined box also carries the backdrop blur under its fill.
     @ViewBuilder private var fill: some View {
         if isSelectedLook {
-            shape.fill(Token.white100)
+            shape.fill(toolbarTone == .dark ? Token.black : Token.white100)
         } else if style == .outlined {
             // FLAGGED LITERAL — C-102 §2: Background blur 10, a Figma layer effect with no
             // material token. SwiftUI has no radius-set backdrop blur; the nearest is the

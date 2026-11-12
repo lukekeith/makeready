@@ -57,6 +57,11 @@ struct PageHeader: View {
     /// the trailing label and the action is not tappable. Wins over `trailingEnabled`;
     /// `backAndLink` ignores it (D66).
     var trailingLoading: Bool = false
+    /// §4 `toolbarTone` (activities-editor §27, D38) — the paint for a header over a LIGHT page.
+    /// `.light` (default) is every state unchanged. `.dark`: the title and the `textButtons`
+    /// labels `color-black`, a dimmed action `color-black` at 30%, the C-021 glyphs and the C-076
+    /// spinner `color-black`; `backAndLink`'s accent action is unchanged.
+    var toolbarTone: ToolbarTone = .light
     // Interaction-bearing props have no render effect; defaulted no-ops (R-03) so the
     // promoted view keeps its real signature. Shape confirmed by OQ-C-040-8.
     var onLeading: () -> Void = {}
@@ -76,12 +81,24 @@ struct PageHeader: View {
         .ui2Element("PageHeader")
     }
 
+    private var isDark: Bool { toolbarTone == .dark }
+
+    /// §4 toolbarTone `.dark`: C-021 paints a fixed `color-accent`; multiplied by `color-black`
+    /// it draws black (C-021 takes no tone input). `.light` multiplies by white — no change.
+    private var glyphInk: Color { isDark ? Token.black : Token.white100 }
+
+    /// The dimmed look of a text action: `color-white-50`, or `color-black` at 30% in `.dark`.
+    private var dimmedInk: Color { isDark ? Token.black30 : Token.white50 }
+
     @ViewBuilder private var leading: some View {
         switch style {
         case .default, .twoIcons, .backAndLink:
             GlyphButton(glyph: leadingGlyph, onTap: onLeading)
+                .colorMultiply(glyphInk)
         case .textButtons:
-            label(leadingLabel, color: Token.white50, action: onCancel)
+            // `.dark`: the leading label is `color-black`, `color-black` at 30% when not enabled.
+            label(leadingLabel, color: isDark ? (leadingEnabled ? Token.black : dimmedInk) : Token.white50,
+                  action: onCancel)
                 .disabled(!leadingEnabled)               // D66: onCancel never fires
                 .ui2Element("Leading label")
         }
@@ -94,19 +111,27 @@ struct PageHeader: View {
                 HStack(spacing: Token.Space.rowGap) {    // §2: gap 24
                     ForEach(Array(rightButtons.enumerated()), id: \.offset) { index, glyph in
                         GlyphButton(glyph: glyph) { onRightButton(glyph) }
+                            .colorMultiply(glyphInk)
                             .ui2Element("Trailing glyph \(index + 1)")
                     }
                 }
             }
         case .textButtons where trailingLoading:       // D66: spinner replaces the label
             // C-076 at its designed 24pt / color-accent — the label's line box, so the bar stays 56.
-            ActivitySpinner()
+            ActivitySpinner(color: isDark ? Token.black : Token.accent)
                 .ui2Element("Trailing spinner")
         case .textButtons, .backAndLink:              // D60: the same text action
-            label(trailingLabel, color: trailingEnabled ? Token.accent : Token.white50, action: onDone)
+            // `.dark`: the `textButtons` trailing label is `color-black`; `backAndLink`'s accent
+            // action is unchanged; dimmed is `color-black` at 30%.
+            label(trailingLabel, color: trailingInk, action: onDone)
                 .disabled(!trailingEnabled)              // OQ-C-040-001: onDone never fires
                 .ui2Element("Trailing label")
         }
+    }
+
+    private var trailingInk: Color {
+        guard trailingEnabled else { return dimmedInk }
+        return isDark && style == .textButtons ? Token.black : Token.accent
     }
 
     /// §2: a text-action label (`textButtons`, `backAndLink`) — `type-nav-action`, no underline (not C-049), with its tap
@@ -132,7 +157,7 @@ struct PageHeader: View {
         if showTitle, let title {
             Text(title)
                 .designTextStyle(Token.TypeStyle.pageTitle)
-                .foregroundStyle(Token.textPrimary)
+                .foregroundStyle(isDark ? Token.black : Token.textPrimary)   // §4 toolbarTone
                 .lineLimit(1)                            // OQ-C-040-5: one line, never wraps
                 .truncationMode(.tail)                   // OQ-C-040-5: tail ellipsis
                 .accessibilityAddTraits(.isHeader)

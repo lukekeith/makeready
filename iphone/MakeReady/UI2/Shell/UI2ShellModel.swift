@@ -80,6 +80,13 @@ enum UI2Destination: Hashable {
     /// text-activity D40: the Media grid in pick mode, above the editor; a pick goes back to it by
     /// `ActivityBackgroundPick` and the page pops.
     case chooseActivityBackground(activityId: String)
+    /// bible-verse-picker D1/D2: the picker's four pages, each above the last; `flowId` keys the caller,
+    /// return depth and used passages in `AppState.biblePickFlows`. `book` is the book number (1-66).
+    /// Reached only by pushing — no deep link or notification target (D24).
+    case bibleBooks(flowId: UUID)
+    case bibleChapters(book: Int, flowId: UUID)
+    case bibleVerses(book: Int, chapter: Int, flowId: UUID)
+    case bibleReader(book: Int, chapter: Int, verse: Int, flowId: UUID)
 }
 
 extension UI2Destination {
@@ -100,6 +107,8 @@ extension UI2Destination {
         // picker. Owner 2026-11-08: the editor is full screen too — its own bars are drawn in-screen,
         // so no TabBar sits under it.
         case .activitiesEditor, .activityViewer, .chooseActivityBackground: return true
+        // bible-verse-picker D2: the picker's pages carry their own header and Select, so no TabBar.
+        case .bibleBooks, .bibleChapters, .bibleVerses, .bibleReader: return true
         // Owner 2026-10-29: no TabBar on any enrollment page — the enrollment's own page, the
         // checklist and its six pickers.
         case .enrollmentHome, .enrollChecklist, .enrollSelectGroup, .enrollSelectProgram, .enrollSelectSchedule,
@@ -162,6 +171,12 @@ struct UI2ShellModel {
         setPath(path(for: tab) + [destination], for: tab)
     }
 
+    /// bible-verse-picker D12: several pages pushed in order, as ONE path write — Back from the top one
+    /// returns to the page below it.
+    mutating func push(contentsOf destinations: [UI2Destination], on tab: TabBar.Tab) {
+        setPath(path(for: tab) + destinations, for: tab)
+    }
+
     mutating func pop(on tab: TabBar.Tab) {
         guard var path = paths[tab], !path.isEmpty else { return }
         path.removeLast()
@@ -189,6 +204,14 @@ struct UI2ShellModel {
         let path = path(for: tab)
         guard depth < path.count else { return }
         setPath(Array(path.prefix(max(0, depth))), for: tab)
+    }
+
+    /// bible-verse-picker D2/D25: Select — pop to `depth` and optionally push `next`, in ONE path write, so
+    /// the whole picker leaves at once and the caller's page is what shows.
+    mutating func popToAndPush(depth: Int, push next: UI2Destination?, on tab: TabBar.Tab) {
+        var path = Array(path(for: tab).prefix(max(0, depth)))
+        if let next { path.append(next) }
+        setPath(path, for: tab)
     }
 
     mutating func apply(_ route: UI2Route) {

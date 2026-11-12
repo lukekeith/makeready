@@ -18,8 +18,11 @@ enum ActivitiesEditorMapper {
     /// The screen's Idle state for `document`. The container sets the mode, the edited index and the
     /// save/load flags on top. D17: the highlight tool, the effects tool and the eyedropper are off.
     static func state(document: ActivityDocument, media: [String: MediaMapEntry], slides: [ContentActivity],
-                      activeID: String) -> ActivitiesEditorScreen.State {
-        let objects = canvasObjects(document)
+                      activeID: String, kind: String = "text") -> ActivitiesEditorScreen.State {
+        // D26: a `bible` activity's scripture is placed by the page, never by its `transform`; the reference (D34) keeps its own. D32: the
+        // editor screen applies vertical alignment itself (State.bibleVerticalAlignment), so the frames stay un-shifted.
+        let placed = BibleScripture.placed(document, aligned: false)
+        let objects = placed.objects
         let raw = rawObjects(document)
         let background = document.background
         let image = background.image
@@ -31,10 +34,12 @@ enum ActivitiesEditorMapper {
             }
         }
         let ordered = slides.sorted { $0.position < $1.position }
-        return ActivitiesEditorScreen.State(
+        // bible-verse-picker D21: only a `bible` activity shows the highlight tool; its referenced scripture is locked (D11), its
+        // reference is ordinary text (D34), and a legacy scripture without `reference` is ordinary text too (D23).
+        var state = ActivitiesEditorScreen.State(
             editorMode: "idle",
             openTool: "",
-            showsHighlightTool: false,
+            showsHighlightTool: kind == "bible",
             showsEffectsTool: false,
             showsEyedropper: false,
             slideIDs: ordered.map(\.id),
@@ -81,6 +86,59 @@ enum ActivitiesEditorMapper {
             saveFailed: false,
             loadFailed: false
         )
+        state.objectIDs = objects.map(\.id)
+        state.objectLocks = document.textObjects.map(\.isLockedScripture)
+        // D35: text and bible activities pick the tool bar tone from the page background; recomputed on every state build.
+        if kind == "text" || kind == "bible" { state.toolbarTone = toolbarTone(for: background) }
+        if kind == "bible", let layout = placed.layout { applyBibleLayout(layout, objects: objects, to: &state) }
+        return state
+    }
+
+    /// D26–D29: the page's layout for a `bible` activity — the five-tool row, the page's height, which objects the page
+    /// places (with their measured heights) and the style panel seeded from the scripture. Animation stays hidden (D28).
+    private static func applyBibleLayout(_ layout: BibleScripture.PageLayout, objects: [TextObject],
+                                         to state: inout ActivitiesEditorScreen.State) {
+        let laidOut = objects.indices.map { $0 == layout.scriptureIndex }
+        state.isBible = true
+        state.pageHeight = CGFloat(layout.height)
+        state.objectPageLaidOut = laidOut
+        state.objectHeights = objects.indices.map { index in
+            index == layout.scriptureIndex ? layout.scripture.height : 0
+        }
+        let scripture = objects[layout.scriptureIndex]
+        state.bibleFace = fontKey(scripture.font)
+        state.bibleWeight = scripture.weight < 450 ? 400 : scripture.weight < 600 ? 500 : 700
+        state.bibleSize = CGFloat(scripture.size)
+        state.bibleLineHeight = CGFloat(scripture.lineHeight)
+        state.bibleInset = CGFloat(scripture.inset ?? BibleScripture.defaultInset)
+        state.bibleVerseNumbers = (scripture.verseNumbers ?? .inline).rawValue
+        state.bibleColor = scripture.color
+        state.bibleAlignment = scripture.alignment
+        // D32: the screen shifts the block itself, so the frames stay top-at-96 and only the choice is passed.
+        state.bibleVerticalAlignment = (scripture.verticalAlignment ?? .top).rawValue
+    }
+
+    /// D35: dark icons on a light page. A solid colour's WCAG relative luminance, or a visible gradient's mean over its
+    /// stops (the base and each blob colour), at or above 0.5 gives `.dark`; an image, no background or an unreadable
+    /// colour gives `.light`.
+    static func toolbarTone(for background: ActivityBackground?) -> ToolbarTone {
+        guard let background, background.image == nil else { return .light }
+        var colours = [background.color]
+        if let gradient = background.gradient, !gradient.hidden { colours = [gradient.base] + gradient.blobs.map(\.color) }
+        let luminances = colours.compactMap(relativeLuminance)
+        guard !luminances.isEmpty else { return .light }
+        return luminances.reduce(0, +) / Double(luminances.count) >= 0.5 ? .dark : .light
+    }
+
+    /// WCAG relative luminance of `#RRGGBB` (an alpha pair after it is ignored); nil when unreadable.
+    private static func relativeLuminance(_ hex: String) -> Double? {
+        let digits = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
+        guard digits.count == 6 || digits.count == 8, let value = UInt32(digits.prefix(6), radix: 16) else { return nil }
+        func linear(_ shift: UInt32) -> Double {
+            let channel = Double((value >> shift) & 0xFF) / 255
+            return channel <= 0.03928 ? channel / 12.92 : pow((channel + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * linear(16) + 0.7152 * linear(8) + 0.0722 * linear(0)
     }
 
     /// D18: the document's font keys, passed to the screen as keys — it draws `display`, `sans`,
@@ -380,11 +438,6 @@ enum ActivitiesEditorMapper {
     }
 
     // MARK: - Internals
-
-    private static func canvasObjects(_ doc: ActivityDocument) -> [TextObject] {
-        if case .canvas(let canvas) = doc.renderable { return canvas.objects }
-        return []
-    }
 
     static func rawObjects(_ doc: ActivityDocument) -> [JSONValue] {
         if case .array(let items)? = doc.raw[path: ["content", "objects"]] { return items }

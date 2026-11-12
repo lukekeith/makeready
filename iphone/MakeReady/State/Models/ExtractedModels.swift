@@ -73,6 +73,8 @@ struct BibleVersion: Identifiable, Equatable, Codable {
     let language: String?
     let description: String?
     let copyright: String?
+    /// D7: the server's ranking (higher = more used); nil for the bundled defaults.
+    var popularity: Int? = nil
 }
 
 struct BibleTranslationsResponse: Codable {

@@ -65,6 +65,11 @@ of these program tokens and is specced with the activities screens.
 | color-transparent | #ffffff00 | `Transparent` (utility zero-alpha; fade/overlay stops) | (new) | (new) |
 | color-warning | #ffb53e | **raw — no Figma variable** (OQ-C-062-8). The mid anchor of C-062 PercentDisc's completion ramp (owner ruling 2026-09-11): the third status colour beside `color-positive` #6cff73 and `color-negative` #ff4759, which are the ramp's other two anchors. Minted because the ruling makes it structural rather than incidental — it was previously carried as the "fourth band colour" literal | (new) | (new) |
 | color-avatar-fallback | #242a3e | `Border` (C-038 Avatar `Initials` + `Unknown user` ellipse fill — the variable is named `Border` but is bound here as a FILL, and #242a3e is a navy distinct from all three border greys `layout/border` #2f3639, `card/border` #2f363a, `nav/border` #525d60; named for its role, scoped to its one known consumer — OQ-C-038-1) | (new) | (new) |
+| color-bible-olive | #424216 | **raw — no Figma variable** (Bible category colour, 1.0 `BibleData.swift`; C-052 `fillToken`: Law, Pauline epistles; minted 2026-11-10, bible-verse-picker) | `Token.bibleOlive` | (new) |
+| color-bible-teal | #143f45 | **raw — no Figma variable** (Bible category colour, 1.0 `BibleData.swift`; C-052 `fillToken`: History, Major Prophets; minted 2026-11-10, bible-verse-picker) | `Token.bibleTeal` | (new) |
+| color-bible-green | #254422 | **raw — no Figma variable** (Bible category colour, 1.0 `BibleData.swift`; C-052 `fillToken`: Wisdom; minted 2026-11-10, bible-verse-picker) | `Token.bibleGreen` | (new) |
+| color-bible-brown | #563b2d | **raw — no Figma variable** (Bible category colour, 1.0 `BibleData.swift`; C-052 `fillToken`: Minor Prophets, General Epistles; minted 2026-11-10, bible-verse-picker) | `Token.bibleBrown` | (new) |
+| color-bible-maroon | #563139 | **raw — no Figma variable** (Bible category colour, 1.0 `BibleData.swift`; C-052 `fillToken`: Gospels, Acts, Apocalyptic; minted 2026-11-10, bible-verse-picker) | `Token.bibleMaroon` | (new) |
 
 Token hygiene flags (for the owner, non-blocking): the file carries three white aliases and
 two near-identical nav-text grays (#8ea0a7 vs #8d9fa7); `screens/home-dashboard.md` OQ-6

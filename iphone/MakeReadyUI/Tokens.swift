@@ -380,6 +380,11 @@ enum Token {
     static let ink800 = Color(red: 0.0392, green: 0.0392, blue: 0.0392, opacity: 1)
     static let ink900 = Color(red: 0.0118, green: 0.0157, blue: 0.0196, opacity: 1)
     static let ink950 = Color(red: 0.0, green: 0.0, blue: 0.0, opacity: 1)
+    static let bibleOlive = Color(red: 0.2588, green: 0.2588, blue: 0.0863, opacity: 1)
+    static let bibleTeal = Color(red: 0.0784, green: 0.2471, blue: 0.2706, opacity: 1)
+    static let bibleGreen = Color(red: 0.1451, green: 0.2667, blue: 0.1333, opacity: 1)
+    static let bibleBrown = Color(red: 0.3373, green: 0.2314, blue: 0.1765, opacity: 1)
+    static let bibleMaroon = Color(red: 0.3373, green: 0.1922, blue: 0.2235, opacity: 1)
 
     // NOT `Type`: `Token.Type` is Swift's metatype syntax for the enum itself.
     enum TypeStyle {
@@ -441,6 +446,15 @@ enum Token {
         static let rowGap: CGFloat = 24
         static let sectionGap: CGFloat = 32
         static let metaGap: CGFloat = 4
+        static let step2: CGFloat = 2
+        static let step4: CGFloat = 4
+        static let step8: CGFloat = 8
+        static let step12: CGFloat = 12
+        static let step16: CGFloat = 16
+        static let step24: CGFloat = 24
+        static let step32: CGFloat = 32
+        static let step48: CGFloat = 48
+        static let step64: CGFloat = 64
     }
 
     enum Radius {
@@ -449,6 +463,10 @@ enum Token {
         static let card: CGFloat = 8
         static let bar: CGFloat = 2
         static let modal: CGFloat = 16
+        static let step2: CGFloat = 2
+        static let step4: CGFloat = 4
+        static let step8: CGFloat = 8
+        static let step16: CGFloat = 16
     }
 
     enum Motion {

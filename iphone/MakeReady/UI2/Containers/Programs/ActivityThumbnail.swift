@@ -15,8 +15,8 @@ enum ActivityThumbnail {
     static let size = CGSize(width: 112, height: 112 * referenceHeight / referenceWidth)
 
     /// Bumped whenever the render's geometry changes, so slides cached by an earlier render draw again.
-    /// 1 = the 33×44 centre crop (C-061); 2 = the whole page at C-079's size.
-    static let renderVersion = 2
+    /// 1 = the 33×44 centre crop (C-061); 2 = the whole page at C-079's size; 3 = a `bible` page laid out by D26 (top 956 of a tall one).
+    static let renderVersion = 3
     private static let slotWidth: CGFloat = 392
 
     /// The cache key for a canvas-kind activity's thumbnail; "" for any other kind. It changes with the
@@ -61,16 +61,32 @@ enum ActivityThumbnail {
     /// The document's whole page, scaled to the slide — the slide has the page's aspect, so nothing is cropped.
     @MainActor
     static func render(_ document: ActivityDocument, backgroundImage: UIImage?) -> UIImage? {
-        guard case .canvas(let canvas) = document.renderable else { return nil }
+        guard case .canvas = document.renderable else { return nil }
         let scale = size.width / referenceWidth
-        let page = Page(background: document.background, backgroundImage: backgroundImage, objects: canvas.objects)
-            .frame(width: referenceWidth, height: referenceHeight)
+        // D30: a tall `bible` page is drawn whole and the slide shows its top 440 x 956.
+        let height = max(referenceHeight, CGFloat(BibleScripture.layout(of: document)?.height ?? 0))
+        let page = Page(background: document.background, backgroundImage: backgroundImage, objects: objects(for: document),
+                        height: height)
+            .frame(width: referenceWidth, height: referenceHeight, alignment: .top)
+            .clipped()
             .scaleEffect(scale)
             .frame(width: size.width, height: size.height)
             .clipped()
         let renderer = ImageRenderer(content: page)
         renderer.scale = 3   // the phone's screen scale; 336×730 px for a 112pt slide
         return renderer.uiImage
+    }
+
+    /// F13: the page's text objects as C-092 draws them in viewer mode — `listStyle`, `startNumber` and highlights kept,
+    /// exactly as the player maps them. `reference` is never passed (D10: the citation object is the scripture's only
+    /// citation line), and the reference text object is drawn from its own transform (D34). Empty for any document that is not a canvas.
+    static func objects(for document: ActivityDocument) -> [CanvasTextObject] {
+        guard case .canvas = document.renderable else { return [] }
+        // D26: a page-laid-out scripture is placed by the page, not by its `transform`; the reference keeps its own (D34).
+        let placed = BibleScripture.placed(document)
+        return placed.objects.enumerated().map { index, object in
+            Page.canvasObject(object, pageLaidOut: index == placed.layout?.scriptureIndex)
+        }
     }
 
     /// text-activity-v2 D1/D14: the document's gradient as C-091's type — nil when absent or hidden,
@@ -99,40 +115,66 @@ enum ActivityThumbnail {
     private struct Page: View {
         let background: ActivityBackground
         let backgroundImage: UIImage?
-        let objects: [TextObject]
+        let objects: [CanvasTextObject]
+        let height: CGFloat
 
         var body: some View {
             ZStack(alignment: .topLeading) {
                 ActivityThumbnail.color(background.color)
                 if let gradient = ActivityThumbnail.canvasGradient(background.gradient) {
                     ActivityBlobGradient(gradient: gradient,
-                                         pageSize: CGSize(width: ActivityThumbnail.referenceWidth, height: ActivityThumbnail.referenceHeight))
+                                         pageSize: CGSize(width: ActivityThumbnail.referenceWidth, height: height))
                 }
                 if let backgroundImage {
                     Image(uiImage: backgroundImage)
                         .resizable()
                         .scaledToFill()
-                        .frame(width: ActivityThumbnail.referenceWidth, height: ActivityThumbnail.referenceHeight)
+                        .frame(width: ActivityThumbnail.referenceWidth, height: height)
                         .clipped()
                 }
                 if let wash = background.wash {
                     ActivityThumbnail.color(wash.color).opacity(wash.opacity)
                 }
-                ForEach(objects) { object in
-                    CanvasTextObject(
-                        text: object.text, mode: .viewer, font: Self.font(object.font), weight: Self.weight(object.weight),
-                        size: CGFloat(object.size), color: ActivityThumbnail.color(object.color), alignment: Self.alignment(object.alignment),
-                        marks: Self.marks(object.marks),
-                        transform: .init(position: CGPoint(x: object.transform.x, y: object.transform.y),
-                                         scale: CGFloat(object.transform.scale), rotation: .degrees(object.transform.rotation),
-                                         width: CGFloat(object.transform.width)),
-                        editing: false
-                    )
-                    .frame(width: CGFloat(object.transform.width))
-                    .position(x: object.transform.x, y: object.transform.y)
+                ForEach(Array(objects.enumerated()), id: \.offset) { _, object in
+                    object
+                        .frame(width: object.transform.width)
+                        .position(object.transform.position)
                 }
             }
-            .frame(width: ActivityThumbnail.referenceWidth, height: ActivityThumbnail.referenceHeight, alignment: .topLeading)
+            .frame(width: ActivityThumbnail.referenceWidth, height: height, alignment: .topLeading)
+        }
+
+        static func canvasObject(_ object: TextObject, pageLaidOut: Bool = false) -> CanvasTextObject {
+            CanvasTextObject(
+                text: object.text, mode: .viewer, font: font(object.font), weight: weight(object.weight),
+                size: CGFloat(object.size), lineHeight: pageLaidOut && object.role == "scripture" ? CGFloat(object.lineHeight) : nil,
+                color: ActivityThumbnail.color(object.color), alignment: alignment(object.alignment),
+                listStyle: listStyle(object.listStyle), startNumber: object.startNumber ?? 1,
+                verseNumbers: verseNumbers(object.verseNumbers), marks: marks(object.marks),
+                transform: .init(position: CGPoint(x: object.transform.x, y: object.transform.y),
+                                 scale: CGFloat(object.transform.scale), rotation: .degrees(object.transform.rotation),
+                                 width: CGFloat(object.transform.width)),
+                pageLaidOut: pageLaidOut,
+                editing: false,
+                highlights: object.highlights.map { .init(start: $0.start, end: $0.end, note: $0.noteMarkdown) }
+            )
+        }
+
+        static func listStyle(_ key: String?) -> CanvasTextObject.ListStyle {
+            switch key {
+            case "bullet": return .bullet
+            case "numbered": return .numbered
+            case "bibleVerse": return .bibleVerse
+            default: return .none
+            }
+        }
+
+        static func verseNumbers(_ mode: VerseNumbers?) -> CanvasTextObject.VerseNumbers {
+            switch mode {
+            case .gutter: return .gutter
+            case .hidden: return .hidden
+            default: return .inline
+            }
         }
 
         // 02 §3/§6: the document's keys, never platform names.

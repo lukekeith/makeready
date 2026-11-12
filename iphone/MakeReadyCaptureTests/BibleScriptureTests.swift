@@ -1,0 +1,203 @@
+import XCTest
+@testable import MakeReady
+
+final class BibleScriptureTests: XCTestCase {
+    // MARK: Fixtures
+
+    static let v16 = "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have eternal life."
+    static let v17 = "For God sent not his Son into the world to condemn the world; but that the world through him might be saved."
+    static let v18 = "He that believeth on him is not condemned: but he that believeth not is condemned already, because he hath not believed in the name of the only begotten Son of God."
+
+    static func passage(_ start: Int, _ end: Int, startOffset: Int? = nil, endOffset: Int? = nil,
+                        translation: String? = "ENGKJV") -> BiblePassage {
+        BiblePassage(bookNumber: 43, chapterStart: 3, verseStart: start, chapterEnd: 3, verseEnd: end,
+                     startOffset: startOffset, endOffset: endOffset, translation: translation)
+    }
+
+    static let pick16b18 = BiblePick(
+        passage: passage(16, 18, startOffset: 9),
+        verses: [BibleVerse(verse: 16, text: v16), BibleVerse(verse: 17, text: v17), BibleVerse(verse: 18, text: v18)],
+        bookName: "John")
+    static let pick16to17 = BiblePick(
+        passage: passage(16, 17),
+        verses: [BibleVerse(verse: 16, text: v16), BibleVerse(verse: 17, text: v17)],
+        bookName: "John")
+    static let pick16to21 = BiblePick(
+        passage: passage(16, 21, startOffset: 9),
+        verses: (16...21).map { BibleVerse(verse: $0, text: "Verse \($0) of John three.") },
+        bookName: "John")
+    static let pick16 = BiblePick(
+        passage: passage(16, 16), verses: [BibleVerse(verse: 16, text: v16)], bookName: "John")
+    static let pick16b18WEB = BiblePick(
+        passage: passage(16, 18, startOffset: 9, translation: "WEBBE"),
+        verses: pick16b18.verses, bookName: "John")
+    static let john3All = BiblePick(
+        passage: passage(1, 36),
+        verses: (1...36).map { BibleVerse(verse: $0, text: "Verse \($0) of John three.") },
+        bookName: "John")
+
+    /// A highlight over "eternal life" in verse 16, indexed into pick16b18's scripture text.
+    static func range(of needle: String, in text: String) -> (Int, Int) {
+        let r = (text as NSString).range(of: needle)
+        return (r.location, r.location + r.length)
+    }
+    static let hlEternalLifeIn16: TextObject.Highlight = {
+        let (s, e) = range(of: "eternal life", in: String(v16.utf16.dropFirst(9))!)
+        return TextObject.Highlight(id: "h1", start: s, end: e, noteMarkdown: nil)
+    }()
+    /// "condemned" in verse 18 — outside pick16to17.
+    static let hlIn18: TextObject.Highlight = {
+        let text = [String(v16.utf16.dropFirst(9))!, v17, v18].joined(separator: "\n")
+        let (s, e) = range(of: "condemned already", in: text)
+        return TextObject.Highlight(id: "h2", start: s, end: e, noteMarkdown: "note")
+    }()
+    static func offsetOfEternalLifeIn(_ pick: BiblePick) -> Int {
+        range(of: "eternal life", in: pick.verses[0].text).0
+    }
+
+    static let bibleActivity = ContentActivity(
+        id: "b1", lessonVersionId: "v1", activityKey: "k1", position: 0, kind: "bible", title: "John 3:16b-18",
+        document: BibleScripture.document(for: pick16b18, background: nil), estimatedSeconds: nil)
+    static let textActivity = ContentActivity(
+        id: "t1", lessonVersionId: "v1", activityKey: "k2", position: 1, kind: "text", title: "Text",
+        document: ActivityDocument(raw: .object([
+            "schemaVersion": .number(1), "kind": .string("text"),
+            "content": .object(["type": .string("canvas"), "objects": .array([]),
+                                "passages": .array([.object(["bookNumber": .number(1), "chapterStart": .number(1),
+                                                             "verseStart": .number(1), "chapterEnd": .number(1),
+                                                             "verseEnd": .number(1)])])])
+        ])), estimatedSeconds: nil)
+
+    // MARK: Tests
+
+    func testCitationMarksPartialEnds() {
+        XCTAssertEqual(BibleScripture.title(for: .init(bookNumber: 43, chapterStart: 3, verseStart: 16, chapterEnd: 3, verseEnd: 18, startOffset: 9, endOffset: nil, translation: "ENGKJV"), bookName: "John"), "John 3:16b-18")
+        XCTAssertEqual(BibleScripture.title(for: .init(bookNumber: 43, chapterStart: 3, verseStart: 16, chapterEnd: 3, verseEnd: 18, startOffset: nil, endOffset: 20, translation: "ENGKJV"), bookName: "John"), "John 3:16-18a")
+        XCTAssertEqual(BibleScripture.title(for: .init(bookNumber: 43, chapterStart: 3, verseStart: 16, chapterEnd: 3, verseEnd: 16, startOffset: nil, endOffset: nil, translation: nil), bookName: "John"), "John 3:16")
+    }
+
+    /// D10: a single verse that ends mid-verse is its first part ("a"); one that starts mid-verse is "b".
+    func testASingleVerseCitesWhichPartItKeeps() {
+        func cite(_ start: Int?, _ end: Int?) -> String {
+            BibleScripture.title(for: .init(bookNumber: 43, chapterStart: 3, verseStart: 16, chapterEnd: 3, verseEnd: 16,
+                                            startOffset: start, endOffset: end, translation: "ENGKJV"), bookName: "John")
+        }
+        XCTAssertEqual(cite(nil, 20), "John 3:16a")
+        XCTAssertEqual(cite(9, nil), "John 3:16b")
+        XCTAssertEqual(cite(nil, nil), "John 3:16")
+    }
+
+    func testTitleIsTheCitationWithoutTheTranslationCode() {
+        XCTAssertEqual(BibleScripture.title(for: Self.pick16b18.passage, bookName: "John"), "John 3:16b-18")
+    }
+
+    func testTheDocumentCarriesTrimmedNumberedScriptureAndItsPassage() {
+        let doc = BibleScripture.document(for: Self.pick16b18, background: nil)
+        let s = doc.textObjects[0]
+        XCTAssertEqual(s.role, "scripture"); XCTAssertEqual(s.startNumber, 16); XCTAssertEqual(s.listStyle, "bibleVerse")
+        XCTAssertEqual(s.text, [String(Self.v16.utf16.dropFirst(9))!, Self.v17, Self.v18].joined(separator: "\n"))
+        XCTAssertEqual(s.reference?.start.offset, 9); XCTAssertNil(doc.textObjects[1].reference)
+        XCTAssertEqual(doc.textObjects[1].text, "John 3:16b-18"); XCTAssertEqual(doc.passages, [Self.pick16b18.passage])
+    }
+
+    func testTheDocumentUsesTheD10Layout() {
+        let doc = BibleScripture.document(for: Self.pick16b18, background: nil)
+        let s = doc.textObjects[0], c = doc.textObjects[1]
+        XCTAssertEqual(s.font, "display"); XCTAssertEqual(s.size, 18); XCTAssertEqual(s.alignment, "left")
+        XCTAssertEqual(s.transform.width, 376)
+        XCTAssertEqual(c.role, "citation"); XCTAssertEqual(c.font, "display"); XCTAssertEqual(c.size, 14)
+        XCTAssertLessThan(c.transform.y, s.transform.y, "D34: the reference sits above the passage")
+        XCTAssertTrue(s.isLockedScripture); XCTAssertFalse(c.isLockedScripture)
+        // D34: left edge at the scripture's inset, width 440 - 2 * inset, the scripture's colour and alignment.
+        XCTAssertEqual(c.transform.width, 376); XCTAssertEqual(c.transform.x, 220)
+        XCTAssertEqual(c.color, s.color); XCTAssertEqual(c.alignment, s.alignment)
+    }
+
+    func testTheReferenceHasNoTranslationAndSitsAbove() {
+        let c = BibleScripture.document(for: Self.pick16b18, background: nil).textObjects[1]
+        XCTAssertEqual(c.text, "John 3:16b-18")
+        // D34/D45: top at 107 (just under the header) on the 440 reference; transform.y is the box centre,
+        // one 14 pt line (about 20) tall.
+        XCTAssertEqual(c.transform.y, 117, accuracy: 3)
+    }
+
+    func testChangePassageKeepsAnEditedReference() {
+        XCTAssertEqual(BibleScripture.citationAfterChange(current: "John 3:16b-18", old: Self.pick16b18, new: Self.pick16to21), "John 3:16b-21")
+        XCTAssertEqual(BibleScripture.citationAfterChange(current: "For God so loved", old: Self.pick16b18, new: Self.pick16to21), "For God so loved")
+    }
+
+    func testTheLastVerseIsCutAtTheEndOffset() {
+        let pick = BiblePick(passage: Self.passage(16, 17, endOffset: 10), verses: Self.pick16to17.verses, bookName: "John")
+        let doc = BibleScripture.document(for: pick, background: nil)
+        XCTAssertEqual(doc.textObjects[0].text, Self.v16 + "\n" + String(Self.v17.utf16.prefix(10))!)
+        XCTAssertEqual(doc.textObjects[0].reference?.end.offset, 10)
+    }
+
+    func testASingleVerseIsCutAtBothOffsets() {
+        let pick = BiblePick(passage: Self.passage(16, 16, startOffset: 9, endOffset: 20),
+                             verses: [BibleVerse(verse: 16, text: Self.v16)], bookName: "John")
+        XCTAssertEqual(BibleScripture.document(for: pick, background: nil).textObjects[0].text,
+                       (Self.v16 as NSString).substring(with: NSRange(location: 9, length: 11)))
+    }
+
+    func testReanchorKeepsInsideAndCountsOutside() {
+        let r = BibleScripture.reanchor(highlights: [Self.hlEternalLifeIn16, Self.hlIn18], old: Self.pick16b18, new: Self.pick16to17)
+        XCTAssertEqual(r.kept.count, 1); XCTAssertEqual(r.removed, 1)
+        XCTAssertEqual(r.kept[0].start, Self.offsetOfEternalLifeIn(Self.pick16to17))
+    }
+
+    func testReanchoringToTheSamePassageKeepsEveryHighlightUnchanged() {
+        let r = BibleScripture.reanchor(highlights: [Self.hlIn18], old: Self.pick16b18, new: Self.pick16b18)
+        XCTAssertEqual(r.kept, [Self.hlIn18]); XCTAssertEqual(r.removed, 0)
+    }
+
+    func testATranslationChangeRemovesEveryHighlight() {
+        XCTAssertEqual(BibleScripture.reanchor(highlights: [Self.hlEternalLifeIn16], old: Self.pick16b18, new: Self.pick16b18WEB).removed, 1)
+    }
+
+    func testDefaultsHideNumbersForOneVerseAndGutterForSeveral() {
+        XCTAssertEqual(BibleScripture.document(for: Self.pick16, background: nil).textObjects[0].verseNumbers, .hidden)
+        XCTAssertEqual(BibleScripture.document(for: Self.pick16b18, background: nil).textObjects[0].verseNumbers, .gutter)
+        XCTAssertEqual(BibleScripture.document(for: Self.pick16b18, background: nil).textObjects[0].inset, 32)
+    }
+
+    func testTheDefaultsAreTheD28Style() {
+        let s = BibleScripture.document(for: Self.pick16b18, background: nil).textObjects[0]
+        XCTAssertEqual(s.size, 18); XCTAssertEqual(s.lineHeight, 1.4); XCTAssertEqual(s.font, "display"); XCTAssertEqual(s.weight, 400)
+    }
+
+    func testPageHeightNeverDropsBelowTheTextPage() {
+        XCTAssertEqual(BibleScripture.pageHeight(scriptureHeight: 200), 956)
+        XCTAssertEqual(BibleScripture.pageHeight(scriptureHeight: 1400), 1628, "D34/D45: 143 top + 85 bottom")
+        XCTAssertEqual(BibleScripture.pageHeight(scriptureHeight: 1400, pinned: true), 1653, "D45: a pinned action reserves 110")
+    }
+
+    static let legacyScriptureJSON = """
+    {"id":"s","text":"x","role":"scripture","transform":{"x":220,"y":100,"width":376,"scale":1,"rotation":0}}
+    """
+
+    static func decode(_ json: String) throws -> TextObject {
+        try JSONDecoder().decode(TextObject.self, from: Data(json.utf8))
+    }
+
+    func testALegacyScriptureReadsInline() throws {
+        XCTAssertEqual(try Self.decode(Self.legacyScriptureJSON).verseNumbers, .inline)
+    }
+
+    func testEncodingNeverWritesVerseNumbersOrInsetWhenAbsent() throws {
+        let object = try Self.decode(Self.legacyScriptureJSON)
+        let written = try JSONSerialization.jsonObject(with: JSONEncoder().encode(object)) as? [String: Any]
+        XCTAssertNil(written?["verseNumbers"]); XCTAssertNil(written?["inset"])
+    }
+
+    func testAWrittenVerseNumbersModeRoundTrips() throws {
+        var object = try Self.decode(Self.legacyScriptureJSON)
+        object.verseNumbers = .gutter; object.inset = 48
+        let back = try JSONDecoder().decode(TextObject.self, from: JSONEncoder().encode(object))
+        XCTAssertEqual(back.verseNumbers, .gutter); XCTAssertEqual(back.inset, 48)
+    }
+
+    func testUsedCollectsEveryBiblePassageInTheDraft() {
+        XCTAssertEqual(BibleScripture.used(in: [Self.bibleActivity, Self.textActivity]), [Self.pick16b18.passage])
+    }
+}

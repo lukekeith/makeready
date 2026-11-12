@@ -117,6 +117,45 @@ final class ActivitiesEditorMapperTests: XCTestCase {
         XCTAssertTrue(images[1].hasPrefix("activity-thumbnail://"))
     }
 
+    // MARK: - bible-verse-picker D35: the tool bar tone follows the page background
+
+    private func gradient(_ base: String, _ blobs: [String]) -> ActivityBackground {
+        ActivityBackground(color: base, image: nil, wash: nil, motion: nil,
+                           gradient: .init(base: base, blobs: blobs.map { .init(x: 0.5, y: 0.5, r: 0.5, color: $0) }))
+    }
+
+    func testALightSolidBackgroundGetsDarkIcons() {
+        func solid(_ hex: String) -> ActivityBackground { ActivityBackground(color: hex, image: nil, wash: nil, motion: nil) }
+        XCTAssertEqual(ActivitiesEditorMapper.toolbarTone(for: solid("#FFFFFF")), .dark)
+        XCTAssertEqual(ActivitiesEditorMapper.toolbarTone(for: solid("#FFF4B0")), .dark)
+        XCTAssertEqual(ActivitiesEditorMapper.toolbarTone(for: solid("#0D101A")), .light)
+    }
+
+    func testAGradientUsesTheMeanOfItsStops() {
+        XCTAssertEqual(ActivitiesEditorMapper.toolbarTone(for: gradient("#FFFFFF", ["#EEEEEE"])), .dark)
+        XCTAssertEqual(ActivitiesEditorMapper.toolbarTone(for: gradient("#000000", ["#333333"])), .light)
+    }
+
+    func testAHiddenGradientReadsAsItsSolidColour() {
+        var background = gradient("#000000", ["#111111"])
+        background.color = "#FFFFFF"
+        background.gradient?.hidden = true
+        XCTAssertEqual(ActivitiesEditorMapper.toolbarTone(for: background), .dark)
+    }
+
+    func testAnImageOrNoBackgroundKeepsLightIcons() {
+        let image = ActivityBackground(color: "#FFFFFF", image: .init(mediaId: "m1", focal: nil), wash: nil, motion: nil)
+        XCTAssertEqual(ActivitiesEditorMapper.toolbarTone(for: image), .light)
+        XCTAssertEqual(ActivitiesEditorMapper.toolbarTone(for: nil), .light)
+    }
+
+    func testTheStateCarriesTheToneForTextAndBibleOnly() {
+        let white = ActivityDocument.fixtureTwoObjects.updating { $0[path: ["background"]] = .object(["color": .string("#FFFFFF")]) }
+        XCTAssertEqual(ActivitiesEditorMapper.state(document: white, media: [:], slides: [], activeID: "a").toolbarTone, .dark)
+        XCTAssertEqual(ActivitiesEditorMapper.state(document: white, media: [:], slides: [], activeID: "a", kind: "bible").toolbarTone, .dark)
+        XCTAssertEqual(ActivitiesEditorMapper.state(document: white, media: [:], slides: [], activeID: "a", kind: "video").toolbarTone, .light)
+    }
+
     // MARK: - text-activity-v2: the Background rail's state (D13, D14, D22)
 
     func testStateDerivesTheBackgroundRail() throws {

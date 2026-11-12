@@ -108,6 +108,8 @@ struct ActivitiesEditorScreen: View {
         /// §3 Manipulating: the 1 px centre guide and the "Drag to delete" target.
         var centerGuide: Bool
         var deleteTargetShown: Bool
+        /// §31.7 (D48): previews only — the target drawn armed (1.15×) with `deleteTargetShown`.
+        var deleteTargetArmed: Bool = false
         /// §3 Saving: the commit's background write is in flight (D39) — no visual change.
         var saving: Bool
         /// §3 Error: the save failed and the "Couldn't save activity" alert is up.
@@ -154,6 +156,49 @@ struct ActivitiesEditorScreen: View {
         /// active guides are `snapPosition`'s at its seeded position, and C-091's reserved zones
         /// draw only while its box enters one. −1 = none (the snap-centre / -edge / -gap previews).
         var snapIndex: Int = -1
+        /// §20.1 (D11): per object, `isLocked` (parallel to `objectTexts`; a short array leaves the
+        /// rest unlocked) — no text input, no keyboard, no text deletion; still movable, scalable,
+        /// rotatable, restylable and highlightable. Set only for `bible` activities' scripture.
+        var objectLocks: [Bool] = []
+        /// §20.1: each object's id, parallel to `objectTexts` — what `highlightingObjectID` names.
+        var objectIDs: [String] = []
+        /// §20.1 / §20.2: the object in highlighting mode — drawn at full size with its spans;
+        /// nil = none (the text activity's Highlighting, unchanged).
+        var highlightingObjectID: String?
+        /// §21.1 (D26): the page's height in wu. Above 956 the page scrolls vertically inside the
+        /// canvas (header and tool stack fixed) and the background fills the whole height; at or
+        /// below 956 nothing changes (§11).
+        var pageHeight: CGFloat = 956
+        /// §21.2 (D28): per object, the page provides its frame (parallel to `objectLocks`; a short
+        /// array leaves the rest unset) — C-092 `pageLaidOut`: no handles, no drag, pinch or rotate.
+        var objectPageLaidOut: [Bool] = []
+        /// §21.3 (D29) / §23 (D33): a `bible` activity — the eight-tool row (Colour · Background ·
+        /// Align · Font · Size · Line height · Padding · Highlight) and its panels.
+        var isBible: Bool = false
+        /// §21.4: the scripture's current style — face `display` · `sans` · `serif` · `mono`,
+        /// weight 400 · 500 · 700, size (pt), line height (×), inset from the page edge (pt) and
+        /// verse numbers `gutter` · `hidden` · `inline`.
+        var bibleFace: String = "serif"
+        var bibleWeight: Int = 400
+        var bibleSize: CGFloat = 18
+        var bibleLineHeight: CGFloat = 1.4
+        /// §23.4 (D33): Padding's default is 32.
+        var bibleInset: CGFloat = 32
+        var bibleVerseNumbers: String = "gutter"
+        /// §22.2 (D28 fix): the scripture's colour `#RRGGBB` and alignment `left` · `center` ·
+        /// `right` — the seeds the Idle Colour and Alignment tools mark; "" = the scripture
+        /// object's own.
+        var bibleColor: String = ""
+        var bibleAlignment: String = ""
+        /// §23.5 (D32): where the page-laid-out block sits between the 956 wu page's 96 wu top and
+        /// bottom insets — `top` · `center` · `bottom`; anything else reads as `top`, and a page
+        /// taller than 956 has no slack, so it reads as `top` whatever the value.
+        var bibleVerticalAlignment: String = "top"
+        /// §25 (D35): the tone of every tool bar icon, Idle and editing — `.light` today's colours,
+        /// `.dark` `color-black`. The container computes it from the page background (WCAG
+        /// relative luminance ≥ 0.5 → `.dark`); the screen only takes it. §27.1 (D38): `ToolbarTone`
+        /// is the top-level type the components share.
+        var toolbarTone: ToolbarTone = .light
 
         /// §10.8 `gradient`: `base` `#RRGGBB`, `blobs`, `hidden`.
         struct Gradient: Equatable {
@@ -243,9 +288,50 @@ struct ActivitiesEditorScreen: View {
         }
     }
 
-    /// §3 Tools — the tool row, order 1–7.
+    /// §20.3 (D12): one row of the locked-object C-066 menu the container presents.
+    struct LockedObjectMenuRow: Equatable, Identifiable {
+        enum ID: String { case changePassage, highlight }
+        let id: ID
+        let label: String
+        /// The row's Glyph raw name (C-066 / ActionMenuRow `glyph`).
+        let glyph: String
+    }
+
+    /// §20.3: the rows a tap on a locked scripture or citation object in Idle offers, in order
+    /// Change passage · Highlight. The screen presents nothing; the container shows them.
+    static let lockedObjectMenuRows: [LockedObjectMenuRow] = [
+        .init(id: .changePassage, label: "Change passage", glyph: GlyphName.bookOpen.rawValue),
+        .init(id: .highlight, label: "Highlight", glyph: GlyphName.textHighlight.rawValue)
+    ]
+
+    /// §21.4 (D29): one Bible font panel change — the container writes it into the scripture
+    /// object's `font`, `weight`, `size`, `lineHeight`, the page padding and the verse-number mode.
+    enum BibleStyleChange: Equatable {
+        /// `display` · `sans` · `serif` · `mono`.
+        case face(String)
+        /// 400 · 500 · 700.
+        case weight(Int)
+        /// pt, 14–40.
+        case size(CGFloat)
+        /// ×, 1.0–2.0.
+        case lineHeight(CGFloat)
+        /// pt from the page edge, 16–64.
+        case inset(CGFloat)
+        /// `gutter` · `hidden` · `inline`.
+        case verseNumbers(String)
+        /// §22.2: `#RRGGBB` — the Colour tool in Idle on a bible activity.
+        case color(String)
+        /// §22.2 / §23.2: `left` · `center` · `right` — the Align panel's horizontal row.
+        case alignment(String)
+        /// §23.2 (D32): `top` · `center` · `bottom` — the Align panel's vertical row.
+        case verticalAlignment(String)
+    }
+
+    /// §3 Tools — the tool row, order 1–7. §23.1 (D33): `size`, `lineHeight` and `padding` are a
+    /// `bible` activity's own tools — never in any other activity's row.
     enum Tool: String, CaseIterable {
         case color, background, alignment, font, highlight, animation, actions
+        case size, lineHeight, padding
     }
 
     /// `actions[]` element (D8; 02 §7).
@@ -304,6 +390,22 @@ struct ActivitiesEditorScreen: View {
     var onAddNote: () -> Void = {}
     var onRetry: () -> Void = {}
     var onDiscard: () -> Void = {}
+    /// §20.1: a selected range in the highlighting object — UTF-16 offsets into its text, `end`
+    /// exclusive, reported by C-092's highlighting mode on lift.
+    var onHighlightRange: (_ objectIndex: Int, _ start: Int, _ end: Int) -> Void = { _, _, _ in }
+    /// §20.2: tool 5 again, or Done, while `highlightingObjectID` is set.
+    var onEndHighlighting: () -> Void = {}
+    /// §21.4 (D29): a Bible font panel change — chips at once, a slider once when the finger lifts.
+    var onBibleStyleChange: (BibleStyleChange) -> Void = { _ in }
+    /// §31.4 (D48): a movable object was dropped on the delete target — its index into
+    /// `State.objects`. The container removes it and re-supplies `State.objects`.
+    var onDeleteObject: (Int) -> Void = { _ in }
+
+    // §21.3: the Bible font panel's values as shown — each change applies here at once (a slider
+    // per frame) and is reported through `onBibleStyleChange`; a new `State` re-seeds them.
+    @SwiftUI.State private var bibleStyle: BibleStyle
+    // §21.3: a Bible panel slider is under the finger — a new `State` does not re-seed meanwhile.
+    @SwiftUI.State private var bibleSliding = false
 
     // §9.1: the screen's display state of `State.objects` — an edit applies here and is reported
     // through `onEditObject`, without waiting for the container's echo; a new `State` re-seeds it.
@@ -333,6 +435,9 @@ struct ActivitiesEditorScreen: View {
     @SwiftUI.State private var alertPresented: Bool
     // §4 C-091 `contentExtent`: "the screen measures the objects' rotated, scaled box in wu".
     @SwiftUI.State private var measuredHeights: [Int: CGFloat] = [:]
+    /// §29.1 (D43): each object's measured glyph rect (C-092 `onTextBounds`), kept like
+    /// `measuredHeights` — wu, unscaled and unrotated, origin at the layout box's top-left.
+    @SwiftUI.State private var measuredGlyphRects: [Int: CGRect] = [:]
     @SwiftUI.State private var measuredDraftHeight: CGFloat?
     // §2 item 6: the container rides the keyboard's top edge; the canvas does not resize.
     @SwiftUI.State private var keyboardTop = CGFloat.infinity
@@ -346,6 +451,11 @@ struct ActivitiesEditorScreen: View {
     // §11 Fixed canvas (D24, held only while the finger is down): the content extent fixed at drag
     // start so placement never re-runs under the finger, and the object's last transform.
     @SwiftUI.State private var dragExtent: ClosedRange<CGFloat>??
+    /// §30.2 (D46): page y 0's screen position (wu) as last laid out — a scrolled Bible page's
+    /// grab areas follow it. nil until the canvas first lays out.
+    @SwiftUI.State private var canvasContentTop: CGFloat?
+    /// §33.1 (D51): C-091's current page scroll (wu), from its `onPageScrollChange`.
+    @SwiftUI.State private var canvasPageScroll: CGFloat = 0
     @SwiftUI.State private var dragged: (index: Int, transform: CanvasTextObject.Transform)?
     // §9.1a: the object's transform when the in-flight gesture began — a gesture that ends where
     // it started reports nothing.
@@ -362,6 +472,24 @@ struct ActivitiesEditorScreen: View {
     // that fires on lift-off is ignored; cleared at the next finger-down.
     @SwiftUI.State private var touchWasManipulation = false
     @SwiftUI.State private var activeManipulations: Set<CanvasManipulation.Kind> = []
+    // §31.1 (D48, held only while fingers are down): the live "Drag to delete" target, and whether
+    // a second finger, pinch or rotate has ruled it out for the rest of this gesture (§31.2).
+    @SwiftUI.State private var liveDeleteTarget: ActivityCanvas<AnyView>.DeleteTarget?
+    @SwiftUI.State private var deleteRuledOut = false
+    // §32.1 (D50): C-091's target zone — label + ring, rest size — in the canvas's points, as
+    // `onDeleteTargetFrame` reports it.
+    @SwiftUI.State private var deleteZone: CGRect?
+    /// D50 fix: each object's drawn frame in global points (where the finger and the zone live), and
+    /// the page point the dragged object docks at — fixed when it arms, so it lands on the ring
+    /// whatever offset the canvas placed the page at.
+    @SwiftUI.State private var drawnFrames: [Int: CGRect] = [:]
+    @SwiftUI.State private var dockPoint: CGPoint?
+    // §32.2 (D50): the finger left the zone and disarmed it; no re-arming on the object's frame
+    // until that frame has left the zone (or the finger comes back in), so the dock cannot flicker.
+    @SwiftUI.State private var deleteRearmHeld = false
+    // §32.3 (D50): the object released on the target — hidden at once (no fade) until the
+    // container re-supplies `State.objects`.
+    @SwiftUI.State private var deletedIndex: Int?
     @SwiftUI.State private var moveBase: CGPoint = .zero
     @SwiftUI.State private var scaleBase: CGFloat = 1
     @SwiftUI.State private var rotationBase: Double = 0
@@ -406,7 +534,11 @@ struct ActivitiesEditorScreen: View {
         onDeleteHighlight: @escaping () -> Void = {},
         onAddNote: @escaping () -> Void = {},
         onRetry: @escaping () -> Void = {},
-        onDiscard: @escaping () -> Void = {}
+        onDiscard: @escaping () -> Void = {},
+        onHighlightRange: @escaping (_ objectIndex: Int, _ start: Int, _ end: Int) -> Void = { _, _, _ in },
+        onEndHighlighting: @escaping () -> Void = {},
+        onBibleStyleChange: @escaping (BibleStyleChange) -> Void = { _ in },
+        onDeleteObject: @escaping (Int) -> Void = { _ in }
     ) {
         self.state = state
         self.onBack = onBack
@@ -432,6 +564,11 @@ struct ActivitiesEditorScreen: View {
         self.onAddNote = onAddNote
         self.onRetry = onRetry
         self.onDiscard = onDiscard
+        self.onHighlightRange = onHighlightRange
+        self.onEndHighlighting = onEndHighlighting
+        self.onBibleStyleChange = onBibleStyleChange
+        self.onDeleteObject = onDeleteObject
+        _bibleStyle = SwiftUI.State(initialValue: BibleStyle(state))
         _shownObjects = SwiftUI.State(initialValue: Self.committedObjects(state))
         let actions = Self.pageActions(state)
         _actions = SwiftUI.State(initialValue: actions)
@@ -449,6 +586,10 @@ struct ActivitiesEditorScreen: View {
     private var mode: ActivityCanvas<AnyView>.Mode {
         // §14.1: no edit mode outside the editable canvas — the Idle header and the chips rail.
         guard showsActivity else { return .idle }
+        // D48 fix: a live one-finger drag IS Manipulating on screen — the container never sets
+        // "manipulating", so without this the header and the opaque bottom bar stayed up and hid
+        // the trash circle drawn under them.
+        if liveDeleteTarget != nil { return .manipulating }
         switch state.editorMode {
         case "editing": return .editing
         case "highlighting": return .highlighting
@@ -461,13 +602,36 @@ struct ActivitiesEditorScreen: View {
     /// row (§2 items 2 + 4).
     private var isToolMode: Bool { !state.loadFailed && (mode == .editing || mode == .highlighting) }
 
-    var body: some View {
-        if state.loadFailed {
-            loadFailedPage
-        } else {
-            editorPage
-        }
+    /// §22.1 (D28 fix): a bible activity in Idle — the eight-tool row (§23.1) shows and works above the
+    /// chips rail with no object selected; its tools act on the page's scripture.
+    private var isBibleIdle: Bool { state.isBible && !state.loadFailed && mode == .idle }
+    /// §24.3: the tool row is the Bible set when `mode == .idle && state.isBible`, else the text tools.
+    private var isBibleToolSet: Bool { state.isBible && mode == .idle }
+
+    /// §22.2: the scripture as shown — the `bibleVerse` object the Idle tools act on.
+    private var bibleScripture: CommittedObject? {
+        shownObjects.first { $0.listStyle == .bibleVerse }.map(bibleStyled)
     }
+
+    var body: some View {
+        Group {
+            if state.loadFailed {
+                loadFailedPage
+            } else {
+                editorPage
+            }
+        }
+        // §26.3 (D38): every `floatingControlMaterial` backing reads the tone from here.
+        .environment(\.editorToolbarTone, state.toolbarTone)
+    }
+
+    /// §26.2 (D38): the ink of every control the screen draws over the page — `color-black` when
+    /// `toolbarTone` is `.dark`; nil keeps each control's own paint (`.light`, today's).
+    private var toneInk: Color? { state.toolbarTone == .dark ? Token.black : nil }
+
+    /// §27.3 (D38): C-045 TextInput and C-105 Button take no tone input; with `.dark` the screen
+    /// multiplies their paint to `color-black` (each part keeps its own opacity). White is a no-op.
+    private var toneMultiply: Color { state.toolbarTone == .dark ? Token.black : Token.white100 }
 
     /// §9.4 Load-failed: the ground under the Idle header (back only), no canvas, no bottom
     /// container. The banner is raised through `onLoadFailed`; 2 s later the back closure pops.
@@ -529,6 +693,8 @@ struct ActivitiesEditorScreen: View {
         .onChange(of: state) { _, next in
             guard dragged == nil, sliderDrag == nil else { return }
             shownObjects = Self.committedObjects(next)
+            deletedIndex = nil
+            if !bibleSliding { bibleStyle = BibleStyle(next) }
         }
         // §10.6 (round 2): a text edit opens with no rail open, and ending it closes every rail —
         // a page rail closing through `setOpenTool`, so `onPageRailsClosed` fires (D19).
@@ -593,6 +759,9 @@ struct ActivitiesEditorScreen: View {
             if showsActivity {
                 furniture(unit: unit)
                     .offset(y: -keyboardOverlap)
+                    // §28 (D39): the pinned pill is a page object too — dimmed while editing.
+                    .opacity(editedIndex != nil ? Self.editDimOpacity : 1)
+                    .animation(Self.editTransition, value: editedIndex)
             }
             if mode != .manipulating {
                 railStack
@@ -698,8 +867,11 @@ struct ActivitiesEditorScreen: View {
             trailingEnabled: isToolMode || state.canSave,
             onLeading: onBack,
             onCancel: onCancel,
-            onDone: onDone
+            // §20.2: Done ends the highlighting mode of a locked object.
+            onDone: highlightingIndex != nil ? onEndHighlighting : onDone
         )
+        // OQ-activities-editor-49 (owner, 2026-11-12): the header keeps C-040's `.light`
+        // `toolbarTone` default whatever the page tone — its band is opaque, not over the page.
         // §2 deviation 7: the 1px hairline under C-040 is the screen's, not the component's.
         .overlay(alignment: .bottom) {
             Token.layoutBorder
@@ -717,35 +889,64 @@ struct ActivitiesEditorScreen: View {
 
     private func canvas(unit: CGFloat, viewport: CGFloat, safeTop: CGFloat) -> some View {
         let objects = shownObjects
-        // §2: fixed at drag start, so neither the page nor any object re-places under the finger.
-        let extent = dragExtent ?? measuredExtent(objects)
         let headerBottom = (safeTop + Self.headerHeight) / unit
         let containerTop = viewport - (containerHeight + keyboardOverlap) / unit
         let pinned = actions.contains { $0.placement == .pinned }
+        // §21.1 (D26): a tall page states its own height — C-091 sizes the page from it — else
+        // §2: fixed at drag start, so neither the page nor any object re-places under the finger.
+        // §30.2 (D46): a Bible page ≤ 956 scrolls too, but its page positions never change — the
+        // extent is a point mid-page, so C-091's placement keeps step 1's offset and page = viewport.
+        let extent = isTallPage ? tallPageExtent(pinned: pinned)
+            : state.isBible ? Self.bibleFixedExtent
+            : (dragExtent ?? measuredExtent(objects))
         let offset = pageOffset(viewport: viewport)
         return ActivityCanvas<AnyView>(
             background: background,
-            mode: mode,
-            content: { AnyView(canvasContent(objects, unit: unit)) },
+            // §31.1 (D48): C-091 draws the target in `manipulating` only, so a live one-finger drag
+            // shows the canvas that mode while the target is up.
+            mode: liveDeleteTarget != nil ? .manipulating : mode,
+            content: { AnyView(canvasContent(objects, unit: unit, viewport: viewport)) },
             onTapEmpty: { point in tapCanvas(at: point) },
             // §18.7 (D33): the guides active now — the centre guide is one of them.
             activeGuides: canvasGuides(viewport: viewport, unit: unit),
-            deleteTarget: state.deleteTargetShown ? .visible : nil,
+            // §31.1 (D48): the live target is the screen's; `State.deleteTargetShown` is previews only.
+            deleteTarget: liveDeleteTarget
+                ?? (state.deleteTargetShown ? (state.deleteTargetArmed ? .armed : .visible) : nil),
+            // §32.1 (D50): the zone the dragged object's frame is tested against.
+            onDeleteTargetFrame: { zone in if zone != deleteZone { deleteZone = zone } },
+            bottomSafeArea: safeBottom,
             verticalAnchor: .center,
             contentExtent: extent,
             // §2 (D3): the screen only turns the guides on — §18.7 (D33): only while the
             // dragged layer enters a zone.
             reservedZones: draggedEntersZone(viewport: viewport),
             pinnedAction: pinned,
-            widthHandles: mode == .editing ? widthHandles(pageOffset: offset) : nil,
+            // §21.2: a page-laid-out object has no transform handles.
+            widthHandles: mode == .editing && !editedIsPageLaidOut
+                ? widthHandles(pageOffset: offset, slotShift: editSlotShift(viewport: viewport)) : nil,
             onResizeWidth: resizeDraft,
-            // §11 (D24): the canvas is fixed to the screen in every mode — no scroll range, no
-            // scroll insets, no autoscroll. The header and bottom area stay opaque over it.
-            scrolls: false
+            // §21.1 (D26): a page taller than 956 scrolls inside the canvas and §2's scroll insets
+            // apply again, so the first and last content clear the bars; autoscroll stays off (a
+            // page-laid-out object cannot be dragged).
+            // §30.2 (D46): a Bible page ALWAYS scrolls within the same insets — the header's height
+            // above, the bottom container's below — so content behind either bar scrolls into view.
+            scrollInsets: canvasScrolls
+                ? .init(top: headerBottom, bottom: (containerHeight + keyboardOverlap) / unit)
+                : .init(),
+            // §33.1 (D51): the page scroll, so the edit slot stays on the slider's screen point.
+            onPageScrollChange: { scroll in if scroll != canvasPageScroll { canvasPageScroll = scroll } },
+            // §11 (D24): otherwise (`text` pages) the canvas is fixed to the screen in every mode —
+            // no scroll range, no scroll insets, no autoscroll. The header and bottom area stay
+            // opaque over it.
+            scrolls: canvasScrolls,
+            // §34 (D52): a Bible page opens resting below the header — page y 0 just under it;
+            // text pages pass nothing (unchanged).
+            restAtInsetTop: state.isBible
         )
         .coordinateSpace(.named(Self.screenSpace))
         .overlay(alignment: .topLeading) {
-            if mode == .editing {
+            // §21.3: a page-laid-out object's size is the Bible panel's slider, not C-093's wedge.
+            if mode == .editing && !editedIsPageLaidOut {
                 // §2 item 3 handle / thumb separation (1): C-091 draws its handles above its slot,
                 // so the slider sits over the canvas — above them in hit order, and fixed to the
                 // viewport. Centred on the edit slot, clamped between the header and the container.
@@ -838,63 +1039,146 @@ struct ActivitiesEditorScreen: View {
 
     /// C-091's `content` slot, laid out in wu: the committed objects at their transforms, the
     /// edited object at the edit slot and the inline action previews.
-    private func canvasContent(_ objects: [CommittedObject], unit: CGFloat) -> some View {
+    private func canvasContent(_ objects: [CommittedObject], unit: CGFloat, viewport: CGFloat) -> some View {
         ZStack(alignment: .topLeading) {
             ForEach(objects.indices, id: \.self) { index in
-                canvasObject(objects[index], index: index)
+                canvasObject(objects[index], index: index, unit: unit, viewport: viewport)
             }
             actionPreviews(objects)
                 // The edited object renders above the others (OQ-010), still under the previews.
                 .zIndex(2)
+        }
+        // §30.2 (D46): where page y 0 sits on screen now (wu), so the bridge's grab areas follow a
+        // scrolled Bible page — the touch that starts on an editable object acts on it.
+        .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named(Self.screenSpace)).minY } action: { top in
+            canvasContentTop = top / unit
         }
     }
 
     /// One C-092 per object, the same view whether committed or edited (§13.2): entering or
     /// leaving Editing changes its placement, so the object animates between its committed
     /// transform and the edit slot — position, scale and rotation in one curve — and never jumps.
-    private func canvasObject(_ object: CommittedObject, index: Int) -> some View {
+    private func canvasObject(_ object: CommittedObject, index: Int, unit: CGFloat, viewport: CGFloat) -> some View {
+        // §21.3: the scripture of a `bible` activity shows the Bible panel's values at once.
+        let object = bibleStyled(object)
+        // §21.2 (D28): a page-laid-out object stays at the frame the page gives it — it never
+        // takes the edit slot, and keeps its verses and spans while its tools are open.
+        let laidOut = object.pageLaidOut
         let isEdited = index == editedIndex
+        // §20.2: the highlighting object takes the edit slot at full size, with its spans.
+        let isSlotted = !laidOut && (isEdited || index == highlightingIndex)
+        let isDrafted = isEdited && !laidOut
+        // §20.1 (D11): a locked object takes no text input — editing it is tools only, no caret.
+        let isLocked = object.isLocked
+        // §32.2 (D50): armed, the dragged object docks — 20 % on the ring's top edge.
+        let dock = dockPosition(index, unit: unit, viewport: viewport)
         return CanvasTextObject(
             text: object.text,
-            onChange: { if isEdited { apply(.init(index: index, text: $0)) } },
+            onChange: { if isEdited && !isLocked { apply(.init(index: index, text: $0)) } },
             font: object.font,
             weight: object.weight,
             size: object.size,
+            lineHeight: object.lineHeight,
             color: object.color,
             alignment: object.alignment,
-            listStyle: isEdited ? .none : object.listStyle,
-            startNumber: isEdited ? 1 : object.startNumber,
+            listStyle: isDrafted ? .none : object.listStyle,
+            startNumber: isDrafted ? 1 : object.startNumber,
+            verseNumbers: object.verseNumbers,
             animation: isEdited ? draftAnimation : .none,
             animationStart: isEdited ? draftAnimationStart : nil,
             effect: isEdited ? draftEffect : .none,
             // C-092 draws scale 1 and rotation 0 while editing (§3: re-opening shows the object at
             // `size`, unscaled); its committed transform returns on Done.
-            transform: isEdited ? .identity : object.transform,
+            transform: isSlotted ? .identity : dock != nil ? dockedTransform(object.transform) : object.transform,
+            // §21.2 (D28): no handles, no drag, pinch or rotate — the host supplies the frame.
+            pageLaidOut: laidOut,
             // §10.10: drag, pinch and rotate are the canvas-wide recognizers' (`CanvasManipulation`);
             // the object only says it is under the first touch.
             manipulation: .host,
-            editing: isEdited,
-            highlights: isEdited ? [] : object.highlights,
+            editing: isEdited && !isLocked,
+            // §20.1 (D11): C-092 itself refuses text input on a locked object.
+            isLocked: isLocked,
+            // §20.2 (D21): the highlighting object takes C-092's hold-drag selection.
+            isHighlighting: index == highlightingIndex,
+            highlights: isDrafted ? [] : object.highlights,
+            onHighlightRange: { start, end in onHighlightRange(index, start, end) },
             // D25: the object the finger-down grabbed — the topmost grab area may not be this box.
             onTap: {
+                // D42: while the text editor is active the canvas owns every tap (tap-off).
+                guard !isEditingText || index == highlightingIndex else { return }
                 let target = tapTarget ?? index
                 if target != editedIndex { tapObject(target) }
-            }
+            },
+            // §29.1 (D43): updated on every report; the edited object's draft layout is not kept.
+            onTextBounds: { rect in if index != editedIndex { measuredGlyphRects[index] = rect } }
         )
+        // D42: while the text editor is active only the edited object takes touches; a tap on any
+        // other falls through to the canvas, which ends the edit.
+        .allowsHitTesting(!isEditingText || isEdited || index == highlightingIndex)
         // §2 item 3 + §3 Editing: the edited object alone at the edit slot, centred on 478 wu
         // before C-091's offset; alignment anchors a narrower block 24 wu from the canvas edge
         // (tool 3). C-092 never offsets itself (its §2): the screen places a committed object at
         // `transform.position`.
-        .frame(width: isEdited ? draftLayoutWidth : object.transform.width ?? Self.editSlotWidth)
+        .frame(width: isDrafted ? draftLayoutWidth : object.transform.width ?? Self.editSlotWidth)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
             if index == editedIndex { measuredDraftHeight = height } else { measuredHeights[index] = height }
         }
+        // D50 fix: the object's real on-screen frame — the dock and the arming read it, never a
+        // page-offset estimate.
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
+            drawnFrames[index] = frame
+        }
         .ui2Element(index == 0 ? "C-092 CanvasTextObject" : "C-092 CanvasTextObject \(index + 1)")
-        .position(isEdited ? CGPoint(x: draftCentreX, y: Self.editSlotY) : object.transform.position)
-        .zIndex(isEdited ? 1 : 0)
+        // §33.2 (D51): the slot is the slider's screen point in page space — 0 on a text page.
+        .position(isDrafted ? CGPoint(x: draftCentreX, y: Self.editSlotY + editSlotShift(viewport: viewport))
+                  : isSlotted ? CGPoint(x: Self.referenceWidth / 2, y: Self.editSlotY + editSlotShift(viewport: viewport))
+                  : dock ?? CGPoint(x: object.transform.position.x,
+                                    y: object.transform.position.y + (laidOut ? bibleVerticalShift : 0)))
+        .zIndex(isSlotted ? 1 : 0)
+        // §28 (D39): while one object is edited, every other object fades to 10 % so the edited
+        // text reads over any page; it rides the same edit transition in and out.
+        .opacity(editedIndex != nil && !isEdited ? Self.editDimOpacity : 1)
         // §13.2: Idle ↔ Editing is one animation — one ease-out for position, scale and rotation,
         // no delayed dispatch. A gesture frame never changes `editedIndex`, so it stays 1:1.
         .animation(Self.editTransition, value: editedIndex)
+        .animation(Self.editTransition, value: highlightingIndex)
+        // §32.2 (D50): into the dock and back out — display only, scoped to the dock flag; a finger
+        // frame never flips it, so the tracking path stays unanimated.
+        .animation(reduceMotion ? nil : Self.dockAnimation, value: dock != nil)
+        // §32.3 (D50): released on the target — gone at once, outside every animation above.
+        .opacity(index == deletedIndex ? 0 : 1)
+    }
+
+    /// §32.2 (D50): where a docked object is drawn (page wu) — its glyph rect's centre on the top
+    /// edge of C-091's ring — or nil when it is not docked. Live: the dragged object while armed
+    /// (and the one just released there). Previews: `deleteTargetArmed` docks the snap layer, else
+    /// the first object.
+    private func dockPosition(_ index: Int, unit: CGFloat, viewport: CGFloat) -> CGPoint? {
+        guard shownObjects.indices.contains(index) else { return nil }
+        let docked: Bool
+        if index == deletedIndex {
+            docked = true
+        } else if liveDeleteTarget != nil {
+            docked = liveDeleteTarget == .armed && index == (dragged?.index ?? manipulationTarget)
+        } else {
+            let seeded = shownObjects.indices.contains(state.snapIndex) ? state.snapIndex : 0
+            docked = state.deleteTargetShown && state.deleteTargetArmed && index == seeded
+        }
+        guard docked else { return nil }
+        // D50 fix: live, the point fixed at arming (measured on screen); previews keep the formula.
+        if let dockPoint { return dockPoint }
+        // C-091 places the ring (D48), so its top edge is known without waiting for a measure.
+        let ringTop = ActivityCanvas<AnyView>.deleteRingTop(viewport: viewport, bottomSafeArea: safeBottom, unit: unit)
+        let shift = glyphShift(index)
+        return CGPoint(x: Self.referenceWidth / 2 - shift.dx * Self.dockScale,
+                       y: ringTop - pageOffset(viewport: viewport) - shift.dy * Self.dockScale)
+    }
+
+    /// §32.2 (D50): the docked object's transform — its scale at 20 %, rotation kept.
+    private func dockedTransform(_ transform: CanvasTextObject.Transform) -> CanvasTextObject.Transform {
+        var docked = transform
+        docked.scale = transform.scale * Self.dockScale
+        return docked
     }
 
     // MARK: - §10.10: pinch and rotate anywhere on the canvas
@@ -908,7 +1192,9 @@ struct ActivitiesEditorScreen: View {
         return CanvasManipulation(
             accepts: { point in point.y > top && point.y < bottom },
             canBegin: { kind in
-                guard manipulationTarget != nil, !isImageRailOpen else { return false }
+                guard let target = manipulationTarget, !isImageRailOpen else { return false }
+                // §21.2 (D28): a page-laid-out object takes no drag, pinch or rotate.
+                guard !shownObjects[target].pageLaidOut else { return false }
                 // §10.10: while editing, two fingers pinch and rotate the edited object; it never moves.
                 return kind != .move || editedIndex == nil
             },
@@ -952,16 +1238,21 @@ struct ActivitiesEditorScreen: View {
     /// whole screen; content y is page y less C-091's fixed offset, §11). The edited object sits
     /// at the edit slot, unscaled and unrotated, as `editedObject` draws it.
     private func grabAreas(unit: CGFloat, viewport: CGFloat) -> [GrabArea] {
-        let offset = pageOffset(viewport: viewport)
+        // §30.2 (D46): on a scrolling Bible page the boxes follow the page under the bars — the
+        // content's measured top is step 1's offset less the scroll.
+        let offset = state.isBible ? (canvasContentTop ?? pageOffset(viewport: viewport)) : pageOffset(viewport: viewport)
         return shownObjects.indices.map { index in
             if index == editedIndex {
-                return GrabArea(center: CGPoint(x: draftCentreX * unit, y: (Self.editSlotY + offset) * unit),
+                // §33.2 (D51): the grab area follows the slotted object.
+                return GrabArea(center: CGPoint(x: draftCentreX * unit,
+                                                y: (Self.editSlotY + editSlotShift(viewport: viewport) + offset) * unit),
                                 size: CGSize(width: draftLayoutWidth * unit, height: draftHeight * unit))
             }
             let object = shownObjects[index]
+            let shift = object.pageLaidOut ? bibleVerticalShift : 0
             return GrabArea(
                 center: CGPoint(x: object.transform.position.x * unit,
-                                y: (object.transform.position.y + offset) * unit),
+                                y: (object.transform.position.y + shift + offset) * unit),
                 size: CGSize(width: (object.transform.width ?? Self.editSlotWidth) * unit,
                              height: objectHeight(object, index: index) * unit),
                 scale: object.transform.scale,
@@ -997,13 +1288,19 @@ struct ActivitiesEditorScreen: View {
     private func manipulate(_ update: CanvasManipulation.Update, unit: CGFloat, viewport: CGFloat) {
         if update.phase == .ended {
             activeManipulations.remove(update.kind)
+            // §31.2: a second finger lifting first still leaves this gesture ruled out.
+            if update.kind != .move { setDeleteTarget(nil) }
             guard activeManipulations.isEmpty else { return }
+            // §31.4: all fingers up while armed deletes; a cancelled gesture never does.
+            let drop = liveDeleteTarget == .armed && !update.cancelled
+            setDeleteTarget(nil)
+            deleteRuledOut = false
             dragExtent = nil
             // §18.7: guides draw only while active.
             snapEngaged = SnapEngaged()
             rotationEngaged = nil
             liveGuides = []
-            endGesture()
+            if drop { deleteDragged() } else { endGesture() }
             return
         }
         guard let index = dragged?.index ?? manipulationTarget, shownObjects.indices.contains(index) else { return }
@@ -1012,6 +1309,7 @@ struct ActivitiesEditorScreen: View {
         case .began:
             if activeManipulations.isEmpty, dragExtent == nil { dragExtent = .some(measuredExtent(shownObjects)) }
             activeManipulations.insert(update.kind)
+            trackDeleteTarget(update, index: index, unit: unit, viewport: viewport)
             // Each recognizer starts from the object as it is now, so one restarting mid-gesture
             // (a finger lifted and put back) never snaps the object back.
             switch update.kind {
@@ -1021,13 +1319,21 @@ struct ActivitiesEditorScreen: View {
             }
         case .changed:
             guard activeManipulations.contains(update.kind) else { return }
+            trackDeleteTarget(update, index: index, unit: unit, viewport: viewport)
             var next = shown
             switch update.kind {
             case .move:
-                // §18.2: the position snaps per axis; the snapped value is what the frame shows.
-                next.position = snappedMove(CGPoint(x: moveBase.x + update.translation.width / unit,
-                                                    y: moveBase.y + update.translation.height / unit),
-                                            index: index, unit: unit, viewport: viewport)
+                let raw = CGPoint(x: moveBase.x + update.translation.width / unit,
+                                  y: moveBase.y + update.translation.height / unit)
+                if liveDeleteTarget == .armed {
+                    // §31.5: while armed the object does not snap.
+                    snapEngaged = SnapEngaged()
+                    liveGuides = []
+                    next.position = raw
+                } else {
+                    // §18.2: the position snaps per axis; the snapped value is what the frame shows.
+                    next.position = snappedMove(raw, index: index, unit: unit, viewport: viewport)
+                }
             case .pinch:
                 // §18.3: pinch never snaps.
                 next.scale = scaleBase * update.scale
@@ -1046,14 +1352,96 @@ struct ActivitiesEditorScreen: View {
         }
     }
 
+    // MARK: - §31 (D48): drag to delete
+
+    /// §31.2: the target shows during a ONE-finger move of a movable object (not page-laid-out,
+    /// not locked); a second finger, a pinch or a rotate hides it for the rest of the gesture.
+    /// §32.1 (D50): it arms when the dragged object's displayed frame meets C-091's zone (label +
+    /// ring); §32.2: once docked the frame ignores the finger, so the finger leaving the zone (grown
+    /// by the hysteresis) disarms. A light selection haptic on each arming.
+    private func trackDeleteTarget(_ update: CanvasManipulation.Update, index: Int, unit: CGFloat, viewport: CGFloat) {
+        if update.kind != .move || update.touches > 1 || activeManipulations != [.move] { deleteRuledOut = true }
+        let object = shownObjects[index]
+        guard !deleteRuledOut, update.kind == .move, editedIndex == nil,
+              !object.pageLaidOut, !object.isLocked else {
+            setDeleteTarget(nil)
+            return
+        }
+        guard let zone = deleteZone else {
+            setDeleteTarget(.visible)
+            return
+        }
+        let fingerIn = zone.contains(update.location)
+        let armed: Bool
+        if liveDeleteTarget == .armed {
+            armed = zone.insetBy(dx: -Self.deleteHysteresis, dy: -Self.deleteHysteresis).contains(update.location)
+            if !armed { deleteRearmHeld = true }
+        } else {
+            let zoneWU = CGRect(x: zone.minX / unit, y: zone.minY / unit,
+                                width: zone.width / unit, height: zone.height / unit)
+            // D50 fix: the drawn frame (global points, like the zone), not the computed box.
+            let meets = drawnFrames[index].map { $0.intersects(zone) }
+                ?? snapBox(index, offset: pageOffset(viewport: viewport)).intersects(zoneWU)
+            if !meets || fingerIn { deleteRearmHeld = false }
+            // D50 fix (on-device log 2026-11-12): the finger and the zone share the viewport's point
+            // space, while the computed box sat ~115 pt above the drawn text, so a finger on the ring
+            // never armed. The finger inside the zone arms on its own; the box still arms early.
+            armed = fingerIn || (meets && !deleteRearmHeld)
+        }
+        let next: ActivityCanvas<AnyView>.DeleteTarget = armed ? .armed : .visible
+        if next == .armed && liveDeleteTarget != .armed {
+            Self.snapHaptic()
+            // D50 fix: dock the object's centre on the ring's centre — the gap between its drawn
+            // centre and the ring's centre (both global points), moved in page wu from where it is.
+            if let drawn = drawnFrames[index] {
+                let ring = CGPoint(x: zone.midX, y: zone.maxY - Self.deleteRingPoints * unit / 2)
+                let here = shownObjects[index].transform.position
+                dockPoint = CGPoint(x: here.x + (ring.x - drawn.midX) / unit,
+                                    y: here.y + (ring.y - drawn.midY) / unit)
+            }
+        }
+        if next != .armed { dockPoint = nil }
+        setDeleteTarget(next)
+    }
+
+    /// D48 / D50: the target fades in as the drag starts and out on release, with the bars
+    /// (Manipulating) — one transaction. Arming and disarming are C-091's and the dock's own
+    /// value-scoped animations, so they change without one here.
+    private func setDeleteTarget(_ next: ActivityCanvas<AnyView>.DeleteTarget?) {
+        guard next != liveDeleteTarget else { return }
+        if next == nil { deleteRearmHeld = false }
+        if (next == nil) != (liveDeleteTarget == nil) {
+            withAnimation(reduceMotion ? nil : Self.deleteTargetAnimation) { liveDeleteTarget = next }
+        } else {
+            liveDeleteTarget = next
+        }
+    }
+
+    /// §31.4 / §32.3 (D50): dropped while armed — no `ObjectEdit` for the drag; the object
+    /// disappears at once (no fade), the display goes back to where it started and
+    /// `onDeleteObject` reports it. The container removes it and re-supplies `State.objects`.
+    private func deleteDragged() {
+        guard let index = dragged?.index else { return }
+        deletedIndex = index
+        let start = gestureStart
+        dragged = nil
+        gestureStart = nil
+        guard shownObjects.indices.contains(index) else { return }
+        if let start { apply(.init(index: index, transform: start), report: false) }
+        onDeleteObject(index)
+    }
+
     // MARK: - §18 (D32, D33): snapping, wired
 
     /// §18.2: one move frame — the raw page position snapped in viewport wu, the guides and the
     /// engaged targets kept, the haptic fired on a new engage (§18.4). Returns page wu.
     private func snappedMove(_ raw: CGPoint, index: Int, unit: CGFloat, viewport: CGFloat) -> CGPoint {
         let offset = pageOffset(viewport: viewport)
+        // §29.2: the dragged object's own extent is its glyph rect, whose centre sits `shift` from
+        // the object's centre; snap that centre, then move the object by the same amount.
+        let shift = glyphShift(index)
         let result = Self.snapPosition(
-            CGPoint(x: raw.x, y: raw.y + offset),
+            CGPoint(x: raw.x + shift.dx, y: raw.y + offset + shift.dy),
             size: snapSize(index),
             rotation: shownObjects[index].transform.rotation,
             others: snapBoxes(excluding: index, offset: offset),
@@ -1067,7 +1455,7 @@ struct ActivitiesEditorScreen: View {
         if gainedX || gainedY { Self.snapHaptic() }
         snapEngaged = result.engaged
         liveGuides = result.guides
-        return CGPoint(x: result.position.x, y: result.position.y - offset)
+        return CGPoint(x: result.position.x - shift.dx, y: result.position.y - offset - shift.dy)
     }
 
     /// §18.7: the guides C-091 draws — the live move's, else (a Manipulating preview) the seeded
@@ -1106,17 +1494,46 @@ struct ActivitiesEditorScreen: View {
 
     private var hasPinnedAction: Bool { actions.contains { $0.placement == .pinned } }
 
-    /// An object's layout box as drawn, scaled (wu), before rotation.
-    private func snapSize(_ index: Int) -> CGSize {
+    /// An object's layout box as drawn, unscaled (wu).
+    private func layoutSize(_ index: Int) -> CGSize {
         let object = shownObjects[index]
-        return CGSize(width: (object.transform.width ?? Self.editSlotWidth) * object.transform.scale,
-                      height: objectHeight(object, index: index) * object.transform.scale)
+        return CGSize(width: object.transform.width ?? Self.editSlotWidth, height: objectHeight(object, index: index))
     }
 
-    /// An object's rotated bounding box in viewport wu.
+    /// §29.1 + §29.3: the glyph rect in the layout box's space; the layout box itself while the
+    /// object is not yet measured or its text is empty.
+    private func glyphRect(_ index: Int) -> CGRect {
+        let layout = CGRect(origin: .zero, size: layoutSize(index))
+        guard !shownObjects[index].text.isEmpty, let rect = measuredGlyphRects[index],
+              rect.width > 0, rect.height > 0 else { return layout }
+        return rect
+    }
+
+    /// §29.2: the snap rectangle's size — the glyph rect scaled (wu), before rotation.
+    private func snapSize(_ index: Int) -> CGSize {
+        let scale = shownObjects[index].transform.scale
+        let rect = glyphRect(index)
+        return CGSize(width: rect.width * scale, height: rect.height * scale)
+    }
+
+    /// §29.2: where the snap rectangle's centre sits from the object's centre (the layout box's
+    /// centre, which the object is drawn about), scaled and rotated (wu).
+    private func glyphShift(_ index: Int) -> CGVector {
+        let transform = shownObjects[index].transform
+        let layout = layoutSize(index)
+        let rect = glyphRect(index)
+        let dx = (rect.midX - layout.width / 2) * transform.scale
+        let dy = (rect.midY - layout.height / 2) * transform.scale
+        let radians = transform.rotation.radians
+        return CGVector(dx: dx * cos(radians) - dy * sin(radians), dy: dx * sin(radians) + dy * cos(radians))
+    }
+
+    /// §29.2: an object's snap rectangle — its glyph rect placed in its layout box, scaled and
+    /// rotated about the object's centre — as a rotated bounding box in viewport wu.
     private func snapBox(_ index: Int, offset: CGFloat) -> CGRect {
         let position = shownObjects[index].transform.position
-        return Self.rotatedBounds(center: CGPoint(x: position.x, y: position.y + offset),
+        let shift = glyphShift(index)
+        return Self.rotatedBounds(center: CGPoint(x: position.x + shift.dx, y: position.y + offset + shift.dy),
                                   size: snapSize(index), rotation: shownObjects[index].transform.rotation)
     }
 
@@ -1187,6 +1604,14 @@ struct ActivitiesEditorScreen: View {
 
     private var edited: CommittedObject? { editedIndex.map { shownObjects[$0] } }
 
+    /// §20.2: the index of the object `highlightingObjectID` names, while Highlighting; nil
+    /// otherwise (a text activity never sets it).
+    private var highlightingIndex: Int? {
+        guard mode == .highlighting, let id = state.highlightingObjectID,
+              let index = state.objectIDs.firstIndex(of: id), shownObjects.indices.contains(index) else { return nil }
+        return index
+    }
+
     /// §2 item 3 (D8): an inline action previews as C-105, 24 wu below the last object.
     @ViewBuilder
     private func actionPreviews(_ objects: [CommittedObject]) -> some View {
@@ -1212,11 +1637,13 @@ struct ActivitiesEditorScreen: View {
                 style: .outlined,
                 selected: false,
                 accessibilityLabel: Self.deleteHighlightLabel,
+                toolbarTone: state.toolbarTone,                         // §27.2 (D38)
                 onTap: onDeleteHighlight
             )
             .ui2Element("C-102 IconButton \(visibleTools.count + 1)")
             Spacer(minLength: 0)
             Button(label: Self.addNoteLabel, leadingGlyph: .addLargeCarbon, onTap: onAddNote)
+                .colorMultiply(toneMultiply)                            // §27.3 (D38)
                 .ui2Element("C-105 Button")
         }
         .frame(width: Self.referenceWidth - 2 * Token.Space.pageMargin, height: Self.actionButtonHeight)
@@ -1240,8 +1667,15 @@ struct ActivitiesEditorScreen: View {
             if isToolMode {
                 topRail
                 middleRail
-                toolRow
+                toolRow()
             } else {
+                // §22.1 (D28 fix): on a bible activity in Idle the eight-tool row (§23.1) sits directly
+                // above the chips rail, which stays; the rails open above the row (§10).
+                if isBibleIdle {
+                    topRail
+                    middleRail
+                    toolRow(aboveChips: true)
+                }
                 // C-081 §5: the editor passes `bottomInset: 16`, measured from the bar's position
                 // before the inset (the chrome ignores the bottom safe area) — SPEC D11, D23.
                 // §14.2: chips and ＋ only report; ＋ is disabled while the type grid shows.
@@ -1249,10 +1683,11 @@ struct ActivitiesEditorScreen: View {
                                onSelectSlide: onSelectSlide,
                                addEnabled: state.canvasContent != "typeGrid", onAdd: onAdd)
                     .ui2Element("C-081 ActivityNavBar")
+                    // §15.1 (D29): nothing opaque spans the width while editing; the chips rail is
+                    // unchanged.
+                    .background(Token.layoutBackground)
             }
         }
-        // §15.1 (D29): nothing opaque spans the width while editing; the chips rail is unchanged.
-        .background { if !isToolMode { Token.layoutBackground } }
         // The stack states its own height; the canvas takes what is left (§2).
         .fixedSize(horizontal: false, vertical: true)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { containerHeight = $0 }
@@ -1264,6 +1699,24 @@ struct ActivitiesEditorScreen: View {
     /// §10.1 middle rail — the open tool's choices.
     @ViewBuilder private var middleRail: some View {
         switch openTool {
+        case .color where isBibleIdle:
+            // §22.2: Colour in Idle acts on the scripture — the swatch matching `bibleColor`
+            // (else the scripture's own) is outlined; a pick reports `.color`.
+            TextColorPalette(
+                currentColor: bibleScripture?.color ?? Token.textPrimary,
+                swatches: Self.palettePages,
+                page: palettePage,
+                onSelect: { picked in
+                    guard let hex = Self.presetHex(picked) else { return }
+                    setBibleStyle(.color(hex))
+                },
+                onPageChange: { palettePage = $0 },
+                onWellTap: onEyedropper,
+                showsWell: state.showsEyedropper,
+                swatchMaterial: true,
+                toolbarTone: state.toolbarTone
+            )
+            .ui2Element("C-094 TextColorPalette")
         case .color where mode == .editing:
             // §3 tool 1: C-094 — the well shows the object's colour, the equal swatch is
             // outlined (OQ-011); pages 2–3 are undesigned (04-color.md OQ-04-1) and empty.
@@ -1281,34 +1734,55 @@ struct ActivitiesEditorScreen: View {
                 // §2 item 5: hidden, not disabled — no well unless the eyedropper is shown.
                 showsWell: state.showsEyedropper,
                 // §15.1 (OQ-activities-editor-46): the blur behind each swatch.
-                swatchMaterial: true
+                swatchMaterial: true,
+                toolbarTone: state.toolbarTone
             )
             .ui2Element("C-094 TextColorPalette")
+        case .font where isBibleIdle:
+            // §21.3 (D29): the Bible font panel's face — the four font keys as C-035 `Font` chips,
+            // centred (§19.3); the rest of the panel is the top rail.
+            ChipStrip(items: Self.fontItems, selectedID: bibleStyle.face,
+                      onSelect: { id in setBibleStyle(.face(id)) }, chipMaterial: true, toolbarTone: state.toolbarTone)
+                .ui2Element("C-106 ChipStrip 2")
         case .font where mode == .editing:
             // §3 tool 4: the font strip; its weight row is the top rail.
             ChipStrip(items: Self.fontItems, selectedID: Self.fontID(edited?.font ?? .sans),
                       onSelect: { id in
                           if let editedIndex { apply(.init(index: editedIndex, font: id)) }
-                      }, chipMaterial: true)
+                      }, chipMaterial: true, toolbarTone: state.toolbarTone)
                 .ui2Element("C-106 ChipStrip 2")
         case .animation where mode == .editing && state.showsEffectsTool:
             // §3 tool 6 (OQ-007): one combined strip — none, the animations, the effects.
             // C-106 has one `selectedID`, so it shows the animation when one is set, else the
             // effect (gap: two independent selections, one selected chip).
             ChipStrip(items: Self.animationItems, selectedID: animationSelectedID,
-                      onSelect: selectAnimation, chipMaterial: true)
+                      onSelect: selectAnimation, chipMaterial: true, toolbarTone: state.toolbarTone)
                 .ui2Element("C-106 ChipStrip")
         case .background:
             // §10.3: Gradient · Colour · Image; the selected option is derived.
             ChipStrip(items: Self.backgroundItems, selectedID: backgroundOption, onSelect: selectBackgroundOption,
-                      chipMaterial: true)
+                      chipMaterial: true, toolbarTone: state.toolbarTone)
                 .ui2Element("C-106 ChipStrip")
         case .actions:
             // §10.4: the page's actions, then + Add.
-            ChipStrip(items: actionItems, selectedID: selectedActionID ?? "", onSelect: selectAction, chipMaterial: true)
+            ChipStrip(items: actionItems, selectedID: selectedActionID ?? "", onSelect: selectAction, chipMaterial: true, toolbarTone: state.toolbarTone)
                 .ui2Element("C-106 ChipStrip 3")
+        case .alignment where isBibleIdle:
+            // §23.2 (D33): Align opens ONE panel — horizontal, vertical, verse numbers.
+            pinnedTopRail(maxHeight: Self.bibleAlignPanelMaxHeight) { bibleAlignPanel }
+        case .size where isBibleIdle:
+            // §23.4 (D33): Size is its own tool and opens its own slider.
+            bibleSlider(label: "Size", value: \.size, range: Self.bibleSizeRange, step: Self.bibleSizeStep,
+                        format: { "\(Int($0.rounded())) pt" }, change: BibleStyleChange.size)
+        case .lineHeight where isBibleIdle:
+            bibleSlider(label: "Line height", value: \.lineHeight, range: Self.bibleLineHeightRange,
+                        step: Self.bibleLineHeightStep,
+                        format: { String(format: "%.1f×", $0) }, change: BibleStyleChange.lineHeight)
+        case .padding where isBibleIdle:
+            bibleSlider(label: "Padding", value: \.inset, range: Self.bibleInsetRange, step: Self.bibleInsetStep,
+                        format: { "\(Int($0.rounded())) pt" }, change: BibleStyleChange.inset)
         case .alignment where mode == .editing:
-            alignmentRail
+            alignmentRail(selected: draftAlignment, onSelect: selectAlignment)
         default:
             // Tool 5 has no rail.
             EmptyView()
@@ -1318,26 +1792,71 @@ struct ActivitiesEditorScreen: View {
     /// §3 tool 3 (D36): three C-102 IconButtons — align left, centre, right — centred (D34) 8pt
     /// above the tool row, each on the rail controls' blur (§15.1). The one matching
     /// `draftAlignment` is `selected`; a tap applies it at once and the rail stays open.
-    private var alignmentRail: some View {
+    private func alignmentRail(selected: CanvasTextObject.Alignment,
+                               onSelect: @escaping (String) -> Void) -> some View {
+        buttonRail(options: Self.alignmentOptions.map { ($0.code, $0.glyph, $0.label) },
+                   selectedCode: Self.alignmentOptions.first { $0.alignment == selected }?.code ?? "",
+                   element: "C-102 IconButton Align", onSelect: onSelect)
+    }
+
+    /// §3 tool 3 / §23.2: a centred row of C-102 IconButtons on the rail controls' blur; the one
+    /// whose code is `selectedCode` is `selected`.
+    private func buttonRail(options: [(code: String, glyph: GlyphName, label: String)],
+                            selectedCode: String, element: String,
+                            onSelect: @escaping (String) -> Void) -> some View {
+        buttonTriple(options: options, selectedCode: selectedCode, element: element, onSelect: onSelect)
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, Token.Space.elementGap)
+    }
+
+    /// §3 tool 3 / §23.2 / §30.3: the C-102 buttons of one rail, 8 pt apart.
+    private func buttonTriple(options: [(code: String, glyph: GlyphName, label: String)],
+                              selectedCode: String, element: String,
+                              onSelect: @escaping (String) -> Void) -> some View {
         HStack(spacing: Token.Space.elementGap) {
-            ForEach(Array(Self.alignmentOptions.enumerated()), id: \.offset) { index, option in
+            ForEach(Array(options.enumerated()), id: \.offset) { index, option in
                 IconButton(
                     glyph: option.glyph,
                     tone: .default,
                     style: .plain,
-                    selected: draftAlignment == option.alignment,
+                    selected: selectedCode == option.code,
                     accessibilityLabel: option.label,
-                    onTap: { selectAlignment(option.code) }
+                    // §27.2 (D38): the rail's C-102s take the tone (selected: black fill in `.dark`).
+                    toolbarTone: state.toolbarTone,
+                    onTap: { onSelect(option.code) }
                 )
                 // FLAGGED LITERAL — activities-editor §2: 32pt tools, the tool row's tile.
                 .frame(width: Self.toolSize, height: Self.toolSize)
                 .padding(Self.toolRowPadding)
                 .floatingControlMaterial(cornerRadius: Self.toolRowRadius)
-                .ui2Element(index == 0 ? "C-102 IconButton Align" : "C-102 IconButton Align \(index + 1)")
+                .ui2Element(index == 0 ? element : "\(element) \(index + 1)")
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.bottom, Token.Space.elementGap)
+    }
+
+    /// §30.3 (D47, replaces §23.2's two rows): the Align panel, top → bottom — ONE row of six
+    /// C-102s, left · centre · right (`.alignment`) then top · middle · bottom
+    /// (`.verticalAlignment`), 8 pt within each triple and 16 pt between them; then verse numbers
+    /// (D27: C-035 chips in a centred C-106, `.verseNumbers`). A tap applies at once; the panel
+    /// stays open.
+    private var bibleAlignPanel: some View {
+        let horizontal = Self.alignmentOptions
+        let selected = bibleScripture?.alignment ?? .left
+        return VStack(spacing: 0) {
+            HStack(spacing: Self.alignTripleGap) {
+                buttonTriple(options: horizontal.map { ($0.code, $0.glyph, $0.label) },
+                             selectedCode: horizontal.first { $0.alignment == selected }?.code ?? "",
+                             element: "C-102 IconButton Align", onSelect: { setBibleStyle(.alignment($0)) })
+                buttonTriple(options: Self.verticalAlignmentOptions,
+                             selectedCode: Self.verticalAlignmentCode(bibleStyle.verticalAlignment),
+                             element: "C-102 IconButton Vertical", onSelect: { setBibleStyle(.verticalAlignment($0)) })
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, Token.Space.elementGap)
+            ChipStrip(items: Self.verseNumberItems, selectedID: bibleStyle.verseNumbers,
+                      onSelect: { id in setBibleStyle(.verseNumbers(id)) }, chipMaterial: true, toolbarTone: state.toolbarTone)
+                .ui2Element("C-106 ChipStrip 3")
+        }
     }
 
     /// §3 tool 3 (D36): one `ObjectEdit` with `alignment`, as the cycle did.
@@ -1350,13 +1869,21 @@ struct ActivitiesEditorScreen: View {
     /// (§10.1): taller content scrolls inside it.
     @ViewBuilder private var topRail: some View {
         switch openTool {
+        case .font where isBibleIdle:
+            // §23.3 (D33): the Font panel is face + weight only — the weight chips above the face
+            // strip, as the text activity's Font tool lays them out.
+            ChipStrip(items: Self.weightItems, selectedID: Self.weightID(Self.weight(code: bibleStyle.weight)),
+                      onSelect: { id in setBibleStyle(.weight(Self.weightCode(Self.weight(id)))) },
+                      chipMaterial: true, toolbarTone: state.toolbarTone)
+                .ui2Element("C-106 ChipStrip")
+                .padding(.bottom, -Token.Space.elementGap)
         case .font where mode == .editing:
             // §3 tool 4: the weight row above the font strip. C-106 is 8 + 36 + 8 tall, so the
             // two share one 8pt inset and the pair stays §2's 96.
             ChipStrip(items: Self.weightItems, selectedID: Self.weightID(edited?.weight ?? .bold),
                       onSelect: { id in
                           if let editedIndex { apply(.init(index: editedIndex, weight: Self.weightCode(Self.weight(id)))) }
-                      }, chipMaterial: true)
+                      }, chipMaterial: true, toolbarTone: state.toolbarTone)
                 .ui2Element("C-106 ChipStrip")
                 .padding(.bottom, -Token.Space.elementGap)
         case .background:
@@ -1372,7 +1899,8 @@ struct ActivitiesEditorScreen: View {
 
     /// §10.1: the top rail's pinned height — content that fits sits at its own height, taller
     /// content scrolls, and a focused field scrolls into view (D8).
-    private func pinnedTopRail<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+    private func pinnedTopRail<Content: View>(maxHeight: CGFloat = topRailMaxHeight,
+                                              @ViewBuilder _ content: () -> Content) -> some View {
         let body = content()
         return ScrollViewReader { proxy in
             ViewThatFits(in: .vertical) {
@@ -1380,11 +1908,63 @@ struct ActivitiesEditorScreen: View {
                 ScrollView(.vertical) { body }
                     .scrollIndicators(.hidden)
             }
-            .frame(maxHeight: Self.topRailMaxHeight)
+            .frame(maxHeight: maxHeight)
             .onChange(of: focusedField) { _, field in
                 if let field { withAnimation { proxy.scrollTo(field) } }
             }
         }
+    }
+
+    // MARK: §23 (D33): the Bible panels
+
+    /// §21.3 / §23.4: one undrawn-default slider row, docked above the tool row — the system
+    /// `Slider` on the rails' blur material with its label and value. The display follows every frame; the value is reported once,
+    /// when the finger lifts (§16).
+    private func bibleSlider(label: String, value: WritableKeyPath<BibleStyle, CGFloat>,
+                             range: ClosedRange<CGFloat>, step: CGFloat,
+                             format: @escaping (CGFloat) -> String,
+                             change: @escaping (CGFloat) -> BibleStyleChange) -> some View {
+        HStack(spacing: Token.Space.elementGap) {
+            SwiftUI.Text(verbatim: label)
+                .designTextStyle(Token.TypeStyle.footnote)
+                .foregroundStyle(toneInk ?? Token.textPrimary)          // §26.2 (D38)
+            SwiftUI.Slider(
+                value: Binding(get: { bibleStyle[keyPath: value] }, set: { bibleStyle[keyPath: value] = $0 }),
+                in: range, step: step,
+                onEditingChanged: { editing in
+                    bibleSliding = editing
+                    if !editing { onBibleStyleChange(change(bibleStyle[keyPath: value])) }
+                }
+            )
+            .tint(toneInk ?? Token.white100)                                // §26.2 (D38)
+            .accessibilityLabel(label)
+            SwiftUI.Text(verbatim: format(bibleStyle[keyPath: value]))
+                .designTextStyle(Token.TypeStyle.footnote)
+                .foregroundStyle(toneInk ?? Token.textPrimary)          // §26.2 (D38)
+                .monospacedDigit()
+        }
+        .padding(.horizontal, Token.Space.elementGap)
+        .frame(height: Self.bibleSliderRowHeight)
+        .floatingControlMaterial(cornerRadius: Token.Radius.card)
+        .padding(.horizontal, Token.Space.pageMargin)
+        .padding(.vertical, Token.Space.elementGap / 2)
+        .ui2Element("Bible \(label.lowercased()) slider")
+    }
+
+    /// §21.4: a chip change applies to the display and is reported at once.
+    private func setBibleStyle(_ change: BibleStyleChange) {
+        switch change {
+        case .face(let face): bibleStyle.face = face
+        case .weight(let weight): bibleStyle.weight = weight
+        case .size(let size): bibleStyle.size = size
+        case .lineHeight(let lineHeight): bibleStyle.lineHeight = lineHeight
+        case .inset(let inset): bibleStyle.inset = inset
+        case .verseNumbers(let mode): bibleStyle.verseNumbers = mode
+        case .color(let hex): bibleStyle.color = hex
+        case .alignment(let code): bibleStyle.alignment = code
+        case .verticalAlignment(let code): bibleStyle.verticalAlignment = code
+        }
+        onBibleStyleChange(change)
     }
 
     // MARK: §10.3 Background
@@ -1424,7 +2004,7 @@ struct ActivitiesEditorScreen: View {
                         FilterChip(type: .button, active: false, label: Self.moreImagesLabel, onSelect: {
                             onBackground(.moreImages)
                             onPickImage()
-                        })
+                        }, toolbarTone: state.toolbarTone)                 // §27.2 (D38)
                         // §15.1: the blur behind "More…" (C-035's `radius-card`).
                         .floatingControlMaterial(cornerRadius: Token.Radius.card)
                         .ui2Element("C-035 FilterChip")
@@ -1440,13 +2020,14 @@ struct ActivitiesEditorScreen: View {
                                          onBackground(.wash(color: hex, opacity: state.pageWashOpacity))
                                      },
                                      showsWell: false,
-                                     swatchMaterial: true)
+                                     swatchMaterial: true,
+                                     toolbarTone: state.toolbarTone)
                         .ui2Element("C-094 TextColorPalette 2")
                     // activities-editor §3 tool 2: undrawn default, the system slider (no registry row).
                     SwiftUI.Slider(value: Binding(get: { state.pageWashOpacity },
                                                   set: { onBackground(.wash(color: washHex, opacity: $0)) }),
                                    in: 0...1)
-                        .tint(Token.white100)
+                        .tint(toneInk ?? Token.white100)                // §26.2 (D38)
                         .padding(.horizontal, Token.Space.pageMargin)
                         .padding(.vertical, Token.Space.elementGap)
                         .accessibilityLabel("Wash opacity")
@@ -1466,7 +2047,8 @@ struct ActivitiesEditorScreen: View {
                 onPageChange: { palettePage = $0 },
                 showsWell: false,
                 // §15.1 (OQ-activities-editor-46): the blur behind each swatch.
-                swatchMaterial: true
+                swatchMaterial: true,
+                toolbarTone: state.toolbarTone
             )
             .ui2Element("C-094 TextColorPalette")
         }
@@ -1483,7 +2065,7 @@ struct ActivitiesEditorScreen: View {
                 .scaledToFit()
                 // FLAGGED LITERAL — the 18pt glyph C-102 draws, in its default tone.
                 .frame(width: Self.shuffleGlyph, height: Self.shuffleGlyph)
-                .foregroundStyle(Token.navText)
+                .foregroundStyle(toneInk ?? Token.navText)              // §26.2 (D38)
                 .accessibilityHidden(true)
                 .frame(width: Self.paletteTileWidth, height: Self.paletteTileHeight)
                 .contentShape(RoundedRectangle(cornerRadius: Token.Radius.card))
@@ -1510,7 +2092,8 @@ struct ActivitiesEditorScreen: View {
             .overlay {
                 if index == selectedPaletteIndex {
                     RoundedRectangle(cornerRadius: Token.Radius.card)
-                        .strokeBorder(Token.white100, lineWidth: Self.hairline)
+                        // §26.2 (D38): the selected outline keeps contrast on a light page.
+                        .strokeBorder(toneInk ?? Token.white100, lineWidth: Self.hairline)
                 }
             }
         }
@@ -1584,7 +2167,7 @@ struct ActivitiesEditorScreen: View {
             ChipStrip(items: Self.kindItems, selectedID: action.kind.rawValue, onSelect: { id in
                 endField()
                 updateAction(action.id) { $0.kind = PageAction.Kind(rawValue: id) ?? $0.kind }
-            }, chipMaterial: true)
+            }, chipMaterial: true, toolbarTone: state.toolbarTone)
             .ui2Element("C-106 ChipStrip")
             field("label", placeholder: "Label", text: action.label, kind: .single) { text in
                 updateAction(action.id) { $0.label = text }
@@ -1592,11 +2175,12 @@ struct ActivitiesEditorScreen: View {
             ChipStrip(items: Self.placementItems, selectedID: action.placement.rawValue, onSelect: { id in
                 endField()
                 setPlacement(PageAction.Placement(rawValue: id) ?? action.placement, of: action.id)
-            }, chipMaterial: true)
+            }, chipMaterial: true, toolbarTone: state.toolbarTone)
             .ui2Element("C-106 ChipStrip 2")
             prefill(action)
             if !newActionIDs.contains(action.id) {
                 Button(label: "Remove action", onTap: { remove(action.id) })
+                    .colorMultiply(toneMultiply)                        // §27.3 (D38)
                     .ui2Element("C-105 Button")
                     .padding(.horizontal, Token.Space.pageMargin)
                     .padding(.vertical, Token.Space.elementGap)
@@ -1654,6 +2238,8 @@ struct ActivitiesEditorScreen: View {
             },
             editing: .init(onSubmit: submit)
         )
+        // §27.3 (D38): C-045 takes no tone input — `.dark` multiplies its paint to `color-black`.
+        .colorMultiply(toneMultiply)
         // §15.1: the blur behind each C-045 field (its box is `radius-card-sm`).
         .floatingControlMaterial(cornerRadius: Token.Radius.cardSm)
         .padding(.horizontal, Token.Space.pageMargin)
@@ -1712,10 +2298,14 @@ struct ActivitiesEditorScreen: View {
 
     /// §2 item 5: hidden tools are not in the layout, the accessibility tree or the focus order.
     private var visibleTools: [Tool] {
-        Tool.allCases.filter { tool in
+        // §23.1 (D33) / §24.3: a `bible` activity shows exactly its eight tools in Idle only;
+        // `.editing` on a bible page keeps the text tools for the mode (§24.2).
+        if isBibleToolSet { return Self.bibleTools }
+        return Tool.allCases.filter { tool in
             switch tool {
             case .highlight: return state.showsHighlightTool
             case .animation: return state.showsEffectsTool
+            case .size, .lineHeight, .padding: return false
             default: return true
             }
         }
@@ -1725,15 +2315,34 @@ struct ActivitiesEditorScreen: View {
     /// 32pt, left to right. §15.1 (D29, supersedes the pitch layout): the visible tools sit in ONE
     /// container centred horizontally — 4pt padding, 8pt radius, 16pt gap, the dark blur material —
     /// hugging its contents; §19.1 (D34.1): the band hugs it too (40pt, 16pt above the keyboard).
-    private var toolRow: some View {
+    /// §22.1: `aboveChips` — the bible Idle row sits directly above the C-081 chips rail, one
+    /// §19 element gap above it, instead of above the keyboard or the bottom safe area.
+    private func toolRow(aboveChips: Bool = false) -> some View {
+        // §23.1 (D33): a row wider than the screen (eight tools at 375) scrolls horizontally
+        // under the rails — it never wraps.
+        ViewThatFits(in: .horizontal) {
+            toolRowContainer
+            HorizontalRail(showsIndicators: false) { toolRowContainer }
+        }
+        .frame(maxWidth: .infinity)
+        // §19.1 (D34.1): the row hugs its own 40pt band (4 + 32 + 4) — no longer C-081's bar
+        // height; its bottom edge sits 16pt above the keyboard or the bottom safe area.
+        .padding(.bottom, aboveChips ? Token.Space.elementGap
+                                     : Token.Space.pageMargin + max(safeBottom - keyboardOverlap, 0))
+    }
+
+    private var toolRowContainer: some View {
         HStack(spacing: Self.toolRowGap) {
             ForEach(Array(visibleTools.enumerated()), id: \.element) { index, tool in
                 IconButton(
-                    glyph: Self.glyph(for: tool),
+                    glyph: Self.glyph(for: tool, isBible: isBibleToolSet),
                     tone: .default,
                     style: .plain,
                     selected: isSelected(tool),
                     accessibilityLabel: Self.toolLabel(tool),
+                    // §27.2 (D38): C-102 paints the tone — `.dark` a `color-black` glyph, selected a
+                    // black fill with a white glyph; `.light` is today's paint.
+                    toolbarTone: state.toolbarTone,
                     onTap: { tap(tool) }
                 )
                 // FLAGGED LITERAL — activities-editor §2: 32pt tools.
@@ -1744,10 +2353,6 @@ struct ActivitiesEditorScreen: View {
         .padding(Self.toolRowPadding)
         .floatingControlMaterial(cornerRadius: Self.toolRowRadius)
         .ui2Element("Tool row")
-        .frame(maxWidth: .infinity)
-        // §19.1 (D34.1): the row hugs its own 40pt band (4 + 32 + 4) — no longer C-081's bar
-        // height; its bottom edge sits 16pt above the keyboard or the bottom safe area.
-        .padding(.bottom, Token.Space.pageMargin + max(safeBottom - keyboardOverlap, 0))
     }
 
     /// §3 Tools: category tools (1, 2, 3, 4, 6, 7) take `selected` while their rails are open
@@ -1764,7 +2369,8 @@ struct ActivitiesEditorScreen: View {
         endField()
         switch tool {
         case .highlight:
-            onToggleHighlight()
+            // §20.2: tool 5 again ends a locked object's highlighting mode.
+            if highlightingIndex != nil { onEndHighlighting() } else { onToggleHighlight() }
         default:
             // §10.1: tapping the open tool again closes its rails.
             setOpenTool(openTool == tool ? nil : tool)
@@ -1784,11 +2390,15 @@ struct ActivitiesEditorScreen: View {
             endField()
         } else if openTool == .background || openTool == .actions {
             setOpenTool(nil)
-        } else if point != nil, let tapTarget {
-            // D25: a tap inside a grab area opens that object (D20); inside the edited object's,
-            // it stays in the edit.
-            if tapTarget != editedIndex { tapObject(tapTarget) }
-        } else if mode == .editing || mode == .highlighting {
+        } else if point != nil, let tapTarget, tapTarget == editedIndex {
+            // D25: a tap inside the edited object's grab area stays in the edit.
+        } else if point != nil, let tapTarget, !isEditingText || tapTarget == highlightingIndex {
+            // D25: in Idle a tap inside a grab area opens that object (D20); the object being
+            // highlighted keeps its own taps.
+            tapObject(tapTarget)
+        } else if isEditingText {
+            // D42: while the text editor is active nothing else on the canvas is tappable — a tap
+            // on another object (a Bible passage included) is a tap-off, never that object's tap.
             onTapOff()
         } else if mode == .idle, let point {
             onTapEmpty(point)
@@ -1889,8 +2499,95 @@ struct ActivitiesEditorScreen: View {
         var startNumber: Int
         var transform: CanvasTextObject.Transform
         var highlights: [CanvasTextObject.TextRange]
+        /// §20.1 (D11).
+        var isLocked = false
+        /// §21.2 (D28): C-092 `pageLaidOut` — the page provides the frame.
+        var pageLaidOut = false
+        /// §21.3: C-092 `lineHeight` and `verseNumbers` — set only on a `bible` activity's
+        /// scripture; otherwise C-092's defaults (natural leading, inline numbers).
+        var lineHeight: CGFloat?
+        var verseNumbers: CanvasTextObject.VerseNumbers = .inline
 
         var color: Color { ActivitiesEditorScreen.hexColor(colorHex) ?? Token.textPrimary }
+    }
+
+    /// §21.3 / §21.4: the Bible font panel's values as shown. Seeded from `State`.
+    private struct BibleStyle: Equatable {
+        var face: String
+        var weight: Int
+        var size: CGFloat
+        var lineHeight: CGFloat
+        var inset: CGFloat
+        var verseNumbers: String
+        /// §22.2: "" = the scripture object's own.
+        var color: String
+        var alignment: String
+        /// §23.5 (D32).
+        var verticalAlignment: String
+
+        init(_ state: State) {
+            face = state.bibleFace
+            weight = state.bibleWeight
+            size = state.bibleSize
+            lineHeight = state.bibleLineHeight
+            inset = state.bibleInset
+            verseNumbers = state.bibleVerseNumbers
+            color = state.bibleColor
+            alignment = state.bibleAlignment
+            verticalAlignment = state.bibleVerticalAlignment
+        }
+    }
+
+    /// §21.3: on a `bible` activity the scripture — the `bibleVerse` object — draws with the
+    /// panel's face, weight, size, line height and verse numbers; a page-laid-out scripture also
+    /// takes the inset as its margin from each page edge. Every other object is unchanged.
+    private func bibleStyled(_ object: CommittedObject) -> CommittedObject {
+        guard state.isBible, object.listStyle == .bibleVerse else { return object }
+        var styled = object
+        styled.font = Self.font(bibleStyle.face)
+        styled.weight = Self.weight(code: bibleStyle.weight)
+        styled.size = bibleStyle.size
+        styled.lineHeight = bibleStyle.lineHeight
+        styled.verseNumbers = Self.verseNumbers(bibleStyle.verseNumbers)
+        // §22.2: the Idle Colour and Alignment picks show at once; "" keeps the object's own.
+        if !bibleStyle.color.isEmpty { styled.colorHex = bibleStyle.color }
+        if let alignment = Self.alignmentOptions.first(where: { $0.code == bibleStyle.alignment }) {
+            styled.alignment = alignment.alignment
+        }
+        if styled.pageLaidOut {
+            styled.transform.width = Self.referenceWidth - 2 * bibleStyle.inset
+        }
+        return styled
+    }
+
+    /// §30.1 (D45, replaces §23.5's 96 wu): how far the page-laid-out block (scripture + citation)
+    /// moves down from the container's top-at-143 frames — none for `top`, half the slack for
+    /// `center`, all of it for `bottom`, where the slack is `956 − bottomInset − block bottom` and
+    /// the bottom inset is 85 wu (110 with a pinned action). A page taller than 956 has no slack.
+    private var bibleVerticalShift: CGFloat {
+        guard state.isBible, state.pageHeight <= Self.referenceHeight else { return 0 }
+        let fraction: CGFloat
+        switch Self.verticalAlignmentCode(bibleStyle.verticalAlignment) {
+        case "center": fraction = 0.5
+        case "bottom": fraction = 1
+        default: return 0
+        }
+        var bottom = -CGFloat.infinity
+        for (index, object) in shownObjects.enumerated() where object.pageLaidOut {
+            let styled = bibleStyled(object)
+            bottom = max(bottom, styled.transform.position.y + objectHeight(styled, index: index) / 2)
+        }
+        guard bottom.isFinite else { return 0 }
+        let bottomInset = hasPinnedAction ? Self.bibleBlockBottomPinned : Self.bibleBlockBottom
+        return max(Self.referenceHeight - bottomInset - bottom, 0) * fraction
+    }
+
+    private static func verseNumbers(_ name: String) -> CanvasTextObject.VerseNumbers {
+        switch name {
+        case "hidden": return .hidden
+        case "inline": return .inline
+        default: return .gutter
+        }
     }
 
     /// `State.objects`, resolved with §3's defaults — the seed of the display state (§9.1).
@@ -1912,7 +2609,9 @@ struct ActivitiesEditorScreen: View {
                     rotation: .degrees(element(state.objectRotations, index, 0)),
                     width: objectWidth(state, index)
                 ),
-                highlights: highlights(state, forObject: index)
+                highlights: highlights(state, forObject: index),
+                isLocked: element(state.objectLocks, index, false),
+                pageLaidOut: element(state.objectPageLaidOut, index, false)
             )
         }
         if !state.verseTexts.isEmpty {
@@ -1994,8 +2693,29 @@ struct ActivitiesEditorScreen: View {
     /// §11 (D24): on the fixed canvas (`scrolls: false`) the offset is 02 §4 step 1 only — no nudge
     /// and no growth — so objects stay where the author put them, past an edge if need be.
     private func pageOffset(viewport: CGFloat) -> CGFloat {
-        (viewport - Self.referenceHeight) / 2
+        // §21.1 (D26): a tall page sits at page y 0 = viewport y 0 at rest (`tallPageExtent`).
+        isTallPage ? 0 : (viewport - Self.referenceHeight) / 2
     }
+
+    /// §21.1 (D26): the page is taller than the 956 reference — it scrolls inside the canvas.
+    private var isTallPage: Bool { state.pageHeight > Self.referenceHeight }
+
+    /// §30.2 (D46): the canvas scrolls for a tall page (§21.1) and for every Bible page; a `text`
+    /// page never scrolls (§11).
+    private var canvasScrolls: Bool { isTallPage || state.isBible }
+
+    /// §21.1: the `contentExtent` that makes C-091's placement give exactly `pageHeight` with
+    /// offset 0 — top at C-091's T, bottom `pageHeight` less its B (and the pinned band).
+    private func tallPageExtent(pinned: Bool) -> ClosedRange<CGFloat> {
+        let bottom = state.pageHeight - Self.canvasEndSpace - (pinned ? Self.pinnedHeight : 0)
+        return Self.canvasTopInset...max(bottom, Self.canvasTopInset)
+    }
+
+    /// D42: the text editor is active (Editing, or Highlighting within an edit).
+    private var isEditingText: Bool { mode == .editing || mode == .highlighting }
+
+    /// §21.2: the edited object is page-laid-out — no C-093 wedge, no width handles.
+    private var editedIsPageLaidOut: Bool { edited?.pageLaidOut ?? false }
 
     private var draftHeight: CGFloat {
         measuredDraftHeight ?? draftSize * Self.lineHeightFactor
@@ -2007,7 +2727,7 @@ struct ActivitiesEditorScreen: View {
     private var draftLayoutWidth: CGFloat { edited?.transform.width ?? Self.editSlotWidth }
 
     /// §3 tool 3: the edit slot re-anchors 24 wu from the canvas edge.
-    private var draftCentreX: CGFloat {
+    private var slotCentreX: CGFloat {
         switch draftAlignment {
         case .center: return Self.referenceWidth / 2
         case .left: return Self.editSlotInset + draftLayoutWidth / 2
@@ -2015,26 +2735,62 @@ struct ActivitiesEditorScreen: View {
         }
     }
 
-    /// §2 item 3 handle / thumb separation (2): while the object's left edge is inside the slider
-    /// column the handles ride 14 wu inside the text edge, so the left one clears the thumb.
-    private var handleInset: CGFloat {
-        draftCentreX - draftLayoutWidth / 2 < Self.sliderColumn ? Self.handleInsetWhenCrowded : 0
+    /// §2 item 3 (D40, owner 2026-11-11): the width handles sit OUTSIDE the text box — the bar's
+    /// inner edge `handleGap` from the text, never on a glyph. While the box's left handle would
+    /// fall in the size-slider column, the edited block is nudged in just far enough to clear it
+    /// (it returns to its own place on Done); when the block is too wide for both handles at the
+    /// full gap, the gap shrinks (to 0 at the widest) instead of the handles touching the text.
+    private var draftHandleLayout: (centreX: CGFloat, gap: CGFloat) {
+        let width = draftLayoutWidth
+        // Where the box edge may sit with a zero gap: the left bar (its full width) clears the
+        // slider column, the right bar stays wholly on the canvas.
+        let leftLimit = Self.sliderColumn + Self.handleBarWidth
+        let rightLimit = Self.referenceWidth - Self.handleBarWidth
+        let fullGap = Self.handleGap
+        // The largest gap both handles can have with the block anywhere between the limits.
+        let room = (rightLimit - leftLimit - width) / 2
+        let gap = min(fullGap, max(room, 0))
+        let minLeft = leftLimit + gap                     // the box's left edge may not go further left
+        let maxLeft = rightLimit - gap - width            // nor its right edge further right
+        let left = min(max(slotCentreX - width / 2, minLeft), max(maxLeft, minLeft))
+        return (left + width / 2, gap)
     }
 
-    private func widthHandles(pageOffset: CGFloat) -> ActivityCanvas<AnyView>.WidthHandles {
-        .init(
-            frame: CGRect(x: draftCentreX - draftLayoutWidth / 2 + handleInset,
-                          y: Self.editSlotY + pageOffset - draftHeight / 2,
-                          width: draftLayoutWidth - 2 * handleInset,
+    /// The edited block's centre while editing — the slot, nudged per D40.
+    private var draftCentreX: CGFloat { draftHandleLayout.centreX }
+
+    /// §33.2 (D51): how far the edit slot moves in content space so the edited object sits at the
+    /// slider's screen point (`editSlotY + pageOffset` on screen) on any page height and scroll:
+    /// `pageScroll + pageOffset − C-091's layout offset`. §33.5: a text page never scrolls and its
+    /// layout offset is `pageOffset`, so the shift is 0 there — pixel-identical. D49 locks the
+    /// scroll while editing, so it is constant for the whole edit. Display only (§33.4).
+    private func editSlotShift(viewport: CGFloat) -> CGFloat {
+        guard canvasScrolls else { return 0 }
+        let pinned = actions.contains { $0.placement == .pinned }
+        let extent = isTallPage ? tallPageExtent(pinned: pinned) : Self.bibleFixedExtent
+        let layoutOffset = ActivityCanvas<AnyView>.placement(
+            viewportHeight: viewport, contentExtent: extent,
+            verticalAnchor: .center, pinnedAction: pinned, unit: 1).offset
+        return canvasPageScroll + pageOffset(viewport: viewport) - layoutOffset
+    }
+
+    private func widthHandles(pageOffset: CGFloat, slotShift: CGFloat) -> ActivityCanvas<AnyView>.WidthHandles {
+        let layout = draftHandleLayout
+        let outset = layout.gap + Self.handleBarWidth / 2
+        return .init(
+            frame: CGRect(x: layout.centreX - draftLayoutWidth / 2 - outset,
+                          // §33.2 (D51): page-local — the slot's content y plus C-091's offset.
+                          y: Self.editSlotY + slotShift + pageOffset - draftHeight / 2,
+                          width: draftLayoutWidth + 2 * outset,
                           height: draftHeight),
             rotation: .zero
         )
     }
 
-    /// §2 item 3: `onResizeWidth` reports the handles' width; the inset goes back on, then clamps.
+    /// §2 item 3: `onResizeWidth` reports the handles' span; the outset comes off, then clamps.
     private func resizeDraft(_ handleWidth: CGFloat) {
         guard let editedIndex else { return }
-        let width = handleWidth + 2 * handleInset
+        let width = handleWidth - 2 * (draftHandleLayout.gap + Self.handleBarWidth / 2)
         apply(.init(index: editedIndex, width: min(max(width, Self.minObjectWidth), Self.editSlotWidth)))
     }
 
@@ -2247,16 +3003,21 @@ struct ActivitiesEditorScreen: View {
 
     /// §2 item 5: tool 7 is the library's `zap`. The others are interim glyphs (OQ-017 — the
     /// designed glyphs are not minted yet); tool 1's gradient sphere is artwork C-102 cannot
-    /// carry, so `palette` stands in.
-    private static func glyph(for tool: Tool) -> GlyphName {
+    /// carry, so `palette` stands in. §26.1 (D37): the Font tool draws the
+    /// library's `text-font` (Figma 4800:11365) on text and bible activities alike.
+    private static func glyph(for tool: Tool, isBible: Bool) -> GlyphName {
         switch tool {
         case .color: return .palette
         case .background: return .file
         case .alignment: return .menu
-        case .font: return .textContent
+        case .font: return .textFont
         case .highlight: return .edit
         case .animation: return .sparkles
         case .actions: return .zap
+        // §23.1 (D33): Figma 4800:11364's `text--scale`, `pan--vertical`, `pan--horizontal`.
+        case .size: return .textScale
+        case .lineHeight: return .panVertical
+        case .padding: return .panHorizontal
         }
     }
 
@@ -2268,6 +3029,19 @@ struct ActivitiesEditorScreen: View {
         (.right, "right", .textAlignEnd, "Align right")
     ]
 
+    /// §23.2 (D32): the Align panel's vertical row, top to bottom — Figma 4800:11364's
+    /// `align--vertical-top` · `-center` · `-bottom`.
+    private static let verticalAlignmentOptions: [(code: String, glyph: GlyphName, label: String)] = [
+        ("top", .alignVerticalTop, "Align top"),
+        ("center", .alignVerticalCenter, "Align middle"),
+        ("bottom", .alignVerticalBottom, "Align bottom")
+    ]
+
+    /// §23.5: a value other than the three reads as `top`.
+    private static func verticalAlignmentCode(_ value: String) -> String {
+        verticalAlignmentOptions.contains { $0.code == value } ? value : "top"
+    }
+
     /// R-17: each tool's accessibility label, from §3 Tools.
     private static func toolLabel(_ tool: Tool) -> String {
         switch tool {
@@ -2278,6 +3052,9 @@ struct ActivitiesEditorScreen: View {
         case .highlight: return "Highlight"
         case .animation: return "Animation and effects"
         case .actions: return "Actions"
+        case .size: return "Size"
+        case .lineHeight: return "Line height"
+        case .padding: return "Padding"
         }
     }
 
@@ -2395,6 +3172,19 @@ struct ActivitiesEditorScreen: View {
     /// §13.2 FLAGGED LITERAL — activities-editor §3 Transitions (no `motion-*` token holds it):
     /// the object between its transform and the edit slot, ease-out 150 ms, both directions.
     private static let editTransition = Animation.easeOut(duration: 0.15)
+    /// FLAGGED LITERAL — D48: the bars' fade as the target shows and hides (C-091 fades the target
+    /// itself, D50).
+    private static let deleteTargetAnimation = Animation.easeOut(duration: 0.15)
+    /// FLAGGED LITERAL — §32.2 (D50): the docked object's scale and its ≈ 100 ms ease-out dock.
+    private static let dockScale: CGFloat = 0.2
+    private static let dockAnimation = Animation.easeOut(duration: 0.1)
+    /// FLAGGED LITERAL — C-091 D50: the ring's diameter (wu), mirrored to find its centre in the zone.
+    private static let deleteRingPoints: CGFloat = 44
+    /// FLAGGED LITERAL — §32.2 (D50): the zone grows by this (pt) before the finger disarms it —
+    /// an undrawn default.
+    private static let deleteHysteresis: CGFloat = 12
+    /// FLAGGED LITERAL — §28 (D39, owner 2026-11-11): the other objects' opacity while one is edited.
+    private static let editDimOpacity: Double = 0.1
     /// §10.3: the wash colour before one is chosen — `color-black`'s value.
     private static let defaultWashHex = "#000000"
     /// activities-editor §2 item 3: the edit slot — 392 wu wide (440 − 2 × 24), centred on 478 wu.
@@ -2414,7 +3204,10 @@ struct ActivitiesEditorScreen: View {
     private static let sliderDockDelay: Duration = .seconds(2)
     private static let sliderDockAnimation = Animation.easeOut(duration: 0.25)
     private static let sliderColumn: CGFloat = 38
-    private static let handleInsetWhenCrowded: CGFloat = 14
+    /// FLAGGED LITERAL — D40 (owner 2026-11-11): the gap between a width handle's bar and the text.
+    private static let handleGap: CGFloat = 6
+    /// C-091's width-handle bar width (`ActivityCanvas.handleSize.width`), mirrored for placement.
+    private static let handleBarWidth: CGFloat = 6
     /// FLAGGED LITERAL — activities-editor §2: Selection row 8 wu above the container.
     private static let selectionRowGap: CGFloat = 8
     /// FLAGGED LITERAL — activities-editor §2: inline action 24 wu below; C-105 is 36 tall;
@@ -2426,6 +3219,45 @@ struct ActivitiesEditorScreen: View {
     /// GAP — C-091 §4 `contentExtent`: an object not yet measured counts one line per item at
     /// this multiple of its size; the live measurement replaces it on the next pass.
     private static let lineHeightFactor: CGFloat = 1.25
+    /// C-091 §2 Sizing T / B (§18.2's padding lines), which the tall page's extent is set from
+    /// (§21.1) so C-091's placement yields `pageHeight`.
+    private static var canvasTopInset: CGFloat { Snap.top }
+    private static var canvasEndSpace: CGFloat { Snap.bottom }
+    /// §21.3 (D29): the Bible font panel's sliders — size 14–40 pt step 1, line height 1.0–2.0×
+    /// step 0.1, inset 16–64 pt step 4 (on the 440 reference).
+    private static let bibleSizeRange: ClosedRange<CGFloat> = 14...40
+    private static let bibleSizeStep: CGFloat = 1
+    private static let bibleLineHeightRange: ClosedRange<CGFloat> = 1.0...2.0
+    private static let bibleLineHeightStep: CGFloat = 0.1
+    private static let bibleInsetRange: ClosedRange<CGFloat> = 16...64
+    private static let bibleInsetStep: CGFloat = 4
+    /// FLAGGED LITERAL — activities-editor §23.2 / §30.3: the Align panel's pinned height — one
+    /// button row (40 + 8) and the verse-numbers strip (52); a panel taller than the room left
+    /// above the keyboard scrolls under the tool row.
+    private static let bibleAlignPanelMaxHeight: CGFloat = 100
+    /// FLAGGED LITERAL — activities-editor §30.1 (D45): the page-laid-out block's top at 143 wu
+    /// (the container's frames) and its bottom inset, 85 wu or 110 wu with a pinned action.
+    private static let bibleBlockTop: CGFloat = 143
+    private static let bibleBlockBottom: CGFloat = 85
+    private static let bibleBlockBottomPinned: CGFloat = 110
+    /// §30.2 (D46): a Bible page ≤ 956's `contentExtent` — a point mid-page, which fits any
+    /// viewport, so C-091 keeps step 1's offset and the page stays the viewport (positions never move).
+    private static let bibleFixedExtent: ClosedRange<CGFloat> = (referenceHeight / 2)...(referenceHeight / 2)
+    /// FLAGGED LITERAL — activities-editor §30.3 (D47): the six-button row's gap between the
+    /// horizontal and vertical triples (undrawn default); 8 pt within each triple.
+    private static let alignTripleGap: CGFloat = Token.Space.step16
+    /// FLAGGED LITERAL — activities-editor §21.3: a slider row's 44pt height (undrawn default).
+    private static let bibleSliderRowHeight: CGFloat = 44
+    /// §21.3: the verse-number options, in order.
+    private static let verseNumberItems: [ChipStrip.Item] = [
+        .init(id: "gutter", label: "Gutter"),
+        .init(id: "hidden", label: "Hidden"),
+        .init(id: "inline", label: "Inline")
+    ]
+    /// §23.1 (D33): the eight tools of a `bible` activity, left to right — Animation, the effects
+    /// tool and Actions hidden.
+    private static let bibleTools: [Tool] = [.color, .background, .alignment, .font, .size, .lineHeight,
+                                             .padding, .highlight]
 }
 
 // MARK: - Sample data (the previews' props, single-sourced for the #Preview blocks and the
@@ -2632,6 +3464,246 @@ extension ActivitiesEditorScreen.State {
         s.firstVerse = 8
         return s
     }()
+    /// §20.4: a `bible` activity's starter document — the citation (14pt) over the scripture
+    /// (serif 18pt, verses numbered 16–18), both locked.
+    private static let bibleLocked: Self = {
+        var s = base
+        // §22.4 / §23.1: a bible activity — Idle shows the eight-tool row above the chips.
+        s.isBible = true
+        s.showsHighlightTool = true
+        s.canSave = true
+        s.objectIDs = ["citation", "scripture"]
+        s.objectTexts = [
+            "John 3:16b-18 ENGKJV",
+            [
+                "that whosoever believeth in him should not perish, but have everlasting life.",
+                "For God sent not his Son into the world to condemn the world; but that the world through him might be saved.",
+                "He that believeth on him is not condemned: but he that believeth not is condemned already, because he hath not believed in the name of the only begotten Son of God."
+            ].joined(separator: "\n")
+        ]
+        s.objectFonts = ["sans", "serif"]
+        s.objectColors = [white, white]
+        s.objectWeights = ["medium", "regular"]
+        s.objectSizes = [14, 18]
+        s.objectAlignments = ["left", "left"]
+        s.objectListStyles = ["", "bibleVerse"]
+        s.objectStartNumbers = [1, 16]
+        s.objectXs = [220, 220]
+        s.objectYs = [300, 470]
+        s.objectScales = [1, 1]
+        s.objectRotations = [0, 0]
+        s.objectHeights = [17.5, 270]
+        s.objectLocks = [true, true]
+        return s
+    }()
+    /// §20.5 bible-idle-locked — Idle, both objects locked.
+    static let bibleIdleLocked = bibleLocked
+    /// §20.5 bible-highlighting — the scripture in highlighting mode, a range selected.
+    static let bibleHighlighting: Self = {
+        var s = bibleLocked
+        s.editorMode = "highlighting"
+        s.openTool = "highlight"
+        s.highlightingObjectID = "scripture"
+        s.highlightIDs = ["h1"]
+        s.highlightObjects = [1]
+        s.highlightStarts = [78]
+        s.highlightEnds = [117]
+        s.selectedHighlightID = "h1"
+        return s
+    }()
+    /// §21.5 bible-tall — John 3:1–36 laid out by the page, the citation below verse 36, on a
+    /// page that scrolls; the gradient fills the whole page. §21.5 says ≈ 2400: at serif 18 pt
+    /// ×1.4 the 36 verses measure ≈ 2720 wu, so the page is 3000 to keep the citation on it.
+    static let bibleTall: Self = {
+        var s = base
+        s.isBible = true
+        s.showsHighlightTool = true
+        s.canSave = true
+        s.pageHeight = 3000
+        s.gradient = sampleGradient
+        s.pageColorHex = sampleGradient.base
+        s.objectIDs = ["scripture", "citation"]
+        s.objectTexts = [john3.joined(separator: "\n"), "John 3:1-36 KJV"]
+        s.objectFonts = ["serif", "sans"]
+        s.objectColors = [white, white]
+        s.objectWeights = ["regular", "medium"]
+        s.objectSizes = [18, 14]
+        s.objectAlignments = ["left", "left"]
+        s.objectListStyles = ["bibleVerse", ""]
+        s.objectStartNumbers = [1, 1]
+        s.objectXs = [220, 220]
+        s.objectYs = [1480, 2880]
+        s.objectScales = [1, 1]
+        s.objectRotations = [0, 0]
+        s.objectWidths = [392, 392]
+        s.objectHeights = [2720, 17.5]
+        s.objectLocks = [true, true]
+        s.objectPageLaidOut = [true, true]
+        return s
+    }()
+    /// §21.5 bible-style-panel — the Font tool open on a bible activity: the eight-tool row, the
+    /// face strip and the weight chips (§23.3).
+    static let bibleStylePanel: Self = {
+        var s = bibleLocked
+        s.isBible = true
+        s.editorMode = "editing"
+        s.editingIndex = 1
+        s.openTool = "font"
+        s.objectYs = [140, 300]
+        s.objectWidths = [392, 392]
+        s.objectPageLaidOut = [true, true]
+        return s
+    }()
+    /// §22.4 bible-idle-style-panel — a bible activity in Idle with the Bible style panel open:
+    /// no object selected, the eight-tool row above the chips rail.
+    static let bibleIdleStylePanel: Self = {
+        var s = bibleLocked
+        s.openTool = "font"
+        s.objectYs = [140, 300]
+        s.objectWidths = [392, 392]
+        s.objectPageLaidOut = [true, true]
+        return s
+    }()
+    /// §23.7 bible-toolbar — Idle on a bible activity: the eight-tool row above the chips rail.
+    static let bibleToolbar: Self = {
+        var s = bibleLocked
+        s.bibleColor = white
+        s.bibleAlignment = "left"
+        s.objectYs = [140, 300]
+        s.objectWidths = [392, 392]
+        s.objectPageLaidOut = [true, true]
+        return s
+    }()
+    /// §25.4 toolbar-dark-on-light — a white solid page: the tool bar takes `.dark`.
+    static let toolbarDarkOnLight: Self = {
+        var s = bibleToolbar
+        s.backgroundOption = "colour"
+        s.gradient = nil
+        s.pageColorHex = "#FFFFFF"
+        s.objectColors = ["#000000", "#000000"]
+        s.bibleColor = "#000000"
+        s.toolbarTone = .dark
+        return s
+    }()
+    /// §25.4 toolbar-light-on-dark — a dark solid page: the tool bar keeps `.light`.
+    static let toolbarLightOnDark: Self = {
+        var s = bibleToolbar
+        s.backgroundOption = "colour"
+        s.gradient = nil
+        s.pageColorHex = "#141F6B"
+        s.toolbarTone = .light
+        return s
+    }()
+    /// §23.7 bible-align-panel — Align open in Idle: the horizontal, vertical and verse-number rows.
+    static let bibleAlignPanel: Self = {
+        var s = bibleToolbar
+        s.openTool = "alignment"
+        return s
+    }()
+    /// §23.7 bible-font-panel — Font open in Idle: the face strip and the weight chips only.
+    static let bibleFontPanel: Self = {
+        var s = bibleToolbar
+        s.openTool = "font"
+        return s
+    }()
+    /// §23.7 bible-size-slider — Size open in Idle: its slider docked above the tool row.
+    static let bibleSizeSlider: Self = {
+        var s = bibleToolbar
+        s.openTool = "size"
+        return s
+    }()
+    /// §23.7 / §30.4 bible-vertical-center — John 3:16 on a 956 page, the block (scripture over
+    /// citation) centred between the 143 wu top and 85 wu bottom insets; the container's frames are
+    /// the top-at-143 layout (§30.1).
+    static let bibleVerticalCenter: Self = {
+        var s = bibleToolbar
+        s.objectIDs = ["scripture", "citation"]
+        s.objectTexts = [
+            "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+            "John 3:16 KJV"
+        ]
+        s.objectFonts = ["serif", "sans"]
+        s.objectWeights = ["regular", "medium"]
+        s.objectSizes = [18, 14]
+        s.objectListStyles = ["bibleVerse", ""]
+        s.objectStartNumbers = [16, 1]
+        s.objectYs = [193, 276]
+        s.objectHeights = [100, 17.5]
+        s.bibleVerticalAlignment = "center"
+        return s
+    }()
+    /// §30.4 bible-top-below-header — the same block top-aligned: the scripture starts at 143 wu,
+    /// below the header.
+    static let bibleTopBelowHeader: Self = {
+        var s = bibleVerticalCenter
+        s.bibleVerticalAlignment = "top"
+        return s
+    }()
+    /// §24.4 bible-editing-caption — a bible activity in `.editing` on a caption the leader added:
+    /// the text-activity tool row with the per-object alignment rail open (§24.2).
+    static let bibleEditingCaption: Self = {
+        var s = bibleToolbar
+        s.editorMode = "editing"
+        s.openTool = "alignment"
+        s.editingIndex = 2
+        s.objectIDs += ["caption"]
+        s.objectTexts += ["Read it slowly"]
+        s.objectFonts += ["sans"]
+        s.objectColors += [white]
+        s.objectWeights += ["bold"]
+        s.objectSizes += [24]
+        s.objectAlignments += ["center"]
+        s.objectListStyles += [""]
+        s.objectStartNumbers += [1]
+        s.objectXs += [220]
+        s.objectYs += [640]
+        s.objectScales += [1]
+        s.objectRotations += [0]
+        s.objectWidths += [392]
+        s.objectHeights += [30]
+        s.objectLocks += [false]
+        s.objectPageLaidOut += [false]
+        return s
+    }()
+    /// §21.5: John 3:1–36 (KJV), one verse per line.
+    private static let john3: [String] = [
+        "There was a man of the Pharisees, named Nicodemus, a ruler of the Jews:",
+        "The same came to Jesus by night, and said unto him, Rabbi, we know that thou art a teacher come from God: for no man can do these miracles that thou doest, except God be with him.",
+        "Jesus answered and said unto him, Verily, verily, I say unto thee, Except a man be born again, he cannot see the kingdom of God.",
+        "Nicodemus saith unto him, How can a man be born when he is old? can he enter the second time into his mother's womb, and be born?",
+        "Jesus answered, Verily, verily, I say unto thee, Except a man be born of water and of the Spirit, he cannot enter into the kingdom of God.",
+        "That which is born of the flesh is flesh; and that which is born of the Spirit is spirit.",
+        "Marvel not that I said unto thee, Ye must be born again.",
+        "The wind bloweth where it listeth, and thou hearest the sound thereof, but canst not tell whence it cometh, and whither it goeth: so is every one that is born of the Spirit.",
+        "Nicodemus answered and said unto him, How can these things be?",
+        "Jesus answered and said unto him, Art thou a master of Israel, and knowest not these things?",
+        "Verily, verily, I say unto thee, We speak that we do know, and testify that we have seen; and ye receive not our witness.",
+        "If I have told you earthly things, and ye believe not, how shall ye believe, if I tell you of heavenly things?",
+        "And no man hath ascended up to heaven, but he that came down from heaven, even the Son of man which is in heaven.",
+        "And as Moses lifted up the serpent in the wilderness, even so must the Son of man be lifted up:",
+        "That whosoever believeth in him should not perish, but have eternal life.",
+        "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+        "For God sent not his Son into the world to condemn the world; but that the world through him might be saved.",
+        "He that believeth on him is not condemned: but he that believeth not is condemned already, because he hath not believed in the name of the only begotten Son of God.",
+        "And this is the condemnation, that light is come into the world, and men loved darkness rather than light, because their deeds were evil.",
+        "For every one that doeth evil hateth the light, neither cometh to the light, lest his deeds should be reproved.",
+        "But he that doeth truth cometh to the light, that his deeds may be made manifest, that they are wrought in God.",
+        "After these things came Jesus and his disciples into the land of Judaea; and there he tarried with them, and baptized.",
+        "And John also was baptizing in Aenon near to Salim, because there was much water there: and they came, and were baptized.",
+        "For John was not yet cast into prison.",
+        "Then there arose a question between some of John's disciples and the Jews about purifying.",
+        "And they came unto John, and said unto him, Rabbi, he that was with thee beyond Jordan, to whom thou barest witness, behold, the same baptizeth, and all men come to him.",
+        "John answered and said, A man can receive nothing, except it be given him from heaven.",
+        "Ye yourselves bear me witness, that I said, I am not the Christ, but that I am sent before him.",
+        "He that hath the bride is the bridegroom: but the friend of the bridegroom, which standeth and heareth him, rejoiceth greatly because of the bridegroom's voice: this my joy therefore is fulfilled.",
+        "He must increase, but I must decrease.",
+        "He that cometh from above is above all: he that is of the earth is earthly, and speaketh of the earth: he that cometh from heaven is above all.",
+        "And what he hath seen and heard, that he testifieth; and no man receiveth his testimony.",
+        "He that hath received his testimony hath set to his seal that God is true.",
+        "For he whom God hath sent speaketh the words of God: for God giveth not the Spirit by measure unto him.",
+        "The Father loveth the Son, and hath given all things into his hand.",
+        "He that believeth on the Son hath everlasting life: and he that believeth not the Son shall not see life; but the wrath of God abideth on him."
+    ]
     /// §6 Background sheet (D4) over an image, its focal point and wash set.
     static let backgroundSheet: Self = {
         var s = editing(sampleText, tool: "background")
@@ -2852,6 +3924,84 @@ extension ActivitiesEditorScreen.State {
         .frame(width: 440, height: 956, alignment: .top)
 }
 
+#Preview("Bible idle locked") {
+    ActivitiesEditorScreen(state: .bibleIdleLocked)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Bible highlighting") {
+    ActivitiesEditorScreen(state: .bibleHighlighting)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Bible tall") {
+    ActivitiesEditorScreen(state: .bibleTall)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Bible style panel") {
+    ActivitiesEditorScreen(state: .bibleStylePanel)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Bible idle style panel") {
+    ActivitiesEditorScreen(state: .bibleIdleStylePanel)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Bible toolbar") {
+    ActivitiesEditorScreen(state: .bibleToolbar)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Toolbar dark on light") {
+    ActivitiesEditorScreen(state: .toolbarDarkOnLight)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Toolbar light on dark") {
+    ActivitiesEditorScreen(state: .toolbarLightOnDark)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Bible align panel") {
+    ActivitiesEditorScreen(state: .bibleAlignPanel)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Bible font panel") {
+    ActivitiesEditorScreen(state: .bibleFontPanel)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Bible size slider") {
+    ActivitiesEditorScreen(state: .bibleSizeSlider)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Bible vertical center") {
+    ActivitiesEditorScreen(state: .bibleVerticalCenter)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
+#Preview("Bible editing caption") {
+    ActivitiesEditorScreen(state: .bibleEditingCaption)
+        .safeAreaPadding(.top, 59)
+        .frame(width: 440, height: 956, alignment: .top)
+}
+
 #Preview("Idle-long") {
     ActivitiesEditorScreen(state: .idleLong)
         .safeAreaPadding(.top, 59)
@@ -2933,16 +4083,31 @@ extension ActivitiesEditorScreen.State {
 // MARK: - §15.1 (D29): the floating controls' material
 
 private extension View {
-    /// §15.1: the dark blur material behind one floating control (or the tool-row container),
-    /// blurring the canvas behind it. FLAGGED LITERAL — the system dark ultra-thin material; no
-    /// `material` token family exists. The dark scheme is scoped to the material, not the control.
+    /// §15.1: the blur material behind one floating control (or the tool-row container),
+    /// blurring the canvas behind it. FLAGGED LITERAL — the system ultra-thin material; no
+    /// `material` token family exists. §26.3 (D38): tone `.dark` → the LIGHT material (dark glyphs
+    /// on a light blur); `.light` → today's dark one. The scheme is scoped to the material only.
     func floatingControlMaterial(cornerRadius: CGFloat) -> some View {
-        background {
+        modifier(FloatingControlMaterial(cornerRadius: cornerRadius))
+    }
+}
+
+private struct FloatingControlMaterial: ViewModifier {
+    let cornerRadius: CGFloat
+    @Environment(\.editorToolbarTone) private var tone
+
+    func body(content: Content) -> some View {
+        content.background {
             RoundedRectangle(cornerRadius: cornerRadius)
                 .fill(.ultraThinMaterial)
-                .environment(\.colorScheme, .dark)
+                .environment(\.colorScheme, tone == .dark ? .light : .dark)
         }
     }
+}
+
+private extension EnvironmentValues {
+    /// §26.3 (D38): the screen's `toolbarTone`, for the floating controls' backing.
+    @Entry var editorToolbarTone: ToolbarTone = .light
 }
 
 // MARK: - §18 (D32, D33): snapping — pure static functions
@@ -3166,6 +4331,10 @@ struct CanvasManipulation: UIViewRepresentable {
         var scale: CGFloat = 1
         /// `rotate`: radians since the rotation began.
         var rotation: Double = 0
+        /// `move`: how many fingers the pan is tracking (§31.2: a second finger rules out delete).
+        var touches: Int = 1
+        /// The recognizer was cancelled or failed rather than ending with the fingers up (§31.4).
+        var cancelled = false
     }
 
     /// Whether a touch at this point (in this view) is on the canvas.
@@ -3275,7 +4444,9 @@ struct CanvasManipulation: UIViewRepresentable {
             let moved = recognizer.translation(in: view)
             source?.onUpdate(.init(phase: phase, kind: .move,
                                    translation: CGSize(width: moved.x, height: moved.y),
-                                   location: recognizer.location(in: view)))
+                                   location: recognizer.location(in: view),
+                                   touches: recognizer.numberOfTouches,
+                                   cancelled: recognizer.state == .cancelled || recognizer.state == .failed))
         }
 
         @objc private func handlePinch(_ recognizer: UIPinchGestureRecognizer) {

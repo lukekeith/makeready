@@ -51,6 +51,80 @@ final class ActivityViewerMapperTests: XCTestCase {
         XCTAssertEqual(proxyOnly.top, 59)
     }
 
+    /// A D10-shaped scripture page: numbered from 16, one highlight, and the `reference` the object quotes.
+    private static let bibleDoc: ActivityDocument = {
+        let json = ##"{"schemaVersion":1,"kind":"bible","background":{"color":"#0E4A4D"},"content":{"type":"canvas","verticalAnchor":"top","objects":[{"id":"s1","role":"scripture","text":"For God so loved the world\nthat he gave his only begotten Son","font":"serif","weight":400,"size":18,"color":"#FFFFFF","alignment":"left","listStyle":"bibleVerse","startNumber":16,"reference":{"start":{"book":43,"chapter":3,"verse":16},"end":{"book":43,"chapter":3,"verse":17},"translation":"ENGKJV"},"highlights":[{"id":"h1","start":4,"end":7}],"transform":{"x":220,"y":200,"width":376,"scale":1,"rotation":0}}]},"actions":[]}"##
+        return try! JSONDecoder.apiDecoder.decode(ActivityDocument.self, from: Data(json.utf8))
+    }()
+
+    /// D10: the player maps a scripture object with its verse numbers and highlights but WITHOUT a `reference`
+    /// channel — the state has no per-object reference, so C-092 draws no second citation line.
+    func testThePlayerNeverDrawsTheScriptureReference() {
+        let a = ContentActivity(id: "a0", lessonVersionId: "v1", activityKey: "k0", position: 0, kind: "bible",
+                                title: "T", document: Self.bibleDoc, estimatedSeconds: nil)
+        let s = ActivityViewerMapper.state(payload: .payload([a], media: [:]), engine: .fixture(pages: 2),
+                                           viewport: 440, playback: .idle)
+        XCTAssertEqual(s.objectListStyles, ["bibleVerse"])
+        XCTAssertEqual(s.objectStartNumbers, [16])
+        XCTAssertEqual(s.highlightObjects, [0])
+        XCTAssertTrue(s.pageReferences.allSatisfy { $0.isEmpty }, "the scripture's reference must not reach the page's reference line")
+    }
+
+    /// D29: a whole chapter's page is taller than the screen.
+    func testAWholeChapterPageIsTallerThanTheScreen() {
+        XCTAssertGreaterThan(ActivityViewerMapper.page(for: BibleEditorTests.john3AllDoc)?.height ?? 0, 956)
+        XCTAssertEqual(ActivityViewerMapper.page(for: BibleEditorTests.bibleDoc)?.height, 956)
+        XCTAssertNil(ActivityViewerMapper.page(for: ActivityNewContainer.textDocument(title: "T")))
+    }
+
+    /// D26/D29/D30: the player gets a `bible` page with its height, laid-out flags and the page's own placement.
+    func testThePlayerMapsATallBiblePage() {
+        let a = ContentActivity(id: "a0", lessonVersionId: "v1", activityKey: "k0", position: 0, kind: "bible",
+                                title: "T", document: BibleEditorTests.john3AllDoc, estimatedSeconds: nil)
+        let s = ActivityViewerMapper.state(payload: .payload([a], media: [:]), engine: .fixture(pages: 2),
+                                           viewport: 440, playback: .idle)
+        XCTAssertEqual(s.pageKinds, ["bible", "end"])
+        XCTAssertGreaterThan(s.pageHeights[0], 956)
+        XCTAssertEqual(s.pageHeights[1], 956)
+        XCTAssertEqual(s.objectPageLaidOut, [true, false], "D34: only the scripture is page-laid-out")
+        XCTAssertEqual(s.objectXs, [220, 220])
+        XCTAssertLessThan(s.objectYs[1], s.objectYs[0], "D34: the reference is drawn from its own transform, above the passage")
+        XCTAssertEqual(s.objectYs[1], BibleEditorTests.john3AllDoc.textObjects[1].transform.y)
+        let placed = ActivityViewerMapper.page(for: BibleEditorTests.john3AllDoc)
+        XCTAssertEqual(s.pageHeights[0], placed?.height)
+    }
+
+    /// D26/D27/D28: the player is handed the scripture's line height, verse-number mode and padding, so it draws the
+    /// passage the way the editor and the thumbnail do; the citation carries its own (no verse numbers).
+    func testThePlayerGetsTheScriptureLayoutInputs() {
+        let a = ContentActivity(id: "a0", lessonVersionId: "v1", activityKey: "k0", position: 0, kind: "bible",
+                                title: "T", document: BibleEditorTests.bibleDoc, estimatedSeconds: nil)
+        let s = ActivityViewerMapper.state(payload: .payload([a], media: [:]), engine: .fixture(pages: 2),
+                                           viewport: 440, playback: .idle)
+        XCTAssertEqual(s.objectVerseNumbers.first, .gutter)
+        XCTAssertEqual(s.objectLineHeights.first, 1.4)
+        XCTAssertEqual(s.objectInsets.first, 32)
+        XCTAssertEqual(s.objectLineHeights.count, s.objectTexts.count)
+        XCTAssertEqual(s.objectInsets.count, s.objectTexts.count)
+    }
+
+    /// D30: the engine scrolls inside a tall page — its height in points is the layout's, scaled to the viewport.
+    func testTheEngineSeesATallPageAsTall() {
+        let a = ContentActivity(id: "a0", lessonVersionId: "v1", activityKey: "k0", position: 0, kind: "bible",
+                                title: "T", document: BibleEditorTests.john3AllDoc, estimatedSeconds: nil)
+        let heights = ActivityViewerMapper.pageHeights(.payload([a], media: [:]), size: CGSize(width: 440, height: 956))
+        XCTAssertEqual(heights[0], ActivityViewerMapper.page(for: BibleEditorTests.john3AllDoc)?.height ?? 0, accuracy: 0.5)
+        XCTAssertEqual(heights[1], 956)
+    }
+
+    /// D30: a short Bible page is exactly the viewport (no in-page scroll to swallow the first paging swipe).
+    func testAShortBiblePageIsTheViewportTall() {
+        let a = ContentActivity(id: "a0", lessonVersionId: "v1", activityKey: "k0", position: 0, kind: "bible",
+                                title: "T", document: BibleEditorTests.bibleDoc, estimatedSeconds: nil)
+        let heights = ActivityViewerMapper.pageHeights(.payload([a], media: [:]), size: CGSize(width: 393, height: 852))
+        XCTAssertEqual(heights[0], 852, accuracy: 0.5)
+    }
+
     /// text-activity-v2 D1/D14: a visible gradient reaches the page's background; a hidden one doesn't.
     func testAVisibleGradientReachesThePage() {
         var rng = SeededRandom(seed: 11)
@@ -63,6 +137,37 @@ final class ActivityViewerMapperTests: XCTestCase {
         }
         XCTAssertEqual(gradients(doc).first??.blobs.count, 4)
         XCTAssertNil(gradients(ActivitiesEditorMapper.choosingColour("#123456", in: doc)).first ?? nil)
+    }
+
+    // MARK: D32 — vertical alignment
+
+    private static func centered(_ doc: ActivityDocument, _ value: String = "center") -> ActivityDocument {
+        doc.updating { $0[path: ["content", "objects", .index(0), "verticalAlignment"]] = .string(value) }
+    }
+    static var john316Centered: ActivityDocument { centered(BibleEditorTests.bibleDoc) }
+    static var john3AllCentered: ActivityDocument { centered(BibleEditorTests.john3AllDoc) }
+
+    /// D32: centre moves a short passage down the page, but a page taller than 956 has no slack and reads top.
+    func testCenterMovesAShortPassageButNotATallOne() {
+        let short = Self.john316Centered, tall = Self.john3AllCentered, plain = BibleEditorTests.bibleDoc
+        XCTAssertGreaterThan(ActivityViewerMapper.page(for: short)?.scriptureTop ?? 0, 143)
+        XCTAssertEqual(ActivityViewerMapper.page(for: tall)?.scriptureTop, 143)
+        XCTAssertEqual(ActivityViewerMapper.page(for: plain)?.scriptureTop, 143)
+    }
+
+    /// D32: bottom puts the block's last line 96 above the page's bottom; the player and thumbnail place it there.
+    func testBottomAndCenterPlaceThePlayerAndThumbnailBlock() throws {
+        let plain = BibleEditorTests.bibleDoc, centered = Self.john316Centered
+        let bottomDoc = Self.centered(plain, "bottom")
+        let top = try XCTUnwrap(ActivityViewerMapper.page(for: plain))
+        let block = top.scripture.height
+        let bottom = try XCTUnwrap(ActivityViewerMapper.page(for: bottomDoc))
+        XCTAssertEqual(bottom.scriptureTop + block, 956 - 85, accuracy: 0.5)
+        let middle = try XCTUnwrap(ActivityViewerMapper.page(for: centered))
+        XCTAssertEqual(middle.scriptureTop, 143 + (956 - 143 - 85 - block) / 2, accuracy: 0.5)
+        let placed = BibleScripture.placed(centered).objects
+        XCTAssertEqual(placed[0].transform.y - middle.scripture.height / 2, middle.scriptureTop, accuracy: 0.5)
+        XCTAssertEqual(ActivityThumbnail.objects(for: centered).count, 2)
     }
 }
 

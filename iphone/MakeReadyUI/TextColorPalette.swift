@@ -46,6 +46,13 @@ struct TextColorPalette: View {
     /// material behind each swatch, for a palette floating over a canvas. Defaults off — every
     /// other palette draws exactly as before.
     var swatchMaterial: Bool = false
+    /// C-094 §4 `toolbarTone` (activities-editor §27, D38) — the chrome's paint over a LIGHT
+    /// page. `.light` (default) is today's paint. `.dark`: the C-095 well's ring, the C-097 dots
+    /// and the selected swatch's outline in `color-black`; the swatch colours and the well's fill
+    /// never change. C-095 / C-097 / C-096 take no tone input yet, so the palette paints their
+    /// chrome in the tone itself (§4): a black ring and outline over theirs, the dots multiplied
+    /// to black. With `swatchMaterial` the backing is the LIGHT material (§26.3).
+    var toolbarTone: ToolbarTone = .light
 
     /// R-02: the swipe's finger-tracked offset is an animation phase, never a prop. It settles
     /// back on release with the ruled slide (OQ-C-094-002).
@@ -74,6 +81,10 @@ struct TextColorPalette: View {
         /// FLAGGED LITERAL — C-094 §2 (owner ruling 2026-11-09): the rubber-band damping for a
         /// drag past the first or last page (UIScrollView's 0.55 coefficient), no token.
         static let rubberBand: CGFloat = 0.55
+        /// FLAGGED LITERAL — C-095 §1 deviation 3: the well's 2pt ring, repainted in the tone.
+        static let wellRing: CGFloat = 2
+        /// FLAGGED LITERAL — C-096 §2: the selected swatch's 2pt outline, repainted in the tone.
+        static let swatchOutline: CGFloat = 2
     }
 
     private var pageCount: Int { swatches.count }
@@ -102,6 +113,9 @@ struct TextColorPalette: View {
             // C-097 is not instantiated, so neither the 8pt gap nor the 8pt row is reserved (50pt).
             if pageCount > 1 {
                 PageIndicator(pageCount: pageCount, page: shownPage)    // C-097, §5
+                    // §4 toolbarTone `.dark`: the white dots multiplied to `color-black`, each
+                    // keeping C-097's own opacity (current opaque, the rest at its 20%).
+                    .colorMultiply(toolbarTone == .dark ? Token.black : Token.white100)
                     .ui2Element("Page dots")
             }
         }
@@ -115,6 +129,14 @@ struct TextColorPalette: View {
         HStack(spacing: Geometry.rowGap) {
             if showsWell {
                 ColorPickerWell(color: currentColor, onTap: onWellTap)  // C-095, §5
+                    .overlay {
+                        if toolbarTone == .dark {
+                            // §4 toolbarTone `.dark`: C-095's 2pt ring in `color-black`, drawn
+                            // over its white one (FLAGGED LITERAL — C-095 §1 deviation 3: 2pt).
+                            Circle().strokeBorder(Token.black, lineWidth: Geometry.wellRing)
+                                .allowsHitTesting(false)
+                        }
+                    }
                     .ui2Element("Well")
             }
             presets(swatchGap: swatchGap)
@@ -178,6 +200,15 @@ struct TextColorPalette: View {
                         selected: swatch.color == currentColor,
                         onTap: { onSelect(swatch.color) }
                     )
+                    .overlay {
+                        if toolbarTone == .dark && swatch.color == currentColor {
+                            // §4 toolbarTone `.dark`: C-096's 2pt selected outline in
+                            // `color-black`, drawn over its white one (FLAGGED LITERAL — C-096 §2: 2pt).
+                            RoundedRectangle(cornerRadius: Token.Radius.cardSm)
+                                .strokeBorder(Token.black, lineWidth: Geometry.swatchOutline)
+                                .allowsHitTesting(false)
+                        }
+                    }
                     .background {
                         if swatchMaterial {
                             // FLAGGED LITERAL — activities-editor §15.1: the system dark
@@ -185,7 +216,7 @@ struct TextColorPalette: View {
                             // `radius-card-sm` tile shape.
                             RoundedRectangle(cornerRadius: Token.Radius.cardSm)
                                 .fill(.ultraThinMaterial)
-                                .environment(\.colorScheme, .dark)
+                                .environment(\.colorScheme, toolbarTone == .dark ? .light : .dark)
                         }
                     }
                     .ui2Element("Swatch \(slot + 1)")

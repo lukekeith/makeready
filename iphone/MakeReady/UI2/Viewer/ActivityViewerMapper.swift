@@ -172,6 +172,11 @@ enum ActivityViewerMapper {
             let inline = document.actions.filter { $0.placement == .inline }.count
             let extent: ClosedRange<CGFloat>?
             let anchor: ActivityCanvas<AnyView>.VerticalAnchor
+            // D29/D30: a page-laid-out `bible` page taller than the 956 reference is as tall as its layout and the
+            // engine scrolls inside it; a page at the floor is a normal canvas page (it never scrolls in-page).
+            if let layout = BibleScripture.layout(of: document), layout.height > Double(referenceHeight) {
+                return max(layout.height * Double(unit), Double(size.height))
+            }
             switch document.renderable {
             case .canvas(let canvas):
                 extent = contentExtent(objects: objects(canvas: canvas, raw: document.raw), write: false,
@@ -230,6 +235,18 @@ enum ActivityViewerMapper {
         return Double(ceil(box.height)) + (labeled ? 2 * Layout.labelPaddingY : 0)
     }
 
+    /// The face C-092 draws a font key and weight (400 · 500 · 700) in, for measuring a page-laid-out scripture.
+    static func measuringFont(key: String, weight: Int, size: Double) -> UIFont {
+        uiFont(key: key, weight: ActivitiesEditorMapper.weightName(weight), size: size)
+    }
+
+    // MARK: - Bible pages (D26, D29, D30)
+
+    /// A `bible` document's page as the page lays it out; nil for any document that is not page-laid-out.
+    static func page(for document: ActivityDocument) -> BibleScripture.PageLayout? {
+        BibleScripture.layout(of: document)
+    }
+
     // MARK: - Internals
 
     /// `ActivitiesPlayerScreen` §2's flagged literals that the page height depends on, in wu unless
@@ -273,9 +290,16 @@ enum ActivityViewerMapper {
         let document = activity.document
         switch document.renderable {
         case .canvas(let canvas):
-            s.pageKinds.append("canvas")
-            s.appendPage(background: document.background, media: media, verticalAnchor: canvas.verticalAnchor)
-            for (object, raw) in zip(canvas.objects, rawObjects(document.raw)) { s.appendObject(object, raw: raw, page: index) }
+            // D26/D29: a `bible` page's scripture is placed by the page, and the page is as tall as it needs; the reference keeps its own transform (D34).
+            let placed = BibleScripture.placed(document)
+            let laidOut = placed.layout
+            s.pageKinds.append(laidOut == nil ? "canvas" : "bible")
+            s.appendPage(background: document.background, media: media, verticalAnchor: canvas.verticalAnchor,
+                         height: laidOut?.height ?? referenceHeight)
+            for (position, (object, raw)) in zip(laidOut == nil ? canvas.objects : placed.objects, rawObjects(document.raw)).enumerated() {
+                s.appendObject(object, raw: raw, page: index,
+                               pageLaidOut: position == laidOut?.scriptureIndex)
+            }
         case .write(let write):
             s.pageKinds.append("write")
             s.appendPage(background: document.background, media: media, placeholder: write.placeholder ?? "")
@@ -358,7 +382,9 @@ enum ActivityViewerMapper {
 
 private extension ActivitiesPlayerScreen.State {
     mutating func appendPage(title: String = "", body: String = "", background: ActivityBackground,
-                             media: [String: MediaMapEntry], verticalAnchor: String = "center", placeholder: String = "") {
+                             media: [String: MediaMapEntry], verticalAnchor: String = "center", placeholder: String = "",
+                             height: Double = ActivityViewerMapper.referenceHeight) {
+        pageHeights.append(height)
         pageColorHexes.append(background.color)
         pageGradients.append(ActivityThumbnail.canvasGradient(background.gradient))
         pageImageURLs.append(background.image.flatMap { media[$0.mediaId]?.url } ?? "")
@@ -401,13 +427,22 @@ private extension ActivitiesPlayerScreen.State {
     }
 
     /// One C-092 object, its marks and highlights (UTF-16 offsets, passed as stored — 02 §3).
-    mutating func appendObject(_ object: TextObject, raw: JSONValue, page: Int) {
+    mutating func appendObject(_ object: TextObject, raw: JSONValue, page: Int, pageLaidOut: Bool = false) {
         let index = objectTexts.count
         func string(_ key: String, _ fallback: String) -> String {
             if case .string(let value)? = raw[path: [.key(key)]] { return value }
             return fallback
         }
         objectPages.append(page)
+        objectPageLaidOut.append(pageLaidOut)
+        // D26/D27/D28: the player lays a page-laid-out passage out the way the editor does; other objects keep today's drawing.
+        objectLineHeights.append(pageLaidOut ? CGFloat(object.lineHeight) : nil)
+        switch pageLaidOut ? object.verseNumbers : nil {
+        case .gutter?: objectVerseNumbers.append(.gutter)
+        case .hidden?: objectVerseNumbers.append(.hidden)
+        default: objectVerseNumbers.append(.inline)
+        }
+        objectInsets.append(pageLaidOut ? object.inset.map { CGFloat($0) } : nil)
         objectTexts.append(object.text)
         objectFonts.append(ActivitiesEditorMapper.fontKey(object.font))
         objectColors.append(object.color)

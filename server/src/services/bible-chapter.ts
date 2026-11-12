@@ -15,6 +15,10 @@ import * as apiBible from './api-bible.js'
 import * as bibleCache from './bible-cache.js'
 import { buildChapterId, buildVerseId } from '../utils/bible-id-map.js'
 import { parseChapterContent } from '../utils/bible-content-parser.js'
+import { normalizeVerseText } from '../utils/verse-text.js'
+
+/** Bump to retire cached chapters whose text predates the current normalization. */
+export const CHAPTER_CACHE_VERSION = 'v2'
 
 export interface ChapterCacheResult {
   verses: { verse: number; text: string }[]
@@ -37,7 +41,7 @@ export async function getChapterVerses(
   options?: { skipCache?: boolean; skipFums?: boolean }
 ): Promise<ChapterCacheResult> {
   const chapterId = buildChapterId(bookId, chapter)
-  const cacheKey = `chapter:${bibleId}:${chapterId}`
+  const cacheKey = `chapter:${CHAPTER_CACHE_VERSION}:${bibleId}:${chapterId}`
 
   if (!options?.skipCache) {
     const cached = await bibleCache.getCached(cacheKey)
@@ -55,7 +59,10 @@ export async function getChapterVerses(
       }
 
       return {
-        verses: JSON.parse(cached.responseJson),
+        verses: (JSON.parse(cached.responseJson) as { verse: number; text: string }[]).map(v => ({
+          ...v,
+          text: normalizeVerseText(v.text),
+        })),
         copyright: cached.copyright,
         fumsToken,
       }
@@ -67,7 +74,10 @@ export async function getChapterVerses(
 
   // Cache miss or refresh — fetch full chapter (1 API call covers all verses)
   const response = await apiBible.getChapter(bibleId, chapterId)
-  const verses = parseChapterContent(response.data.content)
+  const verses = parseChapterContent(response.data.content).map(v => ({
+    ...v,
+    text: normalizeVerseText(v.text),
+  }))
   const copyright = response.data.copyright
   const fumsToken = apiBible.extractFumsToken(response.meta)
 

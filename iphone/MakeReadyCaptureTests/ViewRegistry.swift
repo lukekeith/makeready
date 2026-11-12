@@ -875,25 +875,38 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         // either-shape `CaptureContentOrChildren` (C-091's slot is the other shape); `state`
         // reuses the existing `String?` field under the contract's own name.
         let ui2C052Content: MakeReadyUI.DayChip.Content
-        switch (c.content?.dayChip?.day, c.content?.dayChip?.weekday) {
-        case let (day?, nil):
+        switch (c.content?.dayChip?.day, c.content?.dayChip?.weekday, c.content?.dayChip?.label) {
+        case let (day?, nil, nil):
             ui2C052Content = .day(day)
-        case let (nil, weekday?):
+        case let (nil, weekday?, nil):
             ui2C052Content = .weekday(letter: weekday.letter, name: weekday.name)
+        case let (nil, nil, label?):
+            ui2C052Content = .label(label)
         default:
             throw ViewRegistryError.unknownView(
-                "component.ui2.C-052: props.content must be {\"day\": n} or {\"weekday\": {\"letter\", \"name\"}}"
+                "component.ui2.C-052: props.content must be {\"day\": n}, {\"weekday\": {\"letter\", \"name\"}} or {\"label\": s}"
             )
         }
+        let ui2C052IsLabel: Bool
+        if case .label = ui2C052Content { ui2C052IsLabel = true } else { ui2C052IsLabel = false }
         guard let ui2C052Raw = c.state,
               let ui2C052State = MakeReadyUI.DayChip.State(rawValue: ui2C052Raw) else {
             throw ViewRegistryError.unknownView("component.ui2.C-052: props.state must be Default|Active")
         }
         return declareCase(
-            MakeReadyUI.DayChip(content: ui2C052Content, state: ui2C052State, isEmpty: c.isEmpty ?? false),
-            // C-052 §2 fixes the component's own footprint (40×48 day, 32×32 weekday), so the
-            // call site fixes no width — it supplies the outer margin and the ground only.
-            PreviewFrame(alignment: .leading, intrinsic: true)
+            MakeReadyUI.DayChip(
+                content: ui2C052Content,
+                state: ui2C052State,
+                isEmpty: c.isEmpty ?? false,
+                fillToken: c.fillToken,
+                isUsed: c.isUsed ?? false
+            ),
+            // C-052 §2 fixes the day and weekday footprints (40×48, 32×32), so the call site fixes
+            // no width for them. The label look fills its column (2026-11-10): one 5-column grid
+            // column at 375pt (~60pt) is the width the call site gives it.
+            ui2C052IsLabel
+                ? PreviewFrame(width: 60, alignment: .leading)
+                : PreviewFrame(alignment: .leading, intrinsic: true)
         )
     case "component.ui2.C-057":
         guard let c = fixture.state?.component else {
@@ -3423,9 +3436,22 @@ private func buildCaptureViewPart11(_ fixture: CaptureFixture, authManager: Auth
             // C-139 §2: the host supplies the width, 408 wu (408 × 46 at `unit` 1).
             PreviewFrame(width: 408 * ui2C139Unit)
         )
+    case "component.ui2.C-140":
+        // Out of line for the same stack-frame reason as C-083.
+        return try buildUI2C140(fixture)
     case "screen.2.0.activities-player":
         // Out of line for the same stack-frame reason as C-083.
         return try buildScreenActivitiesPlayer(fixture)
+    case "screen.2.0.bible-reader":
+        // Out of line for the same stack-frame reason as C-083.
+        return try buildScreenBibleReader(fixture)
+    case "screen.2.0.bible-books":
+        // Out of line for the same stack-frame reason as C-083.
+        return try buildScreenBibleBooks(fixture)
+    case "screen.2.0.bible-chapters":
+        return try buildScreenBibleChapters(fixture)
+    case "screen.2.0.bible-verses":
+        return try buildScreenBibleVerses(fixture)
     default:
         return nil
     }
@@ -3469,6 +3495,7 @@ private func buildScreenActivitiesPlayer(_ fixture: CaptureFixture) throws -> An
             pageIndexes: c.pageIndexes ?? [],
             pageKinds: c.pageKinds ?? [],
             inner: c.inner ?? [],
+            pageHeights: c.pageHeights ?? [],                // §3 Tall pages; missing = 956
             pageColorHexes: c.pageColorHexes ?? [],
             pageImageURLs: c.pageImageURLs ?? [],
             pageImageFocalXs: c.pageImageFocalXs ?? [],
@@ -3507,6 +3534,17 @@ private func buildScreenActivitiesPlayer(_ fixture: CaptureFixture) throws -> An
             objectRotations: c.objectRotations ?? [],
             objectWidths: c.objectWidths ?? [],
             objectHeights: c.objectHeights ?? [],
+            objectPageLaidOut: c.objectPageLaidOut ?? [],    // §3 Tall pages (the editor's key)
+            // §3 Bible layout: line height, verse numbers and inset, per object.
+            objectLineHeights: (c.objectLineHeights ?? []).map { $0.map { CGFloat($0) } },
+            objectVerseNumbers: (c.objectVerseNumbers ?? []).map { name -> MakeReadyUI.CanvasTextObject.VerseNumbers in
+                switch name {
+                case "gutter": return .gutter
+                case "hidden": return .hidden
+                default: return .inline
+                }
+            },
+            objectInsets: (c.objectInsets ?? []).map { $0.map { CGFloat($0) } },
             markObjects: c.markObjects ?? [],
             markStarts: c.markStarts ?? [],
             markEnds: c.markEnds ?? [],
@@ -3999,6 +4037,7 @@ private func buildScreenActivitiesEditor(_ fixture: CaptureFixture) throws -> An
             actionBodies: c.actionBodies ?? sample.actionBodies,
             centerGuide: c.centerGuide ?? sample.centerGuide,
             deleteTargetShown: c.deleteTargetShown ?? sample.deleteTargetShown,
+            deleteTargetArmed: c.deleteTargetArmed ?? sample.deleteTargetArmed,
             saving: c.saving ?? sample.saving,
             saveFailed: c.saveFailed ?? sample.saveFailed,
             loadFailed: c.loadFailed ?? sample.loadFailed,
@@ -4016,7 +4055,24 @@ private func buildScreenActivitiesEditor(_ fixture: CaptureFixture) throws -> An
             readOnlyTitle: c.readOnlyTitle ?? sample.readOnlyTitle,
             readOnlyPosterURL: readOnlyPosterURL,
             sliderDocked: c.sliderDocked ?? sample.sliderDocked,
-            snapIndex: c.snapIndex ?? sample.snapIndex
+            snapIndex: c.snapIndex ?? sample.snapIndex,
+            objectLocks: c.objectLocks ?? sample.objectLocks,
+            objectIDs: c.objectIDs ?? sample.objectIDs,
+            highlightingObjectID: c.highlightingObjectID ?? sample.highlightingObjectID,
+            pageHeight: c.pageHeight.map { CGFloat($0) } ?? sample.pageHeight,
+            objectPageLaidOut: c.objectPageLaidOut ?? sample.objectPageLaidOut,
+            isBible: c.isBible ?? sample.isBible,
+            bibleFace: c.bibleFace ?? sample.bibleFace,
+            bibleWeight: c.bibleWeight ?? sample.bibleWeight,
+            bibleSize: c.bibleSize.map { CGFloat($0) } ?? sample.bibleSize,
+            bibleLineHeight: c.bibleLineHeight.map { CGFloat($0) } ?? sample.bibleLineHeight,
+            bibleInset: c.bibleInset.map { CGFloat($0) } ?? sample.bibleInset,
+            bibleVerseNumbers: c.bibleVerseNumbers ?? sample.bibleVerseNumbers,
+            bibleColor: c.bibleColor ?? sample.bibleColor,
+            bibleAlignment: c.bibleAlignment ?? sample.bibleAlignment,
+            bibleVerticalAlignment: c.bibleVerticalAlignment ?? sample.bibleVerticalAlignment,
+            toolbarTone: c.toolbarTone.flatMap(MakeReadyUI.ToolbarTone.init(rawValue:))
+                ?? sample.toolbarTone
         )
     )
     .safeAreaPadding(.top, device.safeArea.top)
@@ -4556,9 +4612,19 @@ private func buildUI2C085(_ fixture: CaptureFixture) throws -> AnyView {
     }
     // C-085 §4: `kind`, `title` and `trailing` are required (R-07), so a nil is a fixture bug;
     // `description` and `imageURL` default to nil. `onTap` / `onRemove` are no-ops in a still capture.
-    guard let ui2C085Kind = c.kind.flatMap(MakeReadyUI.SearchResultRow.Kind.init(rawValue:)) else {
+    // `book` carries its §4 `dotToken` (a colour token's member name), so it is built from
+    // `props.dotToken`; every plain case decodes by name.
+    let ui2C085Kind: MakeReadyUI.SearchResultRow.Kind
+    if c.kind == "book" {
+        guard let dotToken = c.dotToken else {
+            throw ViewRegistryError.unknownView("component.ui2.C-085: kind book needs props.dotToken")
+        }
+        ui2C085Kind = .book(dotToken: dotToken)
+    } else if let kind = c.kind.flatMap(MakeReadyUI.SearchResultRow.Kind.init(rawValue:)) {
+        ui2C085Kind = kind
+    } else {
         throw ViewRegistryError.unknownView(
-            "component.ui2.C-085: props.kind must be member|media|program|group|lesson|event|post|photo")
+            "component.ui2.C-085: props.kind must be member|media|program|group|lesson|event|post|photo|book|verse")
     }
     guard let ui2C085Title = c.title else {
         throw ViewRegistryError.unknownView("component.ui2.C-085: props.title is required")
@@ -4940,6 +5006,14 @@ private func buildUI2C092(_ fixture: CaptureFixture) throws -> AnyView {
     case let other?:
         throw ViewRegistryError.unknownView("component.ui2.C-092: props.listStyle \"\(other)\" must be none|bullet|numbered|bibleVerse")
     }
+    let ui2C092VerseNumbers: MakeReadyUI.CanvasTextObject.VerseNumbers
+    switch c.verseNumbers {
+    case nil, "inline": ui2C092VerseNumbers = .inline
+    case "gutter": ui2C092VerseNumbers = .gutter
+    case "hidden": ui2C092VerseNumbers = .hidden
+    case let other?:
+        throw ViewRegistryError.unknownView("component.ui2.C-092: props.verseNumbers \"\(other)\" must be gutter|hidden|inline")
+    }
     let ui2C092AnimationKind: MakeReadyUI.CanvasTextObject.Animation.Kind
     switch c.animation {
     case nil, "none": ui2C092AnimationKind = .none
@@ -4961,8 +5035,13 @@ private func buildUI2C092(_ fixture: CaptureFixture) throws -> AnyView {
     }
     let ui2C092Reference = c.reference.map { r in
         MakeReadyUI.CanvasTextObject.Reference(
-            start: .init(book: r.start.book, chapter: r.start.chapter, verse: r.start.verse),
-            end: r.end.map { .init(book: $0.book, chapter: $0.chapter, verse: $0.verse) }
+            start: .init(
+                book: r.start.book, chapter: r.start.chapter, verse: r.start.verse,
+                isPartial: r.start.isPartial ?? false
+            ),
+            end: r.end.map {
+                .init(book: $0.book, chapter: $0.chapter, verse: $0.verse, isPartial: $0.isPartial ?? false)
+            }
         )
     }
     var ui2C092Transform = MakeReadyUI.CanvasTextObject.Transform.identity
@@ -4980,7 +5059,7 @@ private func buildUI2C092(_ fixture: CaptureFixture) throws -> AnyView {
     let ui2C092Start = c.animationElapsed.map { Date().addingTimeInterval(-$0) }
     // A committed object's scale and rotation draw outside its layout box (§2 Transform); the
     // call site gives the turned block room so the capture does not clip it.
-    let ui2C092Turned = !ui2C092Editing && ui2C092Transform != .identity
+    let ui2C092Turned = !ui2C092Editing && !(c.pageLaidOut ?? false) && ui2C092Transform != .identity
     return declareCase(
         MakeReadyUI.CanvasTextObject(
             text: ui2C092Text,
@@ -4988,18 +5067,23 @@ private func buildUI2C092(_ fixture: CaptureFixture) throws -> AnyView {
             font: ui2C092Font,
             weight: ui2C092Weight,
             size: CGFloat(ui2C092Size),
+            lineHeight: c.lineHeight.map { CGFloat($0) },
             color: ui2C092Color,
             alignment: ui2C092Alignment,
             label: ui2C092Label,
             listStyle: ui2C092ListStyle,
             startNumber: c.startNumber ?? 1,
+            verseNumbers: ui2C092VerseNumbers,
             reference: ui2C092Reference,
             marks: ui2C092Marks,
             animation: .init(kind: ui2C092AnimationKind, loop: c.animationLoop ?? false),
             animationStart: ui2C092Start,
             effect: ui2C092Effect,
             transform: ui2C092Transform,
+            pageLaidOut: c.pageLaidOut ?? false,
             editing: ui2C092Editing,
+            isLocked: c.isLocked ?? false,
+            isHighlighting: c.isHighlighting ?? false,
             highlights: ui2C092Highlights
         )
         .padding(.vertical, ui2C092Turned ? CGFloat(ui2C092Size) * ui2C092Transform.scale * 1.5 : 0),
@@ -5099,7 +5183,7 @@ private func buildUI2C037(_ fixture: CaptureFixture) throws -> AnyView {
     // C-037 §4 `selection` defaults to `.none` (the list form); "`trailing` must be `none` when
     // `selection ≠ none`", so any other pairing is a fixture bug.
     let ui2C037Selection: MakeReadyUI.ListResultRow.Selection
-    switch c.selection ?? "none" {
+    switch c.selection?.stringValue ?? "none" {
     case "none": ui2C037Selection = .none
     case "unselected": ui2C037Selection = .unselected
     case "selected": ui2C037Selection = .selected
@@ -6311,4 +6395,171 @@ private func buildScreenMediaHome(_ fixture: CaptureFixture) throws -> AnyView {
     // device height (956) less the 59pt top inset it draws. (Was the screen's own minHeight, which
     // on device overflowed the space under the TopNav and pushed the row off screen.)
     .frame(minHeight: 897, alignment: .top))
+}
+
+/// `component.ui2.C-140` — C-140 BibleVerseReader. See the case in `buildCaptureViewPart11`.
+@MainActor @inline(never)
+private func buildUI2C140(_ fixture: CaptureFixture) throws -> AnyView {
+    guard let c = fixture.state?.component else {
+        throw ViewRegistryError.unknownView("component.ui2.C-140: missing state.component")
+    }
+    // C-140 §4 (R-07): every value prop is required, so a nil is a fixture bug — except the two
+    // optionals (`selection`, `scrollToVerse`), whose nil is the contract's "none".
+    guard let heading = c.chapterHeading else {
+        throw ViewRegistryError.unknownView("component.ui2.C-140: props.chapterHeading is required")
+    }
+    guard let verses = c.verses else {
+        throw ViewRegistryError.unknownView("component.ui2.C-140: props.verses is required")
+    }
+    guard let usedRanges = c.usedRanges else {
+        throw ViewRegistryError.unknownView("component.ui2.C-140: props.usedRanges is required")
+    }
+    guard let copyright = c.copyright else {
+        throw ViewRegistryError.unknownView("component.ui2.C-140: props.copyright is required")
+    }
+    guard let hasPrevious = c.hasPreviousChapter, let hasNext = c.hasNextChapter else {
+        throw ViewRegistryError.unknownView("component.ui2.C-140: props.hasPreviousChapter / hasNextChapter are required")
+    }
+    if c.selection != nil && c.selection?.verseSelection == nil {
+        throw ViewRegistryError.unknownView("component.ui2.C-140: props.selection must be a {startVerse, startOffset, endVerse, endOffset} object")
+    }
+    let range = { (s: CaptureUI2VerseSelection) in
+        MakeReadyUI.BibleVerseReader.Selection(
+            startVerse: s.startVerse, startOffset: s.startOffset, endVerse: s.endVerse, endOffset: s.endOffset
+        )
+    }
+    return declareCase(
+        MakeReadyUI.BibleVerseReader(
+            chapterHeading: heading,
+            verses: verses.map { MakeReadyUI.BibleVerseReader.Verse(number: $0.number, text: $0.text) },
+            selection: c.selection?.verseSelection.map(range),
+            usedRanges: usedRanges.map(range),
+            copyright: copyright,
+            scrollToVerse: c.scrollToVerse,
+            hasPreviousChapter: hasPrevious,
+            hasNextChapter: hasNext
+        ),
+        // C-140 §2: the screen insets the reader by `space-page-margin`, so it is 408 wide on the
+        // 440 device; it owns its scroll, so its height is what it is given — the bible-reader
+        // body under its header and chip row, 760 (no contract height; default, unruled).
+        PreviewFrame(width: 408, height: 760)
+    )
+}
+
+/// `screen.2.0.bible-reader` — the Bible reader screen preview. See the case in
+/// `buildCaptureViewPart11`.
+@MainActor @inline(never)
+private func buildScreenBibleReader(_ fixture: CaptureFixture) throws -> AnyView {
+    guard let c = fixture.state?.component else {
+        throw ViewRegistryError.unknownView("screen.2.0.bible-reader: missing state.component")
+    }
+    if c.selection != nil && c.selection?.verseSelection == nil {
+        throw ViewRegistryError.unknownView("screen.2.0.bible-reader: props.selection must be a {startVerse, startOffset, endVerse, endOffset} object")
+    }
+    // A missing field takes this build's `populated` sample (§3's second state), single-sourced
+    // on the screen's State. The canvas is the harness's (CaptureRunner's `screen.*` branch).
+    let sample = MakeReadyUI.BibleReaderScreen.State.populated
+    let range = { (s: CaptureUI2VerseSelection) in
+        MakeReadyUI.BibleVerseReader.Selection(
+            startVerse: s.startVerse, startOffset: s.startOffset, endVerse: s.endVerse, endOffset: s.endOffset
+        )
+    }
+    return AnyView(MakeReadyUI.BibleReaderScreen(
+        state: .init(
+            title: c.title ?? sample.title,
+            translationCode: c.translationCode ?? sample.translationCode,
+            translationLabel: c.translationLabel ?? sample.translationLabel,
+            translationCodes: c.translationCodes ?? sample.translationCodes,
+            translationNames: c.translationNames ?? sample.translationNames,
+            chapterHeading: c.chapterHeading ?? sample.chapterHeading,
+            verses: c.verses.map { $0.map { MakeReadyUI.BibleVerseReader.Verse(number: $0.number, text: $0.text) } }
+                ?? sample.verses,
+            selection: c.selection?.verseSelection.map(range),
+            usedRanges: c.usedRanges.map { $0.map(range) } ?? sample.usedRanges,
+            copyright: c.copyright ?? sample.copyright,
+            scrollToVerse: c.scrollToVerse,
+            hasPreviousChapter: c.hasPreviousChapter ?? sample.hasPreviousChapter,
+            hasNextChapter: c.hasNextChapter ?? sample.hasNextChapter,
+            loading: c.loading ?? sample.loading,
+            failed: c.failed ?? sample.failed,
+            canSelect: c.canSelect ?? sample.canSelect
+        )
+    ))
+}
+
+/// `screen.2.0.bible-books` — the Bible books screen preview. See the case in
+/// `buildCaptureViewPart11`.
+@MainActor @inline(never)
+private func buildScreenBibleBooks(_ fixture: CaptureFixture) throws -> AnyView {
+    guard let c = fixture.state?.component else {
+        throw ViewRegistryError.unknownView("screen.2.0.bible-books: missing state.component")
+    }
+    // A missing field takes this build's `browse` sample (§3's first state), single-sourced on the
+    // screen's State. The canvas is the harness's (CaptureRunner's `screen.*` branch).
+    let sample = MakeReadyUI.BibleBooksScreen.State.browse
+    return AnyView(MakeReadyUI.BibleBooksScreen(
+        state: .init(
+            translationCode: c.translationCode ?? sample.translationCode,
+            translationLabel: c.translationLabel ?? sample.translationLabel,
+            translationCodes: c.translationCodes ?? sample.translationCodes,
+            translationNames: c.translationNames ?? sample.translationNames,
+            query: c.query ?? sample.query,
+            searchFocused: c.searchFocused ?? sample.searchFocused,
+            oldTestamentNumbers: c.oldTestamentNumbers ?? sample.oldTestamentNumbers,
+            oldTestamentLabels: c.oldTestamentLabels ?? sample.oldTestamentLabels,
+            oldTestamentFills: c.oldTestamentFills ?? sample.oldTestamentFills,
+            newTestamentNumbers: c.newTestamentNumbers ?? sample.newTestamentNumbers,
+            newTestamentLabels: c.newTestamentLabels ?? sample.newTestamentLabels,
+            newTestamentFills: c.newTestamentFills ?? sample.newTestamentFills,
+            usedBooks: c.usedBooks ?? sample.usedBooks,
+            recents: c.recents ?? sample.recents,
+            bookResultNumbers: c.bookResultNumbers ?? sample.bookResultNumbers,
+            bookResultNames: c.bookResultNames ?? sample.bookResultNames,
+            bookResultDescriptions: c.bookResultDescriptions ?? sample.bookResultDescriptions,
+            bookResultFills: c.bookResultFills ?? sample.bookResultFills,
+            verseResultTitles: c.verseResultTitles ?? sample.verseResultTitles,
+            verseResultDescriptions: c.verseResultDescriptions ?? sample.verseResultDescriptions,
+            searching: c.searching ?? sample.searching,
+            searchEmpty: c.searchEmpty ?? sample.searchEmpty
+        )
+    ))
+}
+
+/// `screen.2.0.bible-chapters` — the Bible chapters screen preview. See the case in
+/// `buildCaptureViewPart11`.
+@MainActor @inline(never)
+private func buildScreenBibleChapters(_ fixture: CaptureFixture) throws -> AnyView {
+    guard let c = fixture.state?.component else {
+        throw ViewRegistryError.unknownView("screen.2.0.bible-chapters: missing state.component")
+    }
+    // A missing field takes this build's `populated` sample (§3's only state), single-sourced on
+    // the screen's State. The canvas is the harness's (CaptureRunner's `screen.*` branch).
+    let sample = MakeReadyUI.BibleChaptersScreen.State.populated
+    return AnyView(MakeReadyUI.BibleChaptersScreen(
+        state: .init(
+            title: c.title ?? sample.title,
+            chapterCount: c.chapterCount ?? sample.chapterCount,
+            usedChapters: c.usedChapters ?? sample.usedChapters
+        )
+    ))
+}
+
+/// `screen.2.0.bible-verses` — the Bible verses screen preview. See the case in
+/// `buildCaptureViewPart11`.
+@MainActor @inline(never)
+private func buildScreenBibleVerses(_ fixture: CaptureFixture) throws -> AnyView {
+    guard let c = fixture.state?.component else {
+        throw ViewRegistryError.unknownView("screen.2.0.bible-verses: missing state.component")
+    }
+    // A missing field takes this build's `populated` sample, single-sourced on the screen's
+    // State. The canvas is the harness's (CaptureRunner's `screen.*` branch).
+    let sample = MakeReadyUI.BibleVersesScreen.State.populated
+    return AnyView(MakeReadyUI.BibleVersesScreen(
+        state: .init(
+            title: c.title ?? sample.title,
+            verseCount: c.verseCount ?? sample.verseCount,
+            usedVerses: c.usedVerses ?? sample.usedVerses,
+            loading: c.loading ?? sample.loading
+        )
+    ))
 }

@@ -45,6 +45,16 @@ struct FilterChip: View {
     /// §4 `onSelect` — `type=Button` / `type=Font`: the chip was chosen in its group
     /// (OQ-C-035-5). No render effect.
     let onSelect: () -> Void
+    /// §4 `toolbarTone` (activities-editor §27, D38) — the paint for a chip over a LIGHT page.
+    /// `.light` (default) is every §3a row unchanged. `.dark`: inactive label and chevron
+    /// `color-black`, border `color-black` at 50%; ACTIVE (any type) a `color-black` fill with a
+    /// `color-white-100` label and chevron. Geometry, type and face are unchanged.
+    let toolbarTone: ToolbarTone
+    /// §3c Truncation exception (D55) — `type=Menu` only: the maximum width the chip's row hands
+    /// it. Set, the label is single-line and tail-truncated ("…") so the whole chip fits it, with
+    /// border, chevron and insets unchanged. nil (default — every existing consumer): the label is
+    /// never truncated and the chip hugs it. Ignored by `Button` and `Font`.
+    let maxWidth: CGFloat?
 
     init(
         type: ChipType,
@@ -52,7 +62,9 @@ struct FilterChip: View {
         label: String,
         font: CanvasTextObject.Font? = nil,
         onTap: @escaping () -> Void = {},
-        onSelect: @escaping () -> Void = {}
+        onSelect: @escaping () -> Void = {},
+        toolbarTone: ToolbarTone = .light,
+        maxWidth: CGFloat? = nil
     ) {
         self.type = type
         self.active = active
@@ -60,7 +72,11 @@ struct FilterChip: View {
         self.font = font
         self.onTap = onTap
         self.onSelect = onSelect
+        self.toolbarTone = toolbarTone
+        self.maxWidth = maxWidth
     }
+
+    private var isDark: Bool { toolbarTone == .dark }
 
     // MARK: - Geometry (§2)
 
@@ -81,6 +97,8 @@ struct FilterChip: View {
         static let fontLabelBox: CGFloat = 18
         /// §3a: the 1px / 1pt border of `Menu` and of inactive `Font`.
         static let borderWidth: CGFloat = 1
+        /// §2 Chevron: the **16×16** box (`Glyph` `.sm`).
+        static let chevronBox: CGFloat = 16
     }
 
     // MARK: - Variant resolution (§3a's closed matrix)
@@ -88,6 +106,7 @@ struct FilterChip: View {
     /// §3a Ground: `Button/true` `color-neutral-800` · `Font/true` `color-white-100` · `Menu/true`
     /// none (clear, like inactive — owner restyle 2026-10-30) · every inactive row none.
     private var ground: Color {
+        if isDark { return active ? Token.black : .clear }       // §4 toolbarTone (D38)
         switch (type, active) {
         case (.button, true): return Token.neutral800
         case (.font, true): return Token.white100
@@ -99,6 +118,16 @@ struct FilterChip: View {
     /// (white, owner restyle 2026-10-30) · `Font/false` 1pt `color-nav-border`
     /// · `Font/true` none ("the border is dropped, not recoloured") · `Button` none.
     private var border: Color? {
+        if isDark {
+            // §4 toolbarTone (D38): an inactive chip keeps its border where §3a draws one, in
+            // `color-black` at 50%; an active Menu keeps its 1px border in `color-black` (on the
+            // black fill) so its width is unchanged; the other active chips stay borderless.
+            switch (type, active) {
+            case (.menu, false), (.font, false): return Token.black50
+            case (.menu, true): return Token.black
+            default: return nil
+            }
+        }
         switch (type, active) {
         case (.menu, false): return Token.neutral600
         case (.menu, true): return Token.textPrimary
@@ -108,10 +137,14 @@ struct FilterChip: View {
     }
 
     /// §3a Chevron: `color-text-secondary` inactive, `color-text-primary` active (`Menu` only).
-    private var chevronColor: Color { active ? Token.textPrimary : Token.textSecondary }
+    private var chevronColor: Color {
+        if isDark { return active ? Token.white100 : Token.black }   // §4 toolbarTone (D38)
+        return active ? Token.textPrimary : Token.textSecondary
+    }
 
     /// §3a Label colour.
     private var labelColor: Color {
+        if isDark { return active ? Token.white100 : Token.black }   // §4 toolbarTone (D38)
         switch (type, active) {
         case (.font, true): return Token.black
         case (.menu, true), (.button, true): return Token.textPrimary
@@ -123,6 +156,14 @@ struct FilterChip: View {
     /// §2 measures every inset from INSIDE the border: "1 + 8 + 16 + 4 + 32 + 8 + 1 = **70**", and
     /// the Font chip's "Width = label + 16 (+ 2 when outlined)". A bordered chip insets by 9.
     private var borderInset: CGFloat { border == nil ? 0 : Geometry.borderWidth }
+
+    /// §3c Truncation exception (D55): the widest the `Menu` label may be inside `maxWidth` — the
+    /// chip's width less its insets, border, chevron and gap (which never shrink). nil = no cap.
+    private var labelMaxWidth: CGFloat? {
+        guard type == .menu, let maxWidth else { return nil }
+        let chrome = 2 * (Geometry.horizontalInset + borderInset) + Geometry.chevronBox + Geometry.menuGap
+        return max(0, maxWidth - chrome)
+    }
 
     // MARK: - Body
 
@@ -179,13 +220,27 @@ struct FilterChip: View {
     }
 
     /// §2 Label (`Menu`, `Button`): `type-title-card` (Bold 14/20) in both types — OQ-C-035-3's
-    /// ruling; the source's 14/22 and 14/24 are §1 deviation 6. `nowrap`, never truncated (§3c).
+    /// ruling; the source's 14/22 and 14/24 are §1 deviation 6. `nowrap`, never truncated (§3c)
+    /// — unless `type=Menu` is handed a `maxWidth` (§3c exception, D55): then tail-truncated.
+    @ViewBuilder
     private var pillLabel: some View {
+        if let labelMaxWidth {
+            CappedWidth(maxWidth: labelMaxWidth) {
+                pillText
+                    .truncationMode(.tail)
+            }
+            .fixedSize(horizontal: true, vertical: false)
+        } else {
+            pillText
+                .fixedSize(horizontal: true, vertical: false)
+        }
+    }
+
+    private var pillText: some View {
         Text(label)
             .designTextStyle(Token.TypeStyle.titleCard)
             .foregroundColor(labelColor)
             .lineLimit(1)
-            .fixedSize(horizontal: true, vertical: false)
             // The line box IS the leading (§2 "Line box = the leading").
             .frame(height: Token.TypeStyle.titleCard.lineHeight ?? Token.TypeStyle.titleCard.size)
             .ui2Element("Label")
@@ -216,5 +271,25 @@ struct FilterChip: View {
         // in `type=Font`).
         case .sans, .none: return CanvasTextObject.Font.sans.face(weight: .medium, size: points)
         }
+    }
+}
+
+/// §3c Truncation exception (D55): proposes its child at most `maxWidth`, whatever its parent
+/// offers — a horizontal rail proposes no width at all — so a single-line `Text` hugs its label
+/// when it fits and tail-truncates when it does not.
+private struct CappedWidth: Layout {
+    let maxWidth: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard let child = subviews.first else { return .zero }
+        return child.sizeThatFits(capped(proposal))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        subviews.first?.place(at: bounds.origin, proposal: capped(ProposedViewSize(bounds.size)))
+    }
+
+    private func capped(_ proposal: ProposedViewSize) -> ProposedViewSize {
+        ProposedViewSize(width: min(proposal.width ?? .infinity, maxWidth), height: proposal.height)
     }
 }

@@ -20,6 +20,12 @@ struct TextObject: Codable, Hashable, Identifiable {
         var rotation: Double
     }
 
+    /// D32: the scripture block at the top, middle or bottom of the page (nested: the module must not
+    /// shadow SwiftUI's `VerticalAlignment`).
+    enum VerticalAlignment: String, Codable, Hashable {
+        case top, center, bottom
+    }
+
     /// Inline styling over a UTF-16 range of `text`.
     struct Mark: Codable, Hashable {
         var start: Int
@@ -46,6 +52,29 @@ struct TextObject: Codable, Hashable, Identifiable {
     var transform: Transform
     var marks: [Mark]
     var highlights: [Highlight]
+    /// "scripture" marks a Bible activity's locked passage; "citation" marks the reference, which is ordinary text (D10, D11, D34); nil on other text.
+    var role: String?
+    var listStyle: String?
+    var startNumber: Int?
+    /// The passage a scripture object quotes (SC2). A malformed `reference` reads as nil; the
+    /// document's raw JSON still holds it (D23).
+    var reference: ScriptureReference?
+    /// D27: how a scripture object draws its verse numbers. Reads `.inline` when the document never wrote one
+    /// (every document before the ruling); assigning nil removes the field again.
+    var verseNumbers: VerseNumbers? {
+        get { writtenVerseNumbers ?? .inline }
+        set { writtenVerseNumbers = newValue }
+    }
+    /// D28: padding from the page edge, 16-64 pt; nil = the 32 pt default (not written when absent).
+    var inset: Double?
+    /// D32: where a scripture's block sits between the page's 96 pt insets. nil = the field is absent, which reads
+    /// `.top` and is never written until the leader picks one.
+    var verticalAlignment: VerticalAlignment?
+    /// The `verseNumbers` the document carries; nil = the field is absent and is never written.
+    var writtenVerseNumbers: VerseNumbers?
+
+    /// D11/D23/D34: a scripture object with a `reference` is locked in the editor. The citation is ordinary text.
+    var isLockedScripture: Bool { role == "scripture" && reference != nil }
 
     /// `marks` and `highlights` count UTF-16 code units in every client (02 §3); Swift `String`
     /// distances count characters, so this converts at the boundary. Nil when the offsets are out
@@ -64,6 +93,7 @@ struct TextObject: Codable, Hashable, Identifiable {
 extension TextObject {
     private enum CodingKeys: String, CodingKey {
         case id, text, font, weight, size, lineHeight, color, alignment, transform, marks, highlights
+        case role, listStyle, startNumber, reference, verseNumbers, inset, verticalAlignment
     }
 
     /// Only `id`, `text` and `transform` are required; the rest take the editor's defaults.
@@ -80,7 +110,69 @@ extension TextObject {
         alignment = try c.decodeIfPresent(String.self, forKey: .alignment) ?? "left"
         marks = try c.decodeIfPresent([Mark].self, forKey: .marks) ?? []
         highlights = try c.decodeIfPresent([Highlight].self, forKey: .highlights) ?? []
+        role = try? c.decodeIfPresent(String.self, forKey: .role)
+        listStyle = try? c.decodeIfPresent(String.self, forKey: .listStyle)
+        startNumber = try? c.decodeIfPresent(Int.self, forKey: .startNumber)
+        reference = try? c.decodeIfPresent(ScriptureReference.self, forKey: .reference)
+        writtenVerseNumbers = try? c.decodeIfPresent(VerseNumbers.self, forKey: .verseNumbers)
+        inset = try? c.decodeIfPresent(Double.self, forKey: .inset)
+        verticalAlignment = try? c.decodeIfPresent(VerticalAlignment.self, forKey: .verticalAlignment)
     }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(text, forKey: .text)
+        try c.encode(font, forKey: .font)
+        try c.encode(weight, forKey: .weight)
+        try c.encode(size, forKey: .size)
+        try c.encode(lineHeight, forKey: .lineHeight)
+        try c.encode(color, forKey: .color)
+        try c.encode(alignment, forKey: .alignment)
+        try c.encode(transform, forKey: .transform)
+        try c.encode(marks, forKey: .marks)
+        try c.encode(highlights, forKey: .highlights)
+        try c.encodeIfPresent(role, forKey: .role)
+        try c.encodeIfPresent(listStyle, forKey: .listStyle)
+        try c.encodeIfPresent(startNumber, forKey: .startNumber)
+        try c.encodeIfPresent(reference, forKey: .reference)
+        try c.encodeIfPresent(writtenVerseNumbers, forKey: .verseNumbers)
+        try c.encodeIfPresent(inset, forKey: .inset)
+        try c.encodeIfPresent(verticalAlignment, forKey: .verticalAlignment)
+    }
+}
+
+/// D27: `gutter` numbers in a left column, `hidden` runs on with none, `inline` runs on with superscripts.
+enum VerseNumbers: String, Codable, Hashable {
+    case gutter, hidden, inline
+}
+
+/// A scripture object's quoted range (SC2). `book` is the book number (43 = John), not a name.
+struct ScriptureReference: Codable, Hashable {
+    struct Point: Codable, Hashable {
+        var book: Int
+        var chapter: Int
+        var verse: Int
+        /// UTF-16 offset into the verse's canonical text (D8/D9); nil = the verse edge.
+        var offset: Int?
+    }
+
+    var start: Point
+    var end: Point
+    var translation: String
+}
+
+/// One entry of a `bible` document's `content.passages` (D8). A missing `translation` is a legacy
+/// passage (D22); a missing offset means the whole verse.
+struct BiblePassage: Codable, Hashable {
+    var bookNumber: Int
+    var chapterStart: Int
+    var verseStart: Int
+    var chapterEnd: Int
+    var verseEnd: Int
+    var startOffset: Int?
+    var endOffset: Int?
+    var translation: String?
 }
 
 struct CanvasContent: Codable, Hashable {
@@ -265,11 +357,11 @@ struct ActivityDocument: Codable, Hashable {
     private static let supportedSchemaVersion = 1
 
     /// The document exactly as the server sent it, unknown fields included.
-    let raw: JSONValue
-    let renderable: Renderable
-    let background: ActivityBackground
+    private(set) var raw: JSONValue
+    private(set) var renderable: Renderable
+    private(set) var background: ActivityBackground
     /// The actions this build can draw, in document order.
-    let actions: [ActivityAction]
+    private(set) var actions: [ActivityAction]
 
     init(raw: JSONValue) {
         self.raw = raw
@@ -297,6 +389,44 @@ struct ActivityDocument: Codable, Hashable {
         var value = raw
         edit(&value)
         return ActivityDocument(raw: value)
+    }
+
+    // MARK: Bible passages
+
+    /// The canvas's text objects.
+    var textObjects: [TextObject] {
+        guard case .canvas(let canvas) = renderable else { return [] }
+        return canvas.objects
+    }
+
+    /// `content.passages`, skipping any entry missing a required int (D22).
+    var passages: [BiblePassage] {
+        get { Self.validPassages(in: raw).map(\.passage) }
+        set {
+            let existing = Self.validPassages(in: raw)
+            let written: [JSONValue] = newValue.enumerated().map { index, passage in
+                // Overlay onto the entry already there so keys this build doesn't know survive.
+                var object: [String: JSONValue] = [:]
+                if index < existing.count, case .object(let current) = existing[index].json { object = current }
+                object["bookNumber"] = .number(Double(passage.bookNumber))
+                object["chapterStart"] = .number(Double(passage.chapterStart))
+                object["verseStart"] = .number(Double(passage.verseStart))
+                object["chapterEnd"] = .number(Double(passage.chapterEnd))
+                object["verseEnd"] = .number(Double(passage.verseEnd))
+                object["startOffset"] = passage.startOffset.map { .number(Double($0)) }
+                object["endOffset"] = passage.endOffset.map { .number(Double($0)) }
+                object["translation"] = passage.translation.map { .string($0) }
+                return .object(object)
+            }
+            var value = raw
+            value[path: ["content", "passages"]] = .array(written)
+            self = ActivityDocument(raw: value)
+        }
+    }
+
+    private static func validPassages(in raw: JSONValue) -> [(json: JSONValue, passage: BiblePassage)] {
+        guard case .array(let items)? = raw[path: ["content", "passages"]] else { return [] }
+        return items.compactMap { item in decodeValue(BiblePassage.self, item).map { (item, $0) } }
     }
 
     // MARK: Decoding

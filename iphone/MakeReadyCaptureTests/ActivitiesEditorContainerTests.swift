@@ -457,7 +457,10 @@ final class RecordingEditorNavigator: ActivitiesEditorNavigating {
     var pushed: [UI2Destination] = []
     var replaced: [UI2Destination] = []
     var pops = 0
+    /// Destinations pushed together in one path write (`pushAll`).
+    var pushedTogether: [[UI2Destination]] = []
     func push(_ destination: UI2Destination) { pushed.append(destination) }
+    func pushAll(_ destinations: [UI2Destination]) { pushedTogether.append(destinations) }
     func replace(with destination: UI2Destination) { replaced.append(destination) }
     func pop() { pops += 1 }
 }

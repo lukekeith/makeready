@@ -791,7 +791,13 @@ struct CaptureComponent: Codable {
     let trailing: String?                      // C-037 — "chevron" | "cancel" | "none"
     let chips: [CaptureDataItem]?              // C-037 — [C-043 MetaChip] props
     // C-037 update 2026-10-24 (selectable form): `subject` gains "program"; additive field.
-    let selection: String?                     // C-037 — "none" | "unselected" | "selected"
+    // RETYPED 2026-11-11 (/d2m:component:build C-140), in the same either-shape pattern as
+    // `selected` and `enabledDays`. This was `String?` (C-037's "none" | "unselected" | "selected").
+    // C-140 BibleVerseReader §4's prop is ALSO named `selection` and is an OBJECT
+    // {startVerse, startOffset, endVerse, endOffset}, and the build rules forbid bending a
+    // contract's prop name to fit an existing field — so the field decodes both shapes. C-037 reads
+    // `.stringValue`; C-140 reads `.verseSelection`.
+    let selection: CaptureStringOrVerseSelection? // C-037 — "none" | "unselected" | "selected"; OR C-140's range
     // ── screen create-study-program ──
     // Reused as-is: `text`, `errorMessage` (same names, same types).
     let creating: Bool?
@@ -1040,6 +1046,13 @@ struct CaptureComponent: Codable {
     let marks: [CaptureUI2TextMark]?           // C-092 — UTF-16 offsets into `text`
     let animationLoop: Bool?                   // C-092 — `animation.loop`
     let animationElapsed: Double?              // C-092 harness — seconds the clock has run; absent = stopped
+    // C-092 change 2026-11-10 (SPEC D11/D21, bible-verse-picker). Additive:
+    let isLocked: Bool?                        // C-092 — no text input, caret or deletion
+    let isHighlighting: Bool?                  // C-092 — highlighting mode (hold-drag selection)
+    // C-092 change 2026-11-11 (SPEC D26/D27, bible-verse-picker). Additive:
+    let lineHeight: Double?                    // C-092 — ratio of `size`; absent = natural leading
+    let verseNumbers: String?                  // C-092 — gutter | hidden | inline
+    let pageLaidOut: Bool?                     // C-092 — the page places it; transform ignored
     // ── preview props ──
     // C-105 Button build 2026-10-13. Reused as-is under the contract's own names: `label`
     // (`String?`) and `leadingGlyph` (`String?` — a library glyph name, C-040's). Additive:
@@ -1112,6 +1125,7 @@ struct CaptureComponent: Codable {
     let highlightStarts: [Int]?
     let highlightEnds: [Int]?
     let deleteTargetShown: Bool?
+    let deleteTargetArmed: Bool?               // activities-editor §31.7 (D48) — previews only
     let saveFailed: Bool?
     let editingIndex: Int?                     // activities-editor §9.1 — the edited object
     let loadFailed: Bool?                      // activities-editor §9.4 · activities-player §3
@@ -1135,6 +1149,27 @@ struct CaptureComponent: Codable {
     // OQ-C-081-6 (restored 2026-11-09): each chip's screenshot URL, parallel to `slideIDs`; "" = none.
     let slideImages: [String]?
     let showsHighlightTool: Bool?
+    // activities-editor §20 (chat change 2026-11-10, Bible D21). Additive:
+    let objectLocks: [Bool]?                   // per object isLocked, parallel to objectTexts
+    let objectIDs: [String]?                   // per object id, parallel to objectTexts
+    let highlightingObjectID: String?          // the object in highlighting mode; absent = none
+    // activities-editor §21 (chat change 2026-11-11, Bible D26/D28/D29). Additive:
+    let pageHeight: Double?                    // the page's height, wu; > 956 scrolls
+    let objectPageLaidOut: [Bool]?             // per object pageLaidOut, parallel to objectTexts
+    let isBible: Bool?                         // a bible activity: five tools + the Bible font panel
+    let bibleFace: String?                     // display · sans · serif · mono
+    let bibleWeight: Int?                      // 400 · 500 · 700
+    let bibleSize: Double?                     // pt, 14–40
+    let bibleLineHeight: Double?               // ×, 1.0–2.0
+    let bibleInset: Double?                    // pt, 16–64
+    let bibleVerseNumbers: String?             // gutter · hidden · inline
+    // activities-editor §22 (chat change 2026-11-11, D28 fix). Additive:
+    let bibleColor: String?                    // #RRGGBB; "" = the scripture's own
+    let bibleAlignment: String?                // left · center · right; "" = the scripture's own
+    // activities-editor §23 (chat change 2026-11-11, D32/D33). Additive:
+    let bibleVerticalAlignment: String?        // top · center · bottom
+    // activities-editor §25 (chat change 2026-11-11, D35). Additive:
+    let toolbarTone: String?                   // light · dark
     let showsEffectsTool: Bool?
     let showsEyedropper: Bool?
     let showsWell: Bool?                       // C-094 TextColorPalette
@@ -1366,6 +1401,9 @@ struct CaptureComponent: Codable {
     let resultImageURLs: [String?]?
     // ── preview props ──
     let isEmpty: Bool?                         // C-052 DayChip — §3d, a day with no content
+    let fillToken: String?                     // C-052 DayChip — §3e, a colour token's member name
+    let isUsed: Bool?                          // C-052 DayChip — §3e, used by this lesson
+    let dotToken: String?                      // C-085 SearchResultRow — kind=book, a colour token's member name
     // ── preview props ──
     // C-133 ActivityRail. Reused as-is: `pageCount` (`Int?`, C-097's). Additive:
     let activePage: Int?                       // C-133 — zero-based page on the viewport's midline
@@ -1396,6 +1434,12 @@ struct CaptureComponent: Codable {
     let anchor: Int?
     let drag: Double?
     let inner: [Double]?
+    // §3 Bible layout (chat change 2026-11-11, bible-verse-picker D26–D28). Additive, parallel to
+    // objectTexts: line height (× size, null = natural), verse numbers (gutter · hidden · inline),
+    // inset from each page edge in wu (null = today's frame).
+    let objectLineHeights: [Double?]?
+    let objectVerseNumbers: [String]?
+    let objectInsets: [Double?]?
     let railVisible: Bool?
     let pageIndexes: [Int]?
     let pageKinds: [String]?
@@ -1433,6 +1477,51 @@ struct CaptureComponent: Codable {
     let sheetTitle: String?
     let sheetBodyText: String?
     let sheetPrompt: String?
+    let pageHeights: [Double]?                 // activities-player §3 Tall pages, per page, wu
+    // ── preview props ──
+    // C-140 BibleVerseReader build 2026-11-11. `selection` exists above (RETYPED to decode C-140's
+    // object as well); the rest are additive, under the contract's own names and types.
+    let chapterHeading: String?                // C-140
+    let verses: [CaptureUI2BibleVerse]?        // C-140 — BibleVerseReader.Verse
+    let usedRanges: [CaptureUI2VerseSelection]? // C-140 — [BibleVerseReader.Selection]
+    let copyright: String?                     // C-140
+    let scrollToVerse: Int?                    // C-140
+    let hasPreviousChapter: Bool?              // C-140
+    let hasNextChapter: Bool?                  // C-140
+    // ── screen bible-reader ──
+    // `title`, `selection`, `loading`, `failed` and the C-140 fields above are reused.
+    let translationCode: String?
+    let translationLabel: String?              // bible-reader, bible-books — the C-035 chip's name; nil = the code
+    let translationCodes: [String]?
+    let translationNames: [String]?
+    let canSelect: Bool?
+    // ── screen bible-books ──
+    // `translationCode`, `translationLabel`, `translationCodes`, `translationNames` and `query` are reused.
+    let searchFocused: Bool?
+    let oldTestamentNumbers: [Int]?
+    let oldTestamentLabels: [String]?
+    let oldTestamentFills: [String]?
+    let newTestamentNumbers: [Int]?
+    let newTestamentLabels: [String]?
+    let newTestamentFills: [String]?
+    let usedBooks: [Int]?
+    let recents: [String]?
+    let bookResultNumbers: [Int]?
+    let bookResultNames: [String]?
+    let bookResultDescriptions: [String]?
+    let bookResultFills: [String]?
+    let verseResultTitles: [String]?
+    let verseResultDescriptions: [String]?
+    let searching: Bool?
+    let searchEmpty: Bool?
+    // ── screen bible-chapters ──
+    // `title` is reused.
+    let chapterCount: Int?
+    let usedChapters: [Int]?
+    // ── screen bible-verses ──
+    // `title` and `loading` are reused.
+    let verseCount: Int?
+    let usedVerses: [Int]?
 }
 
 /// C-123 §4 `look` — "Fixtures encode `look` as an object: `{\"kind\": \"<case>\", …associated
@@ -1559,11 +1648,13 @@ struct CaptureContentOrChildren: Codable {
     }
 }
 
-/// C-052 §4 `content: DayChip.Content` — exactly one key set: `{"day": 2}` → `.day(2)`, or
-/// `{"weekday": {"letter": "M", "name": "Monday"}}` → `.weekday(letter:name:)`.
+/// C-052 §4 `content: DayChip.Content` — exactly one key set: `{"day": 2}` → `.day(2)`,
+/// `{"weekday": {"letter": "M", "name": "Monday"}}` → `.weekday(letter:name:)`, or
+/// `{"label": "Gen"}` → `.label("Gen")` (2026-11-10).
 struct CaptureUI2DayChipContent: Codable {
     let day: Int?
     let weekday: CaptureUI2DayChipWeekday?
+    let label: String?
 }
 
 /// C-052 `.weekday(letter:name:)` — the field names are the contract's.
@@ -1617,6 +1708,7 @@ struct CaptureUI2BibleReference: Codable {
         let book: String
         let chapter: Int
         let verse: Int?
+        let isPartial: Bool?                   // C-092 — "b" on start, "a" on end
     }
     let start: Point
     let end: Point?
@@ -1624,7 +1716,7 @@ struct CaptureUI2BibleReference: Codable {
 
     init(from decoder: Decoder) throws {
         if let plain = try? decoder.singleValueContainer().decode(String.self) {
-            start = Point(book: "", chapter: 0, verse: nil)
+            start = Point(book: "", chapter: 0, verse: nil, isPartial: nil)
             end = nil
             text = plain
             return
@@ -2454,5 +2546,46 @@ struct CaptureWeekdays: Codable, Sequence, ExpressibleByArrayLiteral {
 
     func makeIterator() -> IndexingIterator<[Int]> {
         indices.makeIterator()
+    }
+}
+
+/// C-140 §4 `BibleVerseReader.Verse` — `{number, text}`.
+struct CaptureUI2BibleVerse: Codable {
+    let number: Int
+    let text: String
+}
+
+/// C-140 §4 `BibleVerseReader.Selection` — UTF-16 offsets, end exclusive.
+struct CaptureUI2VerseSelection: Codable {
+    let startVerse: Int
+    let startOffset: Int
+    let endVerse: Int
+    let endOffset: Int
+}
+
+/// `selection` decodes C-037's String OR C-140's `{startVerse, startOffset, endVerse, endOffset}` —
+/// see the RETYPED note on the field.
+struct CaptureStringOrVerseSelection: Codable {
+    let stringValue: String?
+    let verseSelection: CaptureUI2VerseSelection?
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let s = try? container.decode(String.self) {
+            stringValue = s
+            verseSelection = nil
+        } else {
+            stringValue = nil
+            verseSelection = try container.decode(CaptureUI2VerseSelection.self)
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        if let verseSelection {
+            try container.encode(verseSelection)
+        } else {
+            try container.encode(stringValue)
+        }
     }
 }

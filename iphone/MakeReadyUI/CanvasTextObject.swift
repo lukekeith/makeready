@@ -65,6 +65,12 @@ struct CanvasTextObject: View {
         case none, bullet, numbered, bibleVerse
     }
 
+    /// §4 `verseNumbers` (SPEC D26) — how `bibleVerse` numbers are shown; ignored for the other
+    /// list styles.
+    enum VerseNumbers {
+        case gutter, hidden, inline
+    }
+
     /// §4 `reference` — a structured Bible reference, drawn as one trailing line by
     /// `BibleReferenceFormatter` (§2 Reference, OQ-C-092-004).
     struct Reference: Equatable {
@@ -73,6 +79,9 @@ struct CanvasTextObject: View {
             var chapter: Int
             /// nil = a whole chapter.
             var verse: Int?
+            /// §4: the quotation begins mid-verse on `start` ("b") or ends mid-verse on `end`
+            /// ("a"). Ignored on a whole-chapter point.
+            var isPartial: Bool = false
         }
 
         var start: Point
@@ -146,6 +155,9 @@ struct CanvasTextObject: View {
     let weight: Weight
     /// §4 — the size in wu, written by C-093 TextSizeSlider.
     let size: CGFloat
+    /// §4 (SPEC D26) — line height as a ratio of `size` (1.0–2.0), in every mode, to body lines,
+    /// markers and the reference line; nil = the face's natural leading.
+    let lineHeight: CGFloat?
     /// §4 — the glyph fill (the label fill under solidLight).
     let color: Color
     /// §4 — line alignment within the width.
@@ -154,9 +166,10 @@ struct CanvasTextObject: View {
     let label: Label
     /// §4 — whole-block list formatting.
     let listStyle: ListStyle
-    /// OQ-C-092-003 (owner, 2026-10-13): the first verse number, so a passage starting at verse
-    /// 16 numbers 16, 17, …. Not yet in the §4 table — the answered question is the ruling.
+    /// §4 — the number of the first item for `numbered` and `bibleVerse` (16 for John 3:16-18).
     let startNumber: Int
+    /// §4 (SPEC D26) — how `bibleVerse` numbers are shown.
+    let verseNumbers: VerseNumbers
     /// §4 — the structured Bible reference drawn after the last item.
     let reference: Reference?
     /// §4 — inline bold / italic / link.
@@ -167,8 +180,11 @@ struct CanvasTextObject: View {
     let animationStart: Date?
     /// §4 — the glyph effect.
     let effect: Effect
-    /// §4 — placement and layout width.
+    /// §4 — placement and layout width. Ignored while `pageLaidOut`.
     let transform: Transform
+    /// §4 (SPEC D27) — the page, not the user, places and sizes this object: no drag / pinch /
+    /// rotate, `onTransform` never fires, `transform` ignored. Editor only.
+    let pageLaidOut: Bool
     /// §4 — who recognises drag / pinch / rotate in `editor`; ignored in `viewer`.
     let manipulation: Manipulation
     /// §4 — the first finger lands on the rendered shape, before any movement (editor only).
@@ -176,17 +192,30 @@ struct CanvasTextObject: View {
     /// §4 — an absolute transform in wu measured from where the gesture started; fired here under
     /// `manipulation = .own`, by the host under `.host`. Never fires in `viewer`.
     let onTransform: (Transform) -> Void
-    /// §4 — first responder with the caret; the keyboard is the screen's. Ignored in `viewer`.
+    /// §4 — first responder with the caret; the keyboard is the screen's. Ignored in `viewer`,
+    /// while `isLocked` and while `isHighlighting`.
     let editing: Bool
+    /// §4 (SPEC D11) — no text input, caret, keyboard or deletion; still movable, scalable,
+    /// rotatable, restylable and highlightable. Ignored in `viewer`.
+    let isLocked: Bool
+    /// §4 (SPEC D21) — highlighting mode: touch-and-hold-drag selects a word-snapped range.
+    /// Editor only.
+    let isHighlighting: Bool
     /// §4 — ranges drawn as highlight spans.
     let highlights: [TextRange]
+    /// §4 — a finished selection, `(start, end)` in UTF-16 offsets into `text`, end exclusive.
+    /// Fires in `isHighlighting` only.
+    let onHighlightRange: (Int, Int) -> Void
     /// §4 — a tap with no movement on a committed object (C-091 turns it into Editing).
     let onTap: () -> Void
     /// §4 — a tap on a `link` mark in `viewer` (the href).
     let onOpenLink: (String) -> Void
+    /// §4 (SPEC D43) — the laid-out lines' glyph bounds in wu: the block's own unscaled, unrotated
+    /// space, origin at the layout box's top-left, label box included when `label` is on. Fired
+    /// on every layout change; it changes no drawing.
+    let onTextBounds: (CGRect) -> Void
 
-    /// R-05: one parameter per §4 prop, in the contract's order (`startNumber` after
-    /// `listStyle`, OQ-C-092-003). Written out because the private focus state would otherwise
+    /// R-05: one parameter per §4 prop, in the contract's order. Written out because the private focus state would otherwise
     /// make the memberwise initializer private.
     init(
         text: String,
@@ -195,24 +224,31 @@ struct CanvasTextObject: View {
         font: Font = .sans,
         weight: Weight = .bold,
         size: CGFloat,
+        lineHeight: CGFloat? = nil,
         color: Color = Token.textPrimary,
         alignment: Alignment = .center,
         label: Label = .none,
         listStyle: ListStyle = .none,
         startNumber: Int = 1,
+        verseNumbers: VerseNumbers = .inline,
         reference: Reference? = nil,
         marks: [Mark] = [],
         animation: Animation = .none,
         animationStart: Date? = nil,
         effect: Effect = .none,
         transform: Transform = .identity,
+        pageLaidOut: Bool = false,
         manipulation: Manipulation = .own,
         onTouchDown: @escaping () -> Void = {},
         onTransform: @escaping (Transform) -> Void = { _ in },
         editing: Bool,
+        isLocked: Bool = false,
+        isHighlighting: Bool = false,
         highlights: [TextRange] = [],
+        onHighlightRange: @escaping (Int, Int) -> Void = { _, _ in },
         onTap: @escaping () -> Void = {},
-        onOpenLink: @escaping (String) -> Void = { _ in }
+        onOpenLink: @escaping (String) -> Void = { _ in },
+        onTextBounds: @escaping (CGRect) -> Void = { _ in }
     ) {
         self.text = text
         self.onChange = onChange
@@ -220,24 +256,31 @@ struct CanvasTextObject: View {
         self.font = font
         self.weight = weight
         self.size = size
+        self.lineHeight = lineHeight
         self.color = color
         self.alignment = alignment
         self.label = label
         self.listStyle = listStyle
         self.startNumber = startNumber
+        self.verseNumbers = verseNumbers
         self.reference = reference
         self.marks = marks
         self.animation = animation
         self.animationStart = animationStart
         self.effect = effect
         self.transform = transform
+        self.pageLaidOut = pageLaidOut
         self.manipulation = manipulation
         self.onTouchDown = onTouchDown
         self.onTransform = onTransform
         self.editing = editing
+        self.isLocked = isLocked
+        self.isHighlighting = isHighlighting
         self.highlights = highlights
+        self.onHighlightRange = onHighlightRange
         self.onTap = onTap
         self.onOpenLink = onOpenLink
+        self.onTextBounds = onTextBounds
     }
 
     /// R-02: focus is ephemeral feedback, mirrored from the `editing` prop.
@@ -246,8 +289,18 @@ struct CanvasTextObject: View {
     @State private var gestureBase: Transform?
     /// R-02: whether this finger-down has already been reported through `onTouchDown`.
     @State private var touchReported = false
+    /// R-02 / §4 `isHighlighting`: the in-progress word-snapped range (UTF-16, end exclusive),
+    /// held only while the finger is down; a cancelled touch resets it and reports nothing.
+    @GestureState private var selection: Range<Int>?
+    /// §4 `isHighlighting`: where each item's glyphs were drawn, for the selection's hit test.
+    @State private var selectionGeometry = CanvasTextSelectionGeometry()
     /// §2 Animation: Reduce Motion ignores the clock and holds the rest pose.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// The block's own space: the selection gesture and each item's measured origin share it.
+    private static let selectionSpace = "CanvasTextObject.selection"
+    /// §4 `onTextBounds`: the layout box's own space, origin at its top-left.
+    private static let boundsSpace = "CanvasTextObject.bounds"
 
     /// §2 Editing — the placeholder copy (OQ-activities-editor-014).
     private static let placeholder = "Type something…"
@@ -260,9 +313,20 @@ struct CanvasTextObject: View {
     private let labelInsetY: CGFloat = 4
     /// FLAGGED LITERAL — C-092 §2 Effects: Pixel adds 3 wu per side to the bounds.
     private let pixelInset: CGFloat = 3
+    /// FLAGGED LITERAL — C-092 §4 Verse numbers (SPEC D26): the gutter's gap to the text column,
+    /// 8 wu (no token).
+    private let gutterGap: CGFloat = 8
+    /// FLAGGED LITERAL — C-092 §4 Verse numbers (SPEC D26): gutter numbers at 0.7 × `size`, at
+    /// 0.6 opacity (no token).
+    private let gutterNumberScale: CGFloat = 0.7
+    private let gutterNumberOpacity: Double = 0.6
 
-    /// §2 Modes: `editing` is ignored in `viewer`.
-    private var isEditing: Bool { mode == .editor && editing }
+    /// §2 Modes: `editing` is ignored in `viewer`; §4 Locked and highlighting: and while
+    /// `isLocked` or `isHighlighting` — the block never becomes first responder.
+    private var isEditing: Bool { mode == .editor && editing && !isLocked && !isHighlighting }
+
+    /// §4 `isLocked`: an empty locked block draws nothing (no placeholder).
+    private var showsPlaceholder: Bool { mode == .editor && !isLocked }
 
     var body: some View {
         switch mode {
@@ -274,10 +338,15 @@ struct CanvasTextObject: View {
                     .contentShape(Rectangle())
                     .onTapGesture { if !isEditing { onTap() } }
                     .simultaneousGesture(touchDown, including: isEditing ? .subviews : .all)
+                    // §4 `isHighlighting`: no move / pinch / rotate while it is on — the touch is
+                    // the selection's. §4 `pageLaidOut`: none at all — the page places it.
                     .simultaneousGesture(
                         manipulationGesture,
-                        including: isEditing || manipulation == .host ? .subviews : .all
+                        including: isEditing || isHighlighting || pageLaidOut || manipulation == .host
+                            ? .subviews : .all
                     )
+                    .simultaneousGesture(selectionGesture, including: isHighlighting ? .all : .subviews)
+                    .coordinateSpace(.named(Self.selectionSpace))
             )
                 .accessibilityElement(children: isEditing ? .contain : .ignore)
                 .accessibilityLabel(isEditing ? "" : spokenLabel)
@@ -304,8 +373,9 @@ struct CanvasTextObject: View {
         block
             .padding(.horizontal, horizontalInset)
             .padding(.vertical, verticalInset)
-            .frame(width: transform.width.map { min(max($0, widthLimits.lowerBound), widthLimits.upperBound) })
-            .frame(maxWidth: transform.width == nil ? .infinity : nil, alignment: frameAlignment)
+            .frame(width: placement.width.map { min(max($0, widthLimits.lowerBound), widthLimits.upperBound) })
+            .frame(maxWidth: placement.width == nil ? .infinity : nil, alignment: frameAlignment)
+            .coordinateSpace(.named(Self.boundsSpace))
             .overlay { if isEditing { inputField } }
     }
 
@@ -313,9 +383,13 @@ struct CanvasTextObject: View {
     /// area and gestures the content carries so they follow the rendered shape.
     private func transformed(_ content: some View) -> some View {
         content
-            .scaleEffect(isEditing ? 1 : transform.scale)
-            .rotationEffect(isEditing ? .zero : transform.rotation)
+            .scaleEffect(isEditing ? 1 : placement.scale)
+            .rotationEffect(isEditing ? .zero : placement.rotation)
     }
+
+    /// §4 `pageLaidOut`: `transform` is ignored entirely — identity scale and rotation, no width,
+    /// so the block lays out at the frame the host gives it.
+    private var placement: Transform { pageLaidOut ? .identity : transform }
 
     /// §2 Accessibility: static text, not a button. A `link` range is exposed as a link, which
     /// needs the Text's own element; without one the spoken label carries markers and reference.
@@ -342,9 +416,13 @@ struct CanvasTextObject: View {
         return TimelineView(.animation(paused: !clockRuns)) { timeline in
             let elapsed = clockRuns ? animationStart.map { timeline.date.timeIntervalSince($0) } : nil
             let motion = CanvasTextRenderer.Motion(elapsed: elapsed, graphemes: graphemes, words: words)
-            VStack(alignment: stackAlignment, spacing: 0) {
+            // §4 `lineHeight`: the extra leading over the face's natural line, between wrapped lines
+            // and between items alike, so every line of the block keeps the same pitch.
+            VStack(alignment: stackAlignment, spacing: lineGap) {
                 if text.isEmpty {
                     placeholderRow(motion)
+                } else if runsOn {
+                    paragraphRow(items: items, motion: motion)
                 } else {
                     ForEach(Array(items.enumerated()), id: \.offset) { index, item in
                         itemRow(index: index, item: item, motion: motion)
@@ -361,16 +439,38 @@ struct CanvasTextObject: View {
                         .ui2Element("Reference")
                 }
             }
+            // §4 `onTextBounds`: the lines' stack before it is widened to the layout width — each
+            // line sized to its own glyphs, placed where the alignment put it.
+            .onGeometryChange(for: CGRect.self) { proxy in
+                proxy.frame(in: .named(Self.boundsSpace))
+            } action: { rect in
+                onTextBounds(textBounds(rect))
+            }
             .frame(maxWidth: .infinity, alignment: frameAlignment)
+            .lineSpacing(lineGap)
             .accessibilityHidden(isEditing)
         }
+    }
+
+    /// §4 `onTextBounds`: the glyph stack's rect grown by the label box's padding when it is on.
+    private func textBounds(_ glyphs: CGRect) -> CGRect {
+        label == .none ? glyphs : glyphs.insetBy(dx: -labelInsetX, dy: -labelInsetY)
+    }
+
+    /// §4 `verseNumbers = .inline` / `.hidden` (SPEC D41): the verses run on as one paragraph.
+    private var runsOn: Bool { listStyle == .bibleVerse && verseNumbers != .gutter }
+
+    /// §4 `lineHeight`: `lineHeight × size` less the face's natural line; nil = natural leading.
+    private var lineGap: CGFloat {
+        guard let lineHeight else { return 0 }
+        return max(lineHeight * size - font.naturalLineHeight(weight: weight, size: size), 0)
     }
 
     /// §2 Editing: the placeholder never shows a list marker or a label box. §2 Modes: the viewer
     /// has no placeholder, so empty `text` draws nothing.
     @ViewBuilder
     private func placeholderRow(_ motion: CanvasTextRenderer.Motion) -> some View {
-        if mode == .editor {
+        if showsPlaceholder {
             SwiftUI.Text(verbatim: Self.placeholder)
                 .font(typeface)
                 .foregroundStyle(Token.white50)
@@ -383,7 +483,10 @@ struct CanvasTextObject: View {
     private func itemRow(index: Int, item: Item, motion: CanvasTextRenderer.Motion) -> some View {
         // §2 List: markers hang in a gutter — wrapped lines align with the item's first glyph.
         // The gap is the marker's own trailing space in the object's font, not a spacing value.
-        HStack(alignment: .firstTextBaseline, spacing: 0) {
+        HStack(alignment: .firstTextBaseline, spacing: inGutter ? gutterGap : 0) {
+            if inGutter {
+                gutterNumber(index: index, motion: motion)
+            }
             if let marker = marker(for: index) {
                 marker
                     .foregroundStyle(glyphColor)
@@ -392,16 +495,84 @@ struct CanvasTextObject: View {
             }
             itemText(item)
                 .foregroundStyle(glyphColor)
-                .multilineTextAlignment(textAlignment)
+                // §4 `.gutter`: lines are left-aligned in the text column whatever `alignment` says.
+                .multilineTextAlignment(inGutter ? .leading : textAlignment)
                 .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: inGutter ? .infinity : nil, alignment: .leading)
                 .textRenderer(renderer(
                     box: boxColor,
                     caret: isEditing && index == items.count - 1 ? .end : .none,
                     motion: motion,
-                    sparkles: index == 0
+                    sparkles: index == 0,
+                    selectionItem: isHighlighting ? index : nil
                 ))
+                // §4 `isHighlighting`: the item's origin in the block, so its drawn glyph runs
+                // can be hit-tested. Markers and the reference line are never recorded.
+                .onGeometryChange(for: CGPoint.self) { proxy in
+                    proxy.frame(in: .named(Self.selectionSpace)).origin
+                } action: { origin in
+                    selectionGeometry.itemOrigins[index] = origin
+                }
                 .ui2Element(items.count == 1 ? "Text" : "Item \(index + 1)")
         }
+    }
+
+    /// §4 `verseNumbers = .gutter`: each verse on its own line, its number right-aligned in a
+    /// column to the left; every text line shares one left edge.
+    private var inGutter: Bool { listStyle == .bibleVerse && verseNumbers == .gutter }
+
+    /// The gutter number: 0.7 × size in the glyph colour at 0.6 opacity, right-aligned in a column
+    /// as wide as the widest number of the passage. Never highlighted or selectable.
+    private func gutterNumber(index: Int, motion: CanvasTextRenderer.Motion) -> some View {
+        SwiftUI.Text(verbatim: "\(startNumber + index)")
+            .font(font.face(weight: weight, size: size * gutterNumberScale))
+            // §2 Label solidLight paints the box in `color`, so the number takes the glyph colour.
+            .foregroundStyle(glyphColor.opacity(gutterNumberOpacity))
+            .textRenderer(renderer(box: nil, caret: .none, motion: motion))
+            .frame(width: gutterWidth, alignment: .trailing)
+            .ui2Element("Verse number \(index + 1)")
+    }
+
+    /// The widest verse number's width at the number size.
+    private var gutterWidth: CGFloat {
+        let face = font.uiFont(weight: weight, size: size * gutterNumberScale)
+        let count = max(items.count, 1)
+        return (0..<count).reduce(0) { widest, index in
+            let width = ("\(startNumber + index)" as NSString).size(withAttributes: [.font: face]).width
+            return max(widest, ceil(width))
+        }
+    }
+
+    /// §4 `verseNumbers = .inline` / `.hidden`: every verse in one Text, each line break drawn as
+    /// a single space; under `.inline` each verse's superscript number sits immediately before its
+    /// first word. `text` and every offset are unchanged — the markers and joining spaces are
+    /// drawn, never segments, so they are never highlighted, selected or counted.
+    private func paragraphRow(items: [Item], motion: CanvasTextRenderer.Motion) -> some View {
+        let paragraph = items.enumerated().reduce(SwiftUI.Text(verbatim: "")) { partial, pair in
+            var piece = itemText(pair.element)
+            if let marker = marker(for: pair.offset) {
+                piece = SwiftUI.Text("\(marker)\(piece)")
+            }
+            guard pair.offset > 0 else { return SwiftUI.Text("\(partial)\(piece)") }
+            return SwiftUI.Text("\(partial)\(SwiftUI.Text(verbatim: " ").font(typeface))\(piece)")
+        }
+        return paragraph
+            .foregroundStyle(glyphColor)
+            .multilineTextAlignment(textAlignment)
+            .fixedSize(horizontal: false, vertical: true)
+            .textRenderer(renderer(
+                box: boxColor,
+                caret: isEditing ? .end : .none,
+                motion: motion,
+                sparkles: true,
+                selectionItem: isHighlighting ? 0 : nil
+            ))
+            .onGeometryChange(for: CGPoint.self) { proxy in
+                proxy.frame(in: .named(Self.selectionSpace)).origin
+            } action: { origin in
+                selectionGeometry.itemOrigins[0] = origin
+            }
+            .ui2Element("Text")
     }
 
     /// One item as concatenated segments, each carrying its word and grapheme index (for the
@@ -414,7 +585,10 @@ struct CanvasTextObject: View {
                 .customAttribute(CanvasTextSegment(
                     word: segment.word,
                     grapheme: segment.grapheme,
-                    highlighted: segment.highlighted
+                    highlighted: segment.highlighted,
+                    selecting: segment.selecting,
+                    offset: segment.offset,
+                    length: segment.text.utf16.count
                 ))
             // §2 Highlights (legibility fix): glyphs inside a span draw `color-black`.
             let inked = segment.highlighted ? piece.foregroundStyle(Token.black) : piece
@@ -439,8 +613,11 @@ struct CanvasTextObject: View {
         case .bullet:
             return SwiftUI.Text(verbatim: "• ").font(typeface)
         case .numbered:
-            return SwiftUI.Text(verbatim: "\(index + 1). ").font(typeface)
+            // §4 `startNumber`: the number of the first item.
+            return SwiftUI.Text(verbatim: "\(startNumber + index). ").font(typeface)
         case .bibleVerse:
+            // §4 `verseNumbers`: only `.inline` draws the superscript marker.
+            guard verseNumbers == .inline else { return nil }
             // §2 List: a superscript verse number in the Bible reader's verse-number style;
             // OQ-C-092-003: counting from `startNumber`.
             // OQ-C-092-6 (owner): the number at 0.5× the object's size, raised 0.4× size, in
@@ -532,6 +709,79 @@ struct CanvasTextObject: View {
             .onEnded { _ in touchReported = false }
     }
 
+    // MARK: - Highlighting (§4 Locked and highlighting, SPEC D21)
+
+    /// A touch-and-hold, then drag: the hold anchors the selection at the word under the finger,
+    /// the drag extends it. Reported once, on lift, through `onHighlightRange`; a cancelled touch
+    /// resets `selection` and reports nothing. Attached only while `isHighlighting`.
+    private var selectionGesture: some Gesture {
+        LongPressGesture()
+            .sequenced(before:
+                // pan-ok: a free 2-D selection drag over the text, only after the hold
+                DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.selectionSpace))
+            )
+            .updating($selection) { value, state, _ in
+                state = selectedRange(value)
+            }
+            .onEnded { value in
+                guard let range = selectedRange(value), !range.isEmpty else { return }
+                onHighlightRange(range.lowerBound, range.upperBound)
+            }
+    }
+
+    private func selectedRange(_ value: SequenceGesture<LongPressGesture, DragGesture>.Value) -> Range<Int>? {
+        guard case .second(true, let drag?) = value,
+              let anchor = offset(at: drag.startLocation),
+              let current = offset(at: drag.location) else { return nil }
+        return wordSnapped(anchor, current)
+    }
+
+    /// The UTF-16 offset of the character drawn nearest `point` (block space): the nearest run
+    /// line first, then across it, then proportionally within the run.
+    private func offset(at point: CGPoint) -> Int? {
+        var best: (dy: CGFloat, dx: CGFloat, offset: Int)?
+        for (item, runs) in selectionGeometry.runs {
+            let origin = selectionGeometry.itemOrigins[item] ?? .zero
+            for run in runs where run.length > 0 {
+                let rect = run.rect.offsetBy(dx: origin.x, dy: origin.y)
+                let dy = max(rect.minY - point.y, 0, point.y - rect.maxY)
+                let dx = max(rect.minX - point.x, 0, point.x - rect.maxX)
+                if let best, (dy, dx) >= (best.dy, best.dx) { continue }
+                let fraction = rect.width > 0 ? min(max((point.x - rect.minX) / rect.width, 0), 1) : 0
+                let within = min(Int(fraction * CGFloat(run.length)), run.length - 1)
+                best = (dy, dx, run.start + within)
+            }
+        }
+        return best.map { min($0.offset, max(text.utf16.count - 1, 0)) }
+    }
+
+    /// §4: the range snaps outward to whole words — the start to the beginning of the word it
+    /// falls in, the end to the end of the word it falls in. A word is the platform's Unicode word
+    /// segment, so a space or punctuation is never a boundary by itself: an offset between words
+    /// moves inward to the nearest word. Nil when no word lies between the two.
+    private func wordSnapped(_ first: Int, _ second: Int) -> Range<Int>? {
+        let lower = min(first, second)
+        let upper = max(first, second)
+        let words = wordRanges
+        guard let start = words.first(where: { $0.upperBound > lower }),
+              let end = words.last(where: { $0.lowerBound <= upper }),
+              start.lowerBound < end.upperBound else { return nil }
+        return start.lowerBound..<end.upperBound
+    }
+
+    /// Unicode word segments of `text` (ICU word boundaries), as UTF-16 ranges (D7).
+    private var wordRanges: [Range<Int>] {
+        let string = text as NSString
+        var ranges: [Range<Int>] = []
+        string.enumerateSubstrings(
+            in: NSRange(location: 0, length: string.length),
+            options: [.byWords, .substringNotRequired]
+        ) { _, range, _, _ in
+            ranges.append(range.location..<(range.location + range.length))
+        }
+        return ranges
+    }
+
     private var currentTransform: Transform { transform }
 
     // MARK: - Clock
@@ -547,12 +797,17 @@ struct CanvasTextObject: View {
         box: Color?,
         caret: CanvasTextRenderer.Caret,
         motion: CanvasTextRenderer.Motion,
-        sparkles: Bool = false
+        sparkles: Bool = false,
+        selectionItem: Int? = nil
     ) -> CanvasTextRenderer {
         CanvasTextRenderer(
             motion: motion,
             box: box,
             highlightColor: Token.highlight,
+            // §4 `isHighlighting`: the in-progress range on accent20 (owner-named).
+            selectionColor: Token.accent20,
+            selectionGeometry: selectionItem.map { _ in selectionGeometry },
+            selectionItem: selectionItem,
             caret: caret,
             animation: animation,
             effect: effect,
@@ -569,6 +824,10 @@ struct CanvasTextObject: View {
         let word: Int
         let grapheme: Int
         let highlighted: Bool
+        /// §4 `isHighlighting`: inside the in-progress selection.
+        let selecting: Bool
+        /// The segment's first UTF-16 offset in `text`.
+        let offset: Int
         let bold: Bool
         let italic: Bool
         let href: String?
@@ -583,6 +842,7 @@ struct CanvasTextObject: View {
     /// share a segment.
     private struct CharacterStyle: Equatable {
         var highlighted = false
+        var selecting = false
         var bold = false
         var italic = false
         var href: String?
@@ -604,6 +864,7 @@ struct CanvasTextObject: View {
             var current = ""
             var currentWord = 0
             var currentGrapheme = 0
+            var currentOffset = 0
             var currentStyle = CharacterStyle()
             var previousWasSpace = true
             var count = 0
@@ -611,7 +872,8 @@ struct CanvasTextObject: View {
                 guard !current.isEmpty else { return }
                 segments.append(Segment(
                     text: current, word: currentWord, grapheme: currentGrapheme,
-                    highlighted: currentStyle.highlighted, bold: currentStyle.bold,
+                    highlighted: currentStyle.highlighted, selecting: currentStyle.selecting,
+                    offset: currentOffset, bold: currentStyle.bold,
                     italic: currentStyle.italic, href: currentStyle.href
                 ))
                 current = ""
@@ -625,6 +887,7 @@ struct CanvasTextObject: View {
                 if current.isEmpty {
                     currentWord = segmentWord
                     currentGrapheme = grapheme
+                    currentOffset = utf16Offset
                     currentStyle = style
                 }
                 current.append(character)
@@ -654,6 +917,9 @@ struct CanvasTextObject: View {
         }
         for highlight in highlights {
             apply(highlight.start, highlight.end) { $0.highlighted = true }
+        }
+        if let selection {
+            apply(selection.lowerBound, selection.upperBound) { $0.selecting = true }
         }
         for mark in marks {
             switch mark.kind {
@@ -725,13 +991,14 @@ struct CanvasTextObject: View {
     /// §2 Accessibility (R-17): `text` (the placeholder copy when empty in the editor), each
     /// marker spoken before its item, the formatted reference last. The label box is decorative.
     private var spokenLabel: String {
-        guard !text.isEmpty else { return mode == .editor ? Self.placeholder : "" }
+        guard !text.isEmpty else { return showsPlaceholder ? Self.placeholder : "" }
         var parts: [String] = []
         for (index, line) in text.split(separator: "\n", omittingEmptySubsequences: false).enumerated() {
             switch listStyle {
             case .none: parts.append(String(line))
             case .bullet: parts.append("bullet, \(line)")
-            case .numbered: parts.append("\(index + 1), \(line)")
+            case .numbered: parts.append("\(startNumber + index), \(line)")
+            case .bibleVerse where verseNumbers == .hidden: parts.append(String(line))
             case .bibleVerse: parts.append("verse \(startNumber + index), \(line)")
             }
         }
@@ -774,6 +1041,24 @@ extension CanvasTextObject.Font {
             return systemFallback(weight: weight, italic: italic, size: size)
         }
         return .custom(name, fixedSize: size)
+    }
+
+    /// The UIKit face behind `face(weight:size:)`, for measuring (§4 gutter width, `lineHeight`).
+    func uiFont(weight: CanvasTextObject.Weight, size: CGFloat) -> UIFont {
+        _ = CanvasTextFonts.registered
+        let name: String
+        switch self {
+        case .display: name = "Poppins-\(styleName(weight: weight, italic: false))"
+        case .sans: name = "Inter-\(styleName(weight: weight, italic: false))"
+        case .mono: name = "CourierPrime-\(styleName(weight: weight == .medium ? .regular : weight, italic: false))"
+        case .serif: name = "SourceSerif4Variable-Roman"
+        }
+        return UIFont(name: name, size: size) ?? UIFont.systemFont(ofSize: size)
+    }
+
+    /// §4 `lineHeight` nil: the face's natural line height at `size`.
+    func naturalLineHeight(weight: CanvasTextObject.Weight, size: CGFloat) -> CGFloat {
+        uiFont(weight: weight, size: size).lineHeight
     }
 
     private func styleName(weight: CanvasTextObject.Weight, italic: Bool) -> String {
@@ -832,31 +1117,43 @@ extension CanvasTextObject.Font {
 /// §2 Reference: a pure function of the `Reference` value (R-04). OQ-C-092-004 (owner): a hyphen
 /// without spaces within a chapter ("1:1-2"), a spaced en dash across chapters or books
 /// ("1:1 – 2:3"). The ruling makes this ONE formatter shared with the Bible reader; the preview
-/// module cannot import the app, so it lives here until promotion.
+/// module cannot import the app, so it lives here until promotion. §4 partial verses: a partial
+/// start verse takes "b", a partial end verse "a" ("John 3:16b-18a", "John 3:16b"); whole verses
+/// are unchanged.
 enum BibleReferenceFormatter {
     static func format(_ reference: CanvasTextObject.Reference) -> String {
         let start = reference.start
-        guard let end = reference.end, end != start else { return point(start, withBook: true) }
+        // An end equal to the start (partial flag included) collapses to the single verse.
+        guard let end = reference.end, end != start else { return point(start, suffix: "b", withBook: true) }
         if end.book != start.book {
             // Across books: the end repeats its book.
-            return "\(point(start, withBook: true)) – \(point(end, withBook: true))"
+            return "\(point(start, suffix: "b", withBook: true)) – \(point(end, suffix: "a", withBook: true))"
         }
         if end.chapter == start.chapter {
-            if let first = start.verse, let last = end.verse {
+            if let first = verse(start, suffix: "b"), let last = verse(end, suffix: "a") {
                 return "\(start.book) \(start.chapter):\(first)-\(last)"
             }
-            return point(start, withBook: true)
+            return point(start, suffix: "b", withBook: true)
         }
         if start.verse == nil && end.verse == nil {
             // Whole chapters within one book.
             return "\(start.book) \(start.chapter)-\(end.chapter)"
         }
         // Across chapters of one book: the end drops the repeated book name.
-        return "\(point(start, withBook: true)) – \(point(end, withBook: false))"
+        return "\(point(start, suffix: "b", withBook: true)) – \(point(end, suffix: "a", withBook: false))"
     }
 
-    private static func point(_ point: CanvasTextObject.Reference.Point, withBook: Bool) -> String {
-        let place = point.verse.map { "\(point.chapter):\($0)" } ?? "\(point.chapter)"
+    /// The verse number with its partial marker; nil for a whole-chapter point.
+    private static func verse(_ point: CanvasTextObject.Reference.Point, suffix: String) -> String? {
+        point.verse.map { "\($0)\(point.isPartial ? suffix : "")" }
+    }
+
+    private static func point(
+        _ point: CanvasTextObject.Reference.Point,
+        suffix: String,
+        withBook: Bool
+    ) -> String {
+        let place = verse(point, suffix: suffix).map { "\(point.chapter):\($0)" } ?? "\(point.chapter)"
         return withBook ? "\(point.book) \(place)" : place
     }
 }
@@ -896,6 +1193,25 @@ private struct CanvasTextSegment: TextAttribute {
     let word: Int
     let grapheme: Int
     let highlighted: Bool
+    /// §4 `isHighlighting`: inside the in-progress selection (accent20, glyphs unchanged).
+    let selecting: Bool
+    /// The segment's first UTF-16 offset in `text`, and its UTF-16 length.
+    let offset: Int
+    let length: Int
+}
+
+/// §4 `isHighlighting`: where each item's glyph runs were drawn (in the item Text's own space)
+/// and where each item sits in the block. Written by the renderer as it draws and read by the
+/// selection gesture; a plain reference, not observed, so writing it triggers no view update.
+final class CanvasTextSelectionGeometry {
+    struct Run {
+        let rect: CGRect
+        let start: Int
+        let length: Int
+    }
+
+    var runs: [Int: [Run]] = [:]
+    var itemOrigins: [Int: CGPoint] = [:]
 }
 
 /// Draws one Text of the block, back to front (§2 Label): label box per wrapped line, highlight
@@ -914,6 +1230,11 @@ private struct CanvasTextRenderer: TextRenderer {
     let motion: Motion
     let box: Color?
     let highlightColor: Color
+    /// §4 `isHighlighting`: the in-progress selection's fill.
+    let selectionColor: Color
+    /// §4 `isHighlighting`: set on an item's Text while highlighting, so its runs are recorded.
+    let selectionGeometry: CanvasTextSelectionGeometry?
+    let selectionItem: Int?
     let caret: Caret
     let animation: CanvasTextObject.Animation
     let effect: CanvasTextObject.Effect
@@ -941,6 +1262,7 @@ private struct CanvasTextRenderer: TextRenderer {
     }
 
     func draw(layout: Text.Layout, in ctx: inout GraphicsContext) {
+        recordRuns(layout)
         drawBoxes(layout, in: &ctx)
         drawHighlights(layout, in: &ctx)
         drawGlyphs(layout, in: &ctx)
@@ -959,29 +1281,53 @@ private struct CanvasTextRenderer: TextRenderer {
         }
     }
 
-    // 2 — §2 Highlights: one span per wrapped line, span height = that line's box.
+    // 0 — §4 `isHighlighting`: each segment run's rect and UTF-16 range, for the hit test.
+    private func recordRuns(_ layout: Text.Layout) {
+        guard let selectionGeometry, let selectionItem else { return }
+        var runs: [CanvasTextSelectionGeometry.Run] = []
+        for line in layout {
+            for run in line {
+                guard let segment = run[CanvasTextSegment.self] else { continue }
+                runs.append(.init(rect: run.typographicBounds.rect, start: segment.offset, length: segment.length))
+            }
+        }
+        selectionGeometry.runs[selectionItem] = runs
+    }
+
+    // 2 — §2 Highlights: one span per wrapped line, span height = that line's box. §4
+    // `isHighlighting`: the in-progress selection draws the same way, on its own colour, above.
     private func drawHighlights(_ layout: Text.Layout, in ctx: inout GraphicsContext) {
+        drawSpans(layout, color: highlightColor, in: &ctx) { $0.highlighted }
+        drawSpans(layout, color: selectionColor, in: &ctx) { $0.selecting }
+    }
+
+    private func drawSpans(
+        _ layout: Text.Layout,
+        color: Color,
+        in ctx: inout GraphicsContext,
+        where covered: (CanvasTextSegment) -> Bool
+    ) {
         for line in layout {
             let lineRect = line.typographicBounds.rect
             var span: CGRect?
             for run in line {
                 let runRect = run.typographicBounds.rect
-                if run[CanvasTextSegment.self]?.highlighted == true {
+                if let segment = run[CanvasTextSegment.self], covered(segment) {
                     span = span.map { $0.union(runRect) } ?? runRect
                 } else if let open = span {
-                    fillSpan(open, line: lineRect, in: &ctx)
+                    fillSpan(open, line: lineRect, color: color, in: &ctx)
                     span = nil
                 }
             }
-            if let open = span { fillSpan(open, line: lineRect, in: &ctx) }
+            if let open = span { fillSpan(open, line: lineRect, color: color, in: &ctx) }
         }
     }
 
-    private func fillSpan(_ span: CGRect, line: CGRect, in ctx: inout GraphicsContext) {
+    private func fillSpan(_ span: CGRect, line: CGRect, color: Color, in ctx: inout GraphicsContext) {
         let rect = CGRect(x: span.minX, y: line.minY, width: span.width, height: line.height)
         ctx.fill(
             RoundedRectangle(cornerRadius: Token.Radius.cardSm).path(in: rect),
-            with: .color(highlightColor)
+            with: .color(color)
         )
     }
 

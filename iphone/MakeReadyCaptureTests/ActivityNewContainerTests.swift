@@ -7,13 +7,118 @@ final class ActivityNewContainerTests: XCTestCase {
 
     final class RecordingNavigator: ActivityNewNavigating {
         var replaced: [UI2Destination] = []
+        var pushed: [UI2Destination] = []
+        var depth = 0
+        func push(_ destination: UI2Destination) { pushed.append(destination) }
         func replace(with destination: UI2Destination) { replaced.append(destination) }
     }
 
     private struct Boom: Error {}
 
     func testOtherTilesAreUnavailable() {
-        XCTAssertEqual(Set(ActivityNewContainer.unavailableTypes), Set(["bibleVerse", "video", "youtube", "write", "poll"]))
+        XCTAssertEqual(Set(ActivityNewContainer.unavailableTypes), Set(["video", "youtube", "write", "poll"]))
+    }
+
+    func testTheBibleTileIsAvailable() {
+        XCTAssertFalse(ActivityNewContainer.unavailableTypes.contains(ActivityTypeGrid.ActivityType.bibleVerse.rawValue))
+    }
+
+    /// D15: the tile pushes Books with a new-activity flow that returns to this page's depth; nothing is created.
+    func testTheBibleTilePushesBooksWithAFlowAndCreatesNothing() async {
+        let nav = RecordingNavigator()
+        nav.depth = 4
+        var creates = 0
+        let actions = ActivityNewContainer.Actions(draftVersionId: { _ in "draft" }, create: { _, _, _, _ in creates += 1; return "n" })
+        let model = ActivityNewContainer.Model(lessonId: "l1", actions: actions, navigator: nav)
+        model.afterActivityId = "a1"
+        model.selectBible()
+        guard case .bibleBooks(let flowId)? = nav.pushed.first else { return XCTFail("no Books push") }
+        let flow = AppState.shared.biblePickFlows[flowId]
+        XCTAssertEqual(flow?.caller, .newActivity(lessonId: "l1", afterActivityId: "a1"))
+        XCTAssertEqual(flow?.returnDepth, 4)
+        XCTAssertEqual(creates, 0)
+        AppState.shared.endBiblePickFlow(flowId)
+    }
+
+    /// D15: Back from Books ends the flow and creates nothing; the tile still works afterwards. A live flow still
+    /// ignores a second tap.
+    func testBackFromBooksLeavesTheBibleTileWorking() {
+        let nav = RecordingNavigator()
+        let actions = ActivityNewContainer.Actions(draftVersionId: { _ in "draft" }, create: { _, _, _, _ in "n" })
+        let model = ActivityNewContainer.Model(lessonId: "l1", actions: actions, navigator: nav)
+        model.selectBible()
+        model.selectBible()
+        XCTAssertEqual(nav.pushed.count, 1, "a live flow ignores the second tap")
+        guard case .bibleBooks(let first)? = nav.pushed.first else { return XCTFail("no Books push") }
+        AppState.shared.endBiblePickFlow(first)   // Back from Books (BibleBooksContainer.onDisappear)
+        model.selectBible()
+        XCTAssertEqual(nav.pushed.count, 2)
+        guard case .bibleBooks(let second)? = nav.pushed.last else { return XCTFail("no second Books push") }
+        XCTAssertNotEqual(first, second)
+        XCTAssertNotNil(AppState.shared.biblePickFlows[second])
+        AppState.shared.endBiblePickFlow(second)
+    }
+
+    /// D15 (text-activity-v2 D37): the page's placeholder chip is last, so a pick from the page is appended there.
+    func testAPagePickIsAppendedAtThePlaceholderSlot() async {
+        let version = "v-page-\(UUID().uuidString)"
+        let app = AppState.shared
+        for (position, id) in ["a", "b"].enumerated() {
+            app.activities.upsert(ContentActivity(id: "\(version)-\(id)", lessonVersionId: version, activityKey: "k-\(id)",
+                                                  position: position, kind: "text", title: "Text",
+                                                  document: ActivityNewContainer.textDocument(title: "Text"), estimatedSeconds: nil))
+        }
+        defer { app.activities.removeMany(["\(version)-a", "\(version)-b"]) }
+        var log: [String] = []
+        let actions = ActivityNewContainer.Actions(
+            draftVersionId: { _ in version },
+            create: { _, _, _, _ in log.append("POST"); return "b1" },
+            reorder: { _, ids in log.append("PATCH " + ids.joined(separator: ",")) })
+        let nav = RecordingNavigator()
+        let model = ActivityNewContainer.Model(lessonId: "l1", actions: actions, navigator: nav)
+        let pick = BiblePick(
+            passage: BiblePassage(bookNumber: 43, chapterStart: 3, verseStart: 16, chapterEnd: 3, verseEnd: 16,
+                                  startOffset: nil, endOffset: nil, translation: "KJV"),
+            verses: [BibleVerse(verse: 16, text: "For God so loved the world.")], bookName: "John")
+        await model.createBible(pick: pick)
+        XCTAssertEqual(log, ["POST"], "appended last by the server; nothing moves it first")
+        XCTAssertEqual(nav.replaced, [.activitiesEditor(activityId: "b1")])
+    }
+
+    /// D14/D15: a picked passage is created and the first part opens in the editor.
+    func testAPickCreatesTheActivityAndOpensIt() async {
+        let nav = RecordingNavigator()
+        let actions = ActivityNewContainer.Actions(draftVersionId: { _ in "draft" }, create: { _, kind, _, _ in
+            XCTAssertEqual(kind, "bible"); return "b1" })
+        let model = ActivityNewContainer.Model(lessonId: "l1", actions: actions, navigator: nav)
+        let pick = BiblePick(
+            passage: BiblePassage(bookNumber: 43, chapterStart: 3, verseStart: 16, chapterEnd: 3, verseEnd: 16,
+                                  startOffset: nil, endOffset: nil, translation: "KJV"),
+            verses: [BibleVerse(verse: 16, text: "For God so loved the world.")], bookName: "John")
+        await model.createBible(pick: pick)
+        XCTAssertEqual(nav.replaced, [.activitiesEditor(activityId: "b1")])
+    }
+
+    /// D14: a failed save surfaces the banner with a Retry that resumes, never re-POSTing a created part.
+    func testAFailedBibleSaveOffersARetryThatResumes() async {
+        var posts = 0, failNext = true
+        var retry: (() -> Void)?
+        let actions = ActivityNewContainer.Actions(draftVersionId: { _ in "draft" }, create: { _, _, _, _ in
+            if failNext { failNext = false; throw BibleSaveTests.Stub.Down() }
+            posts += 1; return "b1" })
+        let nav = RecordingNavigator()
+        let model = ActivityNewContainer.Model(lessonId: "l1", actions: actions, navigator: nav,
+                                               reportBible: { _, r in retry = r })
+        let pick = BiblePick(
+            passage: BiblePassage(bookNumber: 43, chapterStart: 3, verseStart: 16, chapterEnd: 3, verseEnd: 16,
+                                  startOffset: nil, endOffset: nil, translation: "KJV"),
+            verses: [BibleVerse(verse: 16, text: "For God so loved the world.")], bookName: "John")
+        await model.createBible(pick: pick)
+        XCTAssertNotNil(retry)
+        XCTAssertTrue(nav.replaced.isEmpty)
+        await model.retryBible()
+        XCTAssertEqual(posts, 1)
+        XCTAssertEqual(nav.replaced, [.activitiesEditor(activityId: "b1")])
     }
 
     func testTextTileCreatesThenOpensTheEditor() async {
