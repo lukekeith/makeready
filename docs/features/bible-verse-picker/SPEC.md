@@ -292,3 +292,7 @@ constraints: every server change is independent.
 | F17 | The Reader's chapter swipe and touch-and-hold drag compete with the shell edge-swipe and vertical scroll | D4 corrected; build-time risk on the BibleVerseReader task |
 | F18 | A whole-verse `Highlight`/`VerseNote` model already exists and overlays chapter responses (`bible.ts:360-376, 1002-1395`) | Input for spec 2 (member-highlights); untouched here |
 | F19 | contract: client ⬜ claim gave the wrong reason — the client does read chapter text and recents | §Apps client row restated; still ⬜ (no change needed there) |
+
+## Fixes
+
+- [x] **iphone** — `BibleEditorTests.testTheStateCarriesThePageLayout` still expected the pre-D44 default face `serif`; the merge tier at 884c578d failed it (`BibleEditorTests.swift:322`: got `display`). D44 made `display` (Poppins) the default and `2b1d9a40` updated line 317 of this test but missed line 322. Test-only: the assertion now expects `display`. No app code changed (merge tier, 884c578d)

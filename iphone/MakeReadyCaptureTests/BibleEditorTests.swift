@@ -319,7 +319,7 @@ final class BibleEditorTests: XCTestCase {
         XCTAssertEqual(s.objectXs, [220, 220])
         XCTAssertEqual(s.objectWidths, [376, 376])
         XCTAssertEqual(s.pageHeight, 956)
-        XCTAssertEqual([s.bibleFace, "\(s.bibleSize)", "\(s.bibleInset)", s.bibleVerseNumbers], ["serif", "18.0", "32.0", "gutter"])
+        XCTAssertEqual([s.bibleFace, "\(s.bibleSize)", "\(s.bibleInset)", s.bibleVerseNumbers], ["display", "18.0", "32.0", "gutter"], "D44: Poppins by default")
         let legacy = state(Self.legacyBibleDoc, kind: "bible")
         XCTAssertFalse(legacy.isBible)
         XCTAssertFalse(legacy.objectPageLaidOut.contains(true))
