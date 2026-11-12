@@ -436,8 +436,8 @@ struct CanvasTextObject: View {
         }
     }
 
-    /// §4 `verseNumbers = .hidden`: the verses run on as one paragraph.
-    private var runsOn: Bool { listStyle == .bibleVerse && verseNumbers == .hidden }
+    /// §4 `verseNumbers = .inline` / `.hidden` (SPEC D41): the verses run on as one paragraph.
+    private var runsOn: Bool { listStyle == .bibleVerse && verseNumbers != .gutter }
 
     /// §4 `lineHeight`: `lineHeight × size` less the face's natural line; nil = natural leading.
     private var lineGap: CGFloat {
@@ -522,11 +522,16 @@ struct CanvasTextObject: View {
         }
     }
 
-    /// §4 `verseNumbers = .hidden`: every verse in one Text, each line break drawn as a single
-    /// space. `text` and every offset are unchanged — the joining space carries no segment.
+    /// §4 `verseNumbers = .inline` / `.hidden`: every verse in one Text, each line break drawn as
+    /// a single space; under `.inline` each verse's superscript number sits immediately before its
+    /// first word. `text` and every offset are unchanged — the markers and joining spaces are
+    /// drawn, never segments, so they are never highlighted, selected or counted.
     private func paragraphRow(items: [Item], motion: CanvasTextRenderer.Motion) -> some View {
         let paragraph = items.enumerated().reduce(SwiftUI.Text(verbatim: "")) { partial, pair in
-            let piece = itemText(pair.element)
+            var piece = itemText(pair.element)
+            if let marker = marker(for: pair.offset) {
+                piece = SwiftUI.Text("\(marker)\(piece)")
+            }
             guard pair.offset > 0 else { return SwiftUI.Text("\(partial)\(piece)") }
             return SwiftUI.Text("\(partial)\(SwiftUI.Text(verbatim: " ").font(typeface))\(piece)")
         }
