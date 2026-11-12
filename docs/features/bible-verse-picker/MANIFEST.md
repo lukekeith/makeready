@@ -1,7 +1,7 @@
 size: lg
 state: built
-next: /builder:agent-walk --path docs/features/bible-verse-picker
-head: a4833a17
+next: /builder:resume --path docs/features/bible-verse-picker
+head: 8b07a624
 ticket: none
 branch: builder/bible-verse-picker
 pr: none
@@ -16,5 +16,5 @@ verify: none
 ready: yes 2026-11-12 a4833a17
 ui2: none
 auto: on 2026-11-10
-blocked: none
+blocked: "your sign-off covers e1ee9685; since then only one test assertion changed, no app code — next: /builder:signoff --path /Users/lukekeith/www/makeready.fleet/bible-verse-picker/docs/features/bible-verse-picker <your words>"
 agent-walk: on 2026-11-10
