@@ -9,12 +9,14 @@ struct BibleChaptersContainer: View {
     @Environment(\.ui2Navigator) private var navigator
 
     var body: some View {
-        SearchPageScroll {
-            BibleChaptersScreen(
-                state: BiblePickerMapper.chapters(book: book, used: AppState.shared.biblePickFlows[flowId]?.used ?? []),
-                onBack: { navigator.pop() },
-                onSelect: { navigator.push(.bibleVerses(book: book, chapter: $0, flowId: flowId)) }
-            )
-        }
+        Group {
+        BibleChaptersScreen(
+            state: BiblePickerMapper.chapters(book: book, used: AppState.shared.biblePickFlows[flowId]?.used ?? []),
+            onBack: { navigator.pop() },
+            onSelect: { navigator.push(.bibleVerses(book: book, chapter: $0, flowId: flowId)) }
+        )
+    }
+        // D53: the screen owns its scroll under a fixed header; the page fills the screen.
+        .ui2PushedPageFill()
     }
 }

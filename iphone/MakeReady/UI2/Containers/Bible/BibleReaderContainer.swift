@@ -49,14 +49,18 @@ struct BibleReaderContainer: View {
 
     private func screenState(app: AppState, translation: String, translations: [BibleVersion]) -> BibleReaderScreen.State {
         guard let chapter = model.loaded else {
-            return BibleReaderMapper.placeholder(
+            var placeholder = BibleReaderMapper.placeholder(
                 book: model.book, chapter: model.chapter, translation: translation,
                 translations: translations, failed: model.failed)
+            placeholder.translationLabel = Self.translationName(translation, in: translations)
+            return placeholder
         }
         var state = BibleReaderMapper.state(
             chapter: chapter, selection: model.selection, used: app.biblePickFlows[flowId]?.used ?? [],
             top: model.scrollTo ?? 1, translations: translations)
         state.scrollToVerse = model.scrollTo
+        // D55: the chip names the translation; the code stays the stored value and the API key.
+        state.translationLabel = Self.translationName(chapter.translation, in: translations)
         return state
     }
 
@@ -165,5 +169,12 @@ final class BibleReaderModel {
             passage.endOffset = nil
         }
         selection = BibleReaderMapper.selection(from: passage, verses: chapter.verses)
+    }
+}
+
+extension BibleReaderContainer {
+    /// D55: the translation's served name for its code (case-insensitive), else nil — the chip then shows the code.
+    static func translationName(_ code: String, in translations: [BibleVersion]) -> String? {
+        translations.first { $0.code.caseInsensitiveCompare(code) == .orderedSame }?.name
     }
 }

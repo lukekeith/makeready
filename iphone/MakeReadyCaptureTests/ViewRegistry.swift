@@ -6468,6 +6468,7 @@ private func buildScreenBibleReader(_ fixture: CaptureFixture) throws -> AnyView
         state: .init(
             title: c.title ?? sample.title,
             translationCode: c.translationCode ?? sample.translationCode,
+            translationLabel: c.translationLabel ?? sample.translationLabel,
             translationCodes: c.translationCodes ?? sample.translationCodes,
             translationNames: c.translationNames ?? sample.translationNames,
             chapterHeading: c.chapterHeading ?? sample.chapterHeading,

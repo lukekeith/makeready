@@ -19,22 +19,24 @@ struct BibleBooksContainer: View {
             used: app.biblePickFlows[flowId]?.used ?? [], recents: app.bibleRecents, result: app.bibleSearchResult,
             translation: app.selectedBibleTranslation, query: model.fillQuery, translations: app.sortedBibleTranslations,
             searching: model.searching, searchFocused: !model.fillQuery.isEmpty)
-        SearchPageScroll {
-            BibleBooksScreen(
-                state: state,
-                onBack: { navigator.pop() },
-                onBook: { navigator.push(.bibleChapters(book: $0, flowId: flowId)) },
-                onQuery: { queryChanged($0) },
-                onSubmit: { submit() },
-                onRecent: { fill($0) },
-                onRemoveRecent: { removeRecent($0) },
-                onBookResult: { navigator.push(.bibleChapters(book: $0, flowId: flowId)) },
-                onVerseResult: { openVerseResult(at: $0) },
-                onTranslation: { chooseTranslation($0) }
-            )
-            // A recent fills the field: the screen seeds its field once, so a new generation re-seeds it.
-            .id(model.fillGeneration)
-        }
+        Group {
+        BibleBooksScreen(
+            state: state,
+            onBack: { navigator.pop() },
+            onBook: { navigator.push(.bibleChapters(book: $0, flowId: flowId)) },
+            onQuery: { queryChanged($0) },
+            onSubmit: { submit() },
+            onRecent: { fill($0) },
+            onRemoveRecent: { removeRecent($0) },
+            onBookResult: { navigator.push(.bibleChapters(book: $0, flowId: flowId)) },
+            onVerseResult: { openVerseResult(at: $0) },
+            onTranslation: { chooseTranslation($0) }
+        )
+        // A recent fills the field: the screen seeds its field once, so a new generation re-seeds it.
+        .id(model.fillGeneration)
+    }
+        // D53: the screen owns its scroll under a fixed header; the page fills the screen.
+        .ui2PushedPageFill()
         .task {
             // An earlier visit's answer is not this visit's — but a return from a pushed page is the same visit, and
             // keeps its results (D17). The task restarts on every reappearance, so only the first one clears.

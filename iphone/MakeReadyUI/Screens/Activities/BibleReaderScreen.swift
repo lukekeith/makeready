@@ -25,6 +25,9 @@ struct BibleReaderScreen: View {
         var title: String
         /// C-035 `label` — the current translation's full code as served (D7), never truncated.
         var translationCode: String
+        /// C-035 `label` — the translation's name as the chip shows it; nil = `translationCode`.
+        /// One line, tail-truncated.
+        var translationLabel: String? = nil
         /// The C-036 single-select's options, parallel to `translationNames` (popularity order,
         /// D7). Not drawn on this screen — the chip presents them (§6, deviation 7).
         var translationCodes: [String]
@@ -82,9 +85,10 @@ struct BibleReaderScreen: View {
             )
             .ui2Element("C-040 PageHeader")
 
-            // §2.2 translation row: one C-035 `type=Menu`, label = the code, never active.
-            // Leading-aligned, inset by `space-page-margin`. Fixed — does not scroll.
-            FilterChip(type: .menu, active: false, label: state.translationCode, onTap: onTranslationMenu)
+            // §2.2 translation row: one C-035 `type=Menu`, label = `translationLabel` (else the
+            // code), never active. Leading-aligned, inset by `space-page-margin`. Fixed — does not scroll.
+            FilterChip(type: .menu, active: false, label: state.translationLabel ?? state.translationCode,
+                       onTap: onTranslationMenu)
                 .ui2Element("C-035 FilterChip")
                 .padding(.horizontal, Token.Space.pageMargin)
 

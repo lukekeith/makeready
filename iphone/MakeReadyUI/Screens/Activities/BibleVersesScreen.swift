@@ -49,13 +49,15 @@ struct BibleVersesScreen: View {
     // MARK: - Body (§2 top → bottom)
 
     var body: some View {
-        // §2 / D22: no ScrollView at the root — the host container scrolls; the capture canvas
-        // lays the page out at its full length. The status bar is the harness's.
+        // §2 / D53: C-040 is fixed; the verse grid and its states scroll in the screen's own
+        // ScrollView, filling the remaining height. The status bar is the harness's.
         VStack(alignment: .leading, spacing: Token.Space.sectionGap) {   // §2 2: section-gap below the header
             pageHeader
-            bodyRegion
-                .padding(.horizontal, Token.Space.pageMargin)            // §2 2: page-margin inset
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            ScrollView(.vertical) {
+                bodyRegion
+                    .padding(.horizontal, Token.Space.pageMargin)        // §2 2: page-margin inset
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Token.layoutBackground)                              // `color-layout-background`
@@ -87,7 +89,8 @@ struct BibleVersesScreen: View {
             // §2 2 / OQ-bible-verses-003: C-076 at its defaults, centred in the body region.
             ActivitySpinner()
                 .ui2Element("C-076 ActivitySpinner")
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .containerRelativeFrame(.vertical)                       // centred in the scroll region
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Loading verses")                    // §3 1
         } else if state.verseCount > 0 {
@@ -95,7 +98,8 @@ struct BibleVersesScreen: View {
         } else {
             // §3 failed: the body stays empty; the app's top banner carries Retry (D18, D24).
             Color.clear
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity)
+                .containerRelativeFrame(.vertical)
         }
     }
 

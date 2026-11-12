@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 /// C-140 BibleVerseReader — the Bible passage picker's reader body: a chapter heading, one row per
 /// verse (the number in a left gutter, the text beside it), word-level touch-and-hold selection with
@@ -102,7 +103,10 @@ struct BibleVerseReader: View {
     @State private var lastTopVerse: Int?
     /// A `scrollToVerse` request not yet overtaken by the user's own scroll.
     @State private var pendingScroll = false
-    @GestureState private var selecting = false
+    /// The word a held press anchored; non-nil while the press is held (scrolling suspended).
+    @State private var selectAnchor: Position?
+
+    private var selecting: Bool { selectAnchor != nil }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -167,10 +171,10 @@ struct BibleVerseReader: View {
                         row(verse)
                     }
                 }
-                // D36: simultaneous, so a plain drag reaches the ScrollView (an exclusive `.gesture` took
-                // every drag on the rows and the chapter could not scroll); a completed hold sets
-                // `selecting`, which suspends scrolling below.
-                .simultaneousGesture(selectionGesture)
+                // D54: a bridged UIKit long-press that recognizes alongside the ScrollView's pan, so a
+                // plain drag scrolls; a SwiftUI drag on the rows swallowed every touch. A recognized
+                // hold sets `selectAnchor`, which suspends scrolling below.
+                .gesture(SelectionPress(space: Self.space, onPress: selectionPress))
                 .simultaneousGesture(textTap)
                 .ui2Element("Verse rows")
             }
@@ -252,24 +256,22 @@ struct BibleVerseReader: View {
 
     // MARK: - Selection by touch-and-hold (§3 Behaviour)
 
-    /// A touch-and-hold on a word, then a drag: the hold anchors the selection at that word, the
-    /// drag extends it across rows, snapped outward to whole words. Every change is reported.
-    private var selectionGesture: some Gesture {
-        LongPressGesture()
-            .sequenced(before:
-                // pan-ok: a free 2-D selection drag over the verse text, only after the hold
-                DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.space))
-            )
-            .updating($selecting) { value, state, _ in
-                if case .second(true, _) = value { state = true }
-            }
-            .onChanged { value in
-                guard case .second(true, let drag?) = value,
-                      let anchor = position(at: drag.startLocation, strict: true),
-                      let current = position(at: drag.location, strict: false) else { return }
-                emit(snappedSelection(anchor, current))
-                autoScroll(near: drag.location)
-            }
+    /// A touch-and-hold on a word, then a drag (D54): *began* anchors the selection at the word under
+    /// the finger and suspends scrolling, *changed* extends it across rows, snapped outward to whole
+    /// words, auto-scrolling near the edges, *ended* stops. Every change is reported.
+    private func selectionPress(_ phase: SelectionPress.Phase, _ location: CGPoint) {
+        switch phase {
+        case .began:
+            guard let anchor = position(at: location, strict: true) else { return }
+            selectAnchor = anchor
+            emit(snappedSelection(anchor, anchor))
+        case .changed:
+            guard let anchor = selectAnchor, let current = position(at: location, strict: false) else { return }
+            emit(snappedSelection(anchor, current))
+            autoScroll(near: location)
+        case .ended:
+            selectAnchor = nil
+        }
     }
 
     /// §3: a tap on text outside the selection clears it; with no selection it does nothing.
@@ -451,6 +453,47 @@ struct BibleVerseReader: View {
 // MARK: - Verse text
 
 private enum HandleEnd { case start, end }
+
+/// C-140 §3 (D54): the selection's touch-and-hold, a UIKit `UILongPressGestureRecognizer` (0.4s,
+/// 10pt allowable movement, touches not cancelled) that recognizes simultaneously with the
+/// ScrollView's pan, so a plain vertical drag still scrolls. Locations are in the named space.
+private struct SelectionPress: UIGestureRecognizerRepresentable {
+    enum Phase { case began, changed, ended }
+
+    /// FLAGGED LITERAL — C-140 §3 / D54: `minimumPressDuration` 0.4s.
+    static let pressDuration: TimeInterval = 0.4
+    /// FLAGGED LITERAL — C-140 §3 / D54: `allowableMovement` 10pt.
+    static let allowableMovement: CGFloat = 10
+
+    let space: String
+    let onPress: (Phase, CGPoint) -> Void
+
+    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator { Coordinator() }
+
+    func makeUIGestureRecognizer(context: Context) -> UILongPressGestureRecognizer {
+        let press = UILongPressGestureRecognizer()
+        press.minimumPressDuration = Self.pressDuration
+        press.allowableMovement = Self.allowableMovement
+        press.cancelsTouchesInView = false
+        press.delegate = context.coordinator
+        return press
+    }
+
+    func handleUIGestureRecognizerAction(_ press: UILongPressGestureRecognizer, context: Context) {
+        let location = context.converter.location(in: .named(space))
+        switch press.state {
+        case .began: onPress(.began, location)
+        case .changed: onPress(.changed, location)
+        case .ended, .cancelled, .failed: onPress(.ended, location)
+        default: break
+        }
+    }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                               shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
+    }
+}
 
 /// One verse's text, drawn by `VerseTextRenderer`: the used underlay, the selection, the glyphs and
 /// the handles. Owns the 44×44 handle hit areas, placed where the renderer drew the handles.

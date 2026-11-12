@@ -13,15 +13,17 @@ struct BibleVersesContainer: View {
     @State private var failed = false
 
     var body: some View {
-        SearchPageScroll {
-            BibleVersesScreen(
-                state: BiblePickerMapper.verses(
-                    book: book, chapter: chapter, verseCount: verseCount,
-                    used: AppState.shared.biblePickFlows[flowId]?.used ?? [], failed: failed),
-                onBack: { navigator.pop() },
-                onSelect: { navigator.push(.bibleReader(book: book, chapter: chapter, verse: $0, flowId: flowId)) }
-            )
-        }
+        Group {
+        BibleVersesScreen(
+            state: BiblePickerMapper.verses(
+                book: book, chapter: chapter, verseCount: verseCount,
+                used: AppState.shared.biblePickFlows[flowId]?.used ?? [], failed: failed),
+            onBack: { navigator.pop() },
+            onSelect: { navigator.push(.bibleReader(book: book, chapter: chapter, verse: $0, flowId: flowId)) }
+        )
+    }
+        // D53: the screen owns its scroll under a fixed header; the page fills the screen.
+        .ui2PushedPageFill()
         .task { await load() }
     }
 

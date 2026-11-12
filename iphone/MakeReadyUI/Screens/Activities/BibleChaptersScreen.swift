@@ -47,14 +47,17 @@ struct BibleChaptersScreen: View {
     // MARK: - Body (§2 top → bottom)
 
     var body: some View {
-        // §2 / D22: no ScrollView at the root — the host container scrolls; the capture canvas
-        // lays the page out at its full length. The status bar is the harness's.
+        // §2 / D53: C-040 is fixed; the chapter grid scrolls in the screen's own ScrollView,
+        // filling the remaining height. The status bar is the harness's.
         VStack(alignment: .leading, spacing: Token.Space.sectionGap) {   // §2 2: section-gap below the header
             pageHeader
-            chapterGrid
-                .padding(.horizontal, Token.Space.pageMargin)            // §2 2: page-margin inset
+            ScrollView(.vertical) {
+                chapterGrid
+                    .padding(.horizontal, Token.Space.pageMargin)        // §2 2: page-margin inset
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .frame(maxWidth: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Token.layoutBackground)                              // `color-layout-background`
     }
 

@@ -145,22 +145,27 @@ struct BibleBooksScreen: View {
     // MARK: - Body (§2 top → bottom)
 
     var body: some View {
-        // D22: no ScrollView at the root — the host container scrolls; the capture canvas lays the
-        // page out at its full length. The status bar is the harness's.
+        // §2 / D53: the ruled exception to `no-root-scroll` — C-040 and C-131 are fixed; the body
+        // below them scrolls in the screen's own ScrollView, filling the remaining height. The
+        // host gives the screen the full page height. The status bar is the harness's.
         VStack(alignment: .leading, spacing: 0) {
             pageHeader
             searchHeader
-            switch Self.content(for: state, query: query, searchActive: searchActive) {
-            case .browse: browseBody
-            case .recents: recentsBody
-            case .recentsPrompt: emptyBody(title: Self.promptTitle)
-            case .loading: loadingBody
-            case .results: resultsBody
-            case .empty: emptyBody(title: Self.emptyTitle)
-            case .pending: EmptyView()
+            ScrollView(.vertical) {
+                switch Self.content(for: state, query: query, searchActive: searchActive) {
+                case .browse: browseBody
+                case .recents: recentsBody
+                case .recentsPrompt: emptyBody(title: Self.promptTitle)
+                case .loading: loadingBody
+                case .results: resultsBody
+                case .empty: emptyBody(title: Self.emptyTitle)
+                case .pending: EmptyView()
+                }
             }
+            .scrollDismissesKeyboard(.interactively)                    // §2: dragging dismisses the keyboard
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .frame(maxWidth: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Token.layoutBackground)                     // §2: `color-layout-background`
         // §2 Overlay (pattern sheet): C-036 single-select; in the app the shell draws it above
         // all chrome.
