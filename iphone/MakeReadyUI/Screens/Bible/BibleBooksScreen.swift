@@ -20,8 +20,11 @@ struct BibleBooksScreen: View {
     /// entry per cell or row, because the preview's props are JSON and the §4 views take flat
     /// parameters (R-05).
     struct State {
-        /// C-035 `label` — the selected translation's full code ("ENGKJV", never truncated, D7).
+        /// The selected translation's code — the C-036 selection key (`selectedIDs`, D7).
         var translationCode: String
+        /// C-035 `label` (D55) — the translation's NAME the container passes ("King James Version");
+        /// nil = `translationCode`. Tail-truncated when wider than the chip row (C-035 §3c).
+        var translationLabel: String? = nil
         /// C-036 `options` — codes (`id`) and names (`label`), popularity desc then name (D7).
         var translationCodes: [String]
         var translationNames: [String]
@@ -98,6 +101,8 @@ struct BibleBooksScreen: View {
     @SwiftUI.State private var query: String
     @SwiftUI.State private var searchActive: Bool
     @SwiftUI.State private var translationMenuOpen = false
+    /// The screen's width, measured — the C-035 chip's max width is the rail row inside it (D55).
+    @SwiftUI.State private var screenWidth: CGFloat = 0
 
     init(
         state: State,
@@ -166,6 +171,7 @@ struct BibleBooksScreen: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { screenWidth = $0 }
         .background(Token.layoutBackground)                     // §2: `color-layout-background`
         // §2 Overlay (pattern sheet): C-036 single-select; in the app the shell draws it above
         // all chrome.
@@ -189,7 +195,8 @@ struct BibleBooksScreen: View {
 
     // MARK: §2 2. Search header
 
-    /// C-131 `underScreenHeader` with ONE C-035 menu chip — the full translation code (D7).
+    /// C-131 `underScreenHeader` with ONE C-035 menu chip — the translation's name, else its code
+    /// (D55), tail-truncated to the rail row's width (C-035 §3c).
     /// Return searches now and dismisses the keyboard (§3).
     private var searchHeader: some View {
         SearchFilterHeader(
@@ -206,13 +213,20 @@ struct BibleBooksScreen: View {
             FilterChip(
                 type: .menu,
                 active: false,
-                label: state.translationCode,
-                onTap: { translationMenuOpen = true }
+                label: state.translationLabel ?? state.translationCode,
+                onTap: { translationMenuOpen = true },
+                maxWidth: chipRowWidth
             )
             .ui2Element("C-035 FilterChip")
         }
         .onSubmit(of: .text) { onSubmit() }
         .ui2Element("C-131 SearchFilterHeader")
+    }
+
+    /// The C-130 rail row's width: the screen less `space-page-margin` each side (C-130 §2). nil
+    /// until measured, so the first pass is the unconstrained chip.
+    private var chipRowWidth: CGFloat? {
+        screenWidth > 0 ? max(0, screenWidth - 2 * Token.Space.pageMargin) : nil
     }
 
     // MARK: §2 3a. Browse body
@@ -416,6 +430,7 @@ extension BibleBooksScreen.State {
     /// §3 1 browse — the grids at rest; John is used by the fixture lesson (bible-reader.ts, D16).
     static let browse = Self(
         translationCode: "ENGKJV",
+        translationLabel: "King James (Authorised) Version",
         translationCodes: ["ENGKJV", "WEBBE", "NIV11"],
         translationNames: [
             "King James (Authorised) Version", "World English Bible British Edition",

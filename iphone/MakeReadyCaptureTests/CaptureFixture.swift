@@ -1491,12 +1491,12 @@ struct CaptureComponent: Codable {
     // ── screen bible-reader ──
     // `title`, `selection`, `loading`, `failed` and the C-140 fields above are reused.
     let translationCode: String?
-    let translationLabel: String?              // bible-reader — the C-035 chip's name; nil = the code
+    let translationLabel: String?              // bible-reader, bible-books — the C-035 chip's name; nil = the code
     let translationCodes: [String]?
     let translationNames: [String]?
     let canSelect: Bool?
     // ── screen bible-books ──
-    // `translationCode`, `translationCodes`, `translationNames` and `query` are reused.
+    // `translationCode`, `translationLabel`, `translationCodes`, `translationNames` and `query` are reused.
     let searchFocused: Bool?
     let oldTestamentNumbers: [Int]?
     let oldTestamentLabels: [String]?

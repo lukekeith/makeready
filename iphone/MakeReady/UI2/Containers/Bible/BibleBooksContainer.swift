@@ -15,10 +15,11 @@ struct BibleBooksContainer: View {
 
     var body: some View {
         let app = AppState.shared
-        let state = BiblePickerMapper.books(
+        let state = Self.named(BiblePickerMapper.books(
             used: app.biblePickFlows[flowId]?.used ?? [], recents: app.bibleRecents, result: app.bibleSearchResult,
             translation: app.selectedBibleTranslation, query: model.fillQuery, translations: app.sortedBibleTranslations,
-            searching: model.searching, searchFocused: !model.fillQuery.isEmpty)
+            searching: model.searching, searchFocused: !model.fillQuery.isEmpty),
+            translation: app.selectedBibleTranslation, translations: app.sortedBibleTranslations)
         Group {
         BibleBooksScreen(
             state: state,
@@ -163,5 +164,15 @@ final class BibleBooksModel {
     func clearSearch() {
         debouncer.cancel()
         Task { await BibleActions().search("", record: false) }
+    }
+}
+
+extension BibleBooksContainer {
+    /// D55: the chip names the translation (the code stays the selection key and the API value).
+    static func named(_ state: BibleBooksScreen.State, translation: String,
+                      translations: [BibleVersion]) -> BibleBooksScreen.State {
+        var state = state
+        state.translationLabel = BibleReaderContainer.translationName(translation, in: translations)
+        return state
     }
 }

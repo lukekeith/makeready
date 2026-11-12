@@ -105,6 +105,8 @@ struct BibleVerseReader: View {
     @State private var pendingScroll = false
     /// The word a held press anchored; non-nil while the press is held (scrolling suspended).
     @State private var selectAnchor: Position?
+    /// D56: the bottom safe-area inset (home indicator) the scroll end clears, read from geometry.
+    @State private var bottomSafeArea: CGFloat = 0
 
     private var selecting: Bool { selectAnchor != nil }
 
@@ -134,6 +136,8 @@ struct BibleVerseReader: View {
             }
         }
         .scrollPosition($scrollPosition)
+        // D56: the reader may sit in a full-screen page whose shell adds no bottom padding.
+        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { bottomSafeArea = $0 }
         // §3: while a selection is held or a handle dragged, vertical scrolling is suspended.
         .scrollDisabled(selecting || handleAnchor != nil)
         .onScrollGeometryChange(for: ScrollMetrics.self) { scroll in
@@ -182,8 +186,10 @@ struct BibleVerseReader: View {
                 footnote
             }
         }
-        // §2: `space-section-gap` below the footnote (or the last verse) to the scroll end.
-        .padding(.bottom, Token.Space.sectionGap)
+        // §2 item 0 / D56: `space-row-gap` above the heading, inside the content so it scrolls away.
+        .padding(.top, Token.Space.rowGap)
+        // §2 item 5 / D56: `space-section-gap` plus the bottom safe-area inset below the last line.
+        .padding(.bottom, Token.Space.sectionGap + bottomSafeArea)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -216,7 +222,14 @@ struct BibleVerseReader: View {
             )
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .id(verse.number)
+        // §3 / D56: the scroll target is a marker the top padding's height above the row, so
+        // `scrollToVerse` lands the row just below the top padding, never under it.
+        .background(alignment: .top) {
+            Color.clear
+                .frame(height: Token.Space.rowGap)
+                .alignmentGuide(.top) { $0[.bottom] }
+                .id(verse.number)
+        }
         .ui2Element("Verse \(verse.number)")
     }
 
@@ -376,9 +389,11 @@ struct BibleVerseReader: View {
         }
     }
 
-    /// §4 `onTopVerseChange`: the first verse whose text reaches below the scroll offset.
+    /// §4 `onTopVerseChange`: the first verse whose text reaches below the scroll offset plus the
+    /// top padding (D56), so a verse scrolled to sits at the top and is the one reported.
     private func reportTopVerse(at offset: CGFloat) {
-        let top = verses.first { (geometry.textFrames[$0.number]?.maxY ?? 0) > offset }?.number
+        let edge = offset + Token.Space.rowGap
+        let top = verses.first { (geometry.textFrames[$0.number]?.maxY ?? 0) > edge }?.number
         guard let top, top != lastTopVerse else { return }
         lastTopVerse = top
         onTopVerseChange(top)

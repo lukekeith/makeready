@@ -6500,6 +6500,7 @@ private func buildScreenBibleBooks(_ fixture: CaptureFixture) throws -> AnyView 
     return AnyView(MakeReadyUI.BibleBooksScreen(
         state: .init(
             translationCode: c.translationCode ?? sample.translationCode,
+            translationLabel: c.translationLabel ?? sample.translationLabel,
             translationCodes: c.translationCodes ?? sample.translationCodes,
             translationNames: c.translationNames ?? sample.translationNames,
             query: c.query ?? sample.query,
