@@ -938,7 +938,10 @@ struct ActivitiesEditorScreen: View {
             // §11 (D24): otherwise (`text` pages) the canvas is fixed to the screen in every mode —
             // no scroll range, no scroll insets, no autoscroll. The header and bottom area stay
             // opaque over it.
-            scrolls: canvasScrolls
+            scrolls: canvasScrolls,
+            // §34 (D52): a Bible page opens resting below the header — page y 0 just under it;
+            // text pages pass nothing (unchanged).
+            restAtInsetTop: state.isBible
         )
         .coordinateSpace(.named(Self.screenSpace))
         .overlay(alignment: .topLeading) {

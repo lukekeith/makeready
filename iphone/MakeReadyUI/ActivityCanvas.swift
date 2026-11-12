@@ -141,7 +141,11 @@ struct ActivityCanvas<Content: View>: View {
     /// §4 — `false` = a fixed canvas (§2 Fixed canvas, D24): no scroll, page = viewport, insets
     /// ignored, autoscroll off. No effect in `viewer`.
     let scrolls: Bool
-
+    /// §4 (activities-editor §34, D52) — `true` = the page opens and rests at the top of its scroll
+    /// range with the top inset showing, so page y 0 sits just below the caller's top bar. `false`
+    /// (the default) keeps today's rest (page y 0 at viewport y 0), so other users are unchanged.
+    /// A bar's height changing still keeps the current scroll.
+    let restAtInsetTop: Bool
     /// R-02: how far the page has scrolled (wu), so the viewport-fixed layers stay put.
     @State private var scrolled: CGFloat = 0
     /// R-02: the layout width a handle drag started from, held only while the finger is down.
@@ -229,7 +233,8 @@ struct ActivityCanvas<Content: View>: View {
         onAutoscroll: @escaping (CGFloat) -> Void = { _ in },
         onPageScrollChange: @escaping (CGFloat) -> Void = { _ in },
         scrollOffset: CGFloat = 0,
-        scrolls: Bool = true
+        scrolls: Bool = true,
+        restAtInsetTop: Bool = false
     ) {
         self.background = background
         self.mode = mode
@@ -252,6 +257,7 @@ struct ActivityCanvas<Content: View>: View {
         self.onPageScrollChange = onPageScrollChange
         self.scrollOffset = scrollOffset
         self.scrolls = scrolls
+        self.restAtInsetTop = restAtInsetTop
     }
 
     var body: some View {
@@ -278,7 +284,10 @@ struct ActivityCanvas<Content: View>: View {
                                 .frame(width: proxy.size.width, height: layout.height * unit, alignment: .topLeading)
                                 .background {
                                     GeometryReader { scroll in
-                                        Color.clear.onChange(of: scroll.frame(in: .named(scrollSpace)).minY) { _, minY in
+                                        // §34 (D52): read from the first layout too, so a page resting
+                                        // below the top inset starts at its real scroll.
+                                        Color.clear.onChange(of: scroll.frame(in: .named(scrollSpace)).minY,
+                                                             initial: restAtInsetTop) { _, minY in
                                             scrolled = -minY / unit
                                         }
                                     }
@@ -290,8 +299,9 @@ struct ActivityCanvas<Content: View>: View {
                     .coordinateSpace(.named(scrollSpace))
                     .scrollIndicators(.hidden)
                     .scrollBounceBehavior(.basedOnSize)
-                    // §2 Scrolling insets: at rest page y 0 sits at viewport y 0, the top inset above it.
-                    .defaultScrollAnchor(columnAnchor(scrolled: 0, range: range))
+                    // §2 Scrolling insets: at rest page y 0 sits at viewport y 0, the top inset above it;
+                    // §34 (D52) `restAtInsetTop`: at rest the top inset shows and page y 0 sits below it.
+                    .defaultScrollAnchor(columnAnchor(scrolled: restAtInsetTop ? -scrollInsets.top : 0, range: range))
                     // D49: the canvas scrolls in idle only — editing, highlighting and manipulating
                     // lock it so the slider, handles and edited text get every drag. The offset,
                     // range and insets are untouched; idle resumes from the kept offset.
