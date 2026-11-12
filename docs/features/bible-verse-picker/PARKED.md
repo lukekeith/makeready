@@ -1,55 +1,51 @@
 # bible-verse-picker — parked
-parked: 2026-11-12 6d7f3eae · by the fleet (the run that parked it wrote no record)
-kind: human-step
-blocked: "revising — next: /builder:revise --path docs/features/bible-verse-picker"
+parked: 2026-11-12 bffe1486 · by the fleet (the run that parked it wrote no record)
+kind: stuck
+blocked: "the walk env would not start (walk env didn't come up — see /Users/lukekeith/www/makeready/.builder/fleet/logs/bible-verse-picker-start.log) and an agent run could not fix it — next: run agent_walk.start in /Users/lukekeith/www/makeready.fleet/bible-verse-picker and fix what it prints, then /builder:agent"
 
 ## What is stuck
-revising
+the walk env would not start (walk env didn't come up — see /Users/lukekeith/www/makeready/.builder/fleet/logs/bible-verse-picker-start.log) and an agent run could not fix it
 
 ## What was tried
-- 12 fleet run(s) in all — `git log --oneline -- docs/features/bible-verse-picker` lists what each changed
+- 13 fleet run(s) in all — `git log --oneline -- docs/features/bible-verse-picker` lists what each changed
 
 ## Evidence
-- the run that parked it: /Users/lukekeith/www/makeready/.builder/fleet/logs/bible-verse-picker-12.log — its last lines:
+- the run that parked it: /Users/lukekeith/www/makeready/.builder/fleet/logs/bible-verse-picker-13.log — its last lines:
 
 ```
-· The latest revision of the Bible verse picker (Tasks 23–25) is built and committed, and it's now waiting for the fleet's walk lane. The old park reason ("waiting for your walk") no longer applied, because you'd revised the spec and approved three new phases since then.
+· No install at all in the worktree. Run the sync step to see whether it fails.
+· Sync works. Now the full reset:
+· Reset passes once installed. Check start + smoke too, in one foreground command that cleans up after itself:
+· Servers stopped. Both came up but smoke failed — check which probe fails:
+· Client returns 500. Check Laravel's log:
+· Second problem: the worktree's client has no `.env`, so no `APP_KEY`. Check how builder.md's walk env expects this to be provided:
+· builder.md's `copy:` should have put `client/.env` (and `server/bin/atlas`) into this worktree. Checking whether those copies happened:
+· I didn't commit anything. Nothing in this branch's code, migrations or dependencies is broken. The cause is in the fleet's worktree setup: it never ran builder.md's `agent_walk.copy` and `agent_walk.sync` steps for this worktree. It was unparked for a retry, which may be how those steps got skipped.
 
-**What landed (all iPhone, 3 phases, 3 tasks)**
-- **Phase 13 · Task 23 (`b842babd`)**: the Bible reference (D34) is now ordinary text above the passage, without the translation code. It can be edited, moved and restyled like any text, and it's no longer locked or counted in the page height. Change passage updates it only while you haven't edited it.
-- **Phase 14 · Task 24 (`16b30ce9`)**: d2m added a light/dark tool bar tone setting to the editor screen. It asked one question (how to recolour the icon buttons, which set their own colour) and I gave its recommended answer: an optional icon colour, off by default.
-- **Phase 15 · Task 25 (`32d67a86`)**: on text and Bible activities, the tool bar icons turn dark when the page background is light (D35). Image and video backgrounds keep white icons.
-- **Final review fixes (`84165195`)**: an honest test name and assertions, the spec's test steps updated for D34/D35, new walk steps E10–E11, outdated code comments refreshed, superseded decisions marked, and tests for "Song of Solomon" and "1 John" when Change passage updates the reference.
+**What I found**
+- The worktree has no `node_modules` at all. That is why the reset fails at `npm run migrate:apply` with `sh: dotenv: command not found` (exit 127).
+- The files the copy step should have brought over from the main checkout aren't here either: `client/.env`, `server/bin/atlas` and `.mcp.json` are all missing. All three exist in the main checkout.
 
-**Tests**: every phase passed the verifier, and the last run, on `84165195`, passed all 55 iPhone test files with one known flaky test. No server code changed, and the contract is unchanged (still frozen since 2026-11-11). I skipped walk readiness, as `--no-dev-env` requires; the manifest says the dev environment is pending for the walk lane (`6d7f3eae`).
+**What I ran to check**
+- **Sync:** `npm ci`, `prisma generate` and `composer install` all succeed.
+- **Reset:** after the sync, the full reset passes. It applied 82 migrations, ran the seed, and loaded the fixtures (3 users, 2 orgs, 24 members and so on), exiting 0.
+- **Start and smoke:** the server's `:3110/health` returns 200 and s3mock on `:9010` is up. The client on `:8102` returns **500** with Laravel's `MissingAppKeyException` ("No application encryption key has been specified"). That's because `client/.env` was never copied in, and `APP_KEY` isn't set in the walk env either. So even with the reset fixed, the smoke check would still fail until the copy step runs.
 
-**Decisions I made, and what each costs if wrong**
-1. **Deleting the reference**: I didn't add a way to delete it. D34 says it behaves "exactly like text on a text activity", and an existing text object can't be deleted there either. Today, emptying the reference leaves an invisible empty object on the page. **Your question for the walk:** should emptying any existing text object remove it on Done, on both text and Bible activities?
-2. **Deleting the scripture**: the reference stays, since it's now independent text, and the delete confirmation no longer mentions it. If wrong, it's a wording change.
-3. **Reference position**: the test checks the box centre (top at 40 pt plus half a line), because positions are stored by centre and D34 fixes the top. If wrong, the test needs re-anchoring.
-4. **Tool bar labels**: the tool bar has only icons, so the tone covers every icon. Selected and disabled tools keep their usual look. If a label stays white somewhere, that's another d2m request.
-5. **Gradient brightness**: I averaged the base colour and every blob colour; a hidden gradient counts as its solid colour. If wrong, a gradient heavy with blobs could get the wrong tone near the threshold.
+**Fix needed outside the branch:** the fleet has to run `agent_walk.copy` (`client/.env`, `server/bin/atlas`, `.mcp.json`, `scripts/builder-verify.mjs`) and then `agent_walk.sync` on this worktree before the reset. With both done, the reset and start should come up cleanly.
 
-**Left for later**
-- The d2m editor previews still show the old locked reference ending in "ENGKJV". This affects preview samples only and needs a d2m request.
-- Two things to check during the walk: whether the reference at 40 pt hides under the player's top bar, and whether dark icons are readable on a mid-grey page just past the threshold.
-- d2m's edits landed uncommitted in your main checkout again (`/Users/lukekeith/www/makeready`, now including `IconButton.swift`). I copied them here and left that checkout as it was.
-
-The walk script (`.builder/bible-verse-picker/walk.md`) now covers E1–E11. I reworded the hand-written iPhone steps that still described the old reference.
-
-📍 bible-verse-picker: all phases closed at `84165195`, waiting for the fleet's walk lane — next: /builder:resume --path docs/features/bible-verse-picker
+**State I'm leaving behind**
+- The installed `node_modules` and `client/vendor` are still in the worktree; both are gitignored. I didn't copy `client/.env`, because that's the fleet's copy step to do.
+- The `makeready_walk` database has been reset and seeded.
+- The client and server processes I started are stopped, and nothing is listening on `:3110` or `:8102`.
+- The working tree is clean.
 ```
 - the walk env's start log: /Users/lukekeith/www/makeready/.builder/fleet/logs/bible-verse-picker-start.log
 
 ## Where to dig
 - start from the run's last lines above and the evidence it names; nothing has been ruled out yet
 
-## Your choices
-1. Revise it — `/builder:revise --path docs/features/bible-verse-picker`
-2. Leave it for now
-
 ## Recommended next step
-/builder:revise --path docs/features/bible-verse-picker
+run agent_walk.start in /Users/lukekeith/www/makeready.fleet/bible-verse-picker and fix what it prints, then /builder:agent
 
 ## History
 - 2026-11-10 parked — d2m cannot create the four picker screens; the screens are the owner's /ui2-screen step
@@ -69,3 +65,4 @@ The walk script (`.builder/bible-verse-picker/walk.md`) now covers E1–E11. I r
 - 2026-11-11 unparked by a person — named to /builder:agent or /builder:fleet
 - 2026-11-12 parked — revising
 - 2026-11-12 unparked by a person — named to /builder:agent or /builder:fleet
+- 2026-11-12 parked — the walk env would not start (walk env didn't come up — see /Users/lukekeith/www/makeready/.builder/fleet/logs/bible-verse-picker-start.log) and an agent run could not fix it
