@@ -4070,7 +4070,7 @@ private func buildScreenActivitiesEditor(_ fixture: CaptureFixture) throws -> An
             bibleColor: c.bibleColor ?? sample.bibleColor,
             bibleAlignment: c.bibleAlignment ?? sample.bibleAlignment,
             bibleVerticalAlignment: c.bibleVerticalAlignment ?? sample.bibleVerticalAlignment,
-            toolbarTone: c.toolbarTone.flatMap(MakeReadyUI.ActivitiesEditorScreen.ToolbarTone.init(rawValue:))
+            toolbarTone: c.toolbarTone.flatMap(MakeReadyUI.ToolbarTone.init(rawValue:))
                 ?? sample.toolbarTone
         )
     )

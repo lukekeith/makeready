@@ -121,7 +121,7 @@ enum ActivitiesEditorMapper {
     /// D35: dark icons on a light page. A solid colour's WCAG relative luminance, or a visible gradient's mean over its
     /// stops (the base and each blob colour), at or above 0.5 gives `.dark`; an image, no background or an unreadable
     /// colour gives `.light`.
-    static func toolbarTone(for background: ActivityBackground?) -> ActivitiesEditorScreen.ToolbarTone {
+    static func toolbarTone(for background: ActivityBackground?) -> ToolbarTone {
         guard let background, background.image == nil else { return .light }
         var colours = [background.color]
         if let gradient = background.gradient, !gradient.hidden { colours = [gradient.base] + gradient.blobs.map(\.color) }

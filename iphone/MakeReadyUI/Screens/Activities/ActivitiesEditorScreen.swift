@@ -194,7 +194,8 @@ struct ActivitiesEditorScreen: View {
         var bibleVerticalAlignment: String = "top"
         /// §25 (D35): the tone of every tool bar icon, Idle and editing — `.light` today's colours,
         /// `.dark` `color-black`. The container computes it from the page background (WCAG
-        /// relative luminance ≥ 0.5 → `.dark`); the screen only takes it.
+        /// relative luminance ≥ 0.5 → `.dark`); the screen only takes it. §27.1 (D38): `ToolbarTone`
+        /// is the top-level type the components share.
         var toolbarTone: ToolbarTone = .light
 
         /// §10.8 `gradient`: `base` `#RRGGBB`, `blobs`, `hidden`.
@@ -217,11 +218,6 @@ struct ActivitiesEditorScreen: View {
             var id: String
             var thumbnailURL: String
         }
-    }
-
-    /// §25 (D35): the tool bar's tone — `.light` (default, today's) · `.dark` (`color-black`).
-    enum ToolbarTone: String, Equatable {
-        case light, dark
     }
 
     /// §10.8 `BackgroundCommand` — every choice the Background rail reports; the container owns
@@ -596,6 +592,10 @@ struct ActivitiesEditorScreen: View {
     /// `toolbarTone` is `.dark`; nil keeps each control's own paint (`.light`, today's).
     private var toneInk: Color? { state.toolbarTone == .dark ? Token.black : nil }
 
+    /// §27.3 (D38): C-045 TextInput and C-105 Button take no tone input; with `.dark` the screen
+    /// multiplies their paint to `color-black` (each part keeps its own opacity). White is a no-op.
+    private var toneMultiply: Color { state.toolbarTone == .dark ? Token.black : Token.white100 }
+
     /// §9.4 Load-failed: the ground under the Idle header (back only), no canvas, no bottom
     /// container. The banner is raised through `onLoadFailed`; 2 s later the back closure pops.
     private var loadFailedPage: some View {
@@ -829,6 +829,8 @@ struct ActivitiesEditorScreen: View {
             // §20.2: Done ends the highlighting mode of a locked object.
             onDone: highlightingIndex != nil ? onEndHighlighting : onDone
         )
+        // OQ-activities-editor-49 (owner, 2026-11-12): the header keeps C-040's `.light`
+        // `toolbarTone` default whatever the page tone — its band is opaque, not over the page.
         // §2 deviation 7: the 1px hairline under C-040 is the screen's, not the component's.
         .overlay(alignment: .bottom) {
             Token.layoutBorder
@@ -1384,11 +1386,13 @@ struct ActivitiesEditorScreen: View {
                 style: .outlined,
                 selected: false,
                 accessibilityLabel: Self.deleteHighlightLabel,
+                toolbarTone: state.toolbarTone,                         // §27.2 (D38)
                 onTap: onDeleteHighlight
             )
             .ui2Element("C-102 IconButton \(visibleTools.count + 1)")
             Spacer(minLength: 0)
             Button(label: Self.addNoteLabel, leadingGlyph: .addLargeCarbon, onTap: onAddNote)
+                .colorMultiply(toneMultiply)                            // §27.3 (D38)
                 .ui2Element("C-105 Button")
         }
         .frame(width: Self.referenceWidth - 2 * Token.Space.pageMargin, height: Self.actionButtonHeight)
@@ -1458,7 +1462,8 @@ struct ActivitiesEditorScreen: View {
                 onPageChange: { palettePage = $0 },
                 onWellTap: onEyedropper,
                 showsWell: state.showsEyedropper,
-                swatchMaterial: true
+                swatchMaterial: true,
+                toolbarTone: state.toolbarTone
             )
             .ui2Element("C-094 TextColorPalette")
         case .color where mode == .editing:
@@ -1478,37 +1483,38 @@ struct ActivitiesEditorScreen: View {
                 // §2 item 5: hidden, not disabled — no well unless the eyedropper is shown.
                 showsWell: state.showsEyedropper,
                 // §15.1 (OQ-activities-editor-46): the blur behind each swatch.
-                swatchMaterial: true
+                swatchMaterial: true,
+                toolbarTone: state.toolbarTone
             )
             .ui2Element("C-094 TextColorPalette")
         case .font where isBibleIdle:
             // §21.3 (D29): the Bible font panel's face — the four font keys as C-035 `Font` chips,
             // centred (§19.3); the rest of the panel is the top rail.
             ChipStrip(items: Self.fontItems, selectedID: bibleStyle.face,
-                      onSelect: { id in setBibleStyle(.face(id)) }, chipMaterial: true)
+                      onSelect: { id in setBibleStyle(.face(id)) }, chipMaterial: true, toolbarTone: state.toolbarTone)
                 .ui2Element("C-106 ChipStrip 2")
         case .font where mode == .editing:
             // §3 tool 4: the font strip; its weight row is the top rail.
             ChipStrip(items: Self.fontItems, selectedID: Self.fontID(edited?.font ?? .sans),
                       onSelect: { id in
                           if let editedIndex { apply(.init(index: editedIndex, font: id)) }
-                      }, chipMaterial: true)
+                      }, chipMaterial: true, toolbarTone: state.toolbarTone)
                 .ui2Element("C-106 ChipStrip 2")
         case .animation where mode == .editing && state.showsEffectsTool:
             // §3 tool 6 (OQ-007): one combined strip — none, the animations, the effects.
             // C-106 has one `selectedID`, so it shows the animation when one is set, else the
             // effect (gap: two independent selections, one selected chip).
             ChipStrip(items: Self.animationItems, selectedID: animationSelectedID,
-                      onSelect: selectAnimation, chipMaterial: true)
+                      onSelect: selectAnimation, chipMaterial: true, toolbarTone: state.toolbarTone)
                 .ui2Element("C-106 ChipStrip")
         case .background:
             // §10.3: Gradient · Colour · Image; the selected option is derived.
             ChipStrip(items: Self.backgroundItems, selectedID: backgroundOption, onSelect: selectBackgroundOption,
-                      chipMaterial: true)
+                      chipMaterial: true, toolbarTone: state.toolbarTone)
                 .ui2Element("C-106 ChipStrip")
         case .actions:
             // §10.4: the page's actions, then + Add.
-            ChipStrip(items: actionItems, selectedID: selectedActionID ?? "", onSelect: selectAction, chipMaterial: true)
+            ChipStrip(items: actionItems, selectedID: selectedActionID ?? "", onSelect: selectAction, chipMaterial: true, toolbarTone: state.toolbarTone)
                 .ui2Element("C-106 ChipStrip 3")
         case .alignment where isBibleIdle:
             // §23.2 (D33): Align opens ONE panel — horizontal, vertical, verse numbers.
@@ -1555,8 +1561,8 @@ struct ActivitiesEditorScreen: View {
                     style: .plain,
                     selected: selectedCode == option.code,
                     accessibilityLabel: option.label,
-                    // §26.2 (D38): the rail's glyphs take the tone; selected keeps C-102's fill.
-                    glyphColor: toneInk,
+                    // §27.2 (D38): the rail's C-102s take the tone (selected: black fill in `.dark`).
+                    toolbarTone: state.toolbarTone,
                     onTap: { onSelect(option.code) }
                 )
                 // FLAGGED LITERAL — activities-editor §2: 32pt tools, the tool row's tile.
@@ -1581,7 +1587,7 @@ struct ActivitiesEditorScreen: View {
                        selectedCode: Self.verticalAlignmentCode(bibleStyle.verticalAlignment),
                        element: "C-102 IconButton Vertical", onSelect: { setBibleStyle(.verticalAlignment($0)) })
             ChipStrip(items: Self.verseNumberItems, selectedID: bibleStyle.verseNumbers,
-                      onSelect: { id in setBibleStyle(.verseNumbers(id)) }, chipMaterial: true)
+                      onSelect: { id in setBibleStyle(.verseNumbers(id)) }, chipMaterial: true, toolbarTone: state.toolbarTone)
                 .ui2Element("C-106 ChipStrip 3")
         }
     }
@@ -1601,7 +1607,7 @@ struct ActivitiesEditorScreen: View {
             // strip, as the text activity's Font tool lays them out.
             ChipStrip(items: Self.weightItems, selectedID: Self.weightID(Self.weight(code: bibleStyle.weight)),
                       onSelect: { id in setBibleStyle(.weight(Self.weightCode(Self.weight(id)))) },
-                      chipMaterial: true)
+                      chipMaterial: true, toolbarTone: state.toolbarTone)
                 .ui2Element("C-106 ChipStrip")
                 .padding(.bottom, -Token.Space.elementGap)
         case .font where mode == .editing:
@@ -1610,7 +1616,7 @@ struct ActivitiesEditorScreen: View {
             ChipStrip(items: Self.weightItems, selectedID: Self.weightID(edited?.weight ?? .bold),
                       onSelect: { id in
                           if let editedIndex { apply(.init(index: editedIndex, weight: Self.weightCode(Self.weight(id)))) }
-                      }, chipMaterial: true)
+                      }, chipMaterial: true, toolbarTone: state.toolbarTone)
                 .ui2Element("C-106 ChipStrip")
                 .padding(.bottom, -Token.Space.elementGap)
         case .background:
@@ -1731,7 +1737,7 @@ struct ActivitiesEditorScreen: View {
                         FilterChip(type: .button, active: false, label: Self.moreImagesLabel, onSelect: {
                             onBackground(.moreImages)
                             onPickImage()
-                        })
+                        }, toolbarTone: state.toolbarTone)                 // §27.2 (D38)
                         // §15.1: the blur behind "More…" (C-035's `radius-card`).
                         .floatingControlMaterial(cornerRadius: Token.Radius.card)
                         .ui2Element("C-035 FilterChip")
@@ -1747,7 +1753,8 @@ struct ActivitiesEditorScreen: View {
                                          onBackground(.wash(color: hex, opacity: state.pageWashOpacity))
                                      },
                                      showsWell: false,
-                                     swatchMaterial: true)
+                                     swatchMaterial: true,
+                                     toolbarTone: state.toolbarTone)
                         .ui2Element("C-094 TextColorPalette 2")
                     // activities-editor §3 tool 2: undrawn default, the system slider (no registry row).
                     SwiftUI.Slider(value: Binding(get: { state.pageWashOpacity },
@@ -1773,7 +1780,8 @@ struct ActivitiesEditorScreen: View {
                 onPageChange: { palettePage = $0 },
                 showsWell: false,
                 // §15.1 (OQ-activities-editor-46): the blur behind each swatch.
-                swatchMaterial: true
+                swatchMaterial: true,
+                toolbarTone: state.toolbarTone
             )
             .ui2Element("C-094 TextColorPalette")
         }
@@ -1892,7 +1900,7 @@ struct ActivitiesEditorScreen: View {
             ChipStrip(items: Self.kindItems, selectedID: action.kind.rawValue, onSelect: { id in
                 endField()
                 updateAction(action.id) { $0.kind = PageAction.Kind(rawValue: id) ?? $0.kind }
-            }, chipMaterial: true)
+            }, chipMaterial: true, toolbarTone: state.toolbarTone)
             .ui2Element("C-106 ChipStrip")
             field("label", placeholder: "Label", text: action.label, kind: .single) { text in
                 updateAction(action.id) { $0.label = text }
@@ -1900,11 +1908,12 @@ struct ActivitiesEditorScreen: View {
             ChipStrip(items: Self.placementItems, selectedID: action.placement.rawValue, onSelect: { id in
                 endField()
                 setPlacement(PageAction.Placement(rawValue: id) ?? action.placement, of: action.id)
-            }, chipMaterial: true)
+            }, chipMaterial: true, toolbarTone: state.toolbarTone)
             .ui2Element("C-106 ChipStrip 2")
             prefill(action)
             if !newActionIDs.contains(action.id) {
                 Button(label: "Remove action", onTap: { remove(action.id) })
+                    .colorMultiply(toneMultiply)                        // §27.3 (D38)
                     .ui2Element("C-105 Button")
                     .padding(.horizontal, Token.Space.pageMargin)
                     .padding(.vertical, Token.Space.elementGap)
@@ -1962,6 +1971,8 @@ struct ActivitiesEditorScreen: View {
             },
             editing: .init(onSubmit: submit)
         )
+        // §27.3 (D38): C-045 takes no tone input — `.dark` multiplies its paint to `color-black`.
+        .colorMultiply(toneMultiply)
         // §15.1: the blur behind each C-045 field (its box is `radius-card-sm`).
         .floatingControlMaterial(cornerRadius: Token.Radius.cardSm)
         .padding(.horizontal, Token.Space.pageMargin)
@@ -2062,9 +2073,9 @@ struct ActivitiesEditorScreen: View {
                     style: .plain,
                     selected: isSelected(tool),
                     accessibilityLabel: Self.toolLabel(tool),
-                    // §25 (D35, OQ-activities-editor-48): `.dark` paints the glyph `color-black`;
-                    // nil is C-102's own paint (`.light`, today's). Selected keeps C-102's look.
-                    glyphColor: state.toolbarTone == .dark ? Token.black : nil,
+                    // §27.2 (D38): C-102 paints the tone — `.dark` a `color-black` glyph, selected a
+                    // black fill with a white glyph; `.light` is today's paint.
+                    toolbarTone: state.toolbarTone,
                     onTap: { tap(tool) }
                 )
                 // FLAGGED LITERAL — activities-editor §2: 32pt tools.
@@ -3748,7 +3759,7 @@ private struct FloatingControlMaterial: ViewModifier {
 
 private extension EnvironmentValues {
     /// §26.3 (D38): the screen's `toolbarTone`, for the floating controls' backing.
-    @Entry var editorToolbarTone: ActivitiesEditorScreen.ToolbarTone = .light
+    @Entry var editorToolbarTone: ToolbarTone = .light
 }
 
 // MARK: - §18 (D32, D33): snapping — pure static functions
