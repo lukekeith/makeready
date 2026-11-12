@@ -132,6 +132,10 @@ struct ActivityCanvas<Content: View>: View {
     /// §4 — how far an autoscroll step moved the page (wu), so the caller can re-express the
     /// dragged object's page position and it stays under the finger.
     let onAutoscroll: (CGFloat) -> Void
+    /// §4 (activities-editor §33, D51) — the page's current scroll (wu), reported whenever it
+    /// changes, so a host can place screen-fixed things in page space. Defaults to a no-op and
+    /// changes nothing drawn, so other users are unchanged.
+    let onPageScrollChange: (CGFloat) -> Void
     /// §4 — the page's scroll position (wu), supplied each frame by the viewer's engine; `viewer` only.
     let scrollOffset: CGFloat
     /// §4 — `false` = a fixed canvas (§2 Fixed canvas, D24): no scroll, page = viewport, insets
@@ -223,6 +227,7 @@ struct ActivityCanvas<Content: View>: View {
         scrollInsets: ScrollInsets = .init(),
         dragPoint: CGPoint? = nil,
         onAutoscroll: @escaping (CGFloat) -> Void = { _ in },
+        onPageScrollChange: @escaping (CGFloat) -> Void = { _ in },
         scrollOffset: CGFloat = 0,
         scrolls: Bool = true
     ) {
@@ -244,6 +249,7 @@ struct ActivityCanvas<Content: View>: View {
         self.scrollInsets = scrollInsets
         self.dragPoint = dragPoint
         self.onAutoscroll = onAutoscroll
+        self.onPageScrollChange = onPageScrollChange
         self.scrollOffset = scrollOffset
         self.scrolls = scrolls
     }
@@ -303,6 +309,8 @@ struct ActivityCanvas<Content: View>: View {
             }
         }
         .coordinateSpace(.named(viewportSpace))
+        // §4 `onPageScrollChange` (D51): report the page's scroll (wu) as it changes.
+        .onChange(of: pageScroll, initial: true) { _, scroll in onPageScrollChange(scroll) }
         .ui2Element("ActivityCanvas")
     }
 

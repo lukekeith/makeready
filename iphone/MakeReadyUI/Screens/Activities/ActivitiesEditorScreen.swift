@@ -454,6 +454,8 @@ struct ActivitiesEditorScreen: View {
     /// §30.2 (D46): page y 0's screen position (wu) as last laid out — a scrolled Bible page's
     /// grab areas follow it. nil until the canvas first lays out.
     @SwiftUI.State private var canvasContentTop: CGFloat?
+    /// §33.1 (D51): C-091's current page scroll (wu), from its `onPageScrollChange`.
+    @SwiftUI.State private var canvasPageScroll: CGFloat = 0
     @SwiftUI.State private var dragged: (index: Int, transform: CanvasTextObject.Transform)?
     // §9.1a: the object's transform when the in-flight gesture began — a gesture that ends where
     // it started reports nothing.
@@ -915,7 +917,8 @@ struct ActivitiesEditorScreen: View {
             reservedZones: draggedEntersZone(viewport: viewport),
             pinnedAction: pinned,
             // §21.2: a page-laid-out object has no transform handles.
-            widthHandles: mode == .editing && !editedIsPageLaidOut ? widthHandles(pageOffset: offset) : nil,
+            widthHandles: mode == .editing && !editedIsPageLaidOut
+                ? widthHandles(pageOffset: offset, slotShift: editSlotShift(viewport: viewport)) : nil,
             onResizeWidth: resizeDraft,
             // §21.1 (D26): a page taller than 956 scrolls inside the canvas and §2's scroll insets
             // apply again, so the first and last content clear the bars; autoscroll stays off (a
@@ -925,6 +928,8 @@ struct ActivitiesEditorScreen: View {
             scrollInsets: canvasScrolls
                 ? .init(top: headerBottom, bottom: (containerHeight + keyboardOverlap) / unit)
                 : .init(),
+            // §33.1 (D51): the page scroll, so the edit slot stays on the slider's screen point.
+            onPageScrollChange: { scroll in if scroll != canvasPageScroll { canvasPageScroll = scroll } },
             // §11 (D24): otherwise (`text` pages) the canvas is fixed to the screen in every mode —
             // no scroll range, no scroll insets, no autoscroll. The header and bottom area stay
             // opaque over it.
@@ -1111,8 +1116,9 @@ struct ActivitiesEditorScreen: View {
             if index == editedIndex { measuredDraftHeight = height } else { measuredHeights[index] = height }
         }
         .ui2Element(index == 0 ? "C-092 CanvasTextObject" : "C-092 CanvasTextObject \(index + 1)")
-        .position(isDrafted ? CGPoint(x: draftCentreX, y: Self.editSlotY)
-                  : isSlotted ? CGPoint(x: Self.referenceWidth / 2, y: Self.editSlotY)
+        // §33.2 (D51): the slot is the slider's screen point in page space — 0 on a text page.
+        .position(isDrafted ? CGPoint(x: draftCentreX, y: Self.editSlotY + editSlotShift(viewport: viewport))
+                  : isSlotted ? CGPoint(x: Self.referenceWidth / 2, y: Self.editSlotY + editSlotShift(viewport: viewport))
                   : dock ?? CGPoint(x: object.transform.position.x,
                                     y: object.transform.position.y + (laidOut ? bibleVerticalShift : 0)))
         .zIndex(isSlotted ? 1 : 0)
@@ -1222,7 +1228,9 @@ struct ActivitiesEditorScreen: View {
         let offset = state.isBible ? (canvasContentTop ?? pageOffset(viewport: viewport)) : pageOffset(viewport: viewport)
         return shownObjects.indices.map { index in
             if index == editedIndex {
-                return GrabArea(center: CGPoint(x: draftCentreX * unit, y: (Self.editSlotY + offset) * unit),
+                // §33.2 (D51): the grab area follows the slotted object.
+                return GrabArea(center: CGPoint(x: draftCentreX * unit,
+                                                y: (Self.editSlotY + editSlotShift(viewport: viewport) + offset) * unit),
                                 size: CGSize(width: draftLayoutWidth * unit, height: draftHeight * unit))
             }
             let object = shownObjects[index]
@@ -2720,12 +2728,28 @@ struct ActivitiesEditorScreen: View {
     /// The edited block's centre while editing — the slot, nudged per D40.
     private var draftCentreX: CGFloat { draftHandleLayout.centreX }
 
-    private func widthHandles(pageOffset: CGFloat) -> ActivityCanvas<AnyView>.WidthHandles {
+    /// §33.2 (D51): how far the edit slot moves in content space so the edited object sits at the
+    /// slider's screen point (`editSlotY + pageOffset` on screen) on any page height and scroll:
+    /// `pageScroll + pageOffset − C-091's layout offset`. §33.5: a text page never scrolls and its
+    /// layout offset is `pageOffset`, so the shift is 0 there — pixel-identical. D49 locks the
+    /// scroll while editing, so it is constant for the whole edit. Display only (§33.4).
+    private func editSlotShift(viewport: CGFloat) -> CGFloat {
+        guard canvasScrolls else { return 0 }
+        let pinned = actions.contains { $0.placement == .pinned }
+        let extent = isTallPage ? tallPageExtent(pinned: pinned) : Self.bibleFixedExtent
+        let layoutOffset = ActivityCanvas<AnyView>.placement(
+            viewportHeight: viewport, contentExtent: extent,
+            verticalAnchor: .center, pinnedAction: pinned, unit: 1).offset
+        return canvasPageScroll + pageOffset(viewport: viewport) - layoutOffset
+    }
+
+    private func widthHandles(pageOffset: CGFloat, slotShift: CGFloat) -> ActivityCanvas<AnyView>.WidthHandles {
         let layout = draftHandleLayout
         let outset = layout.gap + Self.handleBarWidth / 2
         return .init(
             frame: CGRect(x: layout.centreX - draftLayoutWidth / 2 - outset,
-                          y: Self.editSlotY + pageOffset - draftHeight / 2,
+                          // §33.2 (D51): page-local — the slot's content y plus C-091's offset.
+                          y: Self.editSlotY + slotShift + pageOffset - draftHeight / 2,
                           width: draftLayoutWidth + 2 * outset,
                           height: draftHeight),
             rotation: .zero
