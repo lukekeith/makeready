@@ -474,6 +474,15 @@ struct ActivitiesEditorScreen: View {
     // a second finger, pinch or rotate has ruled it out for the rest of this gesture (§31.2).
     @SwiftUI.State private var liveDeleteTarget: ActivityCanvas<AnyView>.DeleteTarget?
     @SwiftUI.State private var deleteRuledOut = false
+    // §32.1 (D50): C-091's target zone — label + ring, rest size — in the canvas's points, as
+    // `onDeleteTargetFrame` reports it.
+    @SwiftUI.State private var deleteZone: CGRect?
+    // §32.2 (D50): the finger left the zone and disarmed it; no re-arming on the object's frame
+    // until that frame has left the zone (or the finger comes back in), so the dock cannot flicker.
+    @SwiftUI.State private var deleteRearmHeld = false
+    // §32.3 (D50): the object released on the target — hidden at once (no fade) until the
+    // container re-supplies `State.objects`.
+    @SwiftUI.State private var deletedIndex: Int?
     @SwiftUI.State private var moveBase: CGPoint = .zero
     @SwiftUI.State private var scaleBase: CGFloat = 1
     @SwiftUI.State private var rotationBase: Double = 0
@@ -677,6 +686,7 @@ struct ActivitiesEditorScreen: View {
         .onChange(of: state) { _, next in
             guard dragged == nil, sliderDrag == nil else { return }
             shownObjects = Self.committedObjects(next)
+            deletedIndex = nil
             if !bibleSliding { bibleStyle = BibleStyle(next) }
         }
         // §10.6 (round 2): a text edit opens with no rail open, and ending it closes every rail —
@@ -888,13 +898,15 @@ struct ActivitiesEditorScreen: View {
             // §31.1 (D48): C-091 draws the target in `manipulating` only, so a live one-finger drag
             // shows the canvas that mode while the target is up.
             mode: liveDeleteTarget != nil ? .manipulating : mode,
-            content: { AnyView(canvasContent(objects, unit: unit)) },
+            content: { AnyView(canvasContent(objects, unit: unit, viewport: viewport)) },
             onTapEmpty: { point in tapCanvas(at: point) },
             // §18.7 (D33): the guides active now — the centre guide is one of them.
             activeGuides: canvasGuides(viewport: viewport, unit: unit),
             // §31.1 (D48): the live target is the screen's; `State.deleteTargetShown` is previews only.
             deleteTarget: liveDeleteTarget
                 ?? (state.deleteTargetShown ? (state.deleteTargetArmed ? .armed : .visible) : nil),
+            // §32.1 (D50): the zone the dragged object's frame is tested against.
+            onDeleteTargetFrame: { zone in if zone != deleteZone { deleteZone = zone } },
             bottomSafeArea: safeBottom,
             verticalAnchor: .center,
             contentExtent: extent,
@@ -1014,10 +1026,10 @@ struct ActivitiesEditorScreen: View {
 
     /// C-091's `content` slot, laid out in wu: the committed objects at their transforms, the
     /// edited object at the edit slot and the inline action previews.
-    private func canvasContent(_ objects: [CommittedObject], unit: CGFloat) -> some View {
+    private func canvasContent(_ objects: [CommittedObject], unit: CGFloat, viewport: CGFloat) -> some View {
         ZStack(alignment: .topLeading) {
             ForEach(objects.indices, id: \.self) { index in
-                canvasObject(objects[index], index: index)
+                canvasObject(objects[index], index: index, unit: unit, viewport: viewport)
             }
             actionPreviews(objects)
                 // The edited object renders above the others (OQ-010), still under the previews.
@@ -1033,7 +1045,7 @@ struct ActivitiesEditorScreen: View {
     /// One C-092 per object, the same view whether committed or edited (§13.2): entering or
     /// leaving Editing changes its placement, so the object animates between its committed
     /// transform and the edit slot — position, scale and rotation in one curve — and never jumps.
-    private func canvasObject(_ object: CommittedObject, index: Int) -> some View {
+    private func canvasObject(_ object: CommittedObject, index: Int, unit: CGFloat, viewport: CGFloat) -> some View {
         // §21.3: the scripture of a `bible` activity shows the Bible panel's values at once.
         let object = bibleStyled(object)
         // §21.2 (D28): a page-laid-out object stays at the frame the page gives it — it never
@@ -1045,6 +1057,8 @@ struct ActivitiesEditorScreen: View {
         let isDrafted = isEdited && !laidOut
         // §20.1 (D11): a locked object takes no text input — editing it is tools only, no caret.
         let isLocked = object.isLocked
+        // §32.2 (D50): armed, the dragged object docks — 20 % on the ring's top edge.
+        let dock = dockPosition(index, unit: unit, viewport: viewport)
         return CanvasTextObject(
             text: object.text,
             onChange: { if isEdited && !isLocked { apply(.init(index: index, text: $0)) } },
@@ -1062,7 +1076,7 @@ struct ActivitiesEditorScreen: View {
             effect: isEdited ? draftEffect : .none,
             // C-092 draws scale 1 and rotation 0 while editing (§3: re-opening shows the object at
             // `size`, unscaled); its committed transform returns on Done.
-            transform: isSlotted ? .identity : object.transform,
+            transform: isSlotted ? .identity : dock != nil ? dockedTransform(object.transform) : object.transform,
             // §21.2 (D28): no handles, no drag, pinch or rotate — the host supplies the frame.
             pageLaidOut: laidOut,
             // §10.10: drag, pinch and rotate are the canvas-wide recognizers' (`CanvasManipulation`);
@@ -1099,8 +1113,8 @@ struct ActivitiesEditorScreen: View {
         .ui2Element(index == 0 ? "C-092 CanvasTextObject" : "C-092 CanvasTextObject \(index + 1)")
         .position(isDrafted ? CGPoint(x: draftCentreX, y: Self.editSlotY)
                   : isSlotted ? CGPoint(x: Self.referenceWidth / 2, y: Self.editSlotY)
-                  : CGPoint(x: object.transform.position.x,
-                            y: object.transform.position.y + (laidOut ? bibleVerticalShift : 0)))
+                  : dock ?? CGPoint(x: object.transform.position.x,
+                                    y: object.transform.position.y + (laidOut ? bibleVerticalShift : 0)))
         .zIndex(isSlotted ? 1 : 0)
         // §28 (D39): while one object is edited, every other object fades to 10 % so the edited
         // text reads over any page; it rides the same edit transition in and out.
@@ -1109,6 +1123,41 @@ struct ActivitiesEditorScreen: View {
         // no delayed dispatch. A gesture frame never changes `editedIndex`, so it stays 1:1.
         .animation(Self.editTransition, value: editedIndex)
         .animation(Self.editTransition, value: highlightingIndex)
+        // §32.2 (D50): into the dock and back out — display only, scoped to the dock flag; a finger
+        // frame never flips it, so the tracking path stays unanimated.
+        .animation(reduceMotion ? nil : Self.dockAnimation, value: dock != nil)
+        // §32.3 (D50): released on the target — gone at once, outside every animation above.
+        .opacity(index == deletedIndex ? 0 : 1)
+    }
+
+    /// §32.2 (D50): where a docked object is drawn (page wu) — its glyph rect's centre on the top
+    /// edge of C-091's ring — or nil when it is not docked. Live: the dragged object while armed
+    /// (and the one just released there). Previews: `deleteTargetArmed` docks the snap layer, else
+    /// the first object.
+    private func dockPosition(_ index: Int, unit: CGFloat, viewport: CGFloat) -> CGPoint? {
+        guard shownObjects.indices.contains(index) else { return nil }
+        let docked: Bool
+        if index == deletedIndex {
+            docked = true
+        } else if liveDeleteTarget != nil {
+            docked = liveDeleteTarget == .armed && index == (dragged?.index ?? manipulationTarget)
+        } else {
+            let seeded = shownObjects.indices.contains(state.snapIndex) ? state.snapIndex : 0
+            docked = state.deleteTargetShown && state.deleteTargetArmed && index == seeded
+        }
+        guard docked else { return nil }
+        // C-091 places the ring (D48), so its top edge is known without waiting for a measure.
+        let ringTop = ActivityCanvas<AnyView>.deleteRingTop(viewport: viewport, bottomSafeArea: safeBottom, unit: unit)
+        let shift = glyphShift(index)
+        return CGPoint(x: Self.referenceWidth / 2 - shift.dx * Self.dockScale,
+                       y: ringTop - pageOffset(viewport: viewport) - shift.dy * Self.dockScale)
+    }
+
+    /// §32.2 (D50): the docked object's transform — its scale at 20 %, rotation kept.
+    private func dockedTransform(_ transform: CanvasTextObject.Transform) -> CanvasTextObject.Transform {
+        var docked = transform
+        docked.scale = transform.scale * Self.dockScale
+        return docked
     }
 
     // MARK: - §10.10: pinch and rotate anywhere on the canvas
@@ -1128,7 +1177,7 @@ struct ActivitiesEditorScreen: View {
                 // §10.10: while editing, two fingers pinch and rotate the edited object; it never moves.
                 return kind != .move || editedIndex == nil
             },
-            onUpdate: { manipulate($0, unit: unit, viewport: size.height / unit, size: size) },
+            onUpdate: { manipulate($0, unit: unit, viewport: size.height / unit) },
             onTouchDown: { point in
                 // D25: the canvas picks the object at the first finger-down, by geometry.
                 let target = point.flatMap {
@@ -1213,7 +1262,7 @@ struct ActivitiesEditorScreen: View {
     /// §10.10: the move follows the touches' centroid (1:1 in wu), pinch writes `scale` and rotate
     /// `rotation`, simultaneously, about the object's centre. §9.1a: each frame goes to the display
     /// only; when the last recognizer ends, `endGesture` reports the final transform once.
-    private func manipulate(_ update: CanvasManipulation.Update, unit: CGFloat, viewport: CGFloat, size: CGSize) {
+    private func manipulate(_ update: CanvasManipulation.Update, unit: CGFloat, viewport: CGFloat) {
         if update.phase == .ended {
             activeManipulations.remove(update.kind)
             // §31.2: a second finger lifting first still leaves this gesture ruled out.
@@ -1237,7 +1286,7 @@ struct ActivitiesEditorScreen: View {
         case .began:
             if activeManipulations.isEmpty, dragExtent == nil { dragExtent = .some(measuredExtent(shownObjects)) }
             activeManipulations.insert(update.kind)
-            trackDeleteTarget(update, index: index, size: size)
+            trackDeleteTarget(update, index: index, unit: unit, viewport: viewport)
             // Each recognizer starts from the object as it is now, so one restarting mid-gesture
             // (a finger lifted and put back) never snaps the object back.
             switch update.kind {
@@ -1247,7 +1296,7 @@ struct ActivitiesEditorScreen: View {
             }
         case .changed:
             guard activeManipulations.contains(update.kind) else { return }
-            trackDeleteTarget(update, index: index, size: size)
+            trackDeleteTarget(update, index: index, unit: unit, viewport: viewport)
             var next = shown
             switch update.kind {
             case .move:
@@ -1282,10 +1331,12 @@ struct ActivitiesEditorScreen: View {
 
     // MARK: - §31 (D48): drag to delete
 
-    /// §31.2–31.3: the target shows during a ONE-finger move of a movable object (not page-laid-out,
-    /// not locked) and arms while the finger is inside C-091's disc; a second finger, a pinch or a
-    /// rotate hides it for the rest of the gesture. A light selection haptic on each arming.
-    private func trackDeleteTarget(_ update: CanvasManipulation.Update, index: Int, size: CGSize) {
+    /// §31.2: the target shows during a ONE-finger move of a movable object (not page-laid-out,
+    /// not locked); a second finger, a pinch or a rotate hides it for the rest of the gesture.
+    /// §32.1 (D50): it arms when the dragged object's displayed frame meets C-091's zone (label +
+    /// ring); §32.2: once docked the frame ignores the finger, so the finger leaving the zone (grown
+    /// by the hysteresis) disarms. A light selection haptic on each arming.
+    private func trackDeleteTarget(_ update: CanvasManipulation.Update, index: Int, unit: CGFloat, viewport: CGFloat) {
         if update.kind != .move || update.touches > 1 || activeManipulations != [.move] { deleteRuledOut = true }
         let object = shownObjects[index]
         guard !deleteRuledOut, update.kind == .move, editedIndex == nil,
@@ -1293,25 +1344,46 @@ struct ActivitiesEditorScreen: View {
             setDeleteTarget(nil)
             return
         }
-        let disc = ActivityCanvas<AnyView>.deleteTargetFrame(viewportSize: size, bottomSafeArea: safeBottom)
-        let inside = hypot(update.location.x - disc.midX, update.location.y - disc.midY) <= disc.width / 2
-        let next: ActivityCanvas<AnyView>.DeleteTarget = inside ? .armed : .visible
+        guard let zone = deleteZone else {
+            setDeleteTarget(.visible)
+            return
+        }
+        let fingerIn = zone.contains(update.location)
+        let armed: Bool
+        if liveDeleteTarget == .armed {
+            armed = zone.insetBy(dx: -Self.deleteHysteresis, dy: -Self.deleteHysteresis).contains(update.location)
+            if !armed { deleteRearmHeld = true }
+        } else {
+            let zoneWU = CGRect(x: zone.minX / unit, y: zone.minY / unit,
+                                width: zone.width / unit, height: zone.height / unit)
+            let meets = snapBox(index, offset: pageOffset(viewport: viewport)).intersects(zoneWU)
+            if !meets || fingerIn { deleteRearmHeld = false }
+            armed = meets && !deleteRearmHeld
+        }
+        let next: ActivityCanvas<AnyView>.DeleteTarget = armed ? .armed : .visible
         if next == .armed && liveDeleteTarget != .armed { Self.snapHaptic() }
         setDeleteTarget(next)
     }
 
-    /// D48: the trash circle fades in quickly as the drag starts, grows as the finger crosses into it
-    /// and fades out on release; the bars fade with it (Manipulating). One curve for all three.
+    /// D48 / D50: the target fades in as the drag starts and out on release, with the bars
+    /// (Manipulating) — one transaction. Arming and disarming are C-091's and the dock's own
+    /// value-scoped animations, so they change without one here.
     private func setDeleteTarget(_ next: ActivityCanvas<AnyView>.DeleteTarget?) {
         guard next != liveDeleteTarget else { return }
-        withAnimation(reduceMotion ? nil : Self.deleteTargetAnimation) { liveDeleteTarget = next }
+        if next == nil { deleteRearmHeld = false }
+        if (next == nil) != (liveDeleteTarget == nil) {
+            withAnimation(reduceMotion ? nil : Self.deleteTargetAnimation) { liveDeleteTarget = next }
+        } else {
+            liveDeleteTarget = next
+        }
     }
 
-    /// §31.4: dropped while armed — no `ObjectEdit` for the drag; the display goes back to where the
-    /// object started and `onDeleteObject` reports it. The container removes it and re-supplies
-    /// `State.objects`.
+    /// §31.4 / §32.3 (D50): dropped while armed — no `ObjectEdit` for the drag; the object
+    /// disappears at once (no fade), the display goes back to where it started and
+    /// `onDeleteObject` reports it. The container removes it and re-supplies `State.objects`.
     private func deleteDragged() {
         guard let index = dragged?.index else { return }
+        deletedIndex = index
         let start = gestureStart
         dragged = nil
         gestureStart = nil
@@ -3045,8 +3117,15 @@ struct ActivitiesEditorScreen: View {
     /// §13.2 FLAGGED LITERAL — activities-editor §3 Transitions (no `motion-*` token holds it):
     /// the object between its transform and the edit slot, ease-out 150 ms, both directions.
     private static let editTransition = Animation.easeOut(duration: 0.15)
-    /// FLAGGED LITERAL — D48: the trash circle's fade / arm, and the bars' fade with it.
+    /// FLAGGED LITERAL — D48: the bars' fade as the target shows and hides (C-091 fades the target
+    /// itself, D50).
     private static let deleteTargetAnimation = Animation.easeOut(duration: 0.15)
+    /// FLAGGED LITERAL — §32.2 (D50): the docked object's scale and its ≈ 100 ms ease-out dock.
+    private static let dockScale: CGFloat = 0.2
+    private static let dockAnimation = Animation.easeOut(duration: 0.1)
+    /// FLAGGED LITERAL — §32.2 (D50): the zone grows by this (pt) before the finger disarms it —
+    /// an undrawn default.
+    private static let deleteHysteresis: CGFloat = 12
     /// FLAGGED LITERAL — §28 (D39, owner 2026-11-11): the other objects' opacity while one is edited.
     private static let editDimOpacity: Double = 0.1
     /// §10.3: the wash colour before one is chosen — `color-black`'s value.

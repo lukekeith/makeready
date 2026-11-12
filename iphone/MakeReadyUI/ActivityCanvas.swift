@@ -67,7 +67,7 @@ struct ActivityCanvas<Content: View>: View {
         case idle, editing, highlighting, manipulating, viewer
     }
 
-    /// §4 `deleteTarget` — OQ-C-091-002 (owner, ratified): armed = 1.15×.
+    /// §4 `deleteTarget` — D50 (owner, 2026-11-12): armed = ring 1.2×, label 1.35×.
     enum DeleteTarget {
         case visible, armed
     }
@@ -105,8 +105,11 @@ struct ActivityCanvas<Content: View>: View {
     /// 1pt `white-80` over the page. Empty (the default) draws nothing, so other users are unchanged.
     let activeGuides: [GuideSegment]
     typealias GuideSegment = ActivityCanvasGuideSegment
-    /// §4 — draw the "Drag to delete" target in `manipulating`; placed by D48 (`deleteTargetFrame`).
+    /// §4 — draw the "Drag to delete" target in `manipulating` (D50 look); placed by D48.
     let deleteTarget: DeleteTarget?
+    /// §4 (D50) — the target zone (label + ring, rest size) in the canvas's own points, reported
+    /// whenever it is laid out. The canvas does no hit-testing; the host arms against this.
+    let onDeleteTargetFrame: (CGRect) -> Void
     /// D48 — the viewport's bottom safe-area inset, points. The canvas is laid out under the
     /// safe area, so the host passes it; the delete target's bottom edge sits 16 pt above it.
     let bottomSafeArea: CGFloat
@@ -139,6 +142,8 @@ struct ActivityCanvas<Content: View>: View {
     @State private var scrolled: CGFloat = 0
     /// R-02: the layout width a handle drag started from, held only while the finger is down.
     @State private var resizeBase: CGFloat?
+    /// D50: show / hide and arming animate — not under Reduce Motion.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// §2 Units (D1): the reference space. 02 §4.
     private let referenceWidth: CGFloat = 440
@@ -153,12 +158,20 @@ struct ActivityCanvas<Content: View>: View {
     /// GAP — C-091 §2 Sizing: "the pinned action's height", no value stated. 46 = 846 (§2 layer 6,
     /// pill top) to 892 (01 §10: ≈30 above the 34 safe bottom of 956).
     private static var pinnedHeight: CGFloat { 46 }
-    /// FLAGGED LITERAL — C-091 §2 layer 5 (OQ-C-091-002): the delete disc is 44 wu, 1.15× when
-    /// armed. D48 (owner, 2026-11-11) replaces the 88 % height rule: centred horizontally, bottom
-    /// edge 16 pt above the bottom safe-area inset.
-    private static var deleteDisc: CGFloat { 44 }
+    /// FLAGGED LITERAL — C-091 §4 `deleteTarget` (D50): the white outline ring is 44 wu, its
+    /// stroke ≈ 1.5–2 pt (2), the label sits 8 pt above it; armed = ring 1.2×, label 1.35×.
+    /// D48 (owner, 2026-11-11) position stands: centred horizontally, the ring's bottom edge 16 pt
+    /// above the bottom safe-area inset.
+    static var deleteRing: CGFloat { 44 }
     private static var deleteBottomGap: CGFloat { 16 }
-    private let deleteArmedScale: CGFloat = 1.15
+    private let deleteRingStroke: CGFloat = 2
+    private let deleteLabelGap: CGFloat = 8
+    private let deleteRingArmedScale: CGFloat = 1.2
+    private let deleteLabelArmedScale: CGFloat = 1.35
+    /// D50: show / hide fade ≈ 170 ms and arming ≈ 100 ms, ease-out, one curve each.
+    private let deleteFade = Animation.easeOut(duration: 0.17)
+    private let deleteArm = Animation.easeOut(duration: 0.1)
+    private let viewportSpace = "ActivityCanvas.viewport"
     /// FLAGGED LITERAL — C-091 §2 layer 5 (OQ-C-091-002): the 1 px centre guide.
     private let guideWidth: CGFloat = 1
     /// FLAGGED LITERAL — activities-editor §18.7 (D33): each active snap guide is 1pt.
@@ -199,6 +212,7 @@ struct ActivityCanvas<Content: View>: View {
         centerGuide: Bool = false,
         activeGuides: [GuideSegment] = [],
         deleteTarget: DeleteTarget? = nil,
+        onDeleteTargetFrame: @escaping (CGRect) -> Void = { _ in },
         bottomSafeArea: CGFloat = 0,
         verticalAnchor: VerticalAnchor = .center,
         contentExtent: ClosedRange<CGFloat>? = nil,
@@ -219,6 +233,7 @@ struct ActivityCanvas<Content: View>: View {
         self.centerGuide = centerGuide
         self.activeGuides = activeGuides
         self.deleteTarget = deleteTarget
+        self.onDeleteTargetFrame = onDeleteTargetFrame
         self.bottomSafeArea = bottomSafeArea
         self.verticalAnchor = verticalAnchor
         self.contentExtent = contentExtent
@@ -287,6 +302,7 @@ struct ActivityCanvas<Content: View>: View {
                 }
             }
         }
+        .coordinateSpace(.named(viewportSpace))
         .ui2Element("ActivityCanvas")
     }
 
@@ -411,6 +427,14 @@ struct ActivityCanvas<Content: View>: View {
             if mode == .manipulating {
                 manipulatingOverlays(viewport: viewport, pageHeight: layout.height, unit: unit)
             }
+            // D50: the delete target's own layer, so its show / hide fade is scoped to it alone.
+            ZStack(alignment: .topLeading) {
+                if mode == .manipulating, let deleteTarget {
+                    deleteTargetView(deleteTarget, viewport: viewport, unit: unit)
+                }
+            }
+            .frame(width: referenceWidth, height: layout.height, alignment: .topLeading)
+            .animation(reduceMotion ? nil : deleteFade, value: mode == .manipulating && deleteTarget != nil)
         }
         .coordinateSpace(.named(pageSpace))
     }
@@ -539,39 +563,63 @@ struct ActivityCanvas<Content: View>: View {
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
         }
-        if let deleteTarget {
-            ZStack {
-                Circle()
-                    .fill(Token.black50)
-                Glyph(.trash2, size: .md, tint: Token.white100)
+    }
+
+    /// D50: the white outline ring + trash glyph + "Drag to delete" label (§4 `deleteTarget`).
+    private func deleteTargetView(_ deleteTarget: DeleteTarget, viewport: CGFloat, unit: CGFloat) -> some View {
+        let armed = deleteTarget == .armed
+        return Group {
+            // D50: the label centred 8 pt above the white outline ring holding the trash glyph; no
+            // backing. Each part scales about its own centre, so both stay on the same axis.
+            VStack(spacing: deleteLabelGap) {
+                Text("Drag to delete")
+                    // GAP — C-091 §4 `deleteTarget` (D50): semibold 13 pt; no token matches exactly —
+                    // the closest semibold style.
+                    .designTextStyle(Token.TypeStyle.captionSemibold)
+                    .foregroundStyle(Token.white100)
+                    .fixedSize()
+                    .scaleEffect(armed ? deleteLabelArmedScale : 1)
+                ZStack {
+                    Circle()
+                        .strokeBorder(Token.white100, lineWidth: deleteRingStroke)
+                    Glyph(.trash2, size: .md, tint: Token.white100)
+                }
+                .frame(width: Self.deleteRing, height: Self.deleteRing)
+                .scaleEffect(armed ? deleteRingArmedScale : 1)
             }
-            .frame(width: Self.deleteDisc, height: Self.deleteDisc)
-            .scaleEffect(deleteTarget == .armed ? deleteArmedScale : 1)
+            // D50: arming / disarming, scoped to the scale.
+            .animation(reduceMotion ? nil : deleteArm, value: armed)
+            // D50: the zone at rest size — the stack's layout frame ignores the armed scale.
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(viewportSpace)) } action: { frame in
+                onDeleteTargetFrame(frame)
+            }
             .ui2Element("Delete target")
+            // The stack sits on the ring's bottom edge (D48), whatever the label's measured height.
+            .frame(height: Self.deleteBox, alignment: .bottom)
             .position(x: referenceWidth / 2,
-                      y: Self.deleteTargetCenterY(viewport: viewport, bottomSafeArea: bottomSafeArea, unit: unit)
-                        + pageScroll)
+                      y: Self.deleteRingBottom(viewport: viewport, bottomSafeArea: bottomSafeArea, unit: unit)
+                        - Self.deleteBox / 2 + pageScroll)
+            .transition(.opacity)
             .allowsHitTesting(false)
             .accessibilityElement()
-            .accessibilityLabel(deleteTarget == .armed ? "Release to delete" : "Drag to delete")
+            .accessibilityLabel(armed ? "Release to delete" : "Drag to delete")
         }
     }
 
-    /// D48: the delete disc's centre y in viewport wu — its bottom edge `deleteBottomGap` pt above
-    /// the bottom safe-area inset (both in points, `unit` points per wu).
-    private static func deleteTargetCenterY(viewport: CGFloat, bottomSafeArea: CGFloat, unit: CGFloat) -> CGFloat {
-        viewport - (bottomSafeArea + deleteBottomGap) / max(unit, .leastNonzeroMagnitude) - deleteDisc / 2
+    /// D48: the ring's bottom edge in viewport wu — `deleteBottomGap` pt above the bottom
+    /// safe-area inset (both in points, `unit` points per wu).
+    private static func deleteRingBottom(viewport: CGFloat, bottomSafeArea: CGFloat, unit: CGFloat) -> CGFloat {
+        viewport - (bottomSafeArea + deleteBottomGap) / max(unit, .leastNonzeroMagnitude)
     }
 
-    /// D48: the delete disc (unarmed) in the viewport's points, so the host hit-tests the dragging
-    /// finger against exactly what the canvas draws. `viewportSize` is the canvas's size in points.
-    static func deleteTargetFrame(viewportSize: CGSize, bottomSafeArea: CGFloat) -> CGRect {
-        let unit = viewportSize.width / 440
-        let side = deleteDisc * unit
-        let centerY = deleteTargetCenterY(viewport: viewportSize.height / unit, bottomSafeArea: bottomSafeArea,
-                                          unit: unit) * unit
-        return CGRect(x: viewportSize.width / 2 - side / 2, y: centerY - side / 2, width: side, height: side)
+    /// D50: the ring's top edge in viewport wu, for a host that docks something on it (the
+    /// zone itself is reported through `onDeleteTargetFrame`).
+    static func deleteRingTop(viewport: CGFloat, bottomSafeArea: CGFloat, unit: CGFloat) -> CGFloat {
+        deleteRingBottom(viewport: viewport, bottomSafeArea: bottomSafeArea, unit: unit) - deleteRing
     }
+
+    /// D50: the box the label + ring stack is bottom-aligned in — room for both, armed.
+    private static var deleteBox: CGFloat { deleteRing * 3 }
 
     // MARK: - activities-editor §18.7 (D33): the active snap guides
 
