@@ -28,7 +28,7 @@ enum BiblePassageMenu {
         case menu(object: Int)
         /// D13: a change that removes highlights asks first.
         case change(Confirmation)
-        /// D11: deleting a locked object asks first.
+        /// D11/D34: deleting the locked scripture asks first (the reference deletes as ordinary text, with no question).
         case delete(Confirmation)
     }
 
@@ -39,9 +39,9 @@ enum BiblePassageMenu {
                             confirm: "Change", cancel: "Cancel", destructive: false)
     }
 
-    /// D11: deleting either object deletes the whole passage.
+    /// D11/D34: deleting the scripture deletes the whole passage; the reference text object stays.
     static let deleteConfirmation = Confirmation(
-        title: "Delete passage?", message: "The scripture and its citation are both removed. This can't be undone.",
+        title: "Delete passage?", message: "The scripture and its highlights are removed. This can't be undone.",
         confirm: "Delete passage", cancel: "Cancel", destructive: true)
 }
 
@@ -58,15 +58,21 @@ enum BiblePassageEditing {
             let pad = offset == 0 ? String(repeating: " ", count: passage.startOffset ?? 0) : ""
             return BibleVerse(verse: passage.verseStart + offset, text: pad + line)
         }
-        return BiblePick(passage: passage, verses: verses, bookName: "")
+        return BiblePick(passage: passage, verses: verses, bookName: bookName(of: document, passage: passage))
     }
 
-    /// The scripture object's highlights, and how many the citation carries (a changed passage rewrites the
-    /// citation, so every one of those is removed).
-    static func highlights(of document: ActivityDocument) -> (scripture: [TextObject.Highlight], citation: Int) {
-        let objects = document.textObjects
-        return (objects.first { $0.role == "scripture" }?.highlights ?? [],
-                objects.first { $0.role == "citation" }?.highlights.count ?? 0)
+    /// The book name the reference reads with: the document's fallback title is the reference without the translation
+    /// (D10), so the name is whatever precedes the chapter — kept only when it rebuilds that title exactly.
+    private static func bookName(of document: ActivityDocument, passage: BiblePassage) -> String {
+        guard case .string(let title)? = document.raw[path: ["fallback", "title"]],
+              let space = title.lastIndex(of: " ") else { return "" }
+        let name = String(title[..<space])
+        return BibleScripture.title(for: passage, bookName: name) == title ? name : ""
+    }
+
+    /// The scripture object's highlights (the reference is ordinary text and keeps its own, D34).
+    static func highlights(of document: ActivityDocument) -> [TextObject.Highlight] {
+        document.textObjects.first { $0.role == "scripture" }?.highlights ?? []
     }
 
     /// `document` with the scripture object's highlights replaced.
@@ -83,30 +89,34 @@ enum BiblePassageEditing {
         return document.updating { $0[path: ["content", "objects", .index(index), "highlights"]] = json }
     }
 
-    /// D11/D13: `current` with only the passage replaced from `fresh` (a D10 document for the new passage): the
-    /// scripture object's `text`, `startNumber`, `reference` and `highlights`, the citation object's `text`, the
-    /// passages and the fallback title. Every other field and object — moves, restyling, objects the leader added,
-    /// the page's actions — is kept. A document missing either object takes `fresh` whole.
-    static func replacingPassage(in current: ActivityDocument, with fresh: ActivityDocument) -> ActivityDocument {
+    /// D11/D13/D34: `current` with only the passage replaced from `fresh` (a D10 document for the new passage): the
+    /// scripture object's `text`, `startNumber`, `reference` and `highlights`, the reference object's `text` only while
+    /// it still reads as the old passage's reference (`BibleScripture.citationAfterChange`), the passages and the
+    /// fallback title. Every other field and object — moves, restyling, objects the leader added or deleted, the page's
+    /// actions — is kept. A document missing its scripture object takes `fresh` whole.
+    static func replacingPassage(in current: ActivityDocument, with fresh: ActivityDocument,
+                                 old: BiblePick, new: BiblePick) -> ActivityDocument {
         let objects = ActivitiesEditorMapper.rawObjects(current), freshObjects = ActivitiesEditorMapper.rawObjects(fresh)
         guard let scripture = objects.firstIndex(where: { isRole("scripture", $0) }),
-              let citation = objects.firstIndex(where: { isRole("citation", $0) }),
-              let newScripture = freshObjects.first(where: { isRole("scripture", $0) }),
-              let newCitation = freshObjects.first(where: { isRole("citation", $0) }) else { return fresh }
+              let newScripture = freshObjects.first(where: { isRole("scripture", $0) }) else { return fresh }
         var updated = current.updating { raw in
             for key in ["text", "startNumber", "reference", "highlights"] {
                 raw[path: ["content", "objects", .index(scripture), .key(key)]] = newScripture[path: [.key(key)]]
             }
-            raw[path: ["content", "objects", .index(citation), "text"]] = newCitation[path: ["text"]]
+            if let citation = objects.firstIndex(where: { isRole("citation", $0) }),
+               case .string(let text)? = objects[citation][path: ["text"]] {
+                raw[path: ["content", "objects", .index(citation), "text"]] =
+                    .string(BibleScripture.citationAfterChange(current: text, old: old, new: new))
+            }
             raw[path: ["fallback", "title"]] = fresh.raw[path: ["fallback", "title"]]
         }
         updated.passages = fresh.passages
         return updated
     }
 
-    /// The document without its scripture and citation objects or its passages (D11).
+    /// The document without its scripture object or its passages (D11); the reference text object stays (D34).
     static func removingPassage(from document: ActivityDocument) -> ActivityDocument {
-        let kept = ActivitiesEditorMapper.rawObjects(document).filter { !isRole("scripture", $0) && !isRole("citation", $0) }
+        let kept = ActivitiesEditorMapper.rawObjects(document).filter { !isRole("scripture", $0) }
         var updated = document.updating { $0[path: ["content", "objects"]] = .array(kept) }
         updated.passages = []
         return updated

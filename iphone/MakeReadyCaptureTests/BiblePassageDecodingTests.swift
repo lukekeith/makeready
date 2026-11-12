@@ -43,7 +43,7 @@ final class BiblePassageDecodingTests: XCTestCase {
         XCTAssertEqual(s.reference?.start.offset, 9); XCTAssertEqual(s.reference?.translation, "ENGKJV")
         XCTAssertEqual(s.reference?.start.book, 43)
         XCTAssertTrue(s.isLockedScripture)
-        XCTAssertTrue(doc.textObjects.first { $0.role == "citation" }!.isLockedScripture)
+        XCTAssertFalse(doc.textObjects.first { $0.role == "citation" }!.isLockedScripture, "D34: the reference is ordinary text")
     }
 
     func testALegacyPassageHasNoTranslationAndIsNotLocked() throws {

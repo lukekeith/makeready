@@ -56,7 +56,7 @@ final class BibleEditorTests: XCTestCase {
     }
 
     func testReferencedScriptureIsLockedAndLegacyIsNot() {
-        XCTAssertEqual(state(Self.bibleDoc, kind: "bible").objectLocks, [true, true])
+        XCTAssertEqual(state(Self.bibleDoc, kind: "bible").objectLocks, [true, false], "D34: the reference is never locked")
         XCTAssertEqual(state(Self.legacyBibleDoc, kind: "bible").objectLocks, [false, false])
         XCTAssertEqual(state(Self.bibleDoc, kind: "bible").objectIDs.count, 2)
     }
@@ -67,6 +67,24 @@ final class BibleEditorTests: XCTestCase {
         XCTAssertEqual(model.presentation, .menu(object: 0))
         XCTAssertEqual(BiblePassageMenu.items.map(\.label), ["Change passage", "Highlight"])
         XCTAssertEqual(model.editingIndex, -1)
+    }
+
+    func testTheReferenceIsOrdinaryText() async {
+        XCTAssertFalse(ActivitiesEditorMapper.state(document: Self.bibleDoc, media: [:], slides: [], activeID: "a1", kind: "bible").objectLocks[1])
+        let model = model()
+        await model.tapObject(1)
+        XCTAssertNil(model.presentation, "D34: tapping the reference never opens the passage menu")
+        XCTAssertEqual(model.editingIndex, 1)
+    }
+
+    func testTheReferenceTypesMovesAndDeletesAsText() {
+        let model = model()
+        model.edit(.init(index: 1, text: "For God so loved", transform: .init(x: 100, y: 500, scale: 2, rotation: 15)))
+        let citation = model.document.textObjects[1]
+        XCTAssertEqual(citation.text, "For God so loved")
+        XCTAssertEqual([citation.transform.x, citation.transform.y, citation.transform.scale, citation.transform.rotation], [100, 500, 2, 15])
+        model.requestDelete(objectIndex: 1)
+        XCTAssertNil(model.presentation, "D34: deleting the reference asks nothing")
     }
 
     func testTappingLegacyScriptureEditsItAsOrdinaryText() async {
@@ -143,18 +161,18 @@ final class BibleEditorTests: XCTestCase {
         XCTAssertEqual(model.document.passages.first?.verseEnd, 21)
     }
 
-    func testDeletingALockedObjectAsksThenRemovesBothObjects() async {
+    func testDeletingTheScriptureAsksThenRemovesThePassageButNotTheReference() async {
         let model = model()
         model.requestDelete(objectIndex: 0)
         XCTAssertEqual(model.presentation, .delete(BiblePassageMenu.deleteConfirmation))
         await model.confirmDelete()
-        XCTAssertEqual(model.document.textObjects, [])
+        XCTAssertEqual(model.document.textObjects.map(\.role), ["citation"])
         XCTAssertEqual(model.document.passages, [])
     }
 
     func testCancellingTheDeleteKeepsThePassage() {
         let model = model()
-        model.requestDelete(objectIndex: 1)
+        model.requestDelete(objectIndex: 0)
         model.cancelPresentation()
         XCTAssertEqual(model.document.textObjects.count, 2)
     }
@@ -209,7 +227,7 @@ final class BibleEditorTests: XCTestCase {
         XCTAssertEqual(objects[0].startNumber, 16)
         XCTAssertEqual(raw[path: ["content", "objects", .index(0), "reference"]], fresh.raw[path: ["content", "objects", .index(0), "reference"]])
         XCTAssertEqual(objects[0].highlights.map(\.id), ["h1"])
-        XCTAssertEqual(objects[1].text, "John 3:16-21 ENGKJV")
+        XCTAssertEqual(objects[1].text, "John 3:16-21", "D34: an unedited reference follows the passage")
         XCTAssertEqual(raw[path: ["fallback", "title"]], .string("John 3:16-21"))
         XCTAssertEqual(model.document.passages.first?.verseEnd, 21)
         XCTAssertEqual(ActivitiesEditorMapper.rawObjects(model.document).count, 3)
@@ -226,13 +244,20 @@ final class BibleEditorTests: XCTestCase {
             verses: verses, bookName: "John"), background: nil)
     }
 
-    /// D26: the editor never changes a page-laid-out object's transform — a drag, pinch or width edit is dropped.
-    func testPageLaidOutObjectsIgnoreTransforms() async {
+    func testChangingThePassageKeepsAnEditedReference() async {
+        let edited = Self.bibleDoc.updating { $0[path: ["content", "objects", .index(1), "text"]] = .string("For God so loved") }
+        let model = model(edited)
+        await model.changePassage(pick: Self.pick16to21)
+        XCTAssertEqual(model.document.textObjects[1].text, "For God so loved")
+        XCTAssertEqual(model.document.passages.first?.verseEnd, 21)
+    }
+
+    /// D26: the editor never changes the page-laid-out scripture's transform — a drag, pinch or width edit is dropped.
+    func testPageLaidOutScriptureIgnoresTransforms() async {
         let model = model()
-        let before = model.document.textObjects.map(\.transform)
+        let before = model.document.textObjects[0].transform
         model.edit(.init(index: 0, width: 100, transform: .init(x: 300, y: 300, scale: 2, rotation: 15)))
-        model.edit(.init(index: 1, transform: .init(x: 10, y: 10, scale: 0.5, rotation: 3)))
-        XCTAssertEqual(model.document.textObjects.map(\.transform), before)
+        XCTAssertEqual(model.document.textObjects[0].transform, before)
     }
 
     /// An ordinary text object on the same page still moves.
@@ -250,35 +275,27 @@ final class BibleEditorTests: XCTestCase {
         XCTAssertEqual(model.document.textObjects[2].transform.x, 100)
     }
 
-    /// D28: the style panel writes the scripture and the citation together.
-    func testTheStylePanelWritesScriptureAndCitationTogether() {
+    /// D34: the scripture's style changes never write the reference.
+    func testScriptureStyleNoLongerWritesTheReference() {
         let model = model()
-        model.setBibleStyle(.inset(48)); model.setBibleStyle(.face("sans"))
+        let before = model.document.textObjects[1]
+        model.setBibleStyle(.inset(48)); model.setBibleStyle(.face("sans")); model.setBibleStyle(.size(36))
+        model.setBibleStyle(.color("#FFCC00")); model.setBibleStyle(.alignment("right"))
         XCTAssertEqual(model.document.textObjects[0].inset, 48)
-        XCTAssertEqual(model.document.textObjects[1].inset, 48)
         XCTAssertEqual(model.document.textObjects[0].font, "sans")
-        XCTAssertEqual(model.document.textObjects[1].font, "sans")
+        XCTAssertEqual(model.document.textObjects[0].size, 36)
+        XCTAssertNotEqual(model.document.textObjects[1].inset, 48)
+        XCTAssertEqual(model.document.textObjects[1], before)
     }
 
-    /// D28: size and line height and weight and verse numbers belong to the scripture; the citation keeps 14/18 of the size.
-    func testTheStylePanelSizesTheCitationAtFourteenEighteenths() {
+    /// D34: the reference is restyled as text, and that touches only the reference.
+    func testRestylingTheReferenceLeavesTheScriptureAlone() {
         let model = model()
-        model.setBibleStyle(.size(36)); model.setBibleStyle(.lineHeight(1.8)); model.setBibleStyle(.weight(700))
-        model.setBibleStyle(.verseNumbers("inline"))
-        let objects = model.document.textObjects
-        XCTAssertEqual(objects[0].size, 36); XCTAssertEqual(objects[0].lineHeight, 1.8); XCTAssertEqual(objects[0].weight, 700)
-        XCTAssertEqual(objects[0].verseNumbers, .inline)
-        XCTAssertEqual(objects[1].size, 28, accuracy: 0.001)
-        XCTAssertEqual(objects[1].weight, 400, "the weight is the scripture's alone; the citation follows the face")
-    }
-
-    /// D28: the citation follows the scripture's colour and alignment when either is edited.
-    func testColourAndAlignmentEditsReachBothObjects() {
-        let model = model()
+        let scripture = model.document.textObjects[0]
         model.edit(.init(index: 1, color: "#FFCC00", alignment: "right"))
         let objects = model.document.textObjects
-        XCTAssertEqual(objects.map(\.color), ["#FFCC00", "#FFCC00"])
-        XCTAssertEqual(objects.map(\.alignment), ["right", "right"])
+        XCTAssertEqual(objects.map(\.color), [scripture.color, "#FFCC00"])
+        XCTAssertEqual(objects.map(\.alignment), [scripture.alignment, "right"])
     }
 
     /// D28: no Animation or effects on a bible activity; the five-tool row is on.
@@ -289,13 +306,13 @@ final class BibleEditorTests: XCTestCase {
         XCTAssertFalse(state(Self.textDoc, kind: "text").isBible)
     }
 
-    /// D26/D29: the state carries the page's layout — both objects page-laid-out, the citation under the scripture,
-    /// the style panel seeded from the scripture; a legacy object keeps its place.
+    /// D26/D29/D34: the state carries the page's layout — the scripture page-laid-out, the reference on its own
+    /// transform above it, the style panel seeded from the scripture; a legacy object keeps its place.
     func testTheStateCarriesThePageLayout() {
         let s = state(Self.bibleDoc, kind: "bible")
-        XCTAssertEqual(s.objectPageLaidOut, [true, true])
+        XCTAssertEqual(s.objectPageLaidOut, [true, false])
         XCTAssertEqual(s.objectYs[0] - s.objectHeights[0] / 2, 96, accuracy: 0.5)
-        XCTAssertEqual(s.objectYs[1] - s.objectHeights[1] / 2, 96 + s.objectHeights[0] + 16, accuracy: 0.5)
+        XCTAssertEqual(s.objectYs[1], Self.bibleDoc.textObjects[1].transform.y)
         XCTAssertEqual(s.objectXs, [220, 220])
         XCTAssertEqual(s.objectWidths, [376, 376])
         XCTAssertEqual(s.pageHeight, 956)
@@ -314,15 +331,14 @@ final class BibleEditorTests: XCTestCase {
         XCTAssertGreaterThan(grown.pageHeight, s.pageHeight)
     }
 
-    /// D28: the tool bar is on in Idle, so its Color and Alignment write the scripture and the citation with no edit
-    /// session; dismissing the passage menu without a row enters no edit mode (the workaround is gone).
+    /// D28: the tool bar is on in Idle, so its Color and Alignment write the scripture with no edit session; dismissing the passage menu without a row enters no edit mode (the workaround is gone).
     func testIdleBibleToolsRestyleTheScriptureWithoutEditing() async {
         let model = model()
         model.setBibleStyle(.color("#FFCC00")); model.setBibleStyle(.alignment("right"))
-        XCTAssertEqual(model.document.textObjects.map(\.color), ["#FFCC00", "#FFCC00"])
-        XCTAssertEqual(model.document.textObjects.map(\.alignment), ["right", "right"])
+        XCTAssertEqual(model.document.textObjects[0].color, "#FFCC00")
+        XCTAssertEqual(model.document.textObjects[0].alignment, "right")
         XCTAssertEqual(model.editingIndex, -1)
-        await model.tapObject(1)
+        await model.tapObject(0)
         model.cancelPresentation()
         XCTAssertNil(model.presentation)
         XCTAssertEqual(model.editingIndex, -1)
@@ -337,7 +353,7 @@ final class BibleEditorTests: XCTestCase {
         model.setBibleStyle(.verticalAlignment("center")); model.setBibleStyle(.verseNumbers("inline"))
         XCTAssertEqual(model.document.textObjects[0].verticalAlignment, .center)
         XCTAssertEqual(model.document.textObjects[0].verseNumbers, .inline)
-        XCTAssertNil(model.document.textObjects[1].verticalAlignment, "the citation follows the scripture's block, not its own field")
+        XCTAssertNil(model.document.textObjects[1].verticalAlignment)
     }
 
     /// D32: a document without the field reads top and is not given the field by a save or an unrelated style change.

@@ -79,13 +79,13 @@ enum ActivityThumbnail {
 
     /// F13: the page's text objects as C-092 draws them in viewer mode — `listStyle`, `startNumber` and highlights kept,
     /// exactly as the player maps them. `reference` is never passed (D10: the citation object is the scripture's only
-    /// citation line). Empty for any document that is not a canvas.
+    /// citation line), and the reference text object is drawn from its own transform (D34). Empty for any document that is not a canvas.
     static func objects(for document: ActivityDocument) -> [CanvasTextObject] {
         guard case .canvas = document.renderable else { return [] }
-        // D26: a page-laid-out scripture and citation are placed by the page, not by their `transform`.
+        // D26: a page-laid-out scripture is placed by the page, not by its `transform`; the reference keeps its own (D34).
         let placed = BibleScripture.placed(document)
         return placed.objects.enumerated().map { index, object in
-            Page.canvasObject(object, pageLaidOut: index == placed.layout?.scriptureIndex || index == placed.layout?.citationIndex)
+            Page.canvasObject(object, pageLaidOut: index == placed.layout?.scriptureIndex)
         }
     }
 

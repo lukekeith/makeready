@@ -290,7 +290,7 @@ enum ActivityViewerMapper {
         let document = activity.document
         switch document.renderable {
         case .canvas(let canvas):
-            // D26/D29: a `bible` page's scripture and citation are placed by the page, and the page is as tall as they need.
+            // D26/D29: a `bible` page's scripture is placed by the page, and the page is as tall as it needs; the reference keeps its own transform (D34).
             let placed = BibleScripture.placed(document)
             let laidOut = placed.layout
             s.pageKinds.append(laidOut == nil ? "canvas" : "bible")
@@ -298,7 +298,7 @@ enum ActivityViewerMapper {
                          height: laidOut?.height ?? referenceHeight)
             for (position, (object, raw)) in zip(laidOut == nil ? canvas.objects : placed.objects, rawObjects(document.raw)).enumerated() {
                 s.appendObject(object, raw: raw, page: index,
-                               pageLaidOut: position == laidOut?.scriptureIndex || position == laidOut?.citationIndex)
+                               pageLaidOut: position == laidOut?.scriptureIndex)
             }
         case .write(let write):
             s.pageKinds.append("write")

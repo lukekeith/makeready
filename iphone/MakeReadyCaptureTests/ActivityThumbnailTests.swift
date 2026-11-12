@@ -28,11 +28,12 @@ final class ActivityThumbnailTests: XCTestCase {
     func testABibleThumbnailPlacesScriptureAndCitationPerD26() {
         let objects = ActivityThumbnail.objects(for: BibleEditorTests.bibleDoc)
         XCTAssertEqual(objects.count, 2)
-        XCTAssertTrue(objects.allSatisfy(\.pageLaidOut))
+        XCTAssertEqual(objects.map(\.pageLaidOut), [true, false], "D34: the reference keeps its own transform")
         XCTAssertEqual(objects[0].transform.width, 376)
         XCTAssertEqual(objects[0].verseNumbers, .gutter)
         XCTAssertEqual(objects[0].lineHeight, 1.4)
-        XCTAssertGreaterThan(objects[1].transform.position.y, objects[0].transform.position.y)
+        XCTAssertLessThan(objects[1].transform.position.y, objects[0].transform.position.y)
+        XCTAssertEqual(objects[1].transform.position.y, BibleEditorTests.bibleDoc.textObjects[1].transform.y)
     }
 
     /// D30: a tall page's thumbnail is still the top 440x956, drawn at the slide's size.

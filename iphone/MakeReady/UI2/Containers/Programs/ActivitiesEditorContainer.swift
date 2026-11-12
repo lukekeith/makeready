@@ -384,7 +384,7 @@ struct ActivitiesEditorContainer: View {
                 if let droppedIndex, droppedIndex < target { target -= 1 }
             }
             guard target >= 0, target < ActivitiesEditorMapper.rawObjects(document).count else { return }
-            // D12: a locked scripture or citation opens the passage menu; it is never typed into.
+            // D12/D34: a locked scripture opens the passage menu; it is never typed into. The reference edits as text.
             if isLocked(target) {
                 presentation = .menu(object: target)
                 return
@@ -405,61 +405,47 @@ struct ActivitiesEditorContainer: View {
             var edit = edit
             // D11: a locked object takes every restyle but no text.
             if isLocked(edit.index) { edit.text = nil }
-            // D26: the page places a scripture or citation — a move, pinch, rotate or width is never written.
-            if let sibling = pageLaidOutSibling(of: edit.index) {
+            // D26: the page places the scripture — a move, pinch, rotate or width is never written.
+            if isPageLaidOut(edit.index) {
                 edit.transform = nil
                 edit.width = nil
-                // D28: the citation follows the scripture's colour and alignment (and the face, written by the style panel).
-                document = ActivitiesEditorMapper.apply(
-                    .init(index: sibling, font: edit.font, color: edit.color, alignment: edit.alignment), to: document)
             }
             document = ActivitiesEditorMapper.apply(edit, to: document)
         }
 
-        /// D28/D33: one Bible tool bar change. Face writes the scripture and the citation; weight, line height and verse
-        /// numbers and vertical alignment the scripture alone; size the scripture and the citation at 14/18 of it; the page padding, colour and
-        /// alignment both. Reached from the Idle tool bar (D28), so there is no edit session: Done saves it.
+        /// D33/D34: one Bible tool bar change. Every change writes the scripture alone — the reference is ordinary text
+        /// with its own style. Reached from the Idle tool bar (D28), so there is no edit session: Done saves it.
         func setBibleStyle(_ change: ActivitiesEditorScreen.BibleStyleChange) {
             guard kind == "bible", let layout = BibleScripture.layout(of: document) else { return }
             let scripture: [JSONPathComponent] = ["content", "objects", .index(layout.scriptureIndex)]
-            let citation = layout.citationIndex.map { ["content", "objects", JSONPathComponent.index($0)] as [JSONPathComponent] }
             document = document.updating { raw in
                 switch change {
                 case .face(let face):
                     raw[path: scripture + ["font"]] = .string(face)
-                    if let citation { raw[path: citation + ["font"]] = .string(face) }
                 case .weight(let weight):
                     raw[path: scripture + ["weight"]] = .number(Double(weight))
                 case .size(let size):
                     raw[path: scripture + ["size"]] = .number(Double(size))
-                    if let citation { raw[path: citation + ["size"]] = .number(Double(size) * BibleScripture.citationRatio) }
                 case .lineHeight(let lineHeight):
                     raw[path: scripture + ["lineHeight"]] = .number(Double((lineHeight * 10).rounded() / 10))
                 case .inset(let inset):
                     raw[path: scripture + ["inset"]] = .number(Double(inset))
-                    if let citation { raw[path: citation + ["inset"]] = .number(Double(inset)) }
                 case .verseNumbers(let mode):
                     raw[path: scripture + ["verseNumbers"]] = .string(mode)
                 case .verticalAlignment(let code):
-                    // D32: the scripture's field alone — the citation moves with the block.
                     raw[path: scripture + ["verticalAlignment"]] = .string(code)
                 case .color(let hex):
                     raw[path: scripture + ["color"]] = .string(hex)
-                    if let citation { raw[path: citation + ["color"]] = .string(hex) }
                 case .alignment(let code):
                     raw[path: scripture + ["alignment"]] = .string(code)
-                    if let citation { raw[path: citation + ["alignment"]] = .string(code) }
                 }
             }
         }
 
-        /// The other half of a page-laid-out pair (scripture ↔ citation) when `index` is one of the two; nil for any
-        /// other object, which keeps its transform.
-        private func pageLaidOutSibling(of index: Int) -> Int? {
-            guard kind == "bible", let layout = BibleScripture.layout(of: document) else { return nil }
-            if index == layout.scriptureIndex { return layout.citationIndex ?? -1 }
-            if index == layout.citationIndex { return layout.scriptureIndex }
-            return nil
+        /// Whether the page places object `index` (the scripture); every other object keeps its transform.
+        private func isPageLaidOut(_ index: Int) -> Bool {
+            guard kind == "bible", let layout = BibleScripture.layout(of: document) else { return false }
+            return index == layout.scriptureIndex
         }
 
         /// Cancel restores only the edited object — an added one is removed, an existing one goes back
@@ -470,10 +456,8 @@ struct ActivitiesEditorContainer: View {
                 document = ActivitiesEditorMapper.removeObject(at: editingIndex, from: document)
             } else if let editStart {
                 let originals = ActivitiesEditorMapper.rawObjects(editStart)
-                // D28: the scripture and its citation are styled as one block, so Cancel restores both.
-                let restored = [editingIndex] + [pageLaidOutSibling(of: editingIndex)].compactMap { $0 }
-                for index in restored where originals.indices.contains(index) {
-                    document = ActivitiesEditorMapper.replacingObject(at: index, with: originals[index], in: document)
+                if originals.indices.contains(editingIndex) {
+                    document = ActivitiesEditorMapper.replacingObject(at: editingIndex, with: originals[editingIndex], in: document)
                 }
             }
             endEditing()
@@ -691,7 +675,7 @@ struct ActivitiesEditorContainer: View {
         var isChangeConfirmationOpen: Bool { if case .change = presentation { return true } else { return false } }
         var isDeleteConfirmationOpen: Bool { if case .delete = presentation { return true } else { return false } }
 
-        /// D11/D23: a referenced scripture or citation object — never an ordinary one.
+        /// D11/D23/D34: a referenced scripture object — never an ordinary one, and never the reference.
         private func isLocked(_ index: Int) -> Bool {
             guard kind == "bible" else { return false }
             let objects = document.textObjects
@@ -805,9 +789,9 @@ struct ActivitiesEditorContainer: View {
                                       background: document.background)
 
             let previous = BiblePassageEditing.highlights(of: document)
-            let kept = [BibleScripture.reanchor(highlights: previous.scripture, old: old, new: pick).kept]
+            let kept = [BibleScripture.reanchor(highlights: previous, old: old, new: pick).kept]
             let keptIDs = Set(kept.flatMap { $0.map(\.id) })
-            let removed = previous.scripture.filter { !keptIDs.contains($0.id) }.count + previous.citation
+            let removed = previous.filter { !keptIDs.contains($0.id) }.count
 
             func withHighlights(_ document: ActivityDocument, _ highlights: [TextObject.Highlight]) -> ActivityDocument {
                 BiblePassageEditing.setting(highlights: highlights, in: document)
@@ -818,7 +802,7 @@ struct ActivitiesEditorContainer: View {
                 order: base.order,
                 // D11/D13: the original keeps the leader's page; only the passage's own fields change.
                 put: base.put.map {
-                    ($0.activityId, BiblePassageEditing.replacingPassage(in: document, with: withHighlights($0.document, kept[0])))
+                    ($0.activityId, BiblePassageEditing.replacingPassage(in: document, with: withHighlights($0.document, kept[0]), old: old, new: pick))
                 })
 
             guard removed > 0 else { return await runChange(plan, from: 0, created: []) }
@@ -861,7 +845,7 @@ struct ActivitiesEditorContainer: View {
 
         // Delete (D11)
 
-        /// Deleting a locked object asks first; confirming deletes the whole passage, both objects.
+        /// Deleting the locked scripture asks first; confirming deletes the whole passage (D34: not the reference).
         func requestDelete(objectIndex: Int) {
             guard isLocked(objectIndex) else { return }
             presentation = .delete(BiblePassageMenu.deleteConfirmation)

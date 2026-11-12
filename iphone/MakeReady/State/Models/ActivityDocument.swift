@@ -72,18 +72,9 @@ struct TextObject: Codable, Hashable, Identifiable {
     var verticalAlignment: VerticalAlignment?
     /// The `verseNumbers` the document carries; nil = the field is absent and is never written.
     var writtenVerseNumbers: VerseNumbers?
-    /// Set by `ActivityDocument.textObjects` on a citation whose activity has a scripture object
-    /// carrying a `reference`; a citation is locked through that object, not through its own JSON.
-    var siblingScriptureHasReference = false
 
-    /// D11/D23: a scripture object with a `reference` (or the citation of one) is locked in the editor.
-    var isLockedScripture: Bool {
-        switch role {
-        case "scripture": return reference != nil
-        case "citation": return reference != nil || siblingScriptureHasReference
-        default: return false
-        }
-    }
+    /// D11/D23/D34: a scripture object with a `reference` is locked in the editor. The citation is ordinary text.
+    var isLockedScripture: Bool { role == "scripture" && reference != nil }
 
     /// `marks` and `highlights` count UTF-16 code units in every client (02 §3); Swift `String`
     /// distances count characters, so this converts at the boundary. Nil when the offsets are out
@@ -402,15 +393,10 @@ struct ActivityDocument: Codable, Hashable {
 
     // MARK: Bible passages
 
-    /// The canvas's text objects; a citation also learns whether its scripture object carries a `reference`.
+    /// The canvas's text objects.
     var textObjects: [TextObject] {
         guard case .canvas(let canvas) = renderable else { return [] }
-        let scriptureHasReference = canvas.objects.contains { $0.role == "scripture" && $0.reference != nil }
-        return canvas.objects.map { object in
-            var object = object
-            object.siblingScriptureHasReference = object.role == "citation" && scriptureHasReference
-            return object
-        }
+        return canvas.objects
     }
 
     /// `content.passages`, skipping any entry missing a required int (D22).

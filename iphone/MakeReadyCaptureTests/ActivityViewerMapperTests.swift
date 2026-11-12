@@ -86,9 +86,10 @@ final class ActivityViewerMapperTests: XCTestCase {
         XCTAssertEqual(s.pageKinds, ["bible", "end"])
         XCTAssertGreaterThan(s.pageHeights[0], 956)
         XCTAssertEqual(s.pageHeights[1], 956)
-        XCTAssertEqual(s.objectPageLaidOut, [true, true])
+        XCTAssertEqual(s.objectPageLaidOut, [true, false], "D34: only the scripture is page-laid-out")
         XCTAssertEqual(s.objectXs, [220, 220])
-        XCTAssertGreaterThan(s.objectYs[1], s.objectYs[0])
+        XCTAssertLessThan(s.objectYs[1], s.objectYs[0], "D34: the reference is drawn from its own transform, above the passage")
+        XCTAssertEqual(s.objectYs[1], BibleEditorTests.john3AllDoc.textObjects[1].transform.y)
         let placed = ActivityViewerMapper.page(for: BibleEditorTests.john3AllDoc)
         XCTAssertEqual(s.pageHeights[0], placed?.height)
     }
@@ -159,7 +160,7 @@ final class ActivityViewerMapperTests: XCTestCase {
         let plain = BibleEditorTests.bibleDoc, centered = Self.john316Centered
         let bottomDoc = Self.centered(plain, "bottom")
         let top = try XCTUnwrap(ActivityViewerMapper.page(for: plain))
-        let block = top.scripture.height + 16 + (top.citation?.height ?? 0)
+        let block = top.scripture.height
         let bottom = try XCTUnwrap(ActivityViewerMapper.page(for: bottomDoc))
         XCTAssertEqual(bottom.scriptureTop + block, 956 - 96, accuracy: 0.5)
         let middle = try XCTUnwrap(ActivityViewerMapper.page(for: centered))

@@ -4,6 +4,7 @@ import UIKit
 /// bible-verse-picker: the Bible activity's document logic, with no view and no network — a picked passage
 /// becomes its document (D10, D27, D28) and citation, a changed passage re-anchors its highlights (D13), a
 /// long one is never split but grows its page (D29), and a lesson's `used` passages come from its draft (D16).
+/// The reference is an ordinary text object above the passage (D34); only the scripture is page-laid-out.
 enum BibleScripture {
     // MARK: D10 / D28 default style
 
@@ -14,15 +15,16 @@ enum BibleScripture {
     private static let sideInset = 32.0
     private static let topInset = 96.0
     private static let bottomInset = 96.0
-    private static let citationGap = 16.0
+    /// D34: the reference's starting top, above the scripture.
+    private static let citationTop = 40.0
     private static let scriptureSize = 18.0
     private static let citationSize = 14.0
     /// D28: the default line height multiple.
     private static let lineHeight = 1.4
 
-    /// D29: the page is at least the text page, and grows to hold the laid-out scripture and its citation.
-    static func pageHeight(scriptureHeight: CGFloat, citationHeight: CGFloat) -> CGFloat {
-        max(minimumPageHeight, topInset + scriptureHeight + citationGap + citationHeight + bottomInset)
+    /// D29/D34: the page is at least the text page, and grows to hold the laid-out scripture; the reference is not counted.
+    static func pageHeight(scriptureHeight: CGFloat) -> CGFloat {
+        max(minimumPageHeight, topInset + scriptureHeight + bottomInset)
     }
 
     /// The default scripture layout width.
@@ -30,15 +32,9 @@ enum BibleScripture {
 
     // MARK: Citation
 
-    /// "John 3:16b-18 ENGKJV": the formatter's reference (`b` on a start verse that begins mid-verse, `a` on
-    /// an end verse that ends mid-verse), then a space and the translation code when there is one.
-    static func citation(_ passage: BiblePassage, bookName: String) -> String {
-        let reference = title(for: passage, bookName: bookName)
-        guard let code = passage.translation, !code.isEmpty else { return reference }
-        return "\(reference) \(code)"
-    }
-
-    /// The activity title: the citation without the translation code (D10).
+    /// "John 3:16b-18": the formatter's reference (`b` on a start verse that begins mid-verse, `a` on an end verse that
+    /// ends mid-verse), with no translation code (D34). It is the reference text object's starting text and the
+    /// activity title (D10).
     static func title(for passage: BiblePassage, bookName: String) -> String {
         let sameVerse = passage.chapterStart == passage.chapterEnd && passage.verseStart == passage.verseEnd
         let startPartial = (passage.startOffset ?? 0) > 0
@@ -58,16 +54,15 @@ enum BibleScripture {
 
     // MARK: Document
 
-    /// D10: a `bible` document holding the locked scripture and its citation, over `background`. A pick is one
+    /// D10/D34: a `bible` document holding the locked scripture and the reference above it, over `background`. A pick is one
     /// document whatever its length (D29).
     static func document(for pick: BiblePick, background: ActivityBackground?) -> ActivityDocument {
         let passage = pick.passage
         let verses = selected(pick)
         let text = verses.map(\.text).joined(separator: "\n")
-        let citationText = citation(passage, bookName: pick.bookName)
+        let citationText = title(for: passage, bookName: pick.bookName)
 
         let scriptureHeight = height(of: numbered(verses, from: passage.verseStart), size: scriptureSize, width: textWidth)
-        let citationTop = topInset + scriptureHeight + citationGap
         let citationHeight = height(of: citationText, size: citationSize, width: textWidth)
 
         var scripture = textObject(
@@ -78,6 +73,7 @@ enum BibleScripture {
         scripture["verseNumbers"] = .string(verses.count > 1 ? "gutter" : "hidden")
         scripture["inset"] = .number(sideInset)
         if let reference = referenceJSON(for: passage) { scripture["reference"] = reference }
+        // D34: left edge at the scripture's inset, the scripture's face, colour and horizontal alignment (textObject writes them).
         let citationObject = textObject(
             role: "citation", text: citationText, size: citationSize, y: citationTop + citationHeight / 2)
 
@@ -143,6 +139,12 @@ enum BibleScripture {
     private static func json(_ background: ActivityBackground) -> JSONValue? {
         guard let data = try? JSONEncoder().encode(background) else { return nil }
         return try? JSONDecoder().decode(JSONValue.self, from: data)
+    }
+
+    /// D34: Change passage rewrites the reference only while it still equals the old passage's reference; text the
+    /// leader edited is kept.
+    static func citationAfterChange(current: String, old: BiblePick, new: BiblePick) -> String {
+        current == title(for: old.passage, bookName: old.bookName) ? title(for: new.passage, bookName: new.bookName) : current
     }
 
     // MARK: Used (D16)
@@ -255,22 +257,18 @@ extension BibleScripture {
     }
 
     /// One `bible` page as the page lays it out (D26): the scripture and citation placements by their index in
-    /// `textObjects`, the citation's size (14/18 of the scripture's), and the page's height (D29).
+    /// `textObjects` and the page's height (D29). The reference is not part of the layout (D34).
     struct PageLayout: Equatable {
         var scriptureIndex: Int
-        var citationIndex: Int?
         var scripture: Placement
-        var citation: Placement?
         var height: Double
         /// D32: the scripture's top on the page after vertical alignment — 96 for `top`, and always 96 on a page
-        /// taller than 956 (no slack). `scripture` and `citation` stay at the top-at-96 frames.
+        /// taller than 956 (no slack). `scripture` stays at the top-at-96 frame.
         var scriptureTop: Double
     }
 
     /// D28: the default padding from the page edge.
     static let defaultInset = 32.0
-    /// D28: the citation is 14/18 of the scripture's size.
-    static let citationRatio = 14.0 / 18.0
     private static let gutterGap = 8.0
     private static let gutterNumberScale = 0.7
 
@@ -285,46 +283,28 @@ extension BibleScripture {
         let scriptureHeight = scriptureHeight(scripture, width: width)
         let scriptureBox = Placement(centerX: pageWidth / 2, centerY: topInset + scriptureHeight / 2,
                                      width: width, height: scriptureHeight)
-        var citationBox: Placement?
-        var citationIndex: Int?
-        var citationHeight = 0.0
-        if let index = objects.firstIndex(where: { $0.role == "citation" && $0.isLockedScripture }) {
-            let citation = objects[index]
-            citationHeight = textHeight(citation.text, object: citation, size: scripture.size * citationRatio,
-                                        lineHeight: nil, width: width)
-            let top = topInset + scriptureHeight + citationGap
-            citationBox = Placement(centerX: pageWidth / 2, centerY: top + citationHeight / 2, width: width, height: citationHeight)
-            citationIndex = index
-        }
-        let height = Double(pageHeight(scriptureHeight: CGFloat(scriptureHeight), citationHeight: CGFloat(citationHeight)))
+        let height = Double(pageHeight(scriptureHeight: CGFloat(scriptureHeight)))
         // D32: the block moves only when the page is 956 tall; a taller page has no slack and reads top.
-        let slack = height > minimumPageHeight ? 0
-            : max(minimumPageHeight - bottomInset - (topInset + scriptureHeight + citationGap + citationHeight), 0)
+        let slack = height > minimumPageHeight ? 0 : max(minimumPageHeight - bottomInset - (topInset + scriptureHeight), 0)
         let shift: Double
         switch scripture.verticalAlignment ?? .top {
         case .top: shift = 0
         case .center: shift = slack / 2
         case .bottom: shift = slack
         }
-        return PageLayout(
-            scriptureIndex: scriptureIndex, citationIndex: citationIndex, scripture: scriptureBox, citation: citationBox,
-            height: height, scriptureTop: topInset + shift)
+        return PageLayout(scriptureIndex: scriptureIndex, scripture: scriptureBox, height: height, scriptureTop: topInset + shift)
     }
 
-    /// The document's text objects with the page's placement applied (D26): a page-laid-out object takes the
-    /// layout's centre and width and an identity scale and rotation; every other object is returned as it is.
+    /// The document's text objects with the page's placement applied (D26): the scripture takes the layout's centre
+    /// and width and an identity scale and rotation; every other object, the reference included, is returned as it is.
     /// `aligned` applies D32's vertical alignment (player, thumbnail); the editor screen shifts the block itself, so
     /// its mapper asks for `aligned: false`.
     static func placed(_ document: ActivityDocument, aligned: Bool = true) -> (objects: [TextObject], layout: PageLayout?) {
         var objects = document.textObjects
         guard let layout = layout(of: document) else { return (objects, nil) }
         let shift = aligned ? layout.scriptureTop - topInset : 0
-        func place(_ index: Int?, _ box: Placement?) {
-            guard let index, let box, objects.indices.contains(index) else { return }
-            objects[index].transform = .init(x: box.centerX, y: box.centerY + shift, width: box.width, scale: 1, rotation: 0)
-        }
-        place(layout.scriptureIndex, layout.scripture)
-        place(layout.citationIndex, layout.citation)
+        let box = layout.scripture
+        objects[layout.scriptureIndex].transform = .init(x: box.centerX, y: box.centerY + shift, width: box.width, scale: 1, rotation: 0)
         return (objects, layout)
     }
 

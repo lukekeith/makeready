@@ -22,6 +22,10 @@ final class BibleScriptureTests: XCTestCase {
         passage: passage(16, 17),
         verses: [BibleVerse(verse: 16, text: v16), BibleVerse(verse: 17, text: v17)],
         bookName: "John")
+    static let pick16to21 = BiblePick(
+        passage: passage(16, 21, startOffset: 9),
+        verses: (16...21).map { BibleVerse(verse: $0, text: "Verse \($0) of John three.") },
+        bookName: "John")
     static let pick16 = BiblePick(
         passage: passage(16, 16), verses: [BibleVerse(verse: 16, text: v16)], bookName: "John")
     static let pick16b18WEB = BiblePick(
@@ -67,9 +71,9 @@ final class BibleScriptureTests: XCTestCase {
     // MARK: Tests
 
     func testCitationMarksPartialEnds() {
-        XCTAssertEqual(BibleScripture.citation(.init(bookNumber: 43, chapterStart: 3, verseStart: 16, chapterEnd: 3, verseEnd: 18, startOffset: 9, endOffset: nil, translation: "ENGKJV"), bookName: "John"), "John 3:16b-18 ENGKJV")
-        XCTAssertEqual(BibleScripture.citation(.init(bookNumber: 43, chapterStart: 3, verseStart: 16, chapterEnd: 3, verseEnd: 18, startOffset: nil, endOffset: 20, translation: "ENGKJV"), bookName: "John"), "John 3:16-18a ENGKJV")
-        XCTAssertEqual(BibleScripture.citation(.init(bookNumber: 43, chapterStart: 3, verseStart: 16, chapterEnd: 3, verseEnd: 16, startOffset: nil, endOffset: nil, translation: nil), bookName: "John"), "John 3:16")
+        XCTAssertEqual(BibleScripture.title(for: .init(bookNumber: 43, chapterStart: 3, verseStart: 16, chapterEnd: 3, verseEnd: 18, startOffset: 9, endOffset: nil, translation: "ENGKJV"), bookName: "John"), "John 3:16b-18")
+        XCTAssertEqual(BibleScripture.title(for: .init(bookNumber: 43, chapterStart: 3, verseStart: 16, chapterEnd: 3, verseEnd: 18, startOffset: nil, endOffset: 20, translation: "ENGKJV"), bookName: "John"), "John 3:16-18a")
+        XCTAssertEqual(BibleScripture.title(for: .init(bookNumber: 43, chapterStart: 3, verseStart: 16, chapterEnd: 3, verseEnd: 16, startOffset: nil, endOffset: nil, translation: nil), bookName: "John"), "John 3:16")
     }
 
     /// D10: a single verse that ends mid-verse is its first part ("a"); one that starts mid-verse is "b".
@@ -93,7 +97,7 @@ final class BibleScriptureTests: XCTestCase {
         XCTAssertEqual(s.role, "scripture"); XCTAssertEqual(s.startNumber, 16); XCTAssertEqual(s.listStyle, "bibleVerse")
         XCTAssertEqual(s.text, [String(Self.v16.utf16.dropFirst(9))!, Self.v17, Self.v18].joined(separator: "\n"))
         XCTAssertEqual(s.reference?.start.offset, 9); XCTAssertNil(doc.textObjects[1].reference)
-        XCTAssertEqual(doc.textObjects[1].text, "John 3:16b-18 ENGKJV"); XCTAssertEqual(doc.passages, [Self.pick16b18.passage])
+        XCTAssertEqual(doc.textObjects[1].text, "John 3:16b-18"); XCTAssertEqual(doc.passages, [Self.pick16b18.passage])
     }
 
     func testTheDocumentUsesTheD10Layout() {
@@ -102,8 +106,23 @@ final class BibleScriptureTests: XCTestCase {
         XCTAssertEqual(s.font, "serif"); XCTAssertEqual(s.size, 18); XCTAssertEqual(s.alignment, "left")
         XCTAssertEqual(s.transform.width, 376)
         XCTAssertEqual(c.role, "citation"); XCTAssertEqual(c.font, "serif"); XCTAssertEqual(c.size, 14)
-        XCTAssertGreaterThan(c.transform.y, s.transform.y)
-        XCTAssertTrue(s.isLockedScripture); XCTAssertTrue(c.isLockedScripture)
+        XCTAssertLessThan(c.transform.y, s.transform.y, "D34: the reference sits above the passage")
+        XCTAssertTrue(s.isLockedScripture); XCTAssertFalse(c.isLockedScripture)
+        // D34: left edge at the scripture's inset, width 440 - 2 * inset, the scripture's colour and alignment.
+        XCTAssertEqual(c.transform.width, 376); XCTAssertEqual(c.transform.x, 220)
+        XCTAssertEqual(c.color, s.color); XCTAssertEqual(c.alignment, s.alignment)
+    }
+
+    func testTheReferenceHasNoTranslationAndSitsAbove() {
+        let c = BibleScripture.document(for: Self.pick16b18, background: nil).textObjects[1]
+        XCTAssertEqual(c.text, "John 3:16b-18")
+        // D34: top at 40 on the 440 reference; transform.y is the box centre, one 14 pt line (about 20) tall.
+        XCTAssertEqual(c.transform.y, 50, accuracy: 2)
+    }
+
+    func testChangePassageKeepsAnEditedReference() {
+        XCTAssertEqual(BibleScripture.citationAfterChange(current: "John 3:16b-18", old: Self.pick16b18, new: Self.pick16to21), "John 3:16b-21")
+        XCTAssertEqual(BibleScripture.citationAfterChange(current: "For God so loved", old: Self.pick16b18, new: Self.pick16to21), "For God so loved")
     }
 
     func testTheLastVerseIsCutAtTheEndOffset() {
@@ -147,8 +166,8 @@ final class BibleScriptureTests: XCTestCase {
     }
 
     func testPageHeightNeverDropsBelowTheTextPage() {
-        XCTAssertEqual(BibleScripture.pageHeight(scriptureHeight: 200, citationHeight: 20), 956)
-        XCTAssertEqual(BibleScripture.pageHeight(scriptureHeight: 1400, citationHeight: 20), 1628)
+        XCTAssertEqual(BibleScripture.pageHeight(scriptureHeight: 200), 956)
+        XCTAssertEqual(BibleScripture.pageHeight(scriptureHeight: 1400), 1592, "D34: the reference no longer counts")
     }
 
     static let legacyScriptureJSON = """

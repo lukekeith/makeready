@@ -19,7 +19,7 @@ enum ActivitiesEditorMapper {
     /// save/load flags on top. D17: the highlight tool, the effects tool and the eyedropper are off.
     static func state(document: ActivityDocument, media: [String: MediaMapEntry], slides: [ContentActivity],
                       activeID: String, kind: String = "text") -> ActivitiesEditorScreen.State {
-        // D26: a `bible` activity's scripture and citation are placed by the page, never by their `transform`. D32: the
+        // D26: a `bible` activity's scripture is placed by the page, never by its `transform`; the reference (D34) keeps its own. D32: the
         // editor screen applies vertical alignment itself (State.bibleVerticalAlignment), so the frames stay un-shifted.
         let placed = BibleScripture.placed(document, aligned: false)
         let objects = placed.objects
@@ -34,8 +34,8 @@ enum ActivitiesEditorMapper {
             }
         }
         let ordered = slides.sorted { $0.position < $1.position }
-        // bible-verse-picker D21: only a `bible` activity shows the highlight tool; its referenced scripture and
-        // citation are locked (D11), a legacy object without `reference` is ordinary text (D23).
+        // bible-verse-picker D21: only a `bible` activity shows the highlight tool; its referenced scripture is locked (D11), its
+        // reference is ordinary text (D34), and a legacy scripture without `reference` is ordinary text too (D23).
         var state = ActivitiesEditorScreen.State(
             editorMode: "idle",
             openTool: "",
@@ -96,14 +96,12 @@ enum ActivitiesEditorMapper {
     /// places (with their measured heights) and the style panel seeded from the scripture. Animation stays hidden (D28).
     private static func applyBibleLayout(_ layout: BibleScripture.PageLayout, objects: [TextObject],
                                          to state: inout ActivitiesEditorScreen.State) {
-        let laidOut = objects.indices.map { $0 == layout.scriptureIndex || $0 == layout.citationIndex }
+        let laidOut = objects.indices.map { $0 == layout.scriptureIndex }
         state.isBible = true
         state.pageHeight = CGFloat(layout.height)
         state.objectPageLaidOut = laidOut
         state.objectHeights = objects.indices.map { index in
-            if index == layout.scriptureIndex { return layout.scripture.height }
-            if index == layout.citationIndex { return layout.citation?.height ?? 0 }
-            return 0
+            index == layout.scriptureIndex ? layout.scripture.height : 0
         }
         let scripture = objects[layout.scriptureIndex]
         state.bibleFace = fontKey(scripture.font)
