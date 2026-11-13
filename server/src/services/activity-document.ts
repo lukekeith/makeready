@@ -33,7 +33,7 @@ const textObject = z
     id: z.string(),
     role: z.enum(['eyebrow', 'heading', 'body', 'scripture', 'citation', 'prayer']).optional(),
     text: z.string(),
-    font: z.enum(['display', 'sans', 'serif', 'mono']),
+    font: z.enum(['display', 'sans', 'serif', 'mono', 'classic']),
     weight: z.union([z.literal(400), z.literal(500), z.literal(700)]),
     size: z.number().positive(),
     lineHeight: z.number().optional(),

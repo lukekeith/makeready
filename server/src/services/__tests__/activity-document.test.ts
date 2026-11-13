@@ -325,3 +325,19 @@ describe('bible passages (bible-verse-picker)', () => {
     expect(parseActivityDocument(EXAMPLES.bible, 'bible')).toMatchObject({ ok: true })
   })
 })
+
+describe('font keys (bible-activity-defaults)', () => {
+  it('a text object in the classic face validates', () => {
+    const doc = text(); doc.content.objects[1].font = 'classic'
+    const r = parseActivityDocument(doc, 'text')
+    expect(r.ok).toBe(true)
+    expect(r.ok && r.document.content.objects[1].font).toBe('classic')
+  })
+
+  it('a font key outside the five is still refused', () => {
+    const doc = text(); doc.content.objects[1].font = 'playfair'
+    const r = parseActivityDocument(doc, 'text')
+    expect(r.ok).toBe(false)
+    expect(!r.ok && r.code).toBe('VALIDATION')
+  })
+})

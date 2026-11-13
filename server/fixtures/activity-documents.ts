@@ -10,7 +10,7 @@ interface TextObjectInput {
   id: string
   text: string
   role?: 'eyebrow' | 'heading' | 'body' | 'scripture' | 'citation' | 'prayer'
-  font?: 'display' | 'sans' | 'serif' | 'mono'
+  font?: 'display' | 'sans' | 'serif' | 'mono' | 'classic'
   weight?: 400 | 500 | 700
   size?: number
   color?: string

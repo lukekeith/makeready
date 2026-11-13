@@ -33,16 +33,17 @@ function d10Document() {
   const doc = bibleDocument(
     [
       {
-        ...textObject({ id: 'o1', role: 'scripture', text: SCRIPTURE_TEXT, font: 'serif', size: 18, x: 220, y: 300, width: 376 }),
+        ...textObject({ id: 'o1', role: 'scripture', text: SCRIPTURE_TEXT, font: 'classic', color: '#000000', size: 18, x: 220, y: 300, width: 376 }),
         listStyle: 'bibleVerse',
         startNumber: 16,
         reference,
         highlights: [{ id: 'h1', start: HIGHLIGHT_START, end: HIGHLIGHT_START + HIGHLIGHTED.length }],
       },
-      textObject({ id: 'o2', role: 'citation', text: 'John 3:16b-18 ENGKJV', font: 'serif', size: 14, y: 520, width: 376 }),
+      textObject({ id: 'o2', role: 'citation', text: 'John 3:16b-18 ENGKJV', font: 'classic', color: '#000000', size: 14, y: 520, width: 376 }),
     ],
     [passage],
-    { color: '#0E4A4D' }
+    // bible-activity-defaults D8: the defaults a new Bible activity gets — black Playfair Display (`classic`) on white.
+    { color: '#FFFFFF' }
   )
   return doc
 }
