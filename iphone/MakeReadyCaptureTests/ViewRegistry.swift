@@ -1008,9 +1008,10 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         case "sans": ui2C035Font = .sans
         case "serif": ui2C035Font = .serif
         case "mono": ui2C035Font = .mono
+        case "classic": ui2C035Font = .classic
         case nil: ui2C035Font = nil
         default:
-            throw ViewRegistryError.unknownView("component.ui2.C-035: props.font must be display|sans|serif|mono")
+            throw ViewRegistryError.unknownView("component.ui2.C-035: props.font must be display|sans|serif|mono|classic")
         }
         if ui2C035Type == .font && ui2C035Font == nil {
             throw ViewRegistryError.unknownView("component.ui2.C-035: props.font is required in type=Font")
@@ -2833,9 +2834,10 @@ private func buildCaptureViewPart9(_ fixture: CaptureFixture, authManager: AuthM
             case "sans": font = .sans
             case "serif": font = .serif
             case "mono": font = .mono
+            case "classic": font = .classic
             case nil: font = nil
             default:
-                throw ViewRegistryError.unknownView("component.ui2.C-106: items[\(index)].font must be display|sans|serif|mono")
+                throw ViewRegistryError.unknownView("component.ui2.C-106: items[\(index)].font must be display|sans|serif|mono|classic")
             }
             return .init(id: id, label: label, font: font)
         }
@@ -4930,8 +4932,9 @@ private func buildUI2C092(_ fixture: CaptureFixture) throws -> AnyView {
     case nil, "sans": ui2C092Font = .sans
     case "serif": ui2C092Font = .serif
     case "mono": ui2C092Font = .mono
+    case "classic": ui2C092Font = .classic
     default:
-        throw ViewRegistryError.unknownView("component.ui2.C-092: props.font must be display|sans|serif|mono")
+        throw ViewRegistryError.unknownView("component.ui2.C-092: props.font must be display|sans|serif|mono|classic")
     }
     let ui2C092Mode: MakeReadyUI.CanvasTextObject.Mode
     switch c.mode {
@@ -5384,8 +5387,9 @@ private func ui2C091Child(_ child: CaptureUI2CanvasChild, index: Int) throws -> 
         case nil, "sans": font = .sans
         case "serif": font = .serif
         case "mono": font = .mono
+        case "classic": font = .classic
         default:
-            throw ViewRegistryError.unknownView("component.ui2.C-091: content[\(index)] C-092 font must be display|sans|serif|mono")
+            throw ViewRegistryError.unknownView("component.ui2.C-091: content[\(index)] C-092 font must be display|sans|serif|mono|classic")
         }
         var transform = MakeReadyUI.CanvasTextObject.Transform.identity
         if let t = child.transform {

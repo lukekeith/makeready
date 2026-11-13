@@ -259,7 +259,7 @@ struct FilterChip: View {
 
     /// OQ-C-035-004 (owner, 2026-10-13): each face at the weight the sheet draws it, carried onto
     /// the D6 keys — `display` Poppins Bold, `sans` Inter Medium, `serif` Source Serif 4 Regular,
-    /// `mono` Courier Prime Regular. The chip samples the face, not the canvas weight, and C-092
+    /// `mono` Courier Prime Regular; `classic` Playfair Display Regular (2026-11-12). The chip samples the face, not the canvas weight, and C-092
     /// owns the key → face mapping.
     private var fontFace: SwiftUI.Font {
         let points = Geometry.fontLabelSize
@@ -267,6 +267,8 @@ struct FilterChip: View {
         case .display: return CanvasTextObject.Font.display.face(weight: .bold, size: points)
         case .serif: return CanvasTextObject.Font.serif.face(weight: .regular, size: points)
         case .mono: return CanvasTextObject.Font.mono.face(weight: .regular, size: points)
+        // bible-activity-defaults D12: `classic` Playfair Display Regular, as `serif` is Regular.
+        case .classic: return CanvasTextObject.Font.classic.face(weight: .regular, size: points)
         // `.sans`, and a nil `font` the capture case refuses before it gets here (§4: required
         // in `type=Font`).
         case .sans, .none: return CanvasTextObject.Font.sans.face(weight: .medium, size: points)

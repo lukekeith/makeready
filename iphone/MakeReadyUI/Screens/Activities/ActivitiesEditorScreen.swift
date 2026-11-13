@@ -175,10 +175,11 @@ struct ActivitiesEditorScreen: View {
         /// §21.3 (D29) / §23 (D33): a `bible` activity — the eight-tool row (Colour · Background ·
         /// Align · Font · Size · Line height · Padding · Highlight) and its panels.
         var isBible: Bool = false
-        /// §21.4: the scripture's current style — face `display` · `sans` · `serif` · `mono`,
+        /// §21.4: the scripture's current style — face `display` · `sans` · `serif` · `mono` ·
+        /// `classic` (preview default `classic`, bible-activity-defaults D11),
         /// weight 400 · 500 · 700, size (pt), line height (×), inset from the page edge (pt) and
         /// verse numbers `gutter` · `hidden` · `inline`.
-        var bibleFace: String = "serif"
+        var bibleFace: String = "classic"
         var bibleWeight: Int = 400
         var bibleSize: CGFloat = 18
         var bibleLineHeight: CGFloat = 1.4
@@ -2861,6 +2862,7 @@ struct ActivitiesEditorScreen: View {
         case "display": return .display
         case "serif": return .serif
         case "mono": return .mono
+        case "classic": return .classic
         default: return .sans                               // C-092 §2: an unknown key is `sans`
         }
     }
@@ -2871,6 +2873,7 @@ struct ActivitiesEditorScreen: View {
         case .sans: return "sans"
         case .serif: return "serif"
         case .mono: return "mono"
+        case .classic: return "classic"
         }
     }
 
@@ -2976,12 +2979,14 @@ struct ActivitiesEditorScreen: View {
                      blue: Double(rgb & 0xFF) / 255)
     }
 
-    /// §2 item 4: the four font keys, labelled with their bundled families (D6).
+    /// §2 item 4: the five font keys, labelled with their bundled families (D6; `classic`
+    /// bible-activity-defaults D5).
     private static let fontItems: [ChipStrip.Item] = [
         .init(id: "display", label: "Poppins", font: .display),
         .init(id: "sans", label: "Inter", font: .sans),
         .init(id: "serif", label: "Source Serif 4", font: .serif),
-        .init(id: "mono", label: "Courier Prime", font: .mono)
+        .init(id: "mono", label: "Courier Prime", font: .mono),
+        .init(id: "classic", label: "Playfair Display", font: .classic)
     ]
 
     /// §3 tool 4 (D5): 400 · 500 · 700.

@@ -889,6 +889,7 @@ extension ActivitiesPlayerScreen {
         case "display": return .display
         case "serif": return .serif
         case "mono": return .mono
+        case "classic": return .classic
         default: return .sans
         }
     }

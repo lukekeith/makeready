@@ -39,9 +39,10 @@ struct CanvasTextObject: View {
         case own, host
     }
 
-    /// §4 `font` — a key, never a platform name (D6); this row owns the set.
+    /// §4 `font` — a key, never a platform name (D6); this row owns the set. `classic`
+    /// (Playfair Display) added 2026-11-12, owner ruling (bible-activity-defaults D3).
     enum Font: CaseIterable {
-        case display, sans, serif, mono
+        case display, sans, serif, mono, classic
     }
 
     /// §4 `weight` — applied to the whole block (D5).
@@ -1009,7 +1010,7 @@ struct CanvasTextObject: View {
 
 // MARK: - Fonts
 
-/// §2 Typeface (D6): the four bundled open-licensed families, registered once, before first draw,
+/// §2 Typeface (D6) + §4 Font set: the five bundled open-licensed families, registered once, before first draw,
 /// with no Info.plist entry. Copy Bundle Resources flattens them into the bundle's root.
 private enum CanvasTextFonts {
     static let registered: Void = {
@@ -1036,6 +1037,8 @@ extension CanvasTextObject.Font {
         // §2 Weight: Courier Prime ships 400 and 700 only, so `mono` at 500 draws 400.
         case .mono: name = "CourierPrime-\(styleName(weight: weight == .medium ? .regular : weight, italic: italic))"
         case .serif: return serifFace(weight: weight, italic: italic, size: size)
+        // §4 Font set: Playfair Display ships static 400 / 500 / 700 and italics — no fallback weight.
+        case .classic: name = "PlayfairDisplay-\(styleName(weight: weight, italic: italic))"
         }
         guard UIFont(name: name, size: size) != nil else {
             return systemFallback(weight: weight, italic: italic, size: size)
@@ -1052,6 +1055,7 @@ extension CanvasTextObject.Font {
         case .sans: name = "Inter-\(styleName(weight: weight, italic: false))"
         case .mono: name = "CourierPrime-\(styleName(weight: weight == .medium ? .regular : weight, italic: false))"
         case .serif: name = "SourceSerif4Variable-Roman"
+        case .classic: name = "PlayfairDisplay-\(styleName(weight: weight, italic: false))"
         }
         return UIFont(name: name, size: size) ?? UIFont.systemFont(ofSize: size)
     }
@@ -1105,6 +1109,8 @@ extension CanvasTextObject.Font {
         case .serif: design = .serif
         case .mono: design = .monospaced
         case .display: design = .rounded
+        // §4 Font set: `classic` falls back to the system serif, as `serif` does.
+        case .classic: design = .serif
         }
         descriptor = descriptor.withDesign(design) ?? descriptor
         if italic { descriptor = descriptor.withSymbolicTraits(.traitItalic) ?? descriptor }
