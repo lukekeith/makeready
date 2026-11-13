@@ -155,3 +155,11 @@ No database schema change: the document is stored as JSON, so no migration (esta
 | F3 | Two more exhaustive switches over `CanvasTextObject.Font` exist outside the editor: C-035 `FilterChip.fontFace` (`FilterChip.swift:264`) and C-092's system fallback (`CanvasTextObject.swift:1104`). Adding `.classic` breaks the build without them. | fixed in place: §iphone item 1 and D12 add both to the d2m request. |
 | F4 | The server fixture helper declares its own font union (`server/fixtures/activity-documents.ts:13`); D8's `'classic'` fails `server-fixture-types` without it. | fixed in place: §server. |
 | F5 | contract: parity checked. The server's single zod enum (`activity-document.ts:36`) is the only server reader. The iPhone decodes `font` as `String` (`ActivityDocument.swift:46`), and every app-side mapping defaults unknown keys. Client ⬜ re-derived: no reader of activity documents in `client/`. Additive for released builds. | no change. |
+
+## Plan
+
+The plan, task by task: `docs/features/bible-activity-defaults/PLAN.md` (§PLAN.md).
+
+- Phase 1 · Task 1 · Accept the `classic` font key and restyle the Bible fixture
+- Phase 2 · Task 2 · d2m adds Playfair Display to the canvas text components
+- Phase 2 · Task 3 · Map `classic` app-side and default new Bible activities to it
