@@ -36,7 +36,9 @@ enum ActivityThumbnail {
     /// image first (a load that is cancelled or fails caches nothing, so a later seed retries). Returns whether any landed.
     @MainActor
     static func seed(_ activities: [ActivitySummary], media: [String: MediaMapEntry],
-                     fetch: UI2ImageLoader.Fetch = UI2ImageLoader.live, cache: Ui2ImageCache = .shared) async -> Bool {
+                     fetch: UI2ImageLoader.Fetch = UI2ImageLoader.live, cache: Ui2ImageCache? = nil) async -> Bool {
+        // nil = the shared cache, resolved here on the main actor (a default argument is evaluated nonisolated).
+        let cache = cache ?? .shared
         var seeded = false
         for activity in activities {
             guard let url = URL(string: key(for: activity)), cache.image(for: url) == nil else { continue }

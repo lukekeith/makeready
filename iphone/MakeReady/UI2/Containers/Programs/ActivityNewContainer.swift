@@ -180,9 +180,9 @@ struct ActivityNewContainer: View {
         let lessonId: String
         private let actions: Actions
         var navigator: ActivityNewNavigating?
-        private let report: (Error) -> Void
+        private let report: @MainActor (Error) -> Void
         /// D14: the Bible save's failure, with the Retry the banner offers.
-        private let reportBible: (Error, @escaping () -> Void) -> Void
+        private let reportBible: @MainActor (Error, @escaping () -> Void) -> Void
 
         private(set) var isCreating = false
         private var isCreatingBible = false
@@ -204,8 +204,8 @@ struct ActivityNewContainer: View {
         }
 
         init(lessonId: String, actions: Actions = .live, navigator: ActivityNewNavigating? = nil,
-             report: @escaping (Error) -> Void = Model.surface,
-             reportBible: @escaping (Error, @escaping () -> Void) -> Void = Model.surfaceBible) {
+             report: @escaping @MainActor (Error) -> Void = Model.surface,
+             reportBible: @escaping @MainActor (Error, @escaping () -> Void) -> Void = Model.surfaceBible) {
             self.lessonId = lessonId
             self.actions = actions
             self.navigator = navigator

@@ -30,7 +30,7 @@ enum ActivityEntry {
     /// Applies the rule to one tap: pushes the editor, or hands the message to `report` (the banner).
     @MainActor
     static func open(kind: String, activityId: String, push: (UI2Destination) -> Void,
-                     report: (String) -> Void = ActivityEntry.surface) {
+                     report: @MainActor (String) -> Void = ActivityEntry.surface) {
         switch destination(for: kind, activityId: activityId) {
         case .open(let destination): push(destination)
         case .cannotEdit(let message): report(message)
