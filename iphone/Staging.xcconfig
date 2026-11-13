@@ -7,7 +7,7 @@ PRODUCT_BUNDLE_IDENTIFIER = com.makeready.app
 PRODUCT_NAME = MakeReady
 APP_DISPLAY_NAME = MakeReady-Staging
 
-MARKETING_VERSION = 1.1.3
+MARKETING_VERSION = 2.0.0
 
 // Enables the environment switcher, limited to Staging and Production in this build
 DEV_MODE = YES
