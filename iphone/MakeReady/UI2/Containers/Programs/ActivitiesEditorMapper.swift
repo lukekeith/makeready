@@ -143,7 +143,7 @@ enum ActivitiesEditorMapper {
 
     /// D18: the document's font keys, passed to the screen as keys — it draws `display`, `sans`,
     /// `serif`, `mono` as Poppins, Inter, Source Serif 4 and Courier Prime. An unknown key is `sans`.
-    static let fontKeys = ["display", "sans", "serif", "mono"]
+    static let fontKeys = ["display", "sans", "serif", "mono", "classic"]   // classic: bible-activity-defaults D5
 
     static func fontKey(_ key: String) -> String { fontKeys.contains(key) ? key : "sans" }
 

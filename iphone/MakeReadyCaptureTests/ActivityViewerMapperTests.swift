@@ -169,6 +169,11 @@ final class ActivityViewerMapperTests: XCTestCase {
         XCTAssertEqual(placed[0].transform.y - middle.scripture.height / 2, middle.scriptureTop, accuracy: 0.5)
         XCTAssertEqual(ActivityThumbnail.objects(for: centered).count, 2)
     }
+
+    /// bible-activity-defaults D9: `classic` measures in the bundled Playfair Display, not the system fallback.
+    func testTheClassicFaceIsPlayfairDisplay() {
+        XCTAssertEqual(ActivityViewerMapper.measuringFont(key: "classic", weight: 400, size: 18).familyName, "Playfair Display")
+    }
 }
 
 // MARK: - Fixtures

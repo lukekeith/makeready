@@ -365,6 +365,7 @@ enum ActivityViewerMapper {
         let size = CGFloat(size)
         switch key {
         case "display": return UIFont(name: "Poppins-\(style)", size: size) ?? .systemFont(ofSize: size)
+        case "classic": return UIFont(name: "PlayfairDisplay-\(style)", size: size) ?? .systemFont(ofSize: size)   // bible-activity-defaults D9
         case "mono": return UIFont(name: "CourierPrime-\(style == "Medium" ? "Regular" : style)", size: size) ?? .systemFont(ofSize: size)
         case "serif":
             let wght: Double = style == "Regular" ? 400 : style == "Medium" ? 500 : 700

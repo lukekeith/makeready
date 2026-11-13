@@ -265,6 +265,12 @@ final class ActivitiesEditorMapperTests: XCTestCase {
         XCTAssertEqual(shuffled.raw[path: ["background", "motion", "mode"]], .string("scroll"))
         XCTAssertEqual(shuffled.raw[path: ["background", "gradient", "note"]], .string("keep"))
     }
+
+    /// bible-activity-defaults D6: `classic` is a known key; an unknown one still renders as `sans`.
+    func testTheClassicKeyIsKept() {
+        XCTAssertEqual(ActivitiesEditorMapper.fontKey("classic"), "classic")
+        XCTAssertEqual(ActivitiesEditorMapper.fontKey("playfair"), "sans")
+    }
 }
 
 // MARK: - Fixtures

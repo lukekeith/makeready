@@ -81,7 +81,8 @@ enum BibleScripture {
         let citationObject = textObject(
             role: "citation", text: citationText, size: citationSize, y: citationTop + citationHeight / 2)
 
-        let backgroundJSON = background.flatMap(json) ?? .object(["color": .string(ActivityBackground.default.color)])
+        // bible-activity-defaults D1: a new Bible activity starts on a white page; text activities keep the shared black default.
+        let backgroundJSON = background.flatMap(json) ?? .object(["color": .string(defaultPageColor)])
         var document = ActivityDocument(raw: .object([
             "schemaVersion": .number(1),
             "kind": .string("bible"),
@@ -102,16 +103,21 @@ enum BibleScripture {
         return document
     }
 
+    /// bible-activity-defaults D1–D3: what a new Bible activity starts with.
+    static let defaultFace = "classic"
+    static let defaultTextColor = "#000000"
+    static let defaultPageColor = "#FFFFFF"
+
     private static func textObject(role: String, text: String, size: Double, y: Double) -> [String: JSONValue] {
         [
             "id": .string(UUID().uuidString.lowercased()),
             "role": .string(role),
             "text": .string(text),
-            "font": .string("display"),   // D44: Poppins by default
+            "font": .string(defaultFace),   // bible-activity-defaults D3: Playfair Display by default
             "weight": .number(400),
             "size": .number(size),
             "lineHeight": .number(lineHeight),
-            "color": .string("#FFFFFF"),
+            "color": .string(defaultTextColor),   // bible-activity-defaults D2
             "alignment": .string("left"),
             "marks": .array([]),
             "highlights": .array([]),
@@ -239,8 +245,8 @@ enum BibleScripture {
         let style = NSMutableParagraphStyle()
         style.minimumLineHeight = size * lineHeight
         style.maximumLineHeight = size * lineHeight
-        // D44: measured in the default face, Poppins (`display`) at 400.
-        let font = ActivityViewerMapper.measuringFont(key: "display", weight: 400, size: size)
+        // bible-activity-defaults D3: measured in the default face, Playfair Display (`classic`) at 400.
+        let font = ActivityViewerMapper.measuringFont(key: defaultFace, weight: 400, size: size)
         let box = (text as NSString).boundingRect(
             with: CGSize(width: width, height: .greatestFiniteMagnitude),
             options: [.usesLineFragmentOrigin, .usesFontLeading],

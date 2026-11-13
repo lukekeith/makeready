@@ -182,6 +182,7 @@ enum ActivityThumbnail {
             switch key {
             case "display": return .display
             case "serif": return .serif
+            case "classic": return .classic
             case "mono": return .mono
             default: return .sans
             }
