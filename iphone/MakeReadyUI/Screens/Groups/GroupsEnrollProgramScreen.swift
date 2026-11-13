@@ -325,10 +325,10 @@ struct GroupsEnrollProgramScreen: View {
     private var completionBody: some View {
         let style = Self.completionBodyStyle
         let leading = Self.leading(style)
-        let text = Text(state.groupName).foregroundStyle(Token.textPrimary)
-            + Text(" was successfully enrolled in the ").foregroundStyle(Token.textSecondary)
-            + Text(state.programName).foregroundStyle(Token.textPrimary)
-            + Text(" study program").foregroundStyle(Token.textSecondary)
+        let group = Text(state.groupName).foregroundStyle(Token.textPrimary)
+        let program = Text(state.programName).foregroundStyle(Token.textPrimary)
+        let text = Text("\(group) was successfully enrolled in the \(program) study program")
+            .foregroundStyle(Token.textSecondary)
         return text
             .font(style.font)
             .tracking(style.tracking)

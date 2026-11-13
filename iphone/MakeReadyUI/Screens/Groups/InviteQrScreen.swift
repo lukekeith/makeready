@@ -144,8 +144,7 @@ struct InviteQrScreen: View {
     /// §2 3a hint line: centred, one line, `type-body`; the lead in `color-text-secondary`, the
     /// context's enter-a-code URL in `color-accent`. Display-only (§3: not interactive).
     private var hintLine: some View {
-        (Text(Self.hintLead).foregroundColor(Token.textSecondary)
-            + Text(state.hintURL).foregroundColor(Token.accent))
+        Text("\(Text(Self.hintLead).foregroundColor(Token.textSecondary))\(Text(state.hintURL).foregroundColor(Token.accent))")
             .designTextStyle(Token.TypeStyle.body)
             .lineLimit(1)
             .multilineTextAlignment(.center)

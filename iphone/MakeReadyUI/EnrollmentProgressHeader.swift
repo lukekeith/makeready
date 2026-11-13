@@ -150,8 +150,9 @@ struct EnrollmentProgressHeader: View {
     /// §2 B: the group name run in `color-text-primary`, same Regular weight (OQ-C-125-002).
     private var subtitle: Text {
         if let groupName {
-            return Text(Self.groupSubtitleLead).foregroundStyle(Token.textSecondary)
-                + Text(groupName + ".").foregroundStyle(Token.textPrimary)
+            let lead = Text(Self.groupSubtitleLead).foregroundStyle(Token.textSecondary)
+            let name = Text(groupName + ".").foregroundStyle(Token.textPrimary)
+            return Text("\(lead)\(name)")
         }
         return Text(Self.noGroupSubtitle).foregroundStyle(Token.textSecondary)
     }

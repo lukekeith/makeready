@@ -599,7 +599,7 @@ struct HomeDashboardScreen: View {
 
     private static let utcCalendar: Calendar = {
         var c = Calendar(identifier: .gregorian)
-        c.timeZone = TimeZone(secondsFromGMT: 0)!
+        c.timeZone = .gmt
         return c
     }()
 

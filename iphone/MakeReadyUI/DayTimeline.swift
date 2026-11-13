@@ -253,12 +253,13 @@ struct DayTimeline: View {
         }
         let numeral = hour % 12 == 0 ? 12 : hour % 12
         let meridiem = (hour % 24) < 12 ? "AM" : "PM"
-        return Text("\(numeral) ")
+        let numeralText = Text("\(numeral) ")
             .font(Token.TypeStyle.footnote.font)
             .foregroundStyle(Token.white50)
-        + Text(meridiem)
+        let meridiemText = Text(meridiem)
             .font(Self.meridiemStyle.font)
             .foregroundStyle(Token.white50)
+        return Text("\(numeralText)\(meridiemText)")
     }
 
     /// §2 Now line label — "`nowMinute` as h:mm (\"10:42\")", no AM/PM (C-119 §4).

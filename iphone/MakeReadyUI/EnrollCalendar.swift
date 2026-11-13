@@ -1901,7 +1901,7 @@ class EnrollCalendarController: UIViewController {
             return
         }
 
-        let (overlay, highlight, fullFrame) = overlays[index]
+        let (overlay, _, fullFrame) = overlays[index]
 
 
         // Start this week's animation
