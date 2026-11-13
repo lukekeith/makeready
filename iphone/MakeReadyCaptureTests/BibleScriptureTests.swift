@@ -103,9 +103,9 @@ final class BibleScriptureTests: XCTestCase {
     func testTheDocumentUsesTheD10Layout() {
         let doc = BibleScripture.document(for: Self.pick16b18, background: nil)
         let s = doc.textObjects[0], c = doc.textObjects[1]
-        XCTAssertEqual(s.font, "classic"); XCTAssertEqual(s.size, 18); XCTAssertEqual(s.alignment, "left")
+        XCTAssertEqual(s.font, "classic"); XCTAssertEqual(s.size, 22); XCTAssertEqual(s.alignment, "left")
         XCTAssertEqual(s.transform.width, 376)
-        XCTAssertEqual(c.role, "citation"); XCTAssertEqual(c.font, "classic"); XCTAssertEqual(c.size, 14)
+        XCTAssertEqual(c.role, "citation"); XCTAssertEqual(c.font, "classic"); XCTAssertEqual(c.size, 18)
         XCTAssertLessThan(c.transform.y, s.transform.y, "D34: the reference sits above the passage")
         XCTAssertTrue(s.isLockedScripture); XCTAssertFalse(c.isLockedScripture)
         // D34: left edge at the scripture's inset, width 440 - 2 * inset, the scripture's colour and alignment.
@@ -117,8 +117,8 @@ final class BibleScriptureTests: XCTestCase {
         let c = BibleScripture.document(for: Self.pick16b18, background: nil).textObjects[1]
         XCTAssertEqual(c.text, "John 3:16b-18")
         // D34/D45: top at 107 (just under the header) on the 440 reference; transform.y is the box centre,
-        // one 14 pt line (about 20) tall.
-        XCTAssertEqual(c.transform.y, 117, accuracy: 3)
+        // one 18 pt line (bible-activity-defaults D13, three verses; about 25) tall.
+        XCTAssertEqual(c.transform.y, 120, accuracy: 3)
     }
 
     func testChangePassageKeepsAnEditedReference() {
@@ -163,7 +163,7 @@ final class BibleScriptureTests: XCTestCase {
 
     func testTheDefaultsAreTheD28Style() {
         let s = BibleScripture.document(for: Self.pick16b18, background: nil).textObjects[0]
-        XCTAssertEqual(s.size, 18); XCTAssertEqual(s.lineHeight, 1.4); XCTAssertEqual(s.font, "classic"); XCTAssertEqual(s.weight, 400)
+        XCTAssertEqual(s.size, 22); XCTAssertEqual(s.lineHeight, 1.4); XCTAssertEqual(s.font, "classic"); XCTAssertEqual(s.weight, 400)
     }
 
     func testPageHeightNeverDropsBelowTheTextPage() {
@@ -207,6 +207,17 @@ final class BibleScriptureTests: XCTestCase {
         XCTAssertEqual(doc.textObjects.map(\.font), ["classic", "classic"])
         XCTAssertEqual(doc.textObjects.map(\.color), ["#000000", "#000000"])
         XCTAssertEqual(doc.background.color, "#FFFFFF")
+    }
+
+    /// bible-activity-defaults D13: starting sizes by verse count — 1: 26/20 · 2–3: 22/18 · 4+: 18/16.
+    func testStartingSizesFollowTheVerseCount() {
+        XCTAssertTrue(BibleScripture.startingSizes(verseCount: 1) == (26, 20))
+        XCTAssertTrue(BibleScripture.startingSizes(verseCount: 2) == (22, 18))
+        XCTAssertTrue(BibleScripture.startingSizes(verseCount: 3) == (22, 18))
+        XCTAssertTrue(BibleScripture.startingSizes(verseCount: 4) == (18, 16))
+        XCTAssertTrue(BibleScripture.startingSizes(verseCount: 30) == (18, 16))
+        let doc = BibleScripture.document(for: Self.pick16b18, background: nil)
+        XCTAssertEqual(doc.textObjects.map(\.size), [22, 18], "John 3:16b-18 is three verses")
     }
 
     /// bible-activity-defaults D1: a passed background is written as given; the shared default stays black.

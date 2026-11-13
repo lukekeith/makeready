@@ -21,8 +21,15 @@ enum BibleScripture {
     private static let bottomInsetPinned = 110.0
     /// D34/D45: the reference's starting top — the top of the clear band, just under the header.
     private static let citationTop = 107.0
-    private static let scriptureSize = 18.0
-    private static let citationSize = 14.0
+    /// bible-activity-defaults D13: the starting sizes, by how many verses the pick holds — a short pick fills the
+    /// page, a long one stays readable. Supersedes bible-verse-picker D28's fixed 18 / 14.
+    static func startingSizes(verseCount: Int) -> (scripture: Double, citation: Double) {
+        switch verseCount {
+        case ...1: return (26, 20)
+        case 2...3: return (22, 18)
+        default: return (18, 16)
+        }
+    }
     /// D28: the default line height multiple.
     private static let lineHeight = 1.4
 
@@ -65,6 +72,7 @@ enum BibleScripture {
         let verses = selected(pick)
         let text = verses.map(\.text).joined(separator: "\n")
         let citationText = title(for: passage, bookName: pick.bookName)
+        let (scriptureSize, citationSize) = startingSizes(verseCount: verses.count)
 
         let scriptureHeight = height(of: numbered(verses, from: passage.verseStart), size: scriptureSize, width: textWidth)
         let citationHeight = height(of: citationText, size: citationSize, width: textWidth)
