@@ -13,3 +13,4 @@ walk: none
 verify: none
 ui2: none
 auto: off
+build: here
