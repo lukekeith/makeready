@@ -1,7 +1,7 @@
 size: lg
-state: planned
+state: built
 next: /builder:resume --path docs/features/bible-activity-defaults
-head: b1d0fad9
+head: 8250f6b1
 ticket: none
 branch: main
 pr: none
@@ -12,6 +12,7 @@ go-ahead: luke 2026-11-12 (here)
 tests: walk=none review=end
 walk: none
 verify: none
+ready: none
 ui2: none
 auto: off
 build: here
