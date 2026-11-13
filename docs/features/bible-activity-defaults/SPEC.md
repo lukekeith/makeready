@@ -69,6 +69,7 @@ flowchart LR
 | D8 | Fixtures | `server/fixtures/screens/bible-reader.ts` `d10Document` uses `font: 'classic'` on both objects, `color: '#000000'` and page `#FFFFFF`. `legacyDocument` (the converter-shaped sample, bible-verse-picker D23) and `activity-samples.ts` are unchanged. Rejected: leaving d10 as is (a walk would show the old look). | (assumed at brainstorm) 2026-11-12 |
 | D9 | Bundled faces | Playfair Display static TTFs from Google Fonts (SIL OFL 1.1): Regular, Medium, Bold and their italics, under `iphone/MakeReadyUI/Resources/Fonts/PlayfairDisplay/` with `OFL.txt`, registered by C-092's font registration like the other families. Weights map 400 → Regular, 500 → Medium, 700 → Bold, as for Poppins. Rejected: the variable font (only `serif` uses a variable face; static files keep `face()` and `uiFont` one-line cases). | (assumed at spec) 2026-11-12 |
 | D10 | How C-092 changes | The iPhone change to `CanvasTextObject.Font`, C-092 `face()`, and the editor's `fontItems` (`ActivitiesEditorScreen`, a d2m-built view) goes to d2m through `request_project_change`, never edited in place. App-side files (`ActivitiesEditorMapper`, `ActivityViewerMapper`, `ActivityThumbnail`, `BibleScripture`) are edited by the build. Rejected: editing `iphone/MakeReadyUI/` directly (d2m owns it; root CLAUDE.md rule). | (assumed at spec) 2026-11-12 |
+| D12 | Font chip sample | C-035 FilterChip's `fontFace` draws the `classic` chip label in Playfair Display Regular (`CanvasTextObject.Font.classic.face(weight: .regular, …)`), as `serif` is drawn Regular. C-092's system fallback (`CanvasTextObject.swift:1104`) maps `classic` → `.serif` design. Both are carried in the D10 d2m request. Rejected: Bold, as `display` uses (Playfair Display's Regular already reads as a display serif; Bold crowds the 36pt chip). | (assumed at audit) 2026-11-12 |
 | D11 | Editor preview default | `ActivitiesEditorScreen.State.bibleFace`'s preview default becomes `classic`, carried in the same d2m request as D10. Rejected: leaving `serif` (the preview would disagree with what a new activity gets). | (assumed at spec) 2026-11-12 |
 
 ## Contract
@@ -90,6 +91,7 @@ No database schema change: the document is stored as JSON, so no migration (esta
 ## server
 
 - `server/src/services/activity-document.ts:36`: `font: z.enum(['display', 'sans', 'serif', 'mono', 'classic'])`.
+- `server/fixtures/activity-documents.ts:13`: the helper's `font` type gains `'classic'` (the `server-fixture-types` check compiles it).
 - `server/fixtures/screens/bible-reader.ts`: D8.
 - Tests: a document with `font: 'classic'` validates; `font: 'playfair'` still fails with the existing validation error.
 - 🔴 `docker restart makeready-server` after the edit.
@@ -100,6 +102,8 @@ No database schema change: the document is stored as JSON, so no migration (esta
    - bundle Playfair Display (D9) and register it;
    - `CanvasTextObject.Font` gains `.classic`, and `face()` draws it as `PlayfairDisplay-<Regular|Medium|Bold>[Italic]`;
    - `ActivitiesEditorScreen.fontItems` becomes D5's five-item list, with the label "Playfair Display";
+   - C-035 `FilterChip.fontFace` (`FilterChip.swift:264`) and C-092's system fallback (`CanvasTextObject.swift:1104`) handle `.classic`, per D12. Both switches are exhaustive, so the build fails without them;
+   - the capture fixtures' string → `Font` mappings (`MakeReadyCaptureTests/ViewRegistry.swift:1007`, `:2832`) gain `classic`;
    - the screen's key ⇄ `Font` mapping (`ActivitiesEditorScreen.swift:2861`, `:2870`) and the player's mapping (`ActivitiesPlayerScreen.swift:889`) handle `classic`;
    - D11.
 
@@ -148,3 +152,6 @@ No database schema change: the document is stored as JSON, so no migration (esta
 |---|---|---|
 | F1 | The iPhone font change waits on a d2m handover (D10); d2m may hand questions back. | build-time risk: Phase 2 Task 1 settles it through `wait_project_change`. |
 | F2 | Highlight colours were chosen against dark pages. | build-time risk: walk step 3; a follow-up if they read poorly. |
+| F3 | Two more exhaustive switches over `CanvasTextObject.Font` exist outside the editor: C-035 `FilterChip.fontFace` (`FilterChip.swift:264`) and C-092's system fallback (`CanvasTextObject.swift:1104`). Adding `.classic` breaks the build without them. | fixed in place: §iphone item 1 and D12 add both to the d2m request. |
+| F4 | The server fixture helper declares its own font union (`server/fixtures/activity-documents.ts:13`); D8's `'classic'` fails `server-fixture-types` without it. | fixed in place: §server. |
+| F5 | contract: parity checked. The server's single zod enum (`activity-document.ts:36`) is the only server reader. The iPhone decodes `font` as `String` (`ActivityDocument.swift:46`), and every app-side mapping defaults unknown keys. Client ⬜ re-derived: no reader of activity documents in `client/`. Additive for released builds. | no change. |

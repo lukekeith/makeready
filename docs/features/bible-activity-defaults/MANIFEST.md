@@ -1,7 +1,7 @@
 size: lg
-state: spec
+state: audited
 next: /builder:resume --path docs/features/bible-activity-defaults
-head: 76f110af
+head: cd7a8332
 ticket: none
 branch: main
 pr: none
