@@ -26,8 +26,9 @@ import SwiftUI
 struct TimeActivityChart: View {
 
     /// C-030 §4: `bins: [Double]` — "activity intensity per time slice of the fixed window, in
-    /// order; count = chart width ÷ 5px pitch (88 at 438pt); values scale to bar heights, window
-    /// max → 100pt".
+    /// order; any count ≥ 1 — the chart resamples it to `floor(width ÷ 5px pitch)` bars (88 bins
+    /// at the 438 design width draw as-is); values scale to bar heights, resampled window max →
+    /// 100pt".
     let bins: [Double]
     /// C-030 §4: `tickLabels: [(value: String, unit: String)]` — "4 justified C-022 MetaPairs
     /// under the chart". §4's tuple type verbatim.
@@ -51,8 +52,11 @@ struct TimeActivityChart: View {
 
     /// C-030 §2's measured footprint, in the component's own coordinate space.
     private enum Geometry {
-        static let width: CGFloat = 438             // §2: "Root: 438 wide vertical stack"
-        static let chartHeight: CGFloat = 100       // §2: "Chart area (438×100)"
+        /// §2: "Width-driven … the root fills the width its consumer gives it; the design width
+        /// is 438 and is a sample, not a constant." Kept as the IDEAL width only, so a caller
+        /// that asks for the intrinsic size (the capture harness) still gets the design's 438.
+        static let designWidth: CGFloat = 438
+        static let chartHeight: CGFloat = 100       // §2: "Chart area (width × 100)"
         static let tickRowHeight: CGFloat = 24      // §2: "Tick row (24pt, inset 16 …)"
 
         // FLAGGED LITERAL — C-030 §2: "bars 3px wide, corner radius 1.5 (pill ends), 5px pitch
@@ -64,8 +68,10 @@ struct TimeActivityChart: View {
         static let barRadius: CGFloat = 1.5
         /// §2: "near-zero bins render as ≥3px dot stubs in the sample" — a 3×3 pill is the dot.
         static let barMinHeight: CGFloat = 3
+        /// §2: "5px pitch kept (2px gap)".
+        static let barPitch: CGFloat = barWidth + barGap
 
-        /// GAP — C-030 §2: "Root: 438 wide vertical stack, gap 16 — chart area over tick row".
+        /// GAP — C-030 §2: "Root: a vertical stack, gap 16 — chart area over tick row".
         /// `tokens.md`'s only stack-gap row is `space-element-gap` (8); its two 16s
         /// (`space-page-margin`, `space-card-padding`) are both horizontal-inset semantics, so
         /// naming either for a vertical stack gap would assert something the contract does not.
@@ -84,18 +90,46 @@ struct TimeActivityChart: View {
 
     // MARK: - Derived
 
-    /// §4: "values scale to bar heights, window max → 100pt"; §2: "near-zero bins render as ≥3px
-    /// dot stubs".
+    /// §2: "Bar count = `floor(width / 5)` (88 at 438, 80 at 402)". A row of n bars is
+    /// n × 3 + (n − 1) × 2 = 5n − 2 wide, so the count that fits — and that gives §2's own 88 at
+    /// 438 and 80 at 402 — is floor((width + gap) / pitch).
+    static func barCount(for width: CGFloat) -> Int {
+        max(1, Int(((width + Geometry.barGap) / Geometry.barPitch).rounded(.down)))
+    }
+
+    /// §2: "the `bins` the consumer passes … are resampled to that count — each bar takes the
+    /// mean of the bins it covers, or, when upsampling, the nearest bin". At an equal count the
+    /// resample is the identity, so 438 draws exactly the bins it was given.
+    static func resample(_ bins: [Double], to count: Int) -> [Double] {
+        let source = bins.count
+        guard source > 0, count > 0 else { return Array(repeating: 0, count: max(count, 0)) }
+        guard source != count else { return bins }
+        if count > source {
+            return (0..<count).map { bar in
+                bins[min(source - 1, Int((Double(bar) + 0.5) * Double(source) / Double(count)))]
+            }
+        }
+        return (0..<count).map { bar in
+            let start = bar * source / count
+            let end = max(start + 1, (bar + 1) * source / count)
+            let covered = bins[start..<min(end, source)]
+            return covered.reduce(0, +) / Double(covered.count)
+        }
+    }
+
+    /// §2: "bar height ∝ resampled intensity with the window max (resampled) → 100; near-zero
+    /// bins render as ≥3px dot stubs".
     ///
     /// OQ-C-030-1's proposed default lives in the `max <= 0` branch: an all-zero window renders
     /// every bin as the 3px baseline stub with the gradient still applied. §3 carries that row as
     /// UNDESIGNED, so rule 7 gives it no fixture state and nothing in the fixture reaches it.
-    private var barHeights: [CGFloat] {
-        let peak = bins.max() ?? 0
+    private func barHeights(count: Int) -> [CGFloat] {
+        let values = Self.resample(bins, to: count)
+        let peak = values.max() ?? 0
         guard peak > 0 else {
-            return Array(repeating: Geometry.barMinHeight, count: bins.count)
+            return Array(repeating: Geometry.barMinHeight, count: values.count)
         }
-        return bins.map { value in
+        return values.map { value in
             max(Geometry.barMinHeight, CGFloat(value / peak) * Geometry.chartHeight)
         }
     }
@@ -124,7 +158,8 @@ struct TimeActivityChart: View {
             chartArea
             tickRow
         }
-        .frame(width: Geometry.width)
+        // §2: width-driven — fills the consumer's width; 438 is only the ideal (design) width.
+        .frame(minWidth: 0, idealWidth: Geometry.designWidth, maxWidth: .infinity)
         .chartIntroMorph(intro, value: bins)                         // D9
         .chartIntroFade(intro, fadeOnly: !bins.contains { $0 > 0 })  // D16
         .ui2Element("TimeActivityChart")
@@ -132,26 +167,30 @@ struct TimeActivityChart: View {
 
     // MARK: - Parts (§2 anatomy)
 
-    /// §2: "**Chart area (438×100):** a single horizontal gradient fill, alpha-masked by the bar
-    /// shapes."
+    /// §2: "**Chart area (width × 100):** a single horizontal gradient fill, alpha-masked by the
+    /// bar shapes." The gradient spans the given width.
     private var chartArea: some View {
-        ZStack(alignment: .bottomLeading) {
-            gradient
-                .mask(alignment: .bottomLeading) { barRow }
-            // A mask's subtree does not carry its preferences up, so the same row is laid out
-            // once more, fully transparent, purely to publish the per-bar element anchors. It
-            // paints nothing and the mask above is still what renders.
-            barRow
-                .opacity(0)
-                .ui2Element("Bar mask")
+        GeometryReader { proxy in
+            let heights = barHeights(count: Self.barCount(for: proxy.size.width))
+            ZStack(alignment: .bottomLeading) {
+                gradient
+                    .mask(alignment: .bottomLeading) { barRow(heights) }
+                // A mask's subtree does not carry its preferences up, so the same row is laid out
+                // once more, fully transparent, purely to publish the per-bar element anchors. It
+                // paints nothing and the mask above is still what renders.
+                barRow(heights)
+                    .opacity(0)
+                    .ui2Element("Bar mask")
+            }
+            .frame(width: proxy.size.width, height: Geometry.chartHeight, alignment: .bottomLeading)
         }
-        .frame(width: Geometry.width, height: Geometry.chartHeight, alignment: .bottomLeading)
+        .frame(height: Geometry.chartHeight)
         .ui2Element("Chart area")
     }
 
-    /// §2: "**Bar mask** … bottom-anchored to y=100; sample holds 88 bars (88 × 5 ≈ 438 — bin
-    /// count = width ÷ 5px pitch)".
-    private var barRow: some View {
+    /// §2: "**Bar mask** … 5px pitch kept (2px gap), bottom-anchored to y=100. Bar count =
+    /// `floor(width / 5)`".
+    private func barRow(_ barHeights: [CGFloat]) -> some View {
         HStack(alignment: .bottom, spacing: Geometry.barGap) {
             ForEach(Array(barHeights.enumerated()), id: \.offset) { index, height in
                 RoundedRectangle(cornerRadius: Geometry.barRadius, style: .continuous)
@@ -165,7 +204,8 @@ struct TimeActivityChart: View {
         }
     }
 
-    /// §2: "**Tick row (24pt, inset 16, justified space-between):** 4 × C-022 MetaPair".
+    /// §2: "**Tick row (24pt, inset 16, justified space-between across the given width):** 4 ×
+    /// C-022 MetaPair".
     private var tickRow: some View {
         HStack(spacing: 0) {
             ForEach(Array(tickLabels.enumerated()), id: \.offset) { index, tick in
@@ -174,11 +214,12 @@ struct TimeActivityChart: View {
                     .ui2Element("MetaPair \(index + 1)")
             }
         }
-        // §2's inset is INSIDE the 438 root, so the width is pinned outermost and the padding
-        // narrows the proposal the space-between HStack receives (438 − 2×16 = 406).
+        // §2's inset is INSIDE the root, so the row fills the given width outermost and the
+        // padding narrows the proposal the space-between HStack receives (438 − 2×16 = 406 at
+        // the design width).
         .frame(height: Geometry.tickRowHeight)
         .padding(.horizontal, Token.Space.pageMargin)
-        .frame(width: Geometry.width)
+        .frame(maxWidth: .infinity)
         .ui2Element("Tick row")
     }
 

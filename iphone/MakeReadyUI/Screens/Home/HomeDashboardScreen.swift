@@ -193,11 +193,11 @@ struct HomeDashboardScreen: View {
     // GAP — home-dashboard §2.2: "cards butt together with shared 1px vertical borders
     // (−1 overlap)".
     private static let dayCardOverlap: CGFloat = -1
-    // GAP — home-dashboard §2.2: "DualSeriesBarChart 440×149 full-bleed".
-    private static let dualChartWidth: CGFloat = 440
+    // GAP — home-dashboard §2.2: "DualSeriesBarChart 440×149 full-bleed". C-026 is width-driven,
+    // so only the height is pinned — the chart fills the device width (monday 13549093289).
     private static let dualChartHeight: CGFloat = 149
-    // GAP — home-dashboard §2.3: "TimeActivityChart 438×140".
-    private static let timeChartWidth: CGFloat = 438
+    // GAP — home-dashboard §2.3: "TimeActivityChart 438×140". C-030 is width-driven (§2,
+    // monday 13549093289), so only the height is pinned.
     private static let timeChartHeight: CGFloat = 140
     // GAP — home-dashboard §2.3: "→ 16pt → TimeActivityChart"; the frozen frame `default`
     // draws the same 16 between the Sessions header and the radial clock. No 16pt vertical-spacing token (page-margin and
@@ -363,8 +363,8 @@ struct HomeDashboardScreen: View {
                     recenterAnimation: Self.jumpAnimation,
                     intro: intro(.activity)
                 )
-                .frame(width: Self.dualChartWidth, height: Self.dualChartHeight)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(height: Self.dualChartHeight)
                 .ui2Element("C-026 DualSeriesBarChart")
                 Spacer().frame(height: Token.Space.sectionGap)           // frame `default`: 834→865
                 // §2.2: "Legend row (LegendItem ×2 …), inset 16, gap 16."
@@ -410,8 +410,8 @@ struct HomeDashboardScreen: View {
             // sessions-chart-reveal: its own reveal unit — the section's 50 % line is crossed while
             // this chart is still below the fold, so on `.sessions` its intro played unseen.
             TimeActivityChart(bins: state.bins, tickLabels: sessionTickLabels, intro: intro(.timeline))
-                .frame(width: Self.timeChartWidth, height: Self.timeChartHeight)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(height: Self.timeChartHeight)
                 .modifier(revealsIntro(.timeline))                  // D4's 50 % line, measured on the chart
                 .ui2Element("C-030 TimeActivityChart")
         }
