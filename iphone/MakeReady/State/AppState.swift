@@ -137,6 +137,12 @@ final class AppState {
     /// (`EntityStore<GroupMember>`) and not `memberDirectory` (an unrelated Group flag).
     let memberDetails = EntityStore<MemberDetail>()
 
+    /// Voice memos (D39): the list rows, disk-persisted through `PersistedState` (newest 200).
+    let voiceMemos = EntityStore<VoiceMemoSummary>()
+
+    /// Voice memo details (D39): memory only — the presigned `url` and the transcript expire or are heavy.
+    let voiceMemoDetails = EntityStore<VoiceMemo>()
+
     /// `GET /api/members/:id/groups`, by member id.
     var memberGroupsById: [String: [MemberGroupItem]] = [:]
 
@@ -653,6 +659,11 @@ final class AppState {
         mediaLibrary.all.sorted { $0.createdAt > $1.createdAt }
     }
 
+    /// Voice memos newest first by `recordedAt`, ties by `id` descending.
+    var voiceMemosNewestFirst: [VoiceMemoSummary] {
+        voiceMemos.all.sorted { ($0.recordedAt, $0.id) > ($1.recordedAt, $1.id) }
+    }
+
     /// Templates sorted alphabetically by name
     var orderedTemplates: [LessonTemplate] {
         templates.all.sorted { $0.name < $1.name }
@@ -845,6 +856,7 @@ final class AppState {
 
         // Restore media library
         mediaLibrary.replaceAll(persisted.mediaLibrary)
+        voiceMemos.replaceAll(persisted.voiceMemos)
         organizationId = persisted.organizationId
         dashboard = persisted.dashboard
 
@@ -936,6 +948,8 @@ final class AppState {
         templates.clear()
         notifications.clear()
         mediaLibrary.clear()
+        voiceMemos.clear()
+        voiceMemoDetails.clear()
         memberGroupCardsById = [:]
         nonMembersByOrgId = [:]
         organizationId = nil
