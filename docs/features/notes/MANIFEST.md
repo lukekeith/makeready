@@ -1,7 +1,7 @@
 size: lg
-state: aligned
+state: audited
 next: /builder:resume --path docs/features/notes
-head: 81162deb
+head: 3f843db9
 ticket: none
 branch: builder/notes
 pr: none
