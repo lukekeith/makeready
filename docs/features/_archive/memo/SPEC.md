@@ -1,5 +1,5 @@
 # memo — spec
-> 🤖 AGENT SIGNED OFF 2026-11-20 — 48b8aae8 · agent walk round 1 · not human-tested · evidence: .builder/memo/agent-walk/round-1/
+> ✅ SHIPPED 2026-11-20 — merged into feature/memo · no ticket · 🤖 agent signed off (walk round 1), not human-tested · quick-checked
 > lg · ticket: none · the voice-memo **engine** (server + iPhone services/state); the screens are a later spec
 
 ## Idea
@@ -356,3 +356,4 @@ On a physical iPhone, check:
 | F24 | iPhone tests run hosted in MakeReady.app (`TEST_HOST`), so app launch code runs in every test | build-time risk: salvage, flush and the path monitor take an injected folder; tests never use `AppState.shared`'s controller; the monitor starts only with a non-empty queue |
 | F25 | iPhone lint: no `NSLog`/`print`/`asyncAfter`, static formatters; `Log` has no audio category; bodies built with `JSONSerialization` can't hold a `Date`; `DELETE` 204 fails the decoding path | build-time risk: the MemoActions and upload-controller tasks use `Task.sleep` backoff, `Log.media` (or a deliberate `Log.memo`), a static ISO8601 formatter for `recordedAt`, and `requestWithStatus` for `DELETE` (`EnrollmentDraftActions.swift:57`) |
 | F26 | Stale citations: `VideoActivityManager` is not in the app target; `objectExists` returns no size; D23 named the wrong Dockerfile stages; "a client listing link types" — `GET /notes/types` is shadowed by `GET /notes/:noteId` | corrected in place (footnote 8, D20, §server, D23, §Apps) |
+| L1 | lesson for §Standing traps: a migration with an FK to `users.id` must declare the column type via the DO-block `format_type` pattern — `users.id` is `text` on dev and prod but `uuid` elsewhere — and `atlas migrate diff` fails on dev replay (LOCK TABLE outside a tx), so use `atlas schema diff`, trim to the feature, then `atlas migrate hash` | proposed |
