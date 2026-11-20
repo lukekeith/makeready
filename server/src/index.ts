@@ -13,6 +13,7 @@ import { fileURLToPath } from 'url'
 import { passport } from './config/passport.js'
 import authRoutes from './routes/auth.js'
 import usersRoutes from './routes/users.js'
+import memosRoutes from './routes/memos.js'
 import verificationRoutes from './routes/verification.js'
 import smsRoutes from './routes/sms.js'
 import twilioRoutes from './routes/twilio.js'
@@ -334,6 +335,9 @@ app.use('/join', joinRoutes)
 
 // Users routes
 app.use('/api/users', usersRoutes)
+
+// Voice memos (owner-private, requireAuth)
+app.use('/api/memos', memosRoutes)
 
 // Verification routes (Twilio Verify API)
 app.use('/api/verification', verificationRoutes)
