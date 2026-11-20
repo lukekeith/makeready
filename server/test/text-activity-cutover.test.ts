@@ -28,14 +28,29 @@ const readCutover = () =>
  * Applies the cutover exactly as CUTOVER.md steps 7-8 do: the file moved into the migrations directory, `migrate hash`,
  * then `migrate apply` (atlas runs each file in its own transaction). A copy of the directory, so the repo stays as is.
  */
-function applyCutoverWithAtlas(url: string): void {
+const stampOf = (d: Date) => d.toISOString().replace(/\D/g, '').slice(0, 14)
+
+/** One second after the newest live migration: atlas rejects a file whose version sorts before an applied one. */
+function nextVersionAfterLiveMigrations(): string {
+  const newest = readdirSync(MIGRATIONS).filter((f) => f.endsWith('.sql')).map((f) => f.slice(0, 14)).sort().at(-1)!
+  const m = newest.match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/)!
+  const t = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) + 1000
+  return stampOf(new Date(t))
+}
+
+/** Returns the version the cutover file was given in the temporary directory. */
+function applyCutoverWithAtlas(url: string): string {
   const dir = mkdtempSync(join(tmpdir(), 'cutover-migrations-'))
   cpSync(MIGRATIONS, dir, { recursive: true })
-  for (const f of readdirSync(CUTOVER).filter((f) => f.endsWith('.sql'))) cpSync(join(CUTOVER, f), join(dir, f))
+  const version = nextVersionAfterLiveMigrations()
+  for (const f of readdirSync(CUTOVER).filter((f) => f.endsWith('.sql'))) {
+    cpSync(join(CUTOVER, f), join(dir, f.replace(/^\d+/, version)))
+  }
   const atlas = (args: string[]) =>
     execFileSync(join(SERVER, 'scripts/atlas.sh'), args, { cwd: join(SERVER, 'atlas'), stdio: 'pipe', timeout: 180_000 })
   atlas(['migrate', 'hash', '--dir', `file://${dir}`])
   atlas(['migrate', 'apply', '--url', `${url}?sslmode=disable`, '--dir', `file://${dir}`])
+  return version
 }
 
 describe('cutover drop (static)', () => {
@@ -92,8 +107,8 @@ describe('cutover drop (live)', () => {
           data: { enrollmentId: enrollment.id, lessonId: dump.lessonId, currentVersionId: enrolledVersion.id, scheduledDate: new Date() },
         })
 
-        applyCutoverWithAtlas(url)
-        const revision = await pg.query(`SELECT version FROM atlas_schema_revisions.atlas_schema_revisions WHERE version = '20261107233000'`)
+        const version = applyCutoverWithAtlas(url)
+        const revision = await pg.query(`SELECT version FROM atlas_schema_revisions.atlas_schema_revisions WHERE version = $1`, [version])
         expect(revision.rows).toHaveLength(1)
         expect(await c.enrollment.count()).toBe(0)
         expect(await c.scheduledLesson.count()).toBe(0)

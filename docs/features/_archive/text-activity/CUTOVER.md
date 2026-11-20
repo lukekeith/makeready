@@ -46,7 +46,9 @@ drops the 13 replaced tables and the old columns, and makes `Lesson.programId` a
    ```
    Read `~/cutover/run1/import-report.md`. Resolve any conflicts you care about before going on.
 7. **Move the cutover file into the migrations folder and re-hash.**
-   `git mv server/atlas/cutover/20261107233000_text_activity_cutover.sql server/atlas/migrations/`, then
+   `git mv server/atlas/cutover/20261107233000_text_activity_cutover.sql server/atlas/migrations/<fresh timestamp>_text_activity_cutover.sql`,
+   where the fresh timestamp is later than every migration already in `atlas/migrations/` (atlas rejects a file whose
+   version sorts before an applied one: "added out of order"), then
    `cd server/atlas && ../scripts/atlas.sh migrate hash --dir file://migrations` (this updates `atlas.sum`). The same
    commit must update or retire the tests this move turns red: `test/text-activity-cutover.test.ts` (it asserts the
    drop is NOT in `atlas/migrations/`) and the old-model seeds that `INSERT INTO "lessons"` without `programId`
@@ -56,8 +58,8 @@ drops the 13 replaced tables and the old columns, and makes `Lesson.programId` a
    of its own: atlas opens the transaction per file, and an in-file `COMMIT` makes `migrate apply` fail with
    `pq: unexpected transaction status idle`. How this is proven: `test/text-activity-cutover.test.ts` (live) seeds an
    old-model database built by `migrate apply` of every committed migration, runs the export and import, then copies
-   `atlas/migrations/` plus this file into a temporary directory, runs `migrate hash` and `migrate apply` exactly as
-   steps 7-8 do, and checks the drops and the `20261107233000` row in `atlas_schema_revisions`. Client member lesson pages and
+   `atlas/migrations/` plus this file (renamed to a version one second after the newest migration) into a temporary directory, runs `migrate hash` and `migrate apply` exactly as
+   steps 7-8 do, and checks the drops and that renamed version's row in `atlas_schema_revisions`. Client member lesson pages and
    `/admin` activity pages fail from here until the member rebuild (D7).
 9. **Check**: open a converted program in the iPhone editor and viewer; confirm `GET /api/programs/:id` lists its lessons.
 
