@@ -230,6 +230,19 @@ const updateNoteSchema = z.object({
   content: z.string().min(1),
 })
 
+// Leader GET /notes query (D25): bounded paging, a sort allow-list, a capped search term
+const listNotesQuerySchema = z.object({
+  type: z.string().optional(),
+  linkType: z.string().optional(),
+  linkRefId: z.string().optional(),
+  startDate: z.coerce.date().optional(),
+  endDate: z.coerce.date().optional(),
+  q: z.string().max(200).optional(),
+  orderBy: z.enum(['createdAt', 'updatedAt']).default('createdAt'),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+})
+
 // ============================================================================
 // Member Notes Routes (phone-authenticated)
 // ============================================================================
@@ -1336,26 +1349,27 @@ router.get('/notes', requireAuth, async (req: Request, res: Response) => {
       })
     }
 
-    // Parse query params
-    const {
+    const parsed = listNotesQuerySchema.safeParse(req.query)
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid query',
+        details: parsed.error.flatten(),
+      })
+    }
+    const { type, linkType, linkRefId, startDate, endDate, q, orderBy, limit, offset } = parsed.data
+
+    const result = await getNotes({
+      userId,
       type,
       linkType,
       linkRefId,
       startDate,
       endDate,
+      q,
+      orderBy,
       limit,
       offset,
-    } = req.query
-
-    const result = await getNotes({
-      userId,
-      type: type as NoteType | undefined,
-      linkType: linkType as LinkType | undefined,
-      linkRefId: linkRefId as string | undefined,
-      startDate: startDate ? new Date(startDate as string) : undefined,
-      endDate: endDate ? new Date(endDate as string) : undefined,
-      limit: limit ? parseInt(limit as string) : 50,
-      offset: offset ? parseInt(offset as string) : 0,
     })
 
     if (!result.success) {
@@ -1370,12 +1384,9 @@ router.get('/notes', requireAuth, async (req: Request, res: Response) => {
       data: result.data,
       pagination: {
         total: result.total,
-        limit: limit ? parseInt(limit as string) : 50,
-        offset: offset ? parseInt(offset as string) : 0,
-        hasMore:
-          (result.total ?? 0) >
-          (offset ? parseInt(offset as string) : 0) +
-            (limit ? parseInt(limit as string) : 50),
+        limit,
+        offset,
+        hasMore: (result.total ?? 0) > offset + limit,
       },
     })
   } catch (error) {

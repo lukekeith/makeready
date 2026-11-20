@@ -109,6 +109,10 @@ export interface GetNotesOptions {
   // Date filters
   startDate?: Date
   endDate?: Date
+  // Case-insensitive substring filter on content; blank is no filter
+  q?: string
+  // Sort column (always desc, id desc as the tiebreak)
+  orderBy?: 'createdAt' | 'updatedAt'
   // Pagination
   limit?: number
   offset?: number
@@ -271,6 +275,8 @@ export async function getNotes(options: GetNotesOptions): Promise<NotesResult> {
       linkRefId,
       startDate,
       endDate,
+      q,
+      orderBy = 'createdAt',
       limit = 50,
       offset = 0,
     } = options
@@ -298,12 +304,15 @@ export async function getNotes(options: GetNotesOptions): Promise<NotesResult> {
       if (endDate) where.createdAt.lte = endDate
     }
 
+    const search = q?.trim()
+    if (search) where.content = { contains: search, mode: 'insensitive' }
+
     // Query with pagination
     const [notes, total] = await Promise.all([
       prisma.studyNote.findMany({
         where,
         include: { links: true },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ [orderBy]: 'desc' }, { id: 'desc' }],
         take: limit,
         skip: offset,
       }),
