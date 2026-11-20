@@ -12,9 +12,10 @@ import XCTest
 enum MemoAudioFixtures {
     static let frequency = 440.0
 
-    /// Writes `seconds` of a mono float32 440 Hz sine to a fresh temp `.caf` and returns its URL.
-    static func sineCAF(seconds: Double, sampleRate: Double = 44_100) throws -> URL {
-        let url = FileManager.default.temporaryDirectory
+    /// Writes `seconds` of a mono float32 440 Hz sine to a fresh `.caf` (in `directory`, else the
+    /// temp folder) and returns its URL.
+    static func sineCAF(seconds: Double, sampleRate: Double = 44_100, in directory: URL? = nil) throws -> URL {
+        let url = (directory ?? FileManager.default.temporaryDirectory)
             .appendingPathComponent("memo-sine-\(UUID().uuidString).caf")
         let format = try makeFormat(sampleRate: sampleRate)
         let file = try AVAudioFile(forWriting: url, settings: format.settings,

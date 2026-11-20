@@ -143,6 +143,11 @@ final class AppState {
     /// Voice memo details (D39): memory only — the presigned `url` and the transcript expire or are heavy.
     let voiceMemoDetails = EntityStore<VoiceMemo>()
 
+    /// The one upload queue, for the signed-in user and the current environment (D37). Built on
+    /// sign-in; `clearInMemory()` cancels and releases it on sign-out and environment switch,
+    /// and the files stay.
+    var memoUploads: MemoUploadController?
+
     /// `GET /api/members/:id/groups`, by member id.
     var memberGroupsById: [String: [MemberGroupItem]] = [:]
 
@@ -802,6 +807,52 @@ final class AppState {
         loadFromDisk()
     }
 
+    // MARK: - Voice memos
+
+    /// The API environment a memo folder belongs to (D37): the dev switcher's pick, else the build's.
+    static var memoEnvironmentName: String {
+        AppConfiguration.devMode ? AppConfiguration.selectedEnvironment.rawValue : AppConfiguration.current.rawValue
+    }
+
+    /// `Memo n` for a new recording: cached memos plus unsent queue items (D11, D43).
+    func nextMemoTitle() -> String {
+        let titles = voiceMemos.all.map(\.title) + (memoUploads?.pending().map(\.title) ?? [])
+        return MemoActions.nextDefaultTitle(existingTitles: titles)
+    }
+
+    /// Builds the queue for `userId` if there is none (D37). Nil when the folder cannot be made.
+    @discardableResult
+    func startMemoUploads(userId: String) -> MemoUploadController? {
+        if let memoUploads { return memoUploads }
+        do {
+            let folder = try MemoStorage.folder(environment: Self.memoEnvironmentName, userId: userId)
+            let controller = MemoUploadController(
+                api: APIClient.shared, actions: MemoActions(state: self), transport: URLSessionMemoPutTransport(),
+                directory: folder, ownerUserId: userId, environment: Self.memoEnvironmentName, flushesOnEnqueue: true)
+            memoUploads = controller
+            return controller
+        } catch {
+            // Console-only: no screen offers memos yet (D21, D28).
+            Log.memo.error("memo folder unavailable: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    /// Launch work for a signed-in user: salvage cut-off drafts, then flush the queue (D16, D22).
+    func launchMemoUploads(userId: String) async {
+        guard let controller = startMemoUploads(userId: userId) else { return }
+        do {
+            let folder = try MemoStorage.folder(environment: Self.memoEnvironmentName, userId: userId)
+            let drafts = MemoDraftStore(directory: MemoStorage.draftsFolder(in: folder), ownerUserId: userId,
+                                        environment: Self.memoEnvironmentName)
+            await controller.recoverDrafts(drafts: drafts, transcriber: MemoTranscriber())
+        } catch {
+            Log.memo.error("memo drafts unavailable: \(error.localizedDescription)")
+        }
+        controller.startPathMonitoring()
+        await controller.flush()
+    }
+
     // MARK: - Persistence
 
     /// Load state from disk (synchronous, called on init)
@@ -933,6 +984,8 @@ final class AppState {
 
     /// Wipe every in-memory store and index (no disk side effects).
     private func clearInMemory() {
+        memoUploads?.cancel()
+        memoUploads = nil
         programs.clear()
         groups.clear()
         enrollments.clear()

@@ -52,6 +52,7 @@
 		0D06786DDC7C61C6EE71272A /* InvitationDetailMapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A27F1259100E0E01119E5291 /* InvitationDetailMapperTests.swift */; };
 		0D2C1AC8A5FE49FB8EFC0755 /* CardVideoMini.swift in Frameworks */ = {isa = PBXBuildFile; fileRef = E779D25F48C54DBDB2A5321E /* CardVideoMini.swift */; };
 		0D6AC80D2854A0E59E30BD6F /* SearchHomeMapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5025606B0C44344FFFA6F484 /* SearchHomeMapperTests.swift */; };
+		0D6BC3F9C5076EDC054AD012 /* MemoUploadFlushTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78F078BCE15E8568FDF788A3 /* MemoUploadFlushTests.swift */; };
 		0D7385FD7A15BFADD342B995 /* UI2Element.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E8A41D64AA544DBE3A969FD /* UI2Element.swift */; };
 		0DC18F78B34E6FD9DAA30CC7 /* PageIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE7A283DC18E63DEB9F68753 /* PageIndicator.swift */; };
 		0DE45D611857DDEBF778CB1C /* EnrollmentsHomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A140CA4833A6C31E514213 /* EnrollmentsHomeScreen.swift */; };
@@ -381,6 +382,7 @@
 		58CC76E07470B3CC295C57C4 /* MemoEngineSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BB35D1D45133C4C355088E7 /* MemoEngineSessionTests.swift */; };
 		5949318DAF155CE266A05E6F /* InviteDetailMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C79C7503134D4C2CF36B79B /* InviteDetailMapper.swift */; };
 		598C82BC2A51584978C97FF6 /* PercentBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = F872551E8E1EBD5B6696457E /* PercentBar.swift */; };
+		59B532AC660F397C08E5A95E /* MemoStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 801FCDBD195A1E78F12231C1 /* MemoStorage.swift */; };
 		5A0ED19BCC6E271EB59CF791 /* BibleVerseTextLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = BVT0002000000000000001 /* BibleVerseTextLayout.swift */; };
 		5A106349ED65DEBF0FEC7A59 /* FilterMenuOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFF128158CFBF649CF77A2A6 /* FilterMenuOverlay.swift */; };
 		5A4E6CEA25380B1F08C45A2B /* EditableFieldRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A01F7586EF6E6C5B6DF4E767 /* EditableFieldRow.swift */; };
@@ -659,6 +661,7 @@
 		9A50BC4B6AA448FB519EC72A /* StudyProgramHomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A60640A82D674D2B06F8637 /* StudyProgramHomeScreen.swift */; };
 		9A791411A0DF648AE7EA9C58 /* CourierPrime-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9A27FE155C9AA54B30805FDC /* CourierPrime-Bold.ttf */; };
 		9AAC8C851B237332C32DD14E /* ViewerChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E86F9A523291E3C7E3A3CF7 /* ViewerChrome.swift */; };
+		9ABE391FEF03E1FD0C09E34A /* MemoStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 801FCDBD195A1E78F12231C1 /* MemoStorage.swift */; };
 		9AE1F4DC2F6C95CE40CC6315 /* ColorSwatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7975721ABB14E105D0754A64 /* ColorSwatch.swift */; };
 		9B219EBA3BFAAA3B09574E58 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 280805AC8E1F4024BA7D665C /* Foundation.framework */; };
 		9B6E325214267EDB83B9EBCB /* Inter-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = BC0AB9099E9E2C6B5AD95C82 /* Inter-Regular.ttf */; };
@@ -1506,6 +1509,7 @@
 		771C7ACB0FD35BD6B7353E2A /* EnrollEntry.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnrollEntry.swift; sourceTree = "<group>"; };
 		7758B3AA0C7E01D6261BB8F4 /* CaptureSession.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CaptureSession.swift; sourceTree = "<group>"; };
 		782E4BB024F56824A81C0E7A /* EnrollSelectGroupContainer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnrollSelectGroupContainer.swift; sourceTree = "<group>"; };
+		78F078BCE15E8568FDF788A3 /* MemoUploadFlushTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MemoUploadFlushTests.swift; sourceTree = "<group>"; };
 		793AE2E54A40CA1145F94725 /* EventIndicator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EventIndicator.swift; sourceTree = "<group>"; };
 		793BF9462EB0C66EF0EAF8AD /* AuthCallbackParser.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AuthCallbackParser.swift; sourceTree = "<group>"; };
 		7975721ABB14E105D0754A64 /* ColorSwatch.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ColorSwatch.swift; sourceTree = "<group>"; };
@@ -1521,6 +1525,7 @@
 		7E427DDDC4F58A557EE545F7 /* EnrollPickerSelection.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnrollPickerSelection.swift; sourceTree = "<group>"; };
 		7E8AE89647C0C2149E14610D /* ConfirmationMark.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ConfirmationMark.swift; sourceTree = "<group>"; };
 		7EA17BF41F3B55028C620422 /* ActivitySlideMenuTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ActivitySlideMenuTests.swift; sourceTree = "<group>"; };
+		801FCDBD195A1E78F12231C1 /* MemoStorage.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MemoStorage.swift; sourceTree = "<group>"; };
 		806C04750A29B7AC55358E67 /* SkeletonCardGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkeletonCardGroup.swift; sourceTree = "<group>"; };
 		813B940D8CC0C51848F38583 /* ViewRegistry.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ViewRegistry.swift; sourceTree = "<group>"; };
 		82C14315E68265AD1CFADEAA /* ProgramPatch.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProgramPatch.swift; sourceTree = "<group>"; };
@@ -2382,6 +2387,7 @@
 				DDB12163A9425BEC4ED89AB0 /* MemoAudioSession.swift */,
 				4EE77BBB61E6BA4C786A152A /* MemoPutTransport.swift */,
 				13EEBF4E4FA623C66418790E /* MemoUploadController.swift */,
+				801FCDBD195A1E78F12231C1 /* MemoStorage.swift */,
 			);
 			name = Audio;
 			path = Audio;
@@ -2645,6 +2651,7 @@
 				D358475CD79007BABE01638D /* MemoRecorderEngineTests.swift */,
 				1BB35D1D45133C4C355088E7 /* MemoEngineSessionTests.swift */,
 				DD0B5BA43478C8FDC760D258 /* MemoUploadControllerTests.swift */,
+				78F078BCE15E8568FDF788A3 /* MemoUploadFlushTests.swift */,
 			);
 			path = MakeReadyCaptureTests;
 			sourceTree = SOURCE_ROOT;
@@ -3965,6 +3972,7 @@
 				BBBB1D4B4B7091C602C8ED74 /* MemoRecorderEngineTests.swift in Sources */,
 				58CC76E07470B3CC295C57C4 /* MemoEngineSessionTests.swift in Sources */,
 				BEA7A01796E6F390AA3C3939 /* MemoUploadControllerTests.swift in Sources */,
+				0D6BC3F9C5076EDC054AD012 /* MemoUploadFlushTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -4356,6 +4364,7 @@
 				979A15755762D4DD032FED7B /* MemoAudioSession.swift in Sources */,
 				DC78A67E074C877DB26E3775 /* MemoPutTransport.swift in Sources */,
 				679BF498DD91E62D4E04DAA0 /* MemoUploadController.swift in Sources */,
+				59B532AC660F397C08E5A95E /* MemoStorage.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -4918,6 +4927,7 @@
 				C47381E2B9446E89F8952EA9 /* MemoAudioSession.swift in Sources */,
 				1D9DFFEF8CE23D8E6C1C4041 /* MemoPutTransport.swift in Sources */,
 				E4BAF95A5B2D5E6DA3A5BB91 /* MemoUploadController.swift in Sources */,
+				9ABE391FEF03E1FD0C09E34A /* MemoStorage.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

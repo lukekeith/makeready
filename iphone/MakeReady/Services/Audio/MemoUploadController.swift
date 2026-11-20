@@ -6,10 +6,13 @@
 //  manifest into `directory` and never touches the network. `processNext` runs the oldest due
 //  item through create -> PUT -> complete, persisting the manifest after every server step, so a
 //  kill resumes where it stopped and a created row is never created twice. The local file goes
-//  only after `complete` returns 200. Backoff and the flush triggers are layered on top.
+//  only after `complete` returns 200. `flush` runs the queue serially with backoff (D22), pauses on
+//  a 401 without counting it (D41), and is triggered by enqueue, launch and the network coming
+//  back. Only this owner's folder is ever read (D37).
 //
 
 import Foundation
+import Network
 
 /// What one `processNext` pass did.
 enum MemoUploadStep: Equatable {
@@ -66,10 +69,24 @@ final class MemoUploadController {
     private let ownerUserId: String
     private let environment: String
     private let now: () -> Date
+    private let sleep: (Duration) async throws -> Void
+    private let flushesOnEnqueue: Bool
     private var isProcessing = false
+    private var flushTask: Task<Void, Never>?
+    private var pathMonitor: NWPathMonitor?
 
+    /// 5 s, 30 s, 2 min, 10 min; every later attempt waits 10 min (D22).
+    private static let backoff: [Duration] = [.seconds(5), .seconds(30), .seconds(120), .seconds(600)]
+
+    /// True after a 401 until `resumeAfterSignIn` (D41).
+    private(set) var isPausedForAuth = false
+
+    /// `flushesOnEnqueue` is off by default so a test that enqueues stays in control of the
+    /// network; `AppState` turns it on for the real queue (D22).
     init(api: APIClientProtocol, actions: MemoActions, transport: MemoPutTransport, directory: URL,
-         ownerUserId: String, environment: String, now: @escaping () -> Date = { Date() }) {
+         ownerUserId: String, environment: String, now: @escaping () -> Date = { Date() },
+         flushesOnEnqueue: Bool = false,
+         sleep: @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) }) {
         self.api = api
         self.actions = actions
         self.transport = transport
@@ -77,6 +94,13 @@ final class MemoUploadController {
         self.ownerUserId = ownerUserId
         self.environment = environment
         self.now = now
+        self.flushesOnEnqueue = flushesOnEnqueue
+        self.sleep = sleep
+    }
+
+    /// The wait after the `attempt`th failure (1-based), capped at the last backoff step.
+    static func delay(forAttempt attempt: Int) -> Duration {
+        backoff[min(max(attempt, 1), backoff.count) - 1]
     }
 
     // MARK: Queue
@@ -101,6 +125,9 @@ final class MemoUploadController {
             try? fm.moveItem(at: destination, to: result.fileURL)
             throw error
         }
+        guard flushesOnEnqueue else { return }
+        startPathMonitoring()
+        Task { await flush() }
     }
 
     /// This owner's and this environment's unsent items, oldest first (D37).
@@ -117,21 +144,140 @@ final class MemoUploadController {
         }.sorted { ($0.recordedAt, $0.localId) < ($1.recordedAt, $1.localId) }
     }
 
+    // MARK: Flush
+
+    /// Runs the queue serially until it is empty or paused. A failed item backs off (attempts +1,
+    /// `nextAttemptAt`, a sleep) and goes again; a call during a flush joins it.
+    func flush() async {
+        if let flushTask {
+            await flushTask.value
+            return
+        }
+        guard !isPausedForAuth else { return }
+        let task = Task { await runFlush() }
+        flushTask = task
+        await task.value
+        flushTask = nil
+        if pending().isEmpty { stopPathMonitoring() }
+    }
+
+    /// Stops the in-flight flush and the network trigger. Files and manifests stay (D37).
+    func cancel() {
+        flushTask?.cancel()
+        flushTask = nil
+        stopPathMonitoring()
+    }
+
+    /// After the next sign-in (D41): clears the pause and flushes.
+    func resumeAfterSignIn() async {
+        isPausedForAuth = false
+        await flush()
+    }
+
+    /// An `NWPathMonitor` that flushes whenever the network becomes satisfied. It exists only
+    /// while something is queued (D22, F24).
+    func startPathMonitoring() {
+        guard pathMonitor == nil, !pending().isEmpty else { return }
+        let monitor = NWPathMonitor()
+        monitor.pathUpdateHandler = { [weak self] path in
+            guard path.status == .satisfied else { return }
+            Task { @MainActor in await self?.flush() }
+        }
+        monitor.start(queue: DispatchQueue(label: "memo.upload.path"))
+        pathMonitor = monitor
+    }
+
+    private func stopPathMonitoring() {
+        pathMonitor?.cancel()
+        pathMonitor = nil
+    }
+
+    private func runFlush() async {
+        var ignoreSchedule = false
+        while !Task.isCancelled {
+            let (step, localId) = await runDue(ignoringSchedule: ignoreSchedule)
+            ignoreSchedule = false
+            switch step {
+            case .completed:
+                continue
+            case .paused:
+                isPausedForAuth = true
+                return
+            case .retryLater:
+                guard !Task.isCancelled, let wait = recordFailure(localId: localId) else { return }
+                guard await sleeps(wait) else { return }
+                ignoreSchedule = true
+            case .idle:
+                // Items still waiting out a backoff (e.g. after a relaunch): wait for the earliest.
+                guard let due = pending().compactMap(\.nextAttemptAt).min() else { return }
+                guard await sleeps(max(.zero, .seconds(due.timeIntervalSince(now())))) else { return }
+                ignoreSchedule = true
+            }
+        }
+    }
+
+    /// False when the sleep was cancelled.
+    private func sleeps(_ duration: Duration) async -> Bool {
+        do {
+            try await sleep(duration)
+            return true
+        } catch {
+            // Silent: a cancelled sleep is `cancel()` stopping the flush.
+            return false
+        }
+    }
+
+    /// attempts +1 and `nextAttemptAt` for the item that just failed; returns how long to wait.
+    private func recordFailure(localId: String?) -> Duration? {
+        guard let localId, var item = pending().first(where: { $0.localId == localId }) else { return nil }
+        item.attempts += 1
+        let wait = Self.delay(forAttempt: item.attempts)
+        item.nextAttemptAt = now().addingTimeInterval(Double(wait.components.seconds))
+        do {
+            try persist(item)
+        } catch {
+            Log.memo.error("backoff not persisted: \(error.localizedDescription)")
+        }
+        return wait
+    }
+
+    // MARK: Salvage
+
+    /// Launch recovery (D16): each draft of this owner is exported, transcribed from its file and
+    /// enqueued. A draft that fails is logged and the rest go on.
+    func recoverDrafts(drafts: MemoDraftStore, transcriber: any MemoTranscribing) async {
+        for manifest in drafts.recoverable() {
+            do {
+                let salvaged = try await drafts.salvage(manifest)
+                let transcript = await transcriber.transcribeFile(salvaged.m4a)
+                try enqueue(RecordingResult(fileURL: salvaged.m4a, title: manifest.title, durationMs: salvaged.durationMs,
+                                            waveformPeaks: salvaged.peaks, recordedAt: manifest.startedAt, transcript: transcript))
+            } catch {
+                Log.memo.error("draft not recovered: \(error.localizedDescription)")
+            }
+        }
+    }
+
     // MARK: Lifecycle
 
     /// Runs the oldest due item as far as it goes. Serial: a call while another is in flight is idle.
     func processNext() async -> MemoUploadStep {
-        guard !isProcessing else { return .idle }
+        await runDue(ignoringSchedule: false).step
+    }
+
+    /// One pass over the oldest item that is due (any item, when a backoff has just been slept).
+    private func runDue(ignoringSchedule: Bool) async -> (step: MemoUploadStep, localId: String?) {
+        guard !isProcessing else { return (.idle, nil) }
         isProcessing = true
         defer { isProcessing = false }
-        guard var item = pending().first(where: { ($0.nextAttemptAt ?? .distantPast) <= now() }) else { return .idle }
+        guard var item = pending().first(where: { ignoringSchedule || ($0.nextAttemptAt ?? .distantPast) <= now() }) else { return (.idle, nil) }
         do {
-            return try await run(&item)
+            return (try await run(&item), item.localId)
         } catch {
-            if Self.isUnauthorized(error) { return .paused }
+            if Self.isUnauthorized(error) { return (.paused, item.localId) }
             // Console-only: a background flush, never a user-initiated action (D21).
             Log.memo.error("memo upload failed: \(error.localizedDescription)")
-            return .retryLater
+            return (.retryLater, item.localId)
         }
     }
 
