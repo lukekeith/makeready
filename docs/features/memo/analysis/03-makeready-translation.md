@@ -2,7 +2,7 @@
 
 What exists and what a voice-memo feature needs. **Analysis only — no code yet.**
 Decision-shaped statements in this doc are the working notes behind the rulings; the finalized
-versions live in [DECISIONS.md](DECISIONS.md), which wins on any conflict.
+versions live in [DECISIONS.md](../DECISIONS.md), which wins on any conflict.
 
 ---
 

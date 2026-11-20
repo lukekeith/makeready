@@ -37,7 +37,7 @@ Ship-gating (in priority order):
 | M7 | Fidelity standard | See §5 |
 | M8 | Audience | Leader-only v1 *(default — assumed to match notes' confirmed "leader's account"; veto if memos are member-facing day one)* |
 | M9 | Upload lifecycle | Create-first: `POST /api/memos` (metadata, `status: pending`) → response carries presigned URL → client PUTs bytes → `PATCH /api/memos/:id/complete`. Sweep job expires `pending` rows > 24 h old and deletes their keys |
-| M10 | Capture engine | `AVAudioEngine`, one input tap fanning out to (a) `AVAudioFile` AAC write, (b) converted `AnalyzerInput` stream, (c) RMS/peak reduction for live waveform + stored `waveformPeaks`. **Never `AVAudioRecorder`** (no PCM access). Full mechanics: `04-on-device-transcription.md` |
+| M10 | Capture engine | `AVAudioEngine`, one input tap fanning out to (a) `AVAudioFile` AAC write, (b) converted `AnalyzerInput` stream, (c) RMS/peak reduction for live waveform + stored `waveformPeaks`. **Never `AVAudioRecorder`** (no PCM access). Full mechanics: `analysis/04-on-device-transcription.md` |
 | M11 | Waveform data | `waveformPeaks`: array of 0–1 floats, one per 100 ms of audio, computed on device during capture, stored on the record at complete-time. All scrubber rendering uses it; clients never decode audio to draw |
 | M12 | Interruptions & salvage | Phone call/Siri: auto-pause on `interruptionNotification .began`, auto-resume on `.ended` + `.shouldResume`. A local draft manifest (file URL, startedAt, title draft) is written at capture start; on next launch an unsaved draft is offered for recovery, transcribed via the file path *(default)* |
 | M13 | Search | `q` param on `GET /api/memos` matching `title` and `transcript`, case-insensitive *(default)* |
@@ -46,7 +46,7 @@ Ship-gating (in priority order):
 
 ## 4. The recorder surfaces — exact v1 scope
 
-Normative geometry, layouts, and timings: `01-video-analysis.md` §3 (compact detent §3.1,
+Normative geometry, layouts, and timings: `analysis/01-video-analysis.md` §3 (compact detent §3.1,
 expanded §3.2, finish transition §4). v1 builds:
 
 1. **Floating record button** on the memo list (56 pt red circle, bottom-center, no bar).
@@ -111,7 +111,7 @@ amendment**, never silently.
 
 ## 5. Fidelity standard (what "mimic Voice Memos" means, operationally)
 
-- Target values = the measurements in `01-video-analysis.md`; colors from MakeReady tokens
+- Target values = the measurements in `analysis/01-video-analysis.md`; colors from MakeReady tokens
   (record-red may stay red).
 - **Enumerated deviations** (complete list — anything else that differs is a defect):
   1. Title is an editable, required field in the expanded header (M5) instead of a
@@ -199,7 +199,7 @@ provider's upload cap, offsetting returned segment timestamps).
 
 `Info.plist`: broaden `NSMicrophoneUsageDescription` copy; add
 `NSSpeechRecognitionUsageDescription`; add `audio` to `UIBackgroundModes`. Verification tasks
-marked `[verify on device]` in `04-on-device-transcription.md` §7 are part of phase 1, not
+marked `[verify on device]` in `analysis/04-on-device-transcription.md` §7 are part of phase 1, not
 optional.
 
 ## 8. Implementation environment notes
@@ -211,6 +211,6 @@ Same as notes `DECISIONS.md` §7 (Docker restart for server edits, `/rebuild-iph
 
 - M8 assumption (leader-only v1) awaits explicit confirmation.
 - When web playback/capture ships (capture requires server-side transcode of `MediaRecorder`
-  output to `.m4a` — recorded in `05-implementation-readiness.md` F6).
+  output to `.m4a` — recorded in `analysis/05-implementation-readiness.md` F6).
 - Groq's current per-request upload cap (verify at implementation time; chunking design in §6
   covers any answer).
