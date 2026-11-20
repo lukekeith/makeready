@@ -154,12 +154,19 @@ final class NoteSaveQueue {
             return .dropped(noteId)
         } catch let error as APIHTTPError {
             state.recordError(error, context: "NoteSaveQueue.flush")
+            // A session, rate-limit or server problem passes: keep the text and try again next flush
+            // (D13, D20). Any other 4xx is permanent: the server will never take this entry.
+            if Self.isTransient(error) { return .kept(noteId) }
             drop(noteId)
             return .dropped(noteId)
         } catch {
             state.recordError(error, context: "NoteSaveQueue.flush")
             return .kept(noteId)
         }
+    }
+
+    private static func isTransient(_ error: APIHTTPError) -> Bool {
+        [401, 408, 429].contains(error.status) || error.status >= 500
     }
 
     /// The server took `sent`: the entry goes, unless the note was edited again while the request ran.
@@ -169,13 +176,17 @@ final class NoteSaveQueue {
     }
 
     /// The first save of a local note landed (D13): the server note replaces the local one in the store and
-    /// the entry moves to the server id; an edit made while the request ran stays queued as a PATCH of it.
+    /// the entry moves to the server id; an edit or delete made while the request ran stays queued against it.
     private func adopt(localId: String, note: StudyNote, sent: NoteSaveEntry) {
         _ = state.studyNotes.remove(localId)
         state.persist()
-        if let newer = entry(for: localId), newer != sent, case .upsert(let content, _) = newer {
-            if let index = items.firstIndex(where: { $0.noteId == localId }) {
+        if let newer = entry(for: localId), newer != sent, let index = items.firstIndex(where: { $0.noteId == localId }) {
+            switch newer {
+            case .upsert(let content, _):
                 items[index] = Item(noteId: note.id, entry: .upsert(content: content, baseUpdatedAt: note.updatedAt))
+            case .delete:
+                // Emptied while the POST ran: the server now has the note, so the delete goes to its id (D10).
+                items[index] = Item(noteId: note.id, entry: .delete)
             }
             writeFile()
         } else {

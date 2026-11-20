@@ -79,6 +79,43 @@ final class NoteSaveQueueTests: XCTestCase {
         XCTAssertNotNil(q.entry(for: "n2"))
     }
 
+    func testALocalNoteEmptiedWhileItsPostIsInFlightStillGetsDeleted() async {
+        let api = StubAPIClient(); let state = AppState()
+        api.stub("POST", "/api/notes", json: #"{"success":true,"data":\#(noteJSON("srv1", content: "hi"))}"#)
+        let q = NoteSaveQueue(fileURL: tmpURL(), actions: NoteActions(api: api, state: state), state: state)
+        api.beforeReturn = { _, _ in q.enqueue(noteId: "local-1", .delete) }
+        q.enqueue(noteId: "local-1", .upsert(content: "hi", baseUpdatedAt: nil))
+        _ = await q.flush()
+        XCTAssertNil(q.entry(for: "local-1"))
+        XCTAssertEqual(q.entry(for: "srv1"), .delete)
+    }
+
+    func testATransientHTTPErrorKeepsTheEntryAndStopsTheFlush() async {
+        for status in [401, 408, 429, 500, 503] {
+            let api = StubAPIClient(); let state = AppState()
+            api.errorFor = { _, _ in APIHTTPError(status: status, message: nil) }
+            let q = NoteSaveQueue(fileURL: tmpURL(), actions: NoteActions(api: api, state: state), state: state)
+            q.enqueue(noteId: "n1", .upsert(content: "x", baseUpdatedAt: nil))
+            q.enqueue(noteId: "n2", .upsert(content: "y", baseUpdatedAt: nil))
+            let outcomes = await q.flush()
+            XCTAssertEqual(outcomes, [.kept("n1")], "status \(status)")
+            XCTAssertNotNil(q.entry(for: "n1"), "status \(status)")
+            XCTAssertEqual(api.calls.count, 1, "status \(status)")
+        }
+    }
+
+    func testAPermanentHTTPErrorDropsTheEntryAndTheFlushContinues() async {
+        let api = StubAPIClient(); let state = AppState()
+        api.errorFor = { endpoint, _ in endpoint.hasSuffix("n1") ? APIHTTPError(status: 422, message: "bad") : nil }
+        api.stub("PATCH", "/api/notes/n2", json: #"{"success":true,"stomped":false,"data":\#(noteJSON("n2"))}"#)
+        let q = NoteSaveQueue(fileURL: tmpURL(), actions: NoteActions(api: api, state: state), state: state)
+        q.enqueue(noteId: "n1", .upsert(content: "x", baseUpdatedAt: nil))
+        q.enqueue(noteId: "n2", .upsert(content: "y", baseUpdatedAt: nil))
+        let outcomes = await q.flush()
+        XCTAssertEqual(outcomes, [.dropped("n1"), .sent("n2")])
+        XCTAssertNil(q.entry(for: "n1"))
+    }
+
     func testAFlushDuringAFlushSendsOnce() async {
         let api = StubAPIClient(); let state = AppState(); api.delayFor = { _ in 0.2 }
         api.stub("DELETE", "/api/notes/n1", json: #"{"success":true,"message":"Note deleted"}"#)
