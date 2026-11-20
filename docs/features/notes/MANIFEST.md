@@ -1,14 +1,14 @@
 size: lg
 state: planned
 next: /builder:resume --path docs/features/notes
-head: 3e96a204
+head: a5618238
 ticket: none
 branch: builder/notes
 pr: none
 apps: server+iphone
 contract: open
 hold: none
-go-ahead: none
+go-ahead: auto (recommended) 2026-11-20
 tests: walk=risk review=slice
 target: feature/memo
 walk: none
