@@ -162,6 +162,9 @@ models:
       studyNotes:
         type: one_to_many
         target: StudyNote
+      voiceMemos:
+        type: one_to_many
+        target: VoiceMemo
       apiKeys:
         type: one_to_many
         target: ApiKey
@@ -3426,6 +3429,86 @@ models:
       - fields: [type]
       - fields: [createdAt]
       - fields: [isActive]
+
+  VoiceMemo:
+    table_name: voice_memos
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      userId:
+        type: string
+        nullable: true
+      memberId:
+        type: string
+        nullable: true
+      title:
+        type: string
+      key:
+        type: string
+      mimeType:
+        type: string
+        default: "audio/mp4"
+      fileSize:
+        type: int
+        nullable: true
+      durationMs:
+        type: int
+        nullable: true
+      waveformPeaks:
+        type: json
+        nullable: true
+      transcript:
+        type: text
+        nullable: true
+      transcriptSegments:
+        type: json
+        nullable: true
+      transcriptStatus:
+        type: string
+        default: "none"
+        description: "none, pending, ready, failed"
+      transcriptSource:
+        type: string
+        nullable: true
+        description: "on_device, server"
+      transcriptAttempts:
+        type: int
+        default: 0
+      transcriptClaimedAt:
+        type: datetime
+        nullable: true
+      uploadStatus:
+        type: string
+        default: "pending"
+        description: "pending, ready"
+      recordedAt:
+        type: datetime
+      isActive:
+        type: boolean
+        default: true
+      deletedAt:
+        type: datetime
+        nullable: true
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      user:
+        type: many_to_one
+        target: User
+        fields: [userId]
+        references: [id]
+        onDelete: Cascade
+        nullable: true
+    indexes:
+      - fields: [userId, recordedAt]
+      - fields: [memberId, recordedAt]
+      - fields: [uploadStatus, createdAt]
 
   NoteLink:
     table_name: note_links
