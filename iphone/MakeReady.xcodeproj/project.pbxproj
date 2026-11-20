@@ -311,6 +311,7 @@
 		4B1580545257FF234290771C /* PageActionButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBF98D4E665CDCFEB7320038 /* PageActionButton.swift */; };
 		4B2D73FB5B3141A3832276E2 /* DataComponent.swift in Frameworks */ = {isa = PBXBuildFile; fileRef = B545E372C19C4C48BD291914 /* DataComponent.swift */; };
 		4BACE5DBC1DB707D6BA9BAA4 /* CourierPrime-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9A9454AD7FAF075D71D09CDB /* CourierPrime-Italic.ttf */; };
+		4C95CBA97DE926C5D88D7331 /* NoteActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = N0TE9ACT0000000000000003 /* NoteActions.swift */; };
 		4C9A7E21B6D04F1A8E3C5D21 /* LocalPortHealerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C9A7E21B6D04F1A8E3C5D22 /* LocalPortHealerTests.swift */; };
 		4CDE4ECB783FF419C968CC10 /* TopNavDragTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC8C4B11C668BCCF2F63D17F /* TopNavDragTests.swift */; };
 		4D34F78C7EDFE8FE1FFD8062 /* MediaUploadQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3AA66C89ECCEB34E394CA38 /* MediaUploadQueue.swift */; };
@@ -1128,6 +1129,8 @@
 		MDLT000100000000000001 /* ModelDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDLT000200000000000001 /* ModelDecodingTests.swift */; };
 		MODANIM0001000000000001 /* ModalAnimations.swift in Sources */ = {isa = PBXBuildFile; fileRef = MODANIM0002000000000001 /* ModalAnimations.swift */; };
 		MOTN0001000000000001 /* Motion.swift in Sources */ = {isa = PBXBuildFile; fileRef = MOTN0002000000000001 /* Motion.swift */; };
+		N0TE9ACT0000000000000002 /* NoteActionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = N0TE9ACT0000000000000001 /* NoteActionsTests.swift */; };
+		N0TE9ACT0000000000000004 /* NoteActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = N0TE9ACT0000000000000003 /* NoteActions.swift */; };
 		NOTIF0001000000000001 /* NotificationActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = NOTIF0002000000000001 /* NotificationActions.swift */; };
 		OPTSHDW0001000000000001 /* OptimizedShadow.swift in Sources */ = {isa = PBXBuildFile; fileRef = OPTSHDW0002000000000001 /* OptimizedShadow.swift */; };
 		ORGA0001000000000001 /* OrgActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = ORGA0002000000000001 /* OrgActions.swift */; };
@@ -1917,6 +1920,8 @@
 		MRPP0002000000000000001 /* MemberRequestProfilePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberRequestProfilePage.swift; sourceTree = "<group>"; };
 		MRQP0002000000000000001 /* MemberRequestsPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberRequestsPage.swift; sourceTree = "<group>"; };
 		MRRM0002000000000000001 /* MemberRequestRespondModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberRequestRespondModal.swift; sourceTree = "<group>"; };
+		N0TE9ACT0000000000000001 /* NoteActionsTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NoteActionsTests.swift; sourceTree = "<group>"; };
+		N0TE9ACT0000000000000003 /* NoteActions.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NoteActions.swift; sourceTree = "<group>"; };
 		NAVC0002000000000000001 /* NavigationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationCoordinator.swift; sourceTree = "<group>"; };
 		NOTIF0002000000000001 /* NotificationActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationActions.swift; sourceTree = "<group>"; };
 		NTFPG0002000000000001 /* NotificationFeedPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationFeedPage.swift; sourceTree = "<group>"; };
@@ -2581,6 +2586,7 @@
 				BPE0004000000000000001 /* BiblePassageEditingTests.swift */,
 				BET0004000000000000001 /* BibleEditorTests.swift */,
 				F0178EDED14668829ADB0E1E /* NoteModelsTests.swift */,
+				N0TE9ACT0000000000000001 /* NoteActionsTests.swift */,
 			);
 			path = MakeReadyCaptureTests;
 			sourceTree = SOURCE_ROOT;
@@ -3289,6 +3295,7 @@
 				FF04F853C6A69D8FD9C1187A /* EnvironmentActions.swift */,
 				FD2971555D1C3D439F412992 /* MemberActions.swift */,
 				6B6C9817AA09A4DB1B0249A7 /* EnrollmentDraftActions.swift */,
+				N0TE9ACT0000000000000003 /* NoteActions.swift */,
 				E3AA66C89ECCEB34E394CA38 /* MediaUploadQueue.swift */,
 				44FA4B5CB3CA5C2B4B10F897 /* InvitationActions.swift */,
 				335D1744478B85359B0B23D3 /* SearchActions.swift */,
@@ -3892,6 +3899,7 @@
 				BPE0003000000000000001 /* BiblePassageEditingTests.swift in Sources */,
 				BET0003000000000000001 /* BibleEditorTests.swift in Sources */,
 				EAD869502484DFE30FD19DB2 /* NoteModelsTests.swift in Sources */,
+				N0TE9ACT0000000000000002 /* NoteActionsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -4274,6 +4282,7 @@
 				F64431361921B98776FCFCFE /* BibleVersesScreen.swift in Sources */,
 				D047D4BF4E83866680804DD3 /* ToolbarTone.swift in Sources */,
 				FF73364C75B778F93E2E7B21 /* NoteModels.swift in Sources */,
+				N0TE9ACT0000000000000004 /* NoteActions.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -4827,6 +4836,7 @@
 				6F926CFE0425351CC61D84ED /* BibleVersesScreen.swift in Sources */,
 				39130202650D3231AD85FD01 /* ToolbarTone.swift in Sources */,
 				CF3C2A73021CDF935D856C50 /* NoteModels.swift in Sources */,
+				4C95CBA97DE926C5D88D7331 /* NoteActions.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
