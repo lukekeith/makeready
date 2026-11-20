@@ -107,7 +107,7 @@ service; the backfill touches every existing row once; fixtures gain a `library-
 | D6 | Ownership & type | Leader notes use the existing `requireAuth` `/api/notes` family under the session `userId`; another user's note id returns 404. Notes created here use `type: NOTE` (new `NOTE_TYPES.NOTE`), and the list requests `type=NOTE`. Member routes are unchanged | DECISIONS.md N2, N4 · confirmed 2026-11-20 |
 | D7 | Conflicts | Last writer wins. PATCH takes optional `baseUpdatedAt` (ISO); the server always writes and returns `stomped: true` when the stored `updatedAt` was later than `baseUpdatedAt`, else `false`. On `stomped` while the editor is open: log it, keep the editor's text (it is what was saved), refresh the list | DECISIONS.md N5 · stated 2026-11-20 · editor behaviour (assumed at brainstorm) 2026-11-20 |
 | D8 | Search | `GET /api/notes?q=` filters `content` case-insensitive substring (Prisma `contains`, `mode: insensitive`). The search capsule sends `q` debounced 300 ms. No client-side corpus search | DECISIONS.md N7 · stated 2026-11-20 · 300 ms (assumed at spec) 2026-11-20 |
-| D9 | Editor engine | `NoteDocumentCodec` (app side, `Services/Notes/`) converts markdown ⇄ `NSAttributedString` with Apple `swift-markdown` (new SPM dependency, pinned exact version) — parse once on open, serialize only on autosave. Round-trip invariant `parse(serialize(doc)) == doc` is a required test over a fixture corpus covering every D4 construct and every escaped character. The editor view itself (UITextView/TextKit 2, C-001) is d2m's; the codec is the only bridge, and the binding type follows d2m's C-001 contract | DECISIONS.md N9 · stated 2026-11-20 |
+| D9 | Editor engine | `NoteDocumentCodec` (app side, `Services/Notes/`) converts markdown ⇄ `NSAttributedString` with Apple `swift-markdown` (new SPM dependency, pinned exact version) — parse once on open, serialize only on autosave. Round-trip invariant `parse(serialize(doc)) == doc` is a required test over a fixture corpus covering every D4 construct and every escaped character. The editor view itself (UITextView/TextKit 2, C-001) is d2m's; the codec is the only bridge, and the binding type follows d2m's C-001 contract. **Superseded in part 2026-11-20 (align):** C-001 §4 binds a Swift `AttributedString` (value type) carrying d2m's paragraph-style attribute (Title / Body / Bulleted / Numbered) and the shared `InlineStyle`/`ListStyle` types from `NoteEditorModels.swift`, with `selection` as a UTF-16 `NSRange`; the codec converts markdown ⇄ that `AttributedString` and never defines its own attribute keys. Not `NSAttributedString` (C-001 doesn't take it, so a second bridge would be needed) | DECISIONS.md N9 · stated 2026-11-20 · bridge type: C-001 contract, align 2026-11-20 |
 | D10 | Lazy create / empty delete | A new note sends no request until its content (trimmed) is non-empty; the first save is `POST`, later saves `PATCH`. Leaving a note whose content is empty soft-deletes it (`DELETE`). The existing zod `min(1)` stays | DECISIONS.md N10 · confirmed 2026-11-20 |
 | D11 | Title/preview columns | `StudyNote.title String?` and `preview String?`, written by the service on every create and update (leader and member): title = first non-empty line, preview = the next non-empty line, each markdown-stripped and cut to 120 chars. The list never parses markdown. Backfill script `scripts/backfill-note-titles.ts` fills every existing row, idempotent (re-runnable), batches of 500 | DECISIONS.md N11 · confirmed 2026-11-20 · script shape (assumed at spec) 2026-11-20 |
 | D12 | Autosave | `NoteAutosaveController`: debounced save 1.5 s after the last edit; immediate flush when leaving the editor and on `scenePhase` → background. Killing the app within 1.5 s of typing may lose only that last burst. No Save button anywhere | DECISIONS.md R6 · stated 2026-11-20 |
@@ -124,25 +124,27 @@ service; the backfill touches every existing row once; fixtures gain a `library-
 
 | Contract | Producer | Consumers | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|---|
-| `POST /api/notes` (edit) | server | iphone (`NoteActions.create`) | `requireAuth` | `{ type: "NOTE", content, links? }` (unchanged shape) | `201`, note now includes `title`, `preview` | 400 · 401 (unchanged) |
-| `GET /api/notes` (edit) | server | iphone (`NoteActions.load`) | `requireAuth` | existing params + optional `q` (D8); iPhone sends `type=NOTE` | existing shape; each note includes `title`, `preview`, `links` | 400 · 401 |
-| `GET /api/notes/:noteId` (edit) | server | iphone (`NoteActions.loadOne`) | `requireAuth` | — | note with `title`, `preview` | 404 · 401 |
-| `PATCH /api/notes/:noteId` (edit) | server | iphone (`NoteAutosaveController` via `NoteActions.update`) | `requireAuth` | `{ content, baseUpdatedAt? }` — unknown keys still rejected | `200 { …note, title, preview, stomped: boolean }` | 400 · 404 · 401 |
-| `DELETE /api/notes/:noteId` (unchanged) | server | iphone (`NoteActions.softDelete`, D10) | `requireAuth` | — | unchanged | 404 · 401 |
+| `POST /api/notes` (edit) | server | iphone (`NoteActions.create`) | `requireAuth` | `{ type: "NOTE", content, links? }` (unchanged shape) | `201 { success: true, data: Note }` | 400 `{ success:false, error, details? }` · 401 |
+| `GET /api/notes` (edit) | server | iphone (`NoteActions.load`) | `requireAuth` | existing params (`type`, `linkType`, `linkRefId`, `startDate`, `endDate`, `limit` default 50, `offset`) + optional `q` (D8) + optional `orderBy=updatedAt` (default stays `createdAt`, both desc); iPhone sends `type=NOTE&orderBy=updatedAt` and pages `offset` until `hasMore` is false | `200 { success: true, data: Note[], pagination: { total, limit, offset, hasMore } }` | 400 · 401 |
+| `GET /api/notes/:noteId` (edit) | server | iphone (`NoteActions.loadOne`) | `requireAuth` | — | `200 { success: true, data: Note }` | **404** for a missing, inactive or another user's note (was 403 for another user's; D6) · 401 |
+| `PATCH /api/notes/:noteId` (edit) | server | iphone (`NoteAutosaveController` via `NoteActions.update`) | `requireAuth` | `{ content: string (min 1), baseUpdatedAt?: ISO datetime }` — a leader-only zod schema with `.strict()`: unknown keys → 400 | `200 { success: true, data: Note, stomped: boolean }` | 400 · **404** missing, inactive or another user's (was 403; D6) · 401 |
+| `DELETE /api/notes/:noteId` (edit: status only) | server | iphone (`NoteActions.softDelete`, D10) | `requireAuth` | — | unchanged | **404** missing or another user's (was 403; D6) · 401 |
 | `NOTE_TYPES.NOTE` | server | iphone (create + list filter) | — | `type: "NOTE"` | — | — |
 
-The exact existing response envelope (`success`/`data` shape) is kept as it is today. The audit pins
-it field by field from `routes/notes.ts` before the server phase.
+**`Note` (wire, leader routes):** `{ id, memberId: null, userId, type, content, title: string|null, preview: string|null, contextLabel: string|null, isActive, createdAt, updatedAt, links: [{ id, noteId, refType, refId, metadata, createdAt }] }`, which is the Prisma row as today plus the three new keys. `contextLabel` is the display name of the note's earliest link (by `createdAt`), resolved in one batch per response: `GROUP` → `Group.name`, `PROGRAM` → `StudyProgram.name`, `MEMO` → `VoiceMemo.title` once memo's D18 lands (null until then); every other `refType` (LESSON, ENROLLMENT, VERSE, unknown) → null. iPhone decodes `refType` as an open `String` so a new value (MEMO) never fails decoding. Member routes (`/api/member/notes*`) keep their envelopes; their rows gain `title`/`preview` and nothing else.
 
 ## Schema & API changes
 
 | # | ADD/EDIT/RENAME/REMOVE | Model.field | Wire | Reason | Status |
 |---|---|---|---|---|---|
-| SC1 | ADD | `StudyNote.title` String? | `title` on every note response | D11 | planned |
-| SC2 | ADD | `StudyNote.preview` String? | `preview` on every note response | D11 | planned |
+| SC1 | ADD | `StudyNote.title` String? | `title` on every note response | D11 · T1, T2 | planned |
+| SC2 | ADD | `StudyNote.preview` String? | `preview` on every note response | D11 · T1, T2 | planned |
 | SC3 | EDIT | `NOTE_TYPES` + `NOTE` | `type: "NOTE"` accepted | D6 | planned |
 | SC4 | EDIT | `GET /api/notes` + `q` | query param | D8 | planned |
-| SC5 | EDIT | `PATCH /api/notes/:noteId` + `baseUpdatedAt` in, `stomped` out | body + response | D7 | planned |
+| SC5 | EDIT | `PATCH /api/notes/:noteId` + `baseUpdatedAt` in, `stomped` out; new leader-only strict body schema | body + response | D7; today's shared `updateNoteSchema` is a non-strict `z.object`, which silently strips unknown keys, so `baseUpdatedAt` would be dropped and nothing is rejected | planned |
+| SC6 | EDIT | `GET /api/notes` + `orderBy=updatedAt` | query param | D3 sorts rows `updatedAt` desc; `getNotes` orders by `createdAt` and pages at 50, so an old note edited today could fall off the first page | planned |
+| SC7 | ADD | derived `contextLabel` on leader `Note` responses (no column) | response field | D2 (the row's context line shows the linked item's display name); the wire carries only `refType`/`refId`, and the iPhone holds no cache of every linked group, program or memo | planned |
+| SC8 | EDIT | leader `GET`/`PATCH`/`DELETE /api/notes/:noteId` status for another user's note 403 → 404; inactive note → 404 on GET/PATCH | status codes | D6 (another user's note id returns 404); `getNote` doesn't filter `isActive`, so a queued autosave (D13) could PATCH a soft-deleted note back to life invisibly | planned |
 
 **Data plan:** the two nullable columns are generated from `server/schema/schema.yaml` via
 `schema:diff`; no NOT NULL, so no migration-time backfill. `scripts/backfill-note-titles.ts` (D11)
@@ -158,8 +160,14 @@ then fills existing rows, idempotently. Run it locally in the build, and on stag
     equivalents;
   - `getNotes` gains `q`;
   - `updateNote` takes `baseUpdatedAt` and returns `stomped`.
-- `routes/notes.ts`: `q` on `GET /notes`; `updateNoteSchema` gains optional `baseUpdatedAt` (ISO
-  datetime) and stays strict, never stripping; the response adds `stomped`.
+- `routes/notes.ts` (leader routes only):
+  - `q` and `orderBy` on `GET /notes` (SC4, SC6);
+  - a new `updateUserNoteSchema = z.object({ content, baseUpdatedAt? }).strict()` for leader PATCH.
+    The shared `updateNoteSchema` stays as it is for the member route, so the web lesson player is
+    untouched. The response adds `stomped` (SC5);
+  - another user's note → 404, and an inactive note → 404 on GET/PATCH (SC8);
+  - `contextLabel` batch-resolved on list and single responses (SC7), in a service helper beside
+    `getNotesWithContext`'s resolver.
 - `scripts/backfill-note-titles.ts` (D11).
 - `fixtures/screens/library-home.ts` (D19).
 - Recipe: `/api`.
@@ -167,13 +175,14 @@ then fills existing rows, idempotently. Run it locally in the build, and on stag
 ## iphone
 
 - **Dependency:** `swift-markdown` via SPM, exact version pinned.
-- **`Services/Notes/NoteDocumentCodec.swift`** (D4, D9) + round-trip corpus tests.
+- **`Services/Notes/NoteDocumentCodec.swift`** (D4, D9) + round-trip corpus tests. It converts markdown ⇄ C-001's `AttributedString`, using d2m's `NoteEditorModels.swift` attribute and `InlineStyle`/`ListStyle` types (F5).
 - **`Services/Notes/NoteAutosaveController.swift`** (D10, D12, D7) + **`Services/Notes/NoteSaveQueue.swift`** (D13).
 - **`State/Actions/NoteActions.swift`:** `load(q:)`, `loadOne`, `create`, `update(baseUpdatedAt:)`,
   `softDelete`. Each refreshes `AppState.studyNotes` in the same call, and it is the only
   `APIClient` user for notes.
 - **`State/AppState.swift`:** `let studyNotes = EntityStore<StudyNote>()`, disk-persisted.
-- **`State/Models/NoteModels.swift`:** `StudyNote` (with `title`, `preview`, `links`), `NoteLinkRef`, `NoteSection`.
+- **`State/Models/NoteModels.swift`:** `StudyNote` (with `title`, `preview`, `contextLabel`, `links`), `NoteLinkRef` (`refType` an open `String`), `NoteSection`. A null `title` falls back per F4.
+- **Paging:** `NoteActions.load` requests `type=NOTE&orderBy=updatedAt` and follows `pagination.hasMore` until the whole list is in `AppState` (SC6), because D3's sections are computed client-side over every note.
 - **Containers** under `MakeReady/UI2/Containers/` map state to d2m's view props and callbacks:
   - `LibraryHomeContainer` maps `AppState.studyNotes` → sections and rows (D3), search → `q`, and
     compose and row tap → note-editor;
@@ -236,6 +245,22 @@ then fills existing rows, idempotently. Run it locally in the build, and on stag
 | # | Finding | Resolution |
 |---|---|---|
 | F1 | iPhone wiring depends on two d2m changes finishing (D1) | build-time risk: the plan gates the wiring phase on both d2m changes being done; a stalled change parks the feature with the change id |
-| F2 | d2m's C-001 binding type is unknown until it is specced; the codec must bridge to it | build-time risk: the codec targets `NSAttributedString`; the wiring task adapts to C-001's contract |
+| F2 | d2m's C-001 binding type is unknown until it is specced; the codec must bridge to it | **settled 2026-11-20 (align):** C-001 is specced; it binds `AttributedString` + `NSRange` (D9 superseded in part) |
 | F3 | Markdown round-trip fidelity is the hardest invariant | the corpus test is mandatory (D9) |
 | F4 | The backfill must run on staging/prod after deploy | ops step at ship; title/preview stay null until it runs, and a row with a null title shows its content's first non-empty line with leading `#`s trimmed (a string op, not a markdown parse — D11 holds) |
+| F5 | Design status at align (2026-11-20, via d2m): C-001/002/003/009/015 are specced but **unbuilt**. The "done" change cmwoogs5g001mv0h9jj3070bk produced only four glyph assets, left uncommitted in the main checkout. C-001 has 7 open questions and its build waits on C-002. C-005/008/010 are not specced. Change cmwoogn700001v0h9l69stkz3 (library-home) is **blocked** on them. No `note-editor` screen exists in d2m. `NoteEditorModels.swift`, which the codec's types live in, doesn't exist yet | build-time risk: settled by the plan's d2m gate (F1). Server tasks T1–T10 and iphone T11, T12 and T14 don't depend on d2m; T13 (codec) needs `NoteEditorModels.swift`, and T15 (wiring) needs every view and the `note-editor` screen. Getting there takes a `retry_project_change` on cmwoogn700001v0h9l69stkz3 once C-005/008/010 are built, plus a `request_project_change` for the `note-editor` screen if d2m didn't mint it |
+| T1 | server: `schema.yaml` `StudyNote.title`, `preview` (nullable) → `schema:diff` migration (SC1, SC2) | blocking |
+| T2 | server: `deriveTitlePreview(content)` called on every create and update, leader and member (SC1, SC2; D11) | blocking |
+| T3 | server: `NOTE_TYPES.NOTE` (SC3) | blocking |
+| T4 | server: `getNotes` `q`, case-insensitive `contains` on `content` (SC4) | blocking |
+| T5 | server: `getNotes` `orderBy` option + route param `orderBy=updatedAt` (SC6) | blocking |
+| T6 | server: leader `updateUserNoteSchema` (strict, `baseUpdatedAt`) + `updateNote` returns `stomped` (SC5) | blocking |
+| T7 | server: leader `:noteId` routes return 404 for another user's or an inactive note (SC8) | blocking |
+| T8 | server: `contextLabel` batch resolution on leader list + single responses (SC7) | blocking |
+| T9 | server: `scripts/backfill-note-titles.ts`, idempotent, batches of 500 (D11) | blocking |
+| T10 | server: `fixtures/screens/library-home.ts` (D19) | blocking |
+| T11 | iphone: `NoteModels.swift` decoding (open `refType`, nullable title/preview/contextLabel) + `AppState.studyNotes` `EntityStore`, disk-persisted | trailing |
+| T12 | iphone: `NoteActions` (load with paging and `orderBy`, loadOne, create, update with `baseUpdatedAt`, softDelete), each refreshing `AppState.studyNotes` | trailing |
+| T13 | iphone: `NoteDocumentCodec` markdown ⇄ C-001 `AttributedString` + round-trip corpus (D4, D9) — needs d2m's `NoteEditorModels.swift` (F5) | trailing |
+| T14 | iphone: `NoteAutosaveController` + `NoteSaveQueue` (D10, D12, D13, D7) | trailing |
+| T15 | iphone: `LibraryHomeContainer` + `NoteEditorContainer` + the three D17 routes — gated on F5 | trailing |
