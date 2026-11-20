@@ -93,7 +93,8 @@ final class MemoEngineSessionTests: XCTestCase {
         try await engine!.prepare(title: "Memo 5"); try await engine!.start()
         engine = nil
         let manifest = try XCTUnwrap(drafts.recoverable().first)
-        let out = try await drafts.salvage(manifest)
+        let salvaged = try await drafts.salvage(manifest)
+        let out = try XCTUnwrap(salvaged)
         XCTAssertEqual(try AVAudioFile(forReading: out.m4a).fileFormat.channelCount, 1)
         XCTAssertEqual(out.durationMs, 1000, accuracy: 100)
         XCTAssertEqual(out.peaks.count, Int(ceil(Double(out.durationMs) / 100)), accuracy: 1)

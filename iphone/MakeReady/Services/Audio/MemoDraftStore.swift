@@ -12,11 +12,48 @@ import AVFoundation
 import Foundation
 
 struct MemoDraftManifest: Codable, Equatable {
+    /// In memory: where the `.caf` is. On disk: its file name only, resolved against the drafts
+    /// folder by `MemoDraftStore.recoverable`, so a moved app container does not orphan it.
     let cafURL: URL
     let startedAt: Date
     let title: String
     let ownerUserId: String
     let environment: String
+
+    private enum CodingKeys: String, CodingKey {
+        case cafFileName, cafURL, startedAt, title, ownerUserId, environment
+    }
+
+    init(cafURL: URL, startedAt: Date, title: String, ownerUserId: String, environment: String) {
+        self.cafURL = cafURL
+        self.startedAt = startedAt
+        self.title = title
+        self.ownerUserId = ownerUserId
+        self.environment = environment
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        // Older manifests stored an absolute `cafURL`: only its last component survives a container move.
+        if let name = try c.decodeIfPresent(String.self, forKey: .cafFileName) {
+            cafURL = URL(fileURLWithPath: name)
+        } else {
+            cafURL = URL(fileURLWithPath: try c.decode(URL.self, forKey: .cafURL).lastPathComponent)
+        }
+        startedAt = try c.decode(Date.self, forKey: .startedAt)
+        title = try c.decode(String.self, forKey: .title)
+        ownerUserId = try c.decode(String.self, forKey: .ownerUserId)
+        environment = try c.decode(String.self, forKey: .environment)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(cafURL.lastPathComponent, forKey: .cafFileName)
+        try c.encode(startedAt, forKey: .startedAt)
+        try c.encode(title, forKey: .title)
+        try c.encode(ownerUserId, forKey: .ownerUserId)
+        try c.encode(environment, forKey: .environment)
+    }
 }
 
 struct MemoDraftStore {
@@ -65,17 +102,32 @@ struct MemoDraftStore {
         }
         return names.filter { $0.hasSuffix(".json") }.sorted().compactMap { name in
             guard let data = try? Data(contentsOf: directory.appendingPathComponent(name)),
-                  let manifest = try? JSONDecoder().decode(MemoDraftManifest.self, from: data),
-                  manifest.ownerUserId == ownerUserId, manifest.environment == environment,
-                  Self.hasAudio(manifest.cafURL) else { return nil }
-            return manifest
+                  let decoded = try? JSONDecoder().decode(MemoDraftManifest.self, from: data),
+                  decoded.ownerUserId == ownerUserId, decoded.environment == environment else { return nil }
+            let manifest = MemoDraftManifest(
+                cafURL: directory.appendingPathComponent(decoded.cafURL.lastPathComponent),
+                startedAt: decoded.startedAt, title: decoded.title,
+                ownerUserId: decoded.ownerUserId, environment: decoded.environment)
+            return Self.hasAudio(manifest.cafURL) ? manifest : nil
         }
     }
 
     /// Exports the abandoned `.caf` to `.m4a`, reading its duration and peaks (one max-abs per
-    /// 4 410 frames). The `.caf` and manifest go only after the export succeeds.
-    func salvage(_ manifest: MemoDraftManifest) async throws -> (m4a: URL, durationMs: Int, peaks: [Double]) {
+    /// 4 410 frames). The `.caf` and manifest go only after the export succeeds. A `.caf` with no
+    /// frames (cut off before its first buffer) holds no memo: it and its manifest are deleted and
+    /// the result is nil.
+    func salvage(_ manifest: MemoDraftManifest) async throws -> (m4a: URL, durationMs: Int, peaks: [Double])? {
         let (frames, sampleRate, peaks) = try Self.measure(manifest.cafURL)
+        guard frames > 0 else {
+            Log.memo.error("empty draft deleted instead of salvaged")
+            do {
+                try FileManager.default.removeItem(at: manifest.cafURL)
+            } catch {
+                Log.memo.error("empty caf not removable: \(error.localizedDescription)")
+            }
+            remove(cafURL: manifest.cafURL)
+            return nil
+        }
         let m4a = manifest.cafURL.deletingPathExtension().appendingPathExtension("m4a")
         try await MemoAudioExporter.exportM4A(from: manifest.cafURL, to: m4a)
         do {

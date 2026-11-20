@@ -302,7 +302,7 @@ final class MemoUploadController {
     func recoverDrafts(drafts: MemoDraftStore, transcriber: any MemoTranscribing) async {
         for manifest in drafts.recoverable() {
             do {
-                let salvaged = try await drafts.salvage(manifest)
+                guard let salvaged = try await drafts.salvage(manifest) else { continue }
                 let transcript = await transcriber.transcribeFile(salvaged.m4a)
                 try enqueue(RecordingResult(fileURL: salvaged.m4a, title: manifest.title, durationMs: salvaged.durationMs,
                                             waveformPeaks: salvaged.peaks, recordedAt: manifest.startedAt, transcript: transcript))
@@ -329,8 +329,9 @@ final class MemoUploadController {
             return (try await run(&item), item.localId)
         } catch {
             if Self.isUnauthorized(error) { return (.paused, item.localId) }
-            // Console-only: a background flush, never a user-initiated action (D21).
-            Log.memo.error("memo upload failed: \(error.localizedDescription)")
+            // Console-only: a background flush, never a user-initiated action (D21). A 400/403 from
+            // the server is retried at the capped backoff rather than dropped: the recording is kept.
+            AppState.shared.recordError(error, context: "MemoUploadController.runDue")
             return (.retryLater, item.localId)
         }
     }
@@ -363,7 +364,12 @@ final class MemoUploadController {
         ]
         if let transcript = item.transcript {
             body["transcript"] = transcript.text
-            body["transcriptSegments"] = transcript.segments.map { ["text": $0.text, "startMs": $0.startMs, "endMs": $0.endMs] as [String: Any] }
+            // The server needs 0 <= startMs <= endMs <= durationMs; on-device rounding can overshoot by 1.
+            body["transcriptSegments"] = transcript.segments.map { segment -> [String: Any] in
+                let end = min(max(segment.endMs, 0), item.durationMs)
+                let start = min(max(segment.startMs, 0), end)
+                return ["text": segment.text, "startMs": start, "endMs": end]
+            }
         }
         let data = try await api.requestWithStatus(endpoint: "/api/memos", method: "POST", body: body, timeout: 30)
         let response = try JSONDecoder.apiDecoder.decode(MemoCreateResponse.self, from: data)

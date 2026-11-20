@@ -153,6 +153,43 @@ final class MemoUploadFlushTests: XCTestCase {
         XCTAssertTrue(drafts.recoverable().isEmpty)
     }
 
+    func testAnEmptyDraftIsDeletedNotEnqueued() async throws {
+        let caf = try MemoAudioFixtures.sineCAF(seconds: 0, in: draftsDir)
+        try drafts.write(.init(cafURL: caf, startedAt: Date(), title: "Memo 8", ownerUserId: "userA", environment: "Local"))
+        await controller.recoverDrafts(drafts: drafts, transcriber: StubTranscriber(result: nil))
+        XCTAssertTrue(controller.pending().isEmpty)
+        XCTAssertTrue(drafts.recoverable().isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: caf.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: caf.deletingPathExtension().appendingPathExtension("json").path))
+    }
+
+    func testADraftManifestStoresOnlyTheFileNameAndOldAbsoluteOnesStillResolve() throws {
+        let caf = try MemoAudioFixtures.sineCAF(seconds: 1, in: draftsDir)
+        let manifestURL = caf.deletingPathExtension().appendingPathExtension("json")
+        try drafts.write(.init(cafURL: caf, startedAt: Date(), title: "Memo 9", ownerUserId: "userA", environment: "Local"))
+        let stored = try String(contentsOf: manifestURL, encoding: .utf8)
+        XCTAssertFalse(stored.contains(draftsDir.path))
+        XCTAssertEqual(drafts.recoverable().first?.cafURL.path, draftsDir.appendingPathComponent(caf.lastPathComponent).path)
+
+        // A manifest written before this change held an absolute URL from a container that has since moved.
+        let old = #"{"cafURL":"file:///old-container/drafts/\#(caf.lastPathComponent)","startedAt":0,"title":"Memo 9","ownerUserId":"userA","environment":"Local"}"#
+        try Data(old.utf8).write(to: manifestURL)
+        XCTAssertEqual(drafts.recoverable().first?.cafURL.path, draftsDir.appendingPathComponent(caf.lastPathComponent).path)
+    }
+
+    func testSegmentTimesAreClampedIntoTheDurationOnCreate() async throws {
+        let base = result
+        let transcript = Transcript(text: "a b", segments: [TranscriptSegment(text: "a", startMs: -5, endMs: 400),
+                                                           TranscriptSegment(text: "b", startMs: 900, endMs: 1_001)])
+        try controller.enqueue(RecordingResult(fileURL: base.fileURL, title: base.title, durationMs: 1_000, waveformPeaks: base.waveformPeaks,
+                                               recordedAt: base.recordedAt, transcript: transcript))
+        stubHappyPath(id: "m1")
+        await controller.flush()
+        let segments = try XCTUnwrap(api.calls.first { $0.endpoint == "/api/memos" }?.body?["transcriptSegments"] as? [[String: Any]])
+        XCTAssertEqual(segments.map { $0["startMs"] as? Int }, [0, 900])
+        XCTAssertEqual(segments.map { $0["endMs"] as? Int }, [400, 1_000])
+    }
+
     func testNextMemoTitleCountsCacheAndQueue() throws {
         state.voiceMemos.upsert(summary(id: "m1", title: "Memo 4"))
         state.memoUploads = try makeController(user: "userA"); try state.memoUploads!.enqueue(makeResult(title: "Memo 6"))
