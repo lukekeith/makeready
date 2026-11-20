@@ -1,7 +1,7 @@
 size: lg
 state: planned
 next: /builder:resume --path docs/features/notes
-head: a5618238
+head: 13db65d6
 ticket: none
 branch: builder/notes
 pr: none
