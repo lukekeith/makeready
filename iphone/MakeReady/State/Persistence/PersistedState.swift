@@ -95,6 +95,14 @@ struct PersistedState: Codable {
     /// Cached calendar events keyed by date string
     var calendarEvents: [String: [SplitCalendarEvent]]
 
+    // MARK: - Notes
+
+    /// The 200 most recently updated notes, full content (notes D26). Older ones reload from the server.
+    var studyNotes: [StudyNote]
+
+    /// How many notes the snapshot keeps.
+    static let studyNotesCap = 200
+
     // MARK: - Metadata
 
     /// When this state was persisted
@@ -136,6 +144,7 @@ struct PersistedState: Codable {
         self.homeTotalMembers = 0
         self.homeTotalGroups = 0
         self.calendarEvents = [:]
+        self.studyNotes = []
         self.persistedAt = Date()
         self.schemaVersion = Self.currentSchemaVersion
     }
@@ -220,6 +229,7 @@ struct PersistedState: Codable {
         self.homeTotalGroups = appState.homeTotalGroups
 
         self.calendarEvents = appState.calendarEvents
+        self.studyNotes = Array(NotesSectioning.newestFirst(appState.studyNotes.all).prefix(Self.studyNotesCap))
 
         self.persistedAt = Date()
         self.schemaVersion = Self.currentSchemaVersion
@@ -253,6 +263,7 @@ struct PersistedState: Codable {
         case homeTotalMembers
         case homeTotalGroups
         case calendarEvents
+        case studyNotes
         case persistedAt
         case schemaVersion
     }
@@ -299,6 +310,9 @@ struct PersistedState: Codable {
 
         // Calendar events (optional for backwards compatibility)
         self.calendarEvents = try container.decodeIfPresent([String: [SplitCalendarEvent]].self, forKey: .calendarEvents) ?? [:]
+
+        // Notes (optional: caches written before notes existed lack it)
+        self.studyNotes = try container.decodeIfPresent([StudyNote].self, forKey: .studyNotes) ?? []
     }
 }
 

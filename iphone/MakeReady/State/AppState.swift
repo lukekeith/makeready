@@ -118,6 +118,10 @@ final class AppState {
     /// Media library items
     let mediaLibrary = EntityStore<MediaLibraryItem>()
 
+    /// The leader's notes (`GET /api/notes`). In memory it holds every loaded note; the disk snapshot
+    /// keeps only the 200 most recently updated (notes D26).
+    let studyNotes = EntityStore<StudyNote>()
+
     /// Organization ID (needed for media library API). Mirrors the first
     /// entry of `userOrganizations` for callers that only need the primary org.
     var organizationId: String?
@@ -845,6 +849,7 @@ final class AppState {
 
         // Restore media library
         mediaLibrary.replaceAll(persisted.mediaLibrary)
+        studyNotes.replaceAll(persisted.studyNotes)
         organizationId = persisted.organizationId
         dashboard = persisted.dashboard
 
@@ -936,6 +941,7 @@ final class AppState {
         templates.clear()
         notifications.clear()
         mediaLibrary.clear()
+        studyNotes.clear()
         memberGroupCardsById = [:]
         nonMembersByOrgId = [:]
         organizationId = nil
