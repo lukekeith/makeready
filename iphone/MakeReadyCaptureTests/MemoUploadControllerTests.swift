@@ -182,6 +182,49 @@ final class MemoUploadControllerTests: XCTestCase {
         XCTAssertEqual(transport.puts.map(\.url.absoluteString), ["https://r2.test/m1", "https://r2.test/again"])
     }
 
+    func testA404OnReMintForgetsTheMemoAndTheNextPassRePosts() async throws {
+        try controller.enqueue(result); stubCreate(id: "m1", expiresIn: -1)
+        api.errorFor = { endpoint, _ in endpoint == "/api/memos/m1/upload" ? APIHTTPError(status: 404, message: "Memo not found", details: [:]) : nil }
+        let step = await controller.processNext(); XCTAssertEqual(step, .retryLater)
+        XCTAssertNil(controller.pending().first?.serverId); XCTAssertNil(controller.pending().first?.upload)
+        XCTAssertTrue(transport.puts.isEmpty)
+        api.errorFor = nil; stubCreate(id: "m2", expiresIn: 900); stubComplete(id: "m2")
+        let second = await controller.processNext(); XCTAssertEqual(second, .completed("m2"))
+        XCTAssertEqual(api.callCount("POST", "/api/memos"), 2)
+    }
+
+    func testA403ThenA404OnReMintForgetsTheMemo() async throws {
+        try controller.enqueue(result); stubCreate(id: "m1", expiresIn: 900)
+        transport.statuses = [403]
+        api.errorFor = { endpoint, _ in endpoint == "/api/memos/m1/upload" ? APIHTTPError(status: 404, message: "Memo not found", details: [:]) : nil }
+        let step = await controller.processNext(); XCTAssertEqual(step, .retryLater)
+        XCTAssertNil(controller.pending().first?.serverId); XCTAssertNil(controller.pending().first?.upload)
+        XCTAssertEqual(transport.puts.count, 1)
+        api.errorFor = nil; stubCreate(id: "m2", expiresIn: 900); stubComplete(id: "m2")
+        _ = await controller.processNext()
+        XCTAssertEqual(api.callCount("POST", "/api/memos"), 2)
+    }
+
+    func testA409OnReMintGoesStraightToCompleteWithoutAPut() async throws {
+        try controller.enqueue(result); stubCreate(id: "m1", expiresIn: -1); stubComplete(id: "m1")
+        api.errorFor = { endpoint, _ in endpoint == "/api/memos/m1/upload" ? APIHTTPError(status: 409, message: "already uploaded", details: [:]) : nil }
+        let step = await controller.processNext(); XCTAssertEqual(step, .completed("m1"))
+        XCTAssertTrue(transport.puts.isEmpty)
+        XCTAssertTrue(controller.pending().isEmpty)
+    }
+
+    func testAnUnparseableTicketURLIsDroppedSoTheNextPassReMints() async throws {
+        try controller.enqueue(result)
+        api.stub("POST", "/api/memos", json: #"{"memo":\#(memoJSON("m1")),"upload":\#(ticketJSON(url: "", expiresIn: 900))}"#)
+        let step = await controller.processNext(); XCTAssertEqual(step, .retryLater)
+        XCTAssertEqual(controller.pending().first?.serverId, "m1"); XCTAssertNil(controller.pending().first?.upload)
+        XCTAssertTrue(transport.puts.isEmpty)
+        stubRemint(id: "m1", url: "https://r2.test/good"); stubComplete(id: "m1")
+        let second = await controller.processNext(); XCTAssertEqual(second, .completed("m1"))
+        XCTAssertEqual(transport.puts.map(\.url.absoluteString), ["https://r2.test/good"])
+        XCTAssertEqual(api.callCount("POST", "/api/memos"), 1)
+    }
+
     func testAFailedPutKeepsTheFileAndTheManifest() async throws {
         try controller.enqueue(result); stubCreate(id: "m1", expiresIn: 900)
         transport.nextStatus = 500

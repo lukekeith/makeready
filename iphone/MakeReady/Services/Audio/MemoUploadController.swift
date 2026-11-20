@@ -190,7 +190,14 @@ final class MemoUploadController {
     private func put(_ item: inout MemoQueueItem, _ serverId: String) async throws -> Stage {
         var remintedAfter403 = false
         while true {
-            guard let ticket = item.upload, let url = URL(string: ticket.url) else { return .retryLater }
+            guard let ticket = item.upload else { return .retryLater }
+            guard let url = URL(string: ticket.url) else {
+                // A ticket URL that never parses would loop forever: drop it so the next pass re-mints.
+                Log.memo.error("memo upload ticket has an unparseable URL; re-minting next pass")
+                item.upload = nil
+                try persist(item)
+                return .retryLater
+            }
             let status = try await transport.put(fileURL: directory.appendingPathComponent(item.fileName), to: url, headers: ticket.headers)
             if (200..<300).contains(status) { return .proceed }
             guard status == 403, !remintedAfter403 else { return .retryLater }
