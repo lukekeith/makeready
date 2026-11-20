@@ -147,12 +147,13 @@ final class NoteAutosaveControllerTests: XCTestCase {
     }
 
     func testStompedKeepsTheTextAndAsksForARefresh() async {
-        let (c, _, _) = makeController(note: .stub(id: "n1"), stubPatch: "n1", stomped: true)
+        let (c, api, _) = makeController(note: .stub(id: "n1"), stubPatch: "n1", stomped: true)
         var refreshed = false
         c.onStomped = { refreshed = true }
         c.edited("my words")
         await c.flush()
         XCTAssertTrue(refreshed)
+        XCTAssertEqual(api.calls.count, 1)
     }
 
     func testAnEditDuringTheRequestIsSavedAfterIt() async {
@@ -186,5 +187,41 @@ final class NoteAutosaveControllerTests: XCTestCase {
         c.edited("")
         await c.leave()
         XCTAssertEqual(queue.entry(for: "n1"), .delete)
+    }
+
+    func testASuccessfulSaveClearsTheNotesOlderQueuedEntry() async {
+        let (c, api, _, queue, _) = makeControllerWithQueue(note: .stub(id: "n1"), stubPatch: "n1")
+        api.errorFor = { _, _ in URLError(.notConnectedToInternet) }
+        c.edited("A")
+        await c.flush()
+        XCTAssertEqual(queue.entry(for: "n1"), .upsert(content: "A", baseUpdatedAt: StudyNote.stub(id: "n1").updatedAt))
+        api.errorFor = nil
+        c.edited("B")
+        await c.flush()
+        XCTAssertNil(queue.entry(for: "n1"))
+    }
+
+    func testTheNextPatchCarriesTheUpdatedAtOfTheLastResponse() async {
+        let (c, api, _) = makeController(note: .stub(id: "n1", updatedAtString: "2026-11-20T09:00:00.000Z"), stubPatch: "n1")
+        c.edited("a"); await c.flush()
+        c.edited("b"); await c.flush()
+        XCTAssertEqual(api.calls.last?.body?["baseUpdatedAt"] as? String, "2026-11-20T10:05:00.456Z")
+    }
+
+    func testAPatchAfterTheFirstPostCarriesThePostsUpdatedAt() async {
+        let (c, api, _) = makeController(note: nil, stubPost: "srv1")
+        api.stub("PATCH", "/api/notes/srv1", json: #"{"success":true,"stomped":false,"data":\#(noteJSON("srv1"))}"#)
+        c.edited("a"); await c.flush()
+        c.edited("b"); await c.flush()
+        XCTAssertEqual(api.calls.map(\.method), ["POST", "PATCH"])
+        XCTAssertEqual(api.calls.last?.body?["baseUpdatedAt"] as? String, "2026-11-20T10:05:00.456Z")
+    }
+
+    func testANoteTheServerNoLongerHasLeavesTheList() async {
+        let (c, api, _, _, state) = makeControllerWithQueue(note: .stub(id: "n1"))
+        api.errorFor = { _, _ in APIHTTPError(status: 404, message: "Note not found") }
+        c.edited("x")
+        await c.flush()
+        XCTAssertNil(state.studyNotes["n1"])
     }
 }

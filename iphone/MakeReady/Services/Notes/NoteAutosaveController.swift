@@ -32,6 +32,7 @@ final class NoteAutosaveController {
     private var latest: String?
     private var lastSaved: String?
     private var debounceTask: Task<Void, Never>?
+    private var debounceGeneration = 0
     private var inFlight: Task<Void, Never>?
 
     init(note: StudyNote?, actions: NoteActions, queue: NoteSaveQueue, state: AppState,
@@ -53,9 +54,12 @@ final class NoteAutosaveController {
     func edited(_ markdown: String) {
         latest = markdown
         debounceTask?.cancel()
+        debounceGeneration += 1
+        let mine = debounceGeneration
         debounceTask = Task { [weak self] in
             guard let self else { return }
             do { try await self.sleep(self.debounce) } catch { return }
+            guard self.debounceGeneration == mine else { return }     // a newer edit owns the debounce now
             self.debounceTask = nil
             self.startSaving()
         }
@@ -129,6 +133,7 @@ final class NoteAutosaveController {
             if let id = noteId, !NoteSaveQueue.isLocalId(id) {
                 let result = try await actions.update(id: id, content: content, baseUpdatedAt: baseUpdatedAt)
                 baseUpdatedAt = result.note.updatedAt
+                queue.remove(noteId: id)        // what the queue holds for this note is older than what just landed
                 if result.stomped {
                     Log.notes.info("note save stomped a newer server copy (the editor's text is kept)")
                     onStomped()
@@ -151,7 +156,13 @@ final class NoteAutosaveController {
     /// D13, D20: a transport or transient failure keeps the work in the queue; anything else is only logged.
     private func failed(_ error: Error, queueing entry: NoteSaveEntry, noteId id: String?) {
         state.recordError(error, context: "NoteAutosaveController.save")
-        if let http = error as? APIHTTPError, !NoteSaveQueue.isTransient(http) { return }
+        if let http = error as? APIHTTPError, !NoteSaveQueue.isTransient(http) {
+            if NoteActions.isNotFound(http), let id, !NoteSaveQueue.isLocalId(id) {      // D24: the note is gone
+                _ = state.studyNotes.remove(id)
+                state.persist()
+            }
+            return
+        }
         switch entry {
         case .upsert(let content, _):
             enqueueOffline(content, noteId: id)
@@ -172,8 +183,6 @@ final class NoteAutosaveController {
         var note = state.studyNotes[id] ?? StudyNote(id: id, userId: nil, type: "NOTE", content: content, title: nil, preview: nil,
                                                      contextLabel: nil, isActive: true, createdAt: now, updatedAt: now, links: [])
         note.content = content
-        note.title = nil
-        note.preview = nil
         note.updatedAt = now
         state.studyNotes.upsert(note)
         state.persist()
