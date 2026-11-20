@@ -214,10 +214,13 @@ final class MemoUploadController {
     }
 
     private func runFlush() async {
+        // `dueBy` is a retry-all cutoff (a network return) held for the whole pass; `tried` keeps an
+        // item that fails inside the pass from being picked again until the pass ends.
         var dueBy: Date?
+        var tried: Set<String> = []
         while !Task.isCancelled {
-            let (step, localId) = await runDue(dueBy: dueBy ?? now())
-            dueBy = nil
+            let (step, localId) = await runDue(dueBy: dueBy ?? now(), skipping: tried)
+            if dueBy != nil, let localId { tried.insert(localId) }
             switch step {
             case .completed:
                 continue
@@ -231,8 +234,16 @@ final class MemoUploadController {
                 let (wait, persisted) = recordFailure(localId: localId)
                 if let wait, !persisted {
                     guard await sleeps(wait) else { return }
+                    wakeRequested = false
+                    wakeRetriesAll = false
                 }
             case .idle:
+                if dueBy != nil {
+                    // The retry-all pass has been through everything: back to the normal schedule.
+                    dueBy = nil
+                    tried = []
+                    continue
+                }
                 // Everything left waits out a backoff: sleep until the earliest is due.
                 let waiting = pending().compactMap { item in item.nextAttemptAt.map { (item: item, due: $0) } }
                 guard let (next, earliest) = waiting.min(by: { $0.due < $1.due }) else { return }
@@ -241,6 +252,7 @@ final class MemoUploadController {
                 let wait = recorded ?? .seconds(max(0, earliest.timeIntervalSince(now())).rounded())
                 guard await sleeps(wait) else { return }
                 dueBy = wakeRetriesAll ? .distantFuture : (wakeRequested ? now() : earliest)
+                tried = []
                 wakeRequested = false
                 wakeRetriesAll = false
             }
@@ -308,11 +320,11 @@ final class MemoUploadController {
     }
 
     /// One pass over the oldest item that is due by `dueBy`.
-    private func runDue(dueBy: Date) async -> (step: MemoUploadStep, localId: String?) {
+    private func runDue(dueBy: Date, skipping: Set<String> = []) async -> (step: MemoUploadStep, localId: String?) {
         guard !isProcessing else { return (.idle, nil) }
         isProcessing = true
         defer { isProcessing = false }
-        guard var item = pending().first(where: { ($0.nextAttemptAt ?? .distantPast) <= dueBy }) else { return (.idle, nil) }
+        guard var item = pending().first(where: { !skipping.contains($0.localId) && ($0.nextAttemptAt ?? .distantPast) <= dueBy }) else { return (.idle, nil) }
         do {
             return (try await run(&item), item.localId)
         } catch {

@@ -176,7 +176,9 @@ final class MemoUploadFlushTests: XCTestCase {
         stubHappyPath(id: "m1")
         controller = try makeController(flushesOnEnqueue: true)
         try controller.enqueue(result)
-        await controller.flush()
+        // No explicit flush: only the enqueue itself can start the upload.
+        var yields = 0
+        while !controller.pending().isEmpty, yields < 5_000 { await Task.yield(); try await Task.sleep(for: .milliseconds(1)); yields += 1 }
         XCTAssertEqual(api.callCount("POST", "/api/memos"), 1)
         XCTAssertTrue(controller.pending().isEmpty)
         controller.cancel()
@@ -208,6 +210,26 @@ final class MemoUploadFlushTests: XCTestCase {
         })
         let flushing = Task { await controller.flush() }
         while slept.isEmpty { await Task.yield() }
+        await controller.networkReturned()
+        await flushing.value
+        XCTAssertEqual(slept, [.seconds(5)])
+        XCTAssertTrue(controller.pending().isEmpty)
+    }
+
+    func testANetworkReturnRetriesEveryBackedOffItem() async throws {
+        api.errorFor = { _, _ in URLError(.notConnectedToInternet) }
+        var slept: [Duration] = []
+        controller = try makeController(sleep: { d in
+            slept.append(d)
+            if slept.count == 1 {
+                self.api.errorFor = nil; self.stubHappyPath(id: "m1")
+                try await Task.sleep(for: .seconds(60))   // only a wake (cancel) ends this
+            }
+        })
+        try controller.enqueue(makeResult(title: "Memo 1")); try controller.enqueue(makeResult(title: "Memo 2"))
+        let flushing = Task { await controller.flush() }
+        while slept.isEmpty { await Task.yield() }
+        XCTAssertEqual(controller.pending().map(\.attempts), [1, 1])   // both backed off
         await controller.networkReturned()
         await flushing.value
         XCTAssertEqual(slept, [.seconds(5)])
