@@ -6,7 +6,7 @@ ticket: none
 branch: builder/notes
 pr: none
 apps: server+iphone
-contract: open
+contract: frozen 2026-11-20
 hold: none
 go-ahead: auto (recommended) 2026-11-20
 tests: walk=risk review=slice
