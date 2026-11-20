@@ -40,6 +40,8 @@ final class MemoRecorderEngine {
     @ObservationIgnored private var prepared: Prepared?
     @ObservationIgnored private var session: Session?
     @ObservationIgnored private var lastSequence = 0
+    /// True while the pause in effect came from an interruption, so only that pause auto-resumes (D16).
+    @ObservationIgnored private var pausedByInterruption = false
 
     /// What `prepare` set up: the title and, when speech started, the transcriber's input stream.
     private struct Prepared {
@@ -168,12 +170,14 @@ final class MemoRecorderEngine {
     func pause() {
         guard state == .recording, let session else { return }
         session.pipeline.setPaused(true)
+        pausedByInterruption = false
         state = .paused
     }
 
     func resume() throws {
         guard state == .paused, let session else { throw CancellationError() }
         session.pipeline.setPaused(false)
+        pausedByInterruption = false
         state = .recording
     }
 
@@ -246,6 +250,7 @@ final class MemoRecorderEngine {
 
     private func end() {
         observers = ObserverBag()
+        pausedByInterruption = false
         audioSession.restore()
         session = nil
         state = .idle
@@ -269,10 +274,12 @@ final class MemoRecorderEngine {
               let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
         switch type {
         case .began:
+            guard state == .recording else { return }
             pause()
+            pausedByInterruption = true
         case .ended:
             let options = AVAudioSession.InterruptionOptions(rawValue: info?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0)
-            guard options.contains(.shouldResume), state == .paused else { return }
+            guard options.contains(.shouldResume), state == .paused, pausedByInterruption else { return }
             do {
                 try audioSession.activate()
                 try resume()
