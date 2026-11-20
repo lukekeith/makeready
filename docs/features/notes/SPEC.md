@@ -144,15 +144,15 @@ service; the backfill touches every existing row once; fixtures gain a `library-
 
 | # | ADD/EDIT/RENAME/REMOVE | Model.field | Wire | Reason | Status |
 |---|---|---|---|---|---|
-| SC1 | ADD | `StudyNote.title` String? | `title` on every note response | D11 · T1, T2 | planned |
-| SC2 | ADD | `StudyNote.preview` String? | `preview` on every note response | D11 · T1, T2 | planned |
-| SC3 | EDIT | `NOTE_TYPES` + `NOTE` | `type: "NOTE"` (already accepted: `type` is `z.string().min(1)`; this is the constant and the list filter) | D6 | planned |
-| SC4 | EDIT | `GET /api/notes` + `q` | query param | D8 | planned |
-| SC5 | EDIT | `PATCH /api/notes/:noteId` + `baseUpdatedAt` in, `stomped` out; new leader-only strict body schema | body + response | D7; today's shared `updateNoteSchema` is a non-strict `z.object`, which silently strips unknown keys, so `baseUpdatedAt` would be dropped and nothing is rejected | planned |
-| SC6 | EDIT | `GET /api/notes` + `orderBy=updatedAt` | query param | D3 sorts rows `updatedAt` desc; `getNotes` orders by `createdAt` and pages at 50, so an old note edited today could fall off the first page | planned |
-| SC7 | ADD | derived `contextLabel` on leader `Note` responses (no column) | response field | D2 (the row's context line shows the linked item's display name); the wire carries only `refType`/`refId`, and the iPhone holds no cache of every linked group, program or memo | planned |
-| SC9 | ADD | index `StudyNote [userId, updatedAt]` (schema.yaml) | — | D25: the list sorts by `updatedAt` within one user (T5) | planned |
-| SC8 | EDIT | leader `GET`/`PATCH`/`DELETE /api/notes/:noteId` status for another user's note 403 → 404; inactive note → 404 on GET/PATCH | status codes | D6 (another user's note id returns 404); `getNote` doesn't filter `isActive`, so a queued autosave (D13) could PATCH a soft-deleted note back to life invisibly | planned |
+| SC1 | ADD | `StudyNote.title` String? | `title` on every note response | D11 · T1, T2 | landed 20261107231000 |
+| SC2 | ADD | `StudyNote.preview` String? | `preview` on every note response | D11 · T1, T2 | landed 20261107231000 |
+| SC3 | EDIT | `NOTE_TYPES` + `NOTE` | `type: "NOTE"` (already accepted: `type` is `z.string().min(1)`; this is the constant and the list filter) | D6 | landed (phase 1–2, no migration) |
+| SC4 | EDIT | `GET /api/notes` + `q` | query param | D8 | landed (phase 1–2, no migration) |
+| SC5 | EDIT | `PATCH /api/notes/:noteId` + `baseUpdatedAt` in, `stomped` out; new leader-only strict body schema | body + response | D7; today's shared `updateNoteSchema` is a non-strict `z.object`, which silently strips unknown keys, so `baseUpdatedAt` would be dropped and nothing is rejected | landed (phase 1–2, no migration) |
+| SC6 | EDIT | `GET /api/notes` + `orderBy=updatedAt` | query param | D3 sorts rows `updatedAt` desc; `getNotes` orders by `createdAt` and pages at 50, so an old note edited today could fall off the first page | landed (phase 1–2, no migration) |
+| SC7 | ADD | derived `contextLabel` on leader `Note` responses (no column) | response field | D2 (the row's context line shows the linked item's display name); the wire carries only `refType`/`refId`, and the iPhone holds no cache of every linked group, program or memo | landed (phase 1–2, no migration) |
+| SC9 | ADD | index `StudyNote [userId, updatedAt]` (schema.yaml) | — | D25: the list sorts by `updatedAt` within one user (T5) | landed 20261107231000 |
+| SC8 | EDIT | leader `GET`/`PATCH`/`DELETE /api/notes/:noteId` status for another user's note 403 → 404; inactive note → 404 on GET/PATCH | status codes | D6 (another user's note id returns 404); `getNote` doesn't filter `isActive`, so a queued autosave (D13) could PATCH a soft-deleted note back to life invisibly | landed (phase 1–2, no migration) |
 
 **Data plan:** the two nullable columns are generated from `server/schema/schema.yaml` via
 `schema:diff`; no NOT NULL, so no migration-time backfill. `src/scripts/backfill-note-titles.ts` (D11)
