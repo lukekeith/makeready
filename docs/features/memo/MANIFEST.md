@@ -1,7 +1,7 @@
 size: lg
-state: planned
+state: building
 next: /builder:resume --path docs/features/memo
-head: 3d465089
+head: 30de3312
 ticket: none
 branch: builder/memo
 pr: none
@@ -13,6 +13,7 @@ tests: walk=risk review=slice
 target: feature/memo
 walk: none
 verify: none
+ready: pending "dev env (fleet walk lane)"
 ui2: none
 auto: off
 agent-walk: on 2026-11-20
