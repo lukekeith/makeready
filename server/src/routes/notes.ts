@@ -5,8 +5,11 @@ import {
   createNote,
   getNotes,
   getNote,
+  getUserNote,
   updateNote,
+  updateUserNote,
   deleteNote,
+  deleteUserNote,
   getNotesForLLM,
   getNotesForEntity,
   getNotesWithContext,
@@ -229,6 +232,14 @@ const createNoteSchema = z.object({
 const updateNoteSchema = z.object({
   content: z.string().min(1),
 })
+
+// Leader PATCH (SC5, D23): strict so an unknown key is a 400, not silently stripped
+const updateUserNoteSchema = z
+  .object({
+    content: z.string().min(1),
+    baseUpdatedAt: z.string().datetime({ offset: true }).optional(),
+  })
+  .strict()
 
 // Leader GET /notes query (D25): bounded paging, a sort allow-list, a capped search term
 const listNotesQuerySchema = z.object({
@@ -1468,20 +1479,12 @@ router.get('/notes/:noteId', requireAuth, async (req: Request, res: Response) =>
       })
     }
 
-    const result = await getNote(noteId)
+    const result = await getUserNote(noteId, userId)
 
     if (!result.success) {
       return res.status(404).json({
         success: false,
-        error: result.error,
-      })
-    }
-
-    // Verify ownership
-    if (result.data?.userId !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: 'You do not have access to this note',
+        error: 'Note not found',
       })
     }
 
@@ -1586,7 +1589,7 @@ router.patch(
       }
 
       // Validate request body
-      const parsed = updateNoteSchema.safeParse(req.body)
+      const parsed = updateUserNoteSchema.safeParse(req.body)
       if (!parsed.success) {
         return res.status(400).json({
           success: false,
@@ -1595,34 +1598,24 @@ router.patch(
         })
       }
 
-      // Verify ownership first
-      const existingNote = await getNote(noteId)
-      if (!existingNote.success || !existingNote.data) {
+      const result = await updateUserNote({
+        noteId,
+        userId,
+        content: parsed.data.content,
+        baseUpdatedAt: parsed.data.baseUpdatedAt,
+      })
+
+      if (!result.success) {
         return res.status(404).json({
           success: false,
           error: 'Note not found',
         })
       }
 
-      if (existingNote.data.userId !== userId) {
-        return res.status(403).json({
-          success: false,
-          error: 'You do not have permission to update this note',
-        })
-      }
-
-      const result = await updateNote(noteId, parsed.data.content)
-
-      if (!result.success) {
-        return res.status(400).json({
-          success: false,
-          error: result.error,
-        })
-      }
-
       res.json({
         success: true,
         data: result.data,
+        stomped: result.stomped,
       })
     } catch (error) {
       console.error('Error updating note:', error)
@@ -1710,28 +1703,12 @@ router.delete(
         })
       }
 
-      // Verify ownership first
-      const existingNote = await getNote(noteId)
-      if (!existingNote.success || !existingNote.data) {
+      const result = await deleteUserNote(noteId, userId)
+
+      if (!result.success) {
         return res.status(404).json({
           success: false,
           error: 'Note not found',
-        })
-      }
-
-      if (existingNote.data.userId !== userId) {
-        return res.status(403).json({
-          success: false,
-          error: 'You do not have permission to delete this note',
-        })
-      }
-
-      const result = await deleteNote(noteId)
-
-      if (!result.success) {
-        return res.status(400).json({
-          success: false,
-          error: result.error,
         })
       }
 
