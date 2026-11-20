@@ -48,7 +48,7 @@ first pass.
 ## 4. The v1 format strip — exact contents
 
 One horizontally-scrollable capsule docked as the text view's `inputAccessoryView` (~43 pt tall,
-~13 pt side insets, geometry per `01-video-analysis.md` §3.4). Contents, complete, in order:
+~13 pt side insets, geometry per `analysis/01-video-analysis.md` §3.4). Contents, complete, in order:
 
 | # | Control | Behavior |
 |---|---|---|
@@ -109,7 +109,7 @@ a row above, the swap is a **dated manifest amendment**, never a silent substitu
 
 ## 5. Fidelity standard (what "similar to Apple Notes" means, operationally)
 
-- **Normative sources:** the measurements and behaviors in `01-video-analysis.md` (geometry,
+- **Normative sources:** the measurements and behaviors in `analysis/01-video-analysis.md` (geometry,
   type sizes, margins, active-state timings) are the target values, in MakeReady's design tokens
   (accent color is the app's tint, not Notes-amber).
 - **Behavioral parity checklist** = R2, R5, R6, R7 plus §4's per-control behaviors. Each is a
@@ -166,5 +166,5 @@ appears. Specified by §2–§4 and platform conventions; do not hunt the video 
 ## 8. Genuinely open (nothing else is)
 
 - When the member web surface ships, and whether TipTap is its editor engine (recommended in
-  `04-implementation-readiness.md` F3 — decision deferred with the web phase; nothing in v1
+  `analysis/04-implementation-readiness.md` F3 — decision deferred with the web phase; nothing in v1
   depends on it).

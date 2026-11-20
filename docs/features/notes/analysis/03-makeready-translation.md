@@ -2,7 +2,7 @@
 
 What we already have and what the Notes pattern demands that we do not have. **Analysis only —
 no code yet.** Decision-shaped statements in this doc are the working notes behind the rulings;
-the finalized versions live in [DECISIONS.md](DECISIONS.md), which wins on any conflict.
+the finalized versions live in [DECISIONS.md](../DECISIONS.md), which wins on any conflict.
 
 ---
 
