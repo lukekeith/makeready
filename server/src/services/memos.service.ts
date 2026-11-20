@@ -76,7 +76,7 @@ type TranscriptionRunner = (memoId: string) => void
 
 const defaultRunner: TranscriptionRunner = (memoId) => {
   if (process.env.NODE_ENV === 'test') return
-  void transcribeMemo(memoId)
+  transcribeMemo(memoId).catch((err) => console.error(`[memos] transcription failed for ${memoId}:`, err))
 }
 
 let runTranscription: TranscriptionRunner = defaultRunner
