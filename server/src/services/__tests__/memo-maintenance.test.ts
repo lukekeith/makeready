@@ -53,6 +53,25 @@ describe('memo maintenance', () => {
     expect(await prisma.voiceMemo.findUnique({ where: { id: young.id } })).not.toBeNull()
   })
 
+  it('keeps the row and object of a stale memo completed between selection and delete', async () => {
+    const raced = await seed(userId, { uploadStatus: 'pending', createdAt: hoursAgo(25) })
+    // A second connection holds the row's pending -> ready flip uncommitted: the selection still sees
+    // `pending`, the conditional delete waits on the lock, then re-checks the row once the flip commits.
+    const completer = new pg.Client({ connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL }); await completer.connect()
+    try {
+      await completer.query('BEGIN')
+      await completer.query(`UPDATE voice_memos SET "uploadStatus" = 'ready' WHERE id = $1`, [raced.id])
+      const pass = expireStalePendingUploads(new Date())
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      await completer.query('COMMIT')
+      expect(await pass).toBe(0)
+    } finally {
+      await completer.end()
+    }
+    expect(deleteFromR2).not.toHaveBeenCalled()
+    expect((await prisma.voiceMemo.findUnique({ where: { id: raced.id } }))?.uploadStatus).toBe('ready')
+  })
+
   it('purges memos deleted over 30 days ago with their note links', async () => {
     const gone = await seed(userId, { isActive: false, deletedAt: daysAgo(31) }); const kept = await seed(userId, { isActive: false, deletedAt: daysAgo(29) })
     const note = await prisma.studyNote.create({ data: { userId, type: 'JOURNAL', content: 'n', links: { create: [{ refType: 'MEMO', refId: gone.id }] } } })

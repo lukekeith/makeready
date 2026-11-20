@@ -242,11 +242,15 @@ export async function expireStalePendingUploads(now: Date): Promise<number> {
     where: { uploadStatus: 'pending', createdAt: { lt: new Date(now.getTime() - PENDING_UPLOAD_TTL_MS) } },
     select: { id: true, key: true },
   })
+  let expired = 0
   for (const { id, key } of stale) {
+    // Row first: a memo completed since the selection stays, and so does its object.
+    const { count } = await prisma.voiceMemo.deleteMany({ where: { id, uploadStatus: 'pending' } })
+    if (count !== 1) continue
     await deleteObjectQuietly(id, key)
-    await prisma.voiceMemo.deleteMany({ where: { id, uploadStatus: 'pending' } })
+    expired += 1
   }
-  return stale.length
+  return expired
 }
 
 /** D26 step 2: ids of active, uploaded memos whose transcript is pending or failed with attempts left. */
