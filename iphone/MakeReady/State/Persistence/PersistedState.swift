@@ -56,6 +56,9 @@ struct PersistedState: Codable {
     /// Media library items
     var mediaLibrary: [MediaLibraryItem]
 
+    /// Voice memo list rows, newest 200 (D39)
+    var voiceMemos: [VoiceMemoSummary]
+
     /// Organization ID
     var organizationId: String?
 
@@ -107,6 +110,9 @@ struct PersistedState: Codable {
     /// lesson→activity index are gone (text-activity D44).
     static let currentSchemaVersion = 2
 
+    /// D39: the persisted memo list is capped at the newest 200.
+    static let voiceMemoLimit = 200
+
     // MARK: - Initialization
 
     /// Create empty persisted state
@@ -125,6 +131,7 @@ struct PersistedState: Codable {
         self.programEnrollmentsByProgram = [:]
         self.templates = []
         self.mediaLibrary = []
+        self.voiceMemos = []
         self.organizationId = nil
         self.dashboard = DashboardSnapshot()
         self.programEnrollmentIndex = [:]
@@ -205,6 +212,7 @@ struct PersistedState: Codable {
             self.mediaLibrary.count,
             MediaActions.libraryPageSize
         )
+        self.voiceMemos = Array(appState.voiceMemosNewestFirst.prefix(Self.voiceMemoLimit))
         self.organizationId = appState.organizationId
         self.dashboard = appState.dashboard
 
@@ -242,6 +250,7 @@ struct PersistedState: Codable {
         case programEnrollmentsByProgram
         case templates
         case mediaLibrary
+        case voiceMemos
         case organizationId
         case dashboard
         case programEnrollmentIndex
@@ -287,6 +296,7 @@ struct PersistedState: Codable {
 
         // Media library (optional for backwards compatibility)
         self.mediaLibrary = try container.decodeIfPresent([MediaLibraryItem].self, forKey: .mediaLibrary) ?? []
+        self.voiceMemos = try container.decodeIfPresent([VoiceMemoSummary].self, forKey: .voiceMemos) ?? []
         self.organizationId = try container.decodeIfPresent(String.self, forKey: .organizationId)
         // A malformed dashboard is only a cache miss; it never discards the rest of the snapshot.
         self.dashboard = (try? container.decodeIfPresent(DashboardSnapshot.self, forKey: .dashboard)) ?? DashboardSnapshot()

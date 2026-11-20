@@ -11,7 +11,7 @@ RUN npm install
 # not `prisma migrate`. The committed bin/atlas is a macOS binary, so the
 # container needs its own.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && apt-get install -y --no-install-recommends curl ca-certificates ffmpeg \
     && curl -sSf https://atlasgo.sh | sh \
     && rm -rf /var/lib/apt/lists/*
 

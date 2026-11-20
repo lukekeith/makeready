@@ -35,6 +35,11 @@ FROM node:20-slim
 
 WORKDIR /app
 
+# ffmpeg splits over-cap voice memos for the Groq fallback (transcription.service.ts)
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ffmpeg \
+ && rm -rf /var/lib/apt/lists/*
+
 # Copy package files
 COPY --from=builder /app/package*.json ./
 

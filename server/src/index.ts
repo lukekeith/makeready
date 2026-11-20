@@ -13,6 +13,7 @@ import { fileURLToPath } from 'url'
 import { passport } from './config/passport.js'
 import authRoutes from './routes/auth.js'
 import usersRoutes from './routes/users.js'
+import memosRoutes from './routes/memos.js'
 import verificationRoutes from './routes/verification.js'
 import smsRoutes from './routes/sms.js'
 import twilioRoutes from './routes/twilio.js'
@@ -335,6 +336,9 @@ app.use('/join', joinRoutes)
 // Users routes
 app.use('/api/users', usersRoutes)
 
+// Voice memos (owner-private, requireAuth)
+app.use('/api/memos', memosRoutes)
+
 // Verification routes (Twilio Verify API)
 app.use('/api/verification', verificationRoutes)
 
@@ -616,6 +620,13 @@ if (process.env.NODE_ENV !== 'test') {
       startCacheEvictionJob()
     }).catch((err) => {
       console.warn('⚠️ Could not start cache eviction job:', err.message)
+    })
+
+    // Voice memo maintenance (expire, retry transcripts, purge; advisory-locked)
+    import('./jobs/memo-maintenance.js').then(({ startMemoMaintenanceJob }) => {
+      startMemoMaintenanceJob()
+    }).catch((err) => {
+      console.warn('⚠️ Could not start memo maintenance job:', err.message)
     })
 
     // Analytics matview refresh loop (10 min, advisory-locked across
