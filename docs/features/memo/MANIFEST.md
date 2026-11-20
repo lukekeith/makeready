@@ -1,9 +1,9 @@
 size: lg
-state: spec
+state: audited
 next: /builder:resume --path docs/features/memo
-head: 4b4924ce
+head: 5fd0b2ce
 ticket: none
-branch: main
+branch: builder/memo
 pr: none
 apps: server+iphone
 contract: open
