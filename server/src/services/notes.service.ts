@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma.js'
+import { deriveTitlePreview } from './note-title.js'
 import type {
   StudyNote,
   NoteLink,
@@ -41,6 +42,7 @@ export const NOTE_TYPES = {
   REFLECTION: 'REFLECTION',
   SCRIPTURE_NOTE: 'SCRIPTURE_NOTE',
   QUESTION: 'QUESTION',
+  NOTE: 'NOTE',
 } as const
 
 export const LINK_TYPES = {
@@ -226,6 +228,7 @@ export async function createNote(data: CreateNoteData): Promise<NoteResult> {
           userId: data.userId,
           type: data.type,
           content: data.content,
+          ...deriveTitlePreview(data.content),
         },
       })
 
@@ -540,7 +543,7 @@ export async function updateNote(
   try {
     const note = await prisma.studyNote.update({
       where: { id: noteId },
-      data: { content, updatedAt: new Date() },
+      data: { content, ...deriveTitlePreview(content), updatedAt: new Date() },
       include: { links: true },
     })
 
