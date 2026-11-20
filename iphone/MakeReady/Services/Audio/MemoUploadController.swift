@@ -74,6 +74,10 @@ final class MemoUploadController {
     private var isProcessing = false
     private var flushTask: Task<Void, Never>?
     private var pathMonitor: NWPathMonitor?
+    private var sleepTask: Task<Void, Error>?
+    private var backoffSteps: [String: (attempts: Int, wait: Duration)] = [:]
+    private var wakeRequested = false
+    private var wakeRetriesAll = false
 
     /// 5 s, 30 s, 2 min, 10 min; every later attempt waits 10 min (D22).
     private static let backoff: [Duration] = [.seconds(5), .seconds(30), .seconds(120), .seconds(600)]
@@ -150,6 +154,8 @@ final class MemoUploadController {
     /// `nextAttemptAt`, a sleep) and goes again; a call during a flush joins it.
     func flush() async {
         if let flushTask {
+            // A flush asked for mid-backoff (a new memo): wake it so it re-checks what is due.
+            wakeSleeper(retryAll: false)
             await flushTask.value
             return
         }
@@ -181,7 +187,7 @@ final class MemoUploadController {
         let monitor = NWPathMonitor()
         monitor.pathUpdateHandler = { [weak self] path in
             guard path.status == .satisfied else { return }
-            Task { @MainActor in await self?.flush() }
+            Task { @MainActor in await self?.networkReturned() }
         }
         monitor.start(queue: DispatchQueue(label: "memo.upload.path"))
         pathMonitor = monitor
@@ -192,11 +198,26 @@ final class MemoUploadController {
         pathMonitor = nil
     }
 
+    /// Wakes a backoff sleep early. `retryAll` (the network came back) makes every backed-off item
+    /// due; otherwise only what is due by the clock runs.
+    private func wakeSleeper(retryAll: Bool) {
+        guard let sleepTask else { return }
+        wakeRequested = true
+        wakeRetriesAll = wakeRetriesAll || retryAll
+        sleepTask.cancel()
+    }
+
+    /// The network became satisfied (D22): ends a backoff sleep and retries everything now, or
+    /// starts a flush when none is running.
+    func networkReturned() async {
+        if sleepTask != nil { wakeSleeper(retryAll: true) } else { await flush() }
+    }
+
     private func runFlush() async {
-        var ignoreSchedule = false
+        var dueBy: Date?
         while !Task.isCancelled {
-            let (step, localId) = await runDue(ignoringSchedule: ignoreSchedule)
-            ignoreSchedule = false
+            let (step, localId) = await runDue(dueBy: dueBy ?? now())
+            dueBy = nil
             switch step {
             case .completed:
                 continue
@@ -204,41 +225,62 @@ final class MemoUploadController {
                 isPausedForAuth = true
                 return
             case .retryLater:
-                guard !Task.isCancelled, let wait = recordFailure(localId: localId) else { return }
-                guard await sleeps(wait) else { return }
-                ignoreSchedule = true
+                // The item now waits out its own backoff; the loop moves on to whatever else is
+                // due, so one failing memo never starves the ones behind it.
+                guard !Task.isCancelled else { return }
+                let (wait, persisted) = recordFailure(localId: localId)
+                if let wait, !persisted {
+                    guard await sleeps(wait) else { return }
+                }
             case .idle:
-                // Items still waiting out a backoff (e.g. after a relaunch): wait for the earliest.
-                guard let due = pending().compactMap(\.nextAttemptAt).min() else { return }
-                guard await sleeps(max(.zero, .seconds(due.timeIntervalSince(now())))) else { return }
-                ignoreSchedule = true
+                // Everything left waits out a backoff: sleep until the earliest is due.
+                let waiting = pending().compactMap { item in item.nextAttemptAt.map { (item: item, due: $0) } }
+                guard let (next, earliest) = waiting.min(by: { $0.due < $1.due }) else { return }
+                // A backoff recorded by this flush sleeps its exact step; a persisted one (after a relaunch) the time left.
+                let recorded = backoffSteps[next.localId].flatMap { $0.attempts == next.attempts ? $0.wait : nil }
+                let wait = recorded ?? .seconds(max(0, earliest.timeIntervalSince(now())).rounded())
+                guard await sleeps(wait) else { return }
+                dueBy = wakeRetriesAll ? .distantFuture : (wakeRequested ? now() : earliest)
+                wakeRequested = false
+                wakeRetriesAll = false
             }
         }
     }
 
-    /// False when the sleep was cancelled.
+    /// False when the flush was cancelled or the sleep failed; true when it ended or was woken.
     private func sleeps(_ duration: Duration) async -> Bool {
-        do {
-            try await sleep(duration)
-            return true
-        } catch {
-            // Silent: a cancelled sleep is `cancel()` stopping the flush.
-            return false
+        let sleeper = Task { [sleep] in try await sleep(duration) }
+        sleepTask = sleeper
+        defer { sleepTask = nil }
+        return await withTaskCancellationHandler {
+            do {
+                try await sleeper.value
+                return !Task.isCancelled
+            } catch {
+                // Silent: a sleep that throws ends the flush, unless `wakeSleeper` cancelled it.
+                return wakeRequested && !Task.isCancelled
+            }
+        } onCancel: {
+            sleeper.cancel()
         }
     }
 
-    /// attempts +1 and `nextAttemptAt` for the item that just failed; returns how long to wait.
-    private func recordFailure(localId: String?) -> Duration? {
-        guard let localId, var item = pending().first(where: { $0.localId == localId }) else { return nil }
+    /// attempts +1 and `nextAttemptAt` for the item that just failed; returns how long it waits and
+    /// whether that was persisted (when not, the caller sleeps the wait itself).
+    private func recordFailure(localId: String?) -> (wait: Duration?, persisted: Bool) {
+        guard let localId, var item = pending().first(where: { $0.localId == localId }) else { return (nil, true) }
         item.attempts += 1
         let wait = Self.delay(forAttempt: item.attempts)
-        item.nextAttemptAt = now().addingTimeInterval(Double(wait.components.seconds))
+        let due = now().addingTimeInterval(Double(wait.components.seconds))
+        item.nextAttemptAt = due
+        backoffSteps[item.localId] = (item.attempts, wait)
         do {
             try persist(item)
+            return (wait, true)
         } catch {
             Log.memo.error("backoff not persisted: \(error.localizedDescription)")
+            return (wait, false)
         }
-        return wait
     }
 
     // MARK: Salvage
@@ -262,15 +304,15 @@ final class MemoUploadController {
 
     /// Runs the oldest due item as far as it goes. Serial: a call while another is in flight is idle.
     func processNext() async -> MemoUploadStep {
-        await runDue(ignoringSchedule: false).step
+        await runDue(dueBy: now()).step
     }
 
-    /// One pass over the oldest item that is due (any item, when a backoff has just been slept).
-    private func runDue(ignoringSchedule: Bool) async -> (step: MemoUploadStep, localId: String?) {
+    /// One pass over the oldest item that is due by `dueBy`.
+    private func runDue(dueBy: Date) async -> (step: MemoUploadStep, localId: String?) {
         guard !isProcessing else { return (.idle, nil) }
         isProcessing = true
         defer { isProcessing = false }
-        guard var item = pending().first(where: { ignoringSchedule || ($0.nextAttemptAt ?? .distantPast) <= now() }) else { return (.idle, nil) }
+        guard var item = pending().first(where: { ($0.nextAttemptAt ?? .distantPast) <= dueBy }) else { return (.idle, nil) }
         do {
             return (try await run(&item), item.localId)
         } catch {

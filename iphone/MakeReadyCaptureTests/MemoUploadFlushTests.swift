@@ -48,7 +48,7 @@ final class MemoUploadFlushTests: XCTestCase {
         try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: draftsDir, withIntermediateDirectories: true)
         drafts = MemoDraftStore(directory: draftsDir, ownerUserId: "userA", environment: "Local")
-        controller = makeController()
+        controller = try makeController()
     }
 
     override func tearDown() {
@@ -57,11 +57,12 @@ final class MemoUploadFlushTests: XCTestCase {
         super.tearDown()
     }
 
-    private func makeController(user: String = "userA",
-                                sleep: @escaping (Duration) async throws -> Void = { _ in }) -> MemoUploadController {
-        let folder = try! MemoStorage.folder(environment: "Local", userId: user, root: root.appendingPathComponent("storage"))
+    private func makeController(user: String = "userA", flushesOnEnqueue: Bool = false,
+                                sleep: @escaping (Duration) async throws -> Void = { _ in }) throws -> MemoUploadController {
+        let folder = try MemoStorage.folder(environment: "Local", userId: user, root: root.appendingPathComponent("storage"))
         return MemoUploadController(api: api, actions: MemoActions(api: api, state: state), transport: transport,
-                                    directory: folder, ownerUserId: user, environment: "Local", sleep: sleep)
+                                    directory: folder, ownerUserId: user, environment: "Local",
+                                    flushesOnEnqueue: flushesOnEnqueue, sleep: sleep)
     }
 
     // MARK: - Fixtures
@@ -102,7 +103,7 @@ final class MemoUploadFlushTests: XCTestCase {
         try controller.enqueue(result)
         api.errorFor = { _, _ in URLError(.notConnectedToInternet) }
         var slept: [Duration] = []
-        controller = makeController(sleep: { d in slept.append(d); if slept.count == 3 { self.api.errorFor = nil; self.stubHappyPath(id: "m1") } })
+        controller = try makeController(sleep: { d in slept.append(d); if slept.count == 3 { self.api.errorFor = nil; self.stubHappyPath(id: "m1") } })
         await controller.flush()
         XCTAssertEqual(slept, [.seconds(5), .seconds(30), .seconds(120)])
         XCTAssertEqual(MemoUploadController.delay(forAttempt: 9), .seconds(600))
@@ -111,7 +112,7 @@ final class MemoUploadFlushTests: XCTestCase {
 
     func testA401PausesWithoutBackoffAndKeepsFiles() async throws {
         try controller.enqueue(result); api.errorToThrow = APIError.unauthorized
-        var slept: [Duration] = []; controller = makeController(sleep: { slept.append($0) })
+        var slept: [Duration] = []; controller = try makeController(sleep: { slept.append($0) })
         await controller.flush()
         XCTAssertTrue(controller.isPausedForAuth); XCTAssertTrue(slept.isEmpty)
         XCTAssertEqual(controller.pending().first?.attempts, 0); XCTAssertEqual(controller.pending().count, 1)
@@ -127,11 +128,11 @@ final class MemoUploadFlushTests: XCTestCase {
     }
 
     func testUserBSignsInAndUploadsNoneOfUserAsMemos() async throws {
-        let a = makeController(user: "userA"); try a.enqueue(result); a.cancel()
-        let b = makeController(user: "userB"); stubHappyPath(id: "m1")
+        let a = try makeController(user: "userA"); try a.enqueue(result); a.cancel()
+        let b = try makeController(user: "userB"); stubHappyPath(id: "m1")
         await b.flush()
         XCTAssertEqual(api.callCount("POST", "/api/memos"), 0)
-        XCTAssertEqual(makeController(user: "userA").pending().count, 1)
+        XCTAssertEqual(try makeController(user: "userA").pending().count, 1)
         let folder = try MemoStorage.folder(environment: "Local", userId: "userA", root: root.appendingPathComponent("storage"))
         XCTAssertTrue(folder.path.hasSuffix("memos/Local/userA"))
         XCTAssertEqual(try folder.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup, true)
@@ -154,7 +155,62 @@ final class MemoUploadFlushTests: XCTestCase {
 
     func testNextMemoTitleCountsCacheAndQueue() throws {
         state.voiceMemos.upsert(summary(id: "m1", title: "Memo 4"))
-        state.memoUploads = makeController(user: "userA"); try state.memoUploads!.enqueue(makeResult(title: "Memo 6"))
+        state.memoUploads = try makeController(user: "userA"); try state.memoUploads!.enqueue(makeResult(title: "Memo 6"))
         XCTAssertEqual(state.nextMemoTitle(), "Memo 7")
+    }
+
+    func testSignOutAndEnvironmentSwitchReleaseTheControllerAndKeepTheFiles() async throws {
+        state.memoUploads = try makeController(user: "userA"); try state.memoUploads!.enqueue(result)
+        let kept = try makeController(user: "userA")
+        state.clearAllData()
+        XCTAssertNil(state.memoUploads)
+        XCTAssertEqual(kept.pending().count, 1)
+
+        state.memoUploads = kept
+        state.reloadForEnvironmentSwitch()
+        XCTAssertNil(state.memoUploads)
+        XCTAssertEqual(try makeController(user: "userA").pending().count, 1)
+    }
+
+    func testEnqueueTriggersAFlush() async throws {
+        stubHappyPath(id: "m1")
+        controller = try makeController(flushesOnEnqueue: true)
+        try controller.enqueue(result)
+        await controller.flush()
+        XCTAssertEqual(api.callCount("POST", "/api/memos"), 1)
+        XCTAssertTrue(controller.pending().isEmpty)
+        controller.cancel()
+    }
+
+    func testAPoisonItemDoesNotStarveTheOnesBehindIt() async throws {
+        let poison = makeResult(title: "Memo 1"), good = makeResult(title: "Memo 2")
+        let early = RecordingResult(fileURL: poison.fileURL, title: poison.title, durationMs: 1_000, waveformPeaks: poison.waveformPeaks,
+                                    recordedAt: Date(timeIntervalSince1970: 1_700_000_000), transcript: nil)
+        controller = try makeController(sleep: { _ in throw CancellationError() })   // ends the flush at the first backoff wait
+        try controller.enqueue(early); try controller.enqueue(good)
+        stubHappyPath(id: "m2")
+        api.errorFor = { _, body in (body?["title"] as? String) == "Memo 1" ? URLError(.badServerResponse) : nil }
+        await controller.flush()
+        XCTAssertEqual(controller.pending().map(\.title), ["Memo 1"])
+        XCTAssertEqual(controller.pending().first?.attempts, 1)
+    }
+
+    func testANetworkReturnWakesABackoffSleep() async throws {
+        try controller.enqueue(result)
+        api.errorFor = { _, _ in URLError(.notConnectedToInternet) }
+        var slept: [Duration] = []
+        controller = try makeController(sleep: { d in
+            slept.append(d)
+            if slept.count == 1 {
+                self.api.errorFor = nil; self.stubHappyPath(id: "m1")
+                try await Task.sleep(for: .seconds(60))   // only a wake (cancel) ends this
+            }
+        })
+        let flushing = Task { await controller.flush() }
+        while slept.isEmpty { await Task.yield() }
+        await controller.networkReturned()
+        await flushing.value
+        XCTAssertEqual(slept, [.seconds(5)])
+        XCTAssertTrue(controller.pending().isEmpty)
     }
 }

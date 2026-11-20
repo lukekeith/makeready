@@ -850,7 +850,8 @@ final class AppState {
             Log.memo.error("memo drafts unavailable: \(error.localizedDescription)")
         }
         controller.startPathMonitoring()
-        await controller.flush()
+        // Also clears a 401 pause left from before this sign-in (D41).
+        await controller.resumeAfterSignIn()
     }
 
     // MARK: - Persistence
