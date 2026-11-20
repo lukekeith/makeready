@@ -1,7 +1,7 @@
 size: lg
-state: audited
+state: planned
 next: /builder:resume --path docs/features/notes
-head: 3f843db9
+head: 3e96a204
 ticket: none
 branch: builder/notes
 pr: none
