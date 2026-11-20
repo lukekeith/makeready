@@ -18,6 +18,7 @@ import {
   type NoteType,
   type LinkType,
 } from '../services/notes.service.js'
+import { attachContextLabel, attachContextLabels } from '../services/note-context-label.js'
 
 /**
  * @openapi
@@ -1250,7 +1251,7 @@ router.post('/notes', requireAuth, async (req: Request, res: Response) => {
 
     res.status(201).json({
       success: true,
-      data: result.data,
+      data: await attachContextLabel(result.data!, userId),
     })
   } catch (error) {
     console.error('Error creating note:', error)
@@ -1392,7 +1393,7 @@ router.get('/notes', requireAuth, async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      data: result.data,
+      data: await attachContextLabels(result.data ?? [], userId),
       pagination: {
         total: result.total,
         limit,
@@ -1490,7 +1491,7 @@ router.get('/notes/:noteId', requireAuth, async (req: Request, res: Response) =>
 
     res.json({
       success: true,
-      data: result.data,
+      data: await attachContextLabel(result.data, userId),
     })
   } catch (error) {
     console.error('Error fetching note:', error)
@@ -1614,7 +1615,7 @@ router.patch(
 
       res.json({
         success: true,
-        data: result.data,
+        data: await attachContextLabel(result.data, userId),
         stomped: result.stomped,
       })
     } catch (error) {
