@@ -66,6 +66,23 @@ final class MemoRecorderEngineTests: XCTestCase {
         return (engine, input)
     }
 
+    private struct WriterFailure: Error {}
+
+    /// `seconds` of the fixture tone as 48 kHz stereo buffers (the same tone in both channels).
+    private func stereo48kBuffers(seconds: Double) throws -> [AVAudioPCMBuffer] {
+        let format = try XCTUnwrap(AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 48_000,
+                                                 channels: 2, interleaved: false))
+        return try MemoAudioFixtures.sineBuffers(seconds: seconds, sampleRate: 48_000).map { mono in
+            let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: mono.frameLength))
+            buffer.frameLength = mono.frameLength
+            for channel in 0..<2 {
+                let destination = try XCTUnwrap(buffer.floatChannelData?[channel])
+                destination.update(from: try XCTUnwrap(mono.floatChannelData?[0]), count: Int(mono.frameLength))
+            }
+            return buffer
+        }
+    }
+
     private func makeEngine(seconds: Double, transcriber: MemoTranscribing? = nil) -> MemoRecorderEngine {
         makeEngineWithInput(seconds: seconds, transcriber: transcriber).0
     }
@@ -114,5 +131,48 @@ final class MemoRecorderEngineTests: XCTestCase {
         let r = try await engine.stop()
         XCTAssertEqual(r.transcript?.text, "hello")
         XCTAssertGreaterThan(stub.receivedFrames, 0)
+    }
+
+    func testAFailingWriterSetsWriteFailedStopsTheInputAndGoesIdle() async throws {
+        let format = try XCTUnwrap(AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 44_100, channels: 1, interleaved: false))
+        let input = BufferFeedInput(format: format)
+        let engine = MemoRecorderEngine(input: input, transcriber: nil, directory: dir,
+                                        writeBuffer: { _, _ in throw WriterFailure() })
+        try await engine.prepare(title: "Memo 1"); try await engine.start()
+        try input.feed(MemoAudioFixtures.sineBuffers(seconds: 0.5))
+        for _ in 0..<100 where engine.state != .idle { try await Task.sleep(nanoseconds: 50_000_000) }
+        XCTAssertEqual(engine.lastError, .writeFailed)
+        XCTAssertEqual(engine.state, .idle)
+        XCTAssertEqual(input.stopCount, 1)
+    }
+
+    func testNonStandardInputFormatIsConvertedToMono44k() async throws {
+        let format = try XCTUnwrap(AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 48_000, channels: 2, interleaved: false))
+        let input = BufferFeedInput(format: format, initial: try stereo48kBuffers(seconds: 2.0))
+        let engine = MemoRecorderEngine(input: input, transcriber: nil, directory: dir)
+        try await engine.prepare(title: "Memo 1"); try await engine.start()
+        let r = try await engine.stop()
+        XCTAssertEqual(r.durationMs, 2000, accuracy: 50)
+        XCTAssertEqual(r.waveformPeaks.count, Int(ceil(Double(r.durationMs) / 100)))
+        XCTAssertEqual(try AVAudioFile(forReading: r.fileURL).fileFormat.channelCount, 1)
+    }
+
+    func testLevelSamplesRingCapsAtTwoHundred() async throws {
+        let long = makeEngine(seconds: 12.0)   // 240 level values written, 200 kept
+        try await long.prepare(title: "Memo 1"); try await long.start()
+        _ = try await long.stop()
+        XCTAssertEqual(long.samples.count, 200)
+        let short = makeEngine(seconds: 1.0)   // 44 100 / 2 205 = 20 values
+        try await short.prepare(title: "Memo 2"); try await short.start()
+        _ = try await short.stop()
+        XCTAssertEqual(short.samples.count, 20)
+    }
+
+    func testPartialLastPeakBucketIsCounted() async throws {
+        let engine = makeEngine(seconds: 0.55)   // 24 255 frames = 5.5 buckets of 4 410
+        try await engine.prepare(title: "Memo 1"); try await engine.start()
+        let r = try await engine.stop()
+        XCTAssertEqual(r.waveformPeaks.count, Int(ceil(24_255.0 / 4_410.0)))
+        XCTAssertEqual(r.waveformPeaks.count, 6)
     }
 }

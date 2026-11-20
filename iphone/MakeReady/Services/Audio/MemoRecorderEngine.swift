@@ -30,6 +30,7 @@ final class MemoRecorderEngine {
     @ObservationIgnored private let directory: URL
     @ObservationIgnored private let maxDuration: TimeInterval
     @ObservationIgnored private let now: () -> Date
+    @ObservationIgnored private let writeBuffer: @Sendable (AVAudioFile, AVAudioPCMBuffer) throws -> Void
     @ObservationIgnored private var prepared: Prepared?
     @ObservationIgnored private var session: Session?
     @ObservationIgnored private var lastSequence = 0
@@ -51,7 +52,9 @@ final class MemoRecorderEngine {
     }
 
     init(input: AudioInputSource, transcriber: MemoTranscribing?, directory: URL,
-         maxDuration: TimeInterval = 10_800, now: @escaping () -> Date = Date.init) {
+         maxDuration: TimeInterval = 10_800, now: @escaping () -> Date = Date.init,
+         writeBuffer: @escaping @Sendable (AVAudioFile, AVAudioPCMBuffer) throws -> Void = { try $0.write(from: $1) }) {
+        self.writeBuffer = writeBuffer
         self.input = input
         self.transcriber = transcriber
         self.directory = directory
@@ -98,7 +101,8 @@ final class MemoRecorderEngine {
         let pipeline: CapturePipeline
         do {
             pipeline = try CapturePipeline(url: url, maxFrames: Int(maxDuration * CapturePipeline.sampleRate),
-                                           live: prepared.live, analyzerFormat: prepared.analyzerFormat) { [weak self] output in
+                                           live: prepared.live, analyzerFormat: prepared.analyzerFormat,
+                                           writeBuffer: writeBuffer) { [weak self] output in
                 Task { @MainActor in await self?.handle(output) }
             }
         } catch {
@@ -244,6 +248,7 @@ private final class CapturePipeline: @unchecked Sendable {
     private let target: AVAudioFormat
     private let maxFrames: Int
     private let output: @Sendable (Output) -> Void
+    private let writeBuffer: @Sendable (AVAudioFile, AVAudioPCMBuffer) throws -> Void
     private let lock = NSLock()
 
     private var file: AVAudioFile?
@@ -261,7 +266,9 @@ private final class CapturePipeline: @unchecked Sendable {
     private var levelFill = 0
 
     init(url: URL, maxFrames: Int, live: AsyncStream<AnalyzerInput>.Continuation?, analyzerFormat: AVAudioFormat?,
+         writeBuffer: @escaping @Sendable (AVAudioFile, AVAudioPCMBuffer) throws -> Void,
          output: @escaping @Sendable (Output) -> Void) throws {
+        self.writeBuffer = writeBuffer
         guard let target = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: Self.sampleRate,
                                          channels: 1, interleaved: false) else {
             throw MemoEngineError.writeFailed
@@ -294,7 +301,7 @@ private final class CapturePipeline: @unchecked Sendable {
             if atLimit { buffer.frameLength = AVAudioFrameCount(max(remaining, 0)) }
             guard buffer.frameLength > 0 else { return [] }
             do {
-                try file?.write(from: buffer)
+                if let file { try writeBuffer(file, buffer) }
             } catch {
                 Log.memo.error("caf write failed: \(error.localizedDescription)")
                 ended = true
