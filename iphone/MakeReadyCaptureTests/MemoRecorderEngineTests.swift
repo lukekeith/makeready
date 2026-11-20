@@ -44,10 +44,12 @@ private final class StubTranscriber: MemoTranscribing, @unchecked Sendable {
 @MainActor
 final class MemoRecorderEngineTests: XCTestCase {
     private var dir: URL!
+    private var drafts: MemoDraftStore!
 
     override func setUpWithError() throws {
         dir = FileManager.default.temporaryDirectory.appendingPathComponent("memo-engine-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        drafts = MemoDraftStore(directory: dir, ownerUserId: "user-a", environment: "Local")
     }
 
     override func tearDown() {
@@ -62,7 +64,8 @@ final class MemoRecorderEngineTests: XCTestCase {
         let buffers = (try? MemoAudioFixtures.sineBuffers(seconds: seconds)) ?? []
         let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 44_100, channels: 1, interleaved: false)!
         let input = BufferFeedInput(format: format, initial: buffers)
-        let engine = MemoRecorderEngine(input: input, transcriber: transcriber, directory: dir, maxDuration: maxDuration)
+        let engine = MemoRecorderEngine(input: input, transcriber: transcriber, directory: dir, maxDuration: maxDuration,
+                                  session: SpySession(), drafts: drafts)
         return (engine, input)
     }
 
@@ -137,6 +140,7 @@ final class MemoRecorderEngineTests: XCTestCase {
         let format = try XCTUnwrap(AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 44_100, channels: 1, interleaved: false))
         let input = BufferFeedInput(format: format)
         let engine = MemoRecorderEngine(input: input, transcriber: nil, directory: dir,
+                                        session: SpySession(), drafts: drafts,
                                         writeBuffer: { _, _ in throw WriterFailure() })
         try await engine.prepare(title: "Memo 1"); try await engine.start()
         try input.feed(MemoAudioFixtures.sineBuffers(seconds: 0.5))
@@ -149,7 +153,8 @@ final class MemoRecorderEngineTests: XCTestCase {
     func testNonStandardInputFormatIsConvertedToMono44k() async throws {
         let format = try XCTUnwrap(AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 48_000, channels: 2, interleaved: false))
         let input = BufferFeedInput(format: format, initial: try stereo48kBuffers(seconds: 2.0))
-        let engine = MemoRecorderEngine(input: input, transcriber: nil, directory: dir)
+        let engine = MemoRecorderEngine(input: input, transcriber: nil, directory: dir,
+                                        session: SpySession(), drafts: drafts)
         try await engine.prepare(title: "Memo 1"); try await engine.start()
         let r = try await engine.stop()
         XCTAssertEqual(r.durationMs, 2000, accuracy: 50)

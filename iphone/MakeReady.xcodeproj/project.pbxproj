@@ -327,6 +327,7 @@
 		4EE953A2BB856BBF9F660226 /* StatusBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF91DAF241A88D61631E84A9 /* StatusBadge.swift */; };
 		4F25FF1661BC8954E7F0AA9E /* InvitationModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3382966B20F5A42BA06A01B /* InvitationModelsTests.swift */; };
 		4F299212CAEE385EFDDB96A7 /* EnrollSelectProgramContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34FDB0697B22E822E6E8078F /* EnrollSelectProgramContainer.swift */; };
+		4F9057C419ADE51233CA7623 /* MemoDraftStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022BFF29801D92AAE994570F /* MemoDraftStore.swift */; };
 		4F9583ED75EF95A74DB13B6F /* SearchHomeContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D72F85D9E491F9268EF16561 /* SearchHomeContainer.swift */; };
 		4FDC4B73299B869FADAD3C32 /* ActivitiesEditorMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11787A0FCCC21F08EF872E83 /* ActivitiesEditorMapper.swift */; };
 		4FE3EE9811A65E340138526D /* RequestDetailScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 751BD3257EA47FB32252DCAD /* RequestDetailScreen.swift */; };
@@ -376,6 +377,7 @@
 		589E9599A707D63B2212A90A /* TimelineEventRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE1AEDD2E2C46C48B197043C /* TimelineEventRow.swift */; };
 		58A5CC1BF855C0C5CF9DF83B /* EnrollmentDraftActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B6C9817AA09A4DB1B0249A7 /* EnrollmentDraftActions.swift */; };
 		58C40CC484383E6EEEA23413 /* ProgramCoverTapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BBFE29D75523E5B6747F741 /* ProgramCoverTapTests.swift */; };
+		58CC76E07470B3CC295C57C4 /* MemoEngineSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BB35D1D45133C4C355088E7 /* MemoEngineSessionTests.swift */; };
 		5949318DAF155CE266A05E6F /* InviteDetailMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C79C7503134D4C2CF36B79B /* InviteDetailMapper.swift */; };
 		598C82BC2A51584978C97FF6 /* PercentBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = F872551E8E1EBD5B6696457E /* PercentBar.swift */; };
 		5A0ED19BCC6E271EB59CF791 /* BibleVerseTextLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = BVT0002000000000000001 /* BibleVerseTextLayout.swift */; };
@@ -562,6 +564,7 @@
 		83203D8C2B355190739B1FC6 /* EnrollDraftSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9053BF544B945E293801B2FD /* EnrollDraftSync.swift */; };
 		842748067B4169397D702F11 /* TextColorPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70E6F4460F6AAF00A6F20E43 /* TextColorPalette.swift */; };
 		842810BF201BE3CE66DBE104 /* ViewerChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E86F9A523291E3C7E3A3CF7 /* ViewerChrome.swift */; };
+		8448FD0D86DAE07E6175E03B /* MemoDraftStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022BFF29801D92AAE994570F /* MemoDraftStore.swift */; };
 		8459B11EF5A2694250626F0D /* SectionDivider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CBA9CFB1A625C598ADE76FC /* SectionDivider.swift */; };
 		8496ED2B124807ED4126BD91 /* AvatarProgressRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE38DE2BC5A7B1A7608D40EA /* AvatarProgressRow.swift */; };
 		84A2559240BAAA20874D0BE1 /* InputMask.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3249A663601844B407E8B75 /* InputMask.swift */; };
@@ -641,6 +644,7 @@
 		96BE38323DF5B045B63BCE1F /* UI2Navigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7617458C473B79AE74E6CA08 /* UI2Navigation.swift */; };
 		96DB3D7C4AD42628C7320092 /* AvatarProgressRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE38DE2BC5A7B1A7608D40EA /* AvatarProgressRow.swift */; };
 		9757EF66799C95FDF4CE39A5 /* ActivityViewerMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = B784FDCBFA5F86673202055F /* ActivityViewerMapper.swift */; };
+		979A15755762D4DD032FED7B /* MemoAudioSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB12163A9425BEC4ED89AB0 /* MemoAudioSession.swift */; };
 		97A6B2F609DC21FCDAD99947 /* EnrollmentSelectGroupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220523F7ADBDCDCF76092469 /* EnrollmentSelectGroupScreen.swift */; };
 		97B60B5F3CE3435597217A2B /* CardData.swift in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3E78E4EEC341A4ADAE55EE /* CardData.swift */; };
 		97D13FA986AB7301E202ADE6 /* Tokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCB9A932A6B3836809A12CCD /* Tokens.swift */; };
@@ -870,6 +874,7 @@
 		C399A18513CDB7189D82885A /* EnrollmentBrowseActionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D1E313165BA70E1A56B608F /* EnrollmentBrowseActionsTests.swift */; };
 		C3DADC8221128085E04DC87D /* ActivityBackgroundPalettes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2718D8F42939F73606F37EA8 /* ActivityBackgroundPalettes.swift */; };
 		C44D9E0D4F21DEBDCD00FC67 /* SuggestionRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCCE44B04BE52BCCCE900CDE /* SuggestionRows.swift */; };
+		C47381E2B9446E89F8952EA9 /* MemoAudioSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB12163A9425BEC4ED89AB0 /* MemoAudioSession.swift */; };
 		C47E030FF5529E52F9F970AA /* SparkBarChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5431693D542F6ED5C8D83920 /* SparkBarChart.swift */; };
 		C494BF4058E02C69C960DD1F /* TabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6D8B196E95D1804F3360E7A /* TabBar.swift */; };
 		C49B64359470ECBB353FC6A0 /* MembersProfileScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A0769F269C502AB580380D1 /* MembersProfileScreen.swift */; };
@@ -1244,6 +1249,7 @@
 		015D96B94952F368A4F47D18 /* MemoRecorderEngine.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MemoRecorderEngine.swift; sourceTree = "<group>"; };
 		015E0430F6964B2304CC0415 /* EnrollSelectProgramMapper.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnrollSelectProgramMapper.swift; sourceTree = "<group>"; };
 		01E5292C43794AC7AF974ADB /* CardStudy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardStudy.swift; sourceTree = "<group>"; };
+		022BFF29801D92AAE994570F /* MemoDraftStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MemoDraftStore.swift; sourceTree = "<group>"; };
 		0236991E08F6AB94F85853F3 /* ProfileStopgapContainer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ProfileStopgapContainer.swift; path = Containers/Profile/ProfileStopgapContainer.swift; sourceTree = "<group>"; };
 		02EEF95F818F3F39F1F37E8C /* SourceSerif4Variable-Italic.ttf */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = file; name = "SourceSerif4Variable-Italic.ttf"; path = "Resources/Fonts/SourceSerif4/SourceSerif4Variable-Italic.ttf"; sourceTree = "<group>"; };
 		02F77D8340B7A5CD6DBD3020 /* DayTimeline.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DayTimeline.swift; sourceTree = "<group>"; };
@@ -1295,6 +1301,7 @@
 		1AC56C4C361316B6A264B923 /* GroupDetailMapper.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GroupDetailMapper.swift; path = Containers/Groups/GroupDetailMapper.swift; sourceTree = "<group>"; };
 		1B5C983BF26831FF08272540 /* MemberProfileAvatarTapTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MemberProfileAvatarTapTests.swift; sourceTree = "<group>"; };
 		1B809D30F802CA45B648DFC7 /* EnrollPickerWarnings.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnrollPickerWarnings.swift; sourceTree = "<group>"; };
+		1BB35D1D45133C4C355088E7 /* MemoEngineSessionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MemoEngineSessionTests.swift; sourceTree = "<group>"; };
 		1C2E0CA42369F091D7F0AC1E /* Glyphs.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; name = Glyphs.xcassets; path = Resources/Glyphs.xcassets; sourceTree = "<group>"; };
 		1C37495CB83A38766D43E8E0 /* CoverOwner.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CoverOwner.swift; sourceTree = "<group>"; };
 		1DE91DF06FB7BC0A51884820 /* HomeKpiPickerScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HomeKpiPickerScreen.swift; path = Screens/Home/HomeKpiPickerScreen.swift; sourceTree = "<group>"; };
@@ -1794,6 +1801,7 @@
 		DC52F14565247106FF0CBE8B /* GroupDeleteCleanupTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupDeleteCleanupTests.swift; sourceTree = "<group>"; };
 		DC5BCC933714A3BAA202C8B1 /* ActivityNavBar.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ActivityNavBar.swift; sourceTree = "<group>"; };
 		DCDD0CA9731496AD274EE5F0 /* MemoAudioExporter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MemoAudioExporter.swift; sourceTree = "<group>"; };
+		DDB12163A9425BEC4ED89AB0 /* MemoAudioSession.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MemoAudioSession.swift; sourceTree = "<group>"; };
 		DE1AEDD2E2C46C48B197043C /* TimelineEventRow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TimelineEventRow.swift; sourceTree = "<group>"; };
 		DF85A20653C34F45A6C52EC0 /* ImageFramingCanvas.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ImageFramingCanvas.swift; path = Containers/Groups/ImageFramingCanvas.swift; sourceTree = "<group>"; };
 		DFF128158CFBF649CF77A2A6 /* FilterMenuOverlay.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FilterMenuOverlay.swift; sourceTree = "<group>"; };
@@ -2362,6 +2370,8 @@
 				D65B97B490A09DD566560473 /* AudioInputSource.swift */,
 				015D96B94952F368A4F47D18 /* MemoRecorderEngine.swift */,
 				DCDD0CA9731496AD274EE5F0 /* MemoAudioExporter.swift */,
+				022BFF29801D92AAE994570F /* MemoDraftStore.swift */,
+				DDB12163A9425BEC4ED89AB0 /* MemoAudioSession.swift */,
 			);
 			name = Audio;
 			path = Audio;
@@ -2623,6 +2633,7 @@
 				A4A48B226A6474BF5A9ECF0B /* MemoTranscriberTests.swift */,
 				2901559251B8B27E085FD21D /* BufferFeedInput.swift */,
 				D358475CD79007BABE01638D /* MemoRecorderEngineTests.swift */,
+				1BB35D1D45133C4C355088E7 /* MemoEngineSessionTests.swift */,
 			);
 			path = MakeReadyCaptureTests;
 			sourceTree = SOURCE_ROOT;
@@ -3941,6 +3952,7 @@
 				414757A48BCD18B5F5A15F22 /* MemoTranscriberTests.swift in Sources */,
 				15CD7255276007DB71E83E88 /* BufferFeedInput.swift in Sources */,
 				BBBB1D4B4B7091C602C8ED74 /* MemoRecorderEngineTests.swift in Sources */,
+				58CC76E07470B3CC295C57C4 /* MemoEngineSessionTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -4328,6 +4340,8 @@
 				A1EBAA292D797DEBAC5C4518 /* AudioInputSource.swift in Sources */,
 				8E9589D5D88F3770BFA6E722 /* MemoRecorderEngine.swift in Sources */,
 				F98A4F27328E05B178E390F8 /* MemoAudioExporter.swift in Sources */,
+				4F9057C419ADE51233CA7623 /* MemoDraftStore.swift in Sources */,
+				979A15755762D4DD032FED7B /* MemoAudioSession.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -4886,6 +4900,8 @@
 				8F475CDA550C1F255A432245 /* AudioInputSource.swift in Sources */,
 				42D9F60ACAC4C4A888E52669 /* MemoRecorderEngine.swift in Sources */,
 				0366DC03284E2B0D4FEE7922 /* MemoAudioExporter.swift in Sources */,
+				8448FD0D86DAE07E6175E03B /* MemoDraftStore.swift in Sources */,
+				C47381E2B9446E89F8952EA9 /* MemoAudioSession.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

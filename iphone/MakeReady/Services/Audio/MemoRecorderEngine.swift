@@ -5,7 +5,9 @@
 //  Voice-memo capture core: one input, fanned out to an AAC `.caf` writer, waveform peaks, a live
 //  level ring and (when speech is available) the transcriber's input stream (D14, D15). `stop()`
 //  exports the `.caf` to `<uuid>.m4a` (D38). Paused audio is dropped, never written or counted
-//  (D42). Audio-session handling and interruptions belong to the session layer, not here.
+//  (D42). The audio session is prepared, activated and restored around a recording (D20); an
+//  interruption or an unplugged input pauses it (D16); a draft manifest sits beside the `.caf`
+//  from `start` until the export succeeds, so a cut-off recording can be salvaged.
 //
 
 import AVFoundation
@@ -31,6 +33,10 @@ final class MemoRecorderEngine {
     @ObservationIgnored private let maxDuration: TimeInterval
     @ObservationIgnored private let now: () -> Date
     @ObservationIgnored private let writeBuffer: @Sendable (AVAudioFile, AVAudioPCMBuffer) throws -> Void
+    @ObservationIgnored private let audioSession: MemoAudioSessionControlling
+    @ObservationIgnored private let drafts: MemoDraftStore
+    @ObservationIgnored private let notificationCenter: NotificationCenter
+    @ObservationIgnored private var observers = ObserverBag()
     @ObservationIgnored private var prepared: Prepared?
     @ObservationIgnored private var session: Session?
     @ObservationIgnored private var lastSequence = 0
@@ -53,7 +59,12 @@ final class MemoRecorderEngine {
 
     init(input: AudioInputSource, transcriber: MemoTranscribing?, directory: URL,
          maxDuration: TimeInterval = 10_800, now: @escaping () -> Date = Date.init,
+         session: MemoAudioSessionControlling = MemoAudioSession(), drafts: MemoDraftStore,
+         notificationCenter: NotificationCenter = .default,
          writeBuffer: @escaping @Sendable (AVAudioFile, AVAudioPCMBuffer) throws -> Void = { try $0.write(from: $1) }) {
+        self.audioSession = session
+        self.drafts = drafts
+        self.notificationCenter = notificationCenter
         self.writeBuffer = writeBuffer
         self.input = input
         self.transcriber = transcriber
@@ -77,6 +88,13 @@ final class MemoRecorderEngine {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         } catch {
             Log.memo.error("memo directory not creatable: \(error.localizedDescription)")
+            lastError = .writeFailed
+            throw MemoEngineError.writeFailed
+        }
+        do {
+            try audioSession.prepareForRecording()
+        } catch {
+            Log.memo.error("audio session not preparable: \(error.localizedDescription)")
             lastError = .writeFailed
             throw MemoEngineError.writeFailed
         }
@@ -107,10 +125,27 @@ final class MemoRecorderEngine {
             }
         } catch {
             Log.memo.error("capture file not creatable: \(error.localizedDescription)")
+            audioSession.restore()
             lastError = .writeFailed
             throw MemoEngineError.writeFailed
         }
-        session = Session(cafURL: url, title: prepared.title, recordedAt: now(), pipeline: pipeline,
+        do {
+            try audioSession.activate()
+        } catch {
+            Log.memo.error("audio session not activatable: \(error.localizedDescription)")
+            _ = pipeline.close()
+            audioSession.restore()
+            lastError = .writeFailed
+            throw MemoEngineError.writeFailed
+        }
+        let startedAt = now()
+        do {
+            try drafts.write(drafts.manifest(cafURL: url, startedAt: startedAt, title: prepared.title))
+        } catch {
+            // Recovered: the recording still works, it just cannot be salvaged if cut off.
+            Log.memo.error("draft manifest not writable: \(error.localizedDescription)")
+        }
+        session = Session(cafURL: url, title: prepared.title, recordedAt: startedAt, pipeline: pipeline,
                           transcriberStarted: prepared.live != nil)
         self.prepared = nil
         cafURL = url
@@ -118,13 +153,14 @@ final class MemoRecorderEngine {
         elapsed = 0
         lastSequence = 0
         state = .recording
+        observeSession()
         do {
             try input.start { pipeline.process($0) }
         } catch {
             Log.memo.error("audio input did not start: \(error.localizedDescription)")
             _ = pipeline.close()
-            session = nil
-            state = .idle
+            drafts.remove(cafURL: url)
+            end()
             throw error
         }
     }
@@ -165,6 +201,7 @@ final class MemoRecorderEngine {
             // Recovered: the leftover `.caf` is harmless; the `.m4a` is the result.
             Log.memo.error("caf not removable after export: \(error.localizedDescription)")
         }
+        drafts.remove(cafURL: session.cafURL)
         let transcript = await finishTranscript(of: session)
         samples = closed.samples
         elapsed = Double(closed.frames) / CapturePipeline.sampleRate
@@ -208,8 +245,50 @@ final class MemoRecorderEngine {
     }
 
     private func end() {
+        observers = ObserverBag()
+        audioSession.restore()
         session = nil
         state = .idle
+    }
+
+    // MARK: Interruptions and route changes (D16)
+
+    private func observeSession() {
+        let bag = ObserverBag()
+        bag.add(notificationCenter, AVAudioSession.interruptionNotification) { [weak self] info in
+            self?.handleInterruption(info)
+        }
+        bag.add(notificationCenter, AVAudioSession.routeChangeNotification) { [weak self] info in
+            self?.handleRouteChange(info)
+        }
+        observers = bag
+    }
+
+    private func handleInterruption(_ info: [AnyHashable: Any]?) {
+        guard let raw = info?[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
+        switch type {
+        case .began:
+            pause()
+        case .ended:
+            let options = AVAudioSession.InterruptionOptions(rawValue: info?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0)
+            guard options.contains(.shouldResume), state == .paused else { return }
+            do {
+                try audioSession.activate()
+                try resume()
+            } catch {
+                // Recovered: stays paused; the owner resumes or stops it.
+                Log.memo.error("recording not resumed after interruption: \(error.localizedDescription)")
+            }
+        @unknown default:
+            break
+        }
+    }
+
+    private func handleRouteChange(_ info: [AnyHashable: Any]?) {
+        guard let raw = info?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+              AVAudioSession.RouteChangeReason(rawValue: raw) == .oldDeviceUnavailable else { return }
+        pause()
     }
 }
 
@@ -404,5 +483,31 @@ private final class CapturePipeline: @unchecked Sendable {
     private func feedLive(_ buffer: AVAudioPCMBuffer) {
         guard let live, let converted = Self.convert(buffer, with: live.converter, to: live.converter.outputFormat) else { return }
         live.continuation.yield(AnalyzerInput(buffer: converted))
+    }
+}
+
+// MARK: - Notification observers
+
+/// Holds block observers and removes them when it goes away, so the engine needs no `deinit`
+/// access to main-actor state. Handlers run on the main actor whatever thread posts.
+private final class ObserverBag: @unchecked Sendable {
+    private var tokens: [(NotificationCenter, NSObjectProtocol)] = []
+
+    @MainActor
+    func add(_ center: NotificationCenter, _ name: Notification.Name,
+             handler: @escaping @MainActor ([AnyHashable: Any]?) -> Void) {
+        let token = center.addObserver(forName: name, object: nil, queue: nil) { note in
+            nonisolated(unsafe) let info = note.userInfo
+            if Thread.isMainThread {
+                MainActor.assumeIsolated { handler(info) }
+            } else {
+                Task { @MainActor in handler(info) }
+            }
+        }
+        tokens.append((center, token))
+    }
+
+    deinit {
+        tokens.forEach { $0.0.removeObserver($0.1) }
     }
 }
