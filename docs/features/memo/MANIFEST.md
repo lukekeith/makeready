@@ -1,7 +1,7 @@
 size: lg
 state: spec
 next: /builder:resume --path docs/features/memo
-head: none
+head: 4b4924ce
 ticket: none
 branch: main
 pr: none
