@@ -4,7 +4,7 @@ import { prisma } from '../lib/prisma.js'
 import { Prisma } from '../generated/prisma/index.js'
 import type { VoiceMemo as VoiceMemoRow } from '../generated/prisma/index.js'
 import { deleteFromR2, headObject, presignGet, presignPut } from './storage.js'
-import { transcribeMemo } from './transcription.service.js'
+import { transcribeMemo, TRANSCRIPT_MAX_ATTEMPTS } from './transcription.service.js'
 
 const MEMO_MIME_TYPE = 'audio/mp4'
 const UPLOAD_TTL_SECONDS = 900
@@ -222,4 +222,60 @@ export async function purgeUserMemoObjects(userId: string): Promise<number> {
     }
   }
   return deleted
+}
+
+const PENDING_UPLOAD_TTL_MS = 24 * 3_600_000
+const DELETED_RETENTION_MS = 30 * 24 * 3_600_000
+
+/** Best-effort object delete for the maintenance steps: a failure is logged and the row still goes (D13, D6). */
+async function deleteObjectQuietly(id: string, key: string): Promise<void> {
+  try {
+    await deleteFromR2(key)
+  } catch (err) {
+    console.error(`[memos] failed to delete object for memo ${id}:`, err)
+  }
+}
+
+/** D26 step 1: `pending` uploads created over 24 h ago lose their object and row. Returns the count. */
+export async function expireStalePendingUploads(now: Date): Promise<number> {
+  const stale = await prisma.voiceMemo.findMany({
+    where: { uploadStatus: 'pending', createdAt: { lt: new Date(now.getTime() - PENDING_UPLOAD_TTL_MS) } },
+    select: { id: true, key: true },
+  })
+  for (const { id, key } of stale) {
+    await deleteObjectQuietly(id, key)
+    await prisma.voiceMemo.deleteMany({ where: { id, uploadStatus: 'pending' } })
+  }
+  return stale.length
+}
+
+/** D26 step 2: ids of active, uploaded memos whose transcript is pending or failed with attempts left. */
+export async function memoIdsDueForTranscriptRetry(): Promise<string[]> {
+  const rows = await prisma.voiceMemo.findMany({
+    where: {
+      isActive: true,
+      uploadStatus: 'ready',
+      transcriptStatus: { in: ['pending', 'failed'] },
+      transcriptAttempts: { lt: TRANSCRIPT_MAX_ATTEMPTS },
+    },
+    select: { id: true },
+    orderBy: { createdAt: 'asc' },
+  })
+  return rows.map((r) => r.id)
+}
+
+/** D26 step 3 (D6, D36): memos soft-deleted over 30 days ago lose their object, `MEMO` note links and row. Returns the count. */
+export async function purgeDeletedMemos(now: Date): Promise<number> {
+  const due = await prisma.voiceMemo.findMany({
+    where: { isActive: false, deletedAt: { lt: new Date(now.getTime() - DELETED_RETENTION_MS) } },
+    select: { id: true, key: true },
+  })
+  for (const { id, key } of due) {
+    await deleteObjectQuietly(id, key)
+    await prisma.$transaction([
+      prisma.noteLink.deleteMany({ where: { refType: 'MEMO', refId: id } }),
+      prisma.voiceMemo.delete({ where: { id } }),
+    ])
+  }
+  return due.length
 }

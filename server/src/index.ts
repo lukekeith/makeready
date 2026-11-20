@@ -618,6 +618,13 @@ if (process.env.NODE_ENV !== 'test') {
       console.warn('⚠️ Could not start cache eviction job:', err.message)
     })
 
+    // Voice memo maintenance (expire, retry transcripts, purge; advisory-locked)
+    import('./jobs/memo-maintenance.js').then(({ startMemoMaintenanceJob }) => {
+      startMemoMaintenanceJob()
+    }).catch((err) => {
+      console.warn('⚠️ Could not start memo maintenance job:', err.message)
+    })
+
     // Analytics matview refresh loop (10 min, advisory-locked across
     // instances; the query path has its own staleness backstop)
     import('./services/analytics.service.js').then(({ startAnalyticsRefreshJob }) => {
