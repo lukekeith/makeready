@@ -189,13 +189,13 @@ keys are camelCase.
 
 | # | ADD/EDIT/RENAME/REMOVE | Model.field | Wire | Reason | Status |
 |---|---|---|---|---|---|
-| SC1 | ADD | `VoiceMemo` (table `voice_memos`): `id` uuid pk · `userId` string? · `memberId` string? · `title` string · `key` string · `mimeType` string default `audio/mp4` · `fileSize` int? · `durationMs` int? · `waveformPeaks` json? · `transcript` text? · `transcriptSegments` json? · `transcriptStatus` string default `none` · `transcriptSource` string? · `transcriptAttempts` int default 0 · `transcriptClaimedAt` datetime? (D32) · `uploadStatus` string default `pending` · `recordedAt` datetime · `isActive` bool default true · `deletedAt` datetime? · `createdAt` · `updatedAt`; indexes `(userId, recordedAt)`, `(memberId, recordedAt)`, `(uploadStatus, createdAt)`; `user` relation onDelete Cascade (copy StudyNote's YAML block, `schema.yaml:3374-3420`). Status columns are strings with TS/zod unions, like `Media.uploadStatus`. No `url` column (D31) | `VoiceMemo` / `VoiceMemoSummary` | D7, D8, D26, D31, D32 | planned |
-| SC2 | ADD | `POST /api/memos` | §Contract | D9, D13 | planned |
-| SC3 | ADD | `PATCH /api/memos/:id/complete` | §Contract | D13, D5, D30, D33 | planned |
-| SC7 | ADD | `POST /api/memos/:id/upload` | §Contract | D29 | planned |
-| SC4 | ADD | `GET /api/memos`, `GET /api/memos/:id` | §Contract | D17, D24 | planned |
-| SC5 | ADD | `PATCH /api/memos/:id`, `DELETE /api/memos/:id` | §Contract | D6, D11 | planned |
-| SC6 | EDIT | `LINK_TYPES` + `MEMO` (`notes.service.ts:46`); `NoteLink.refType` is a free string column, so no DDL | notes link endpoints validate `MEMO` | D18, D36 | planned |
+| SC1 | ADD | `VoiceMemo` (table `voice_memos`): `id` uuid pk · `userId` string? · `memberId` string? · `title` string · `key` string · `mimeType` string default `audio/mp4` · `fileSize` int? · `durationMs` int? · `waveformPeaks` json? · `transcript` text? · `transcriptSegments` json? · `transcriptStatus` string default `none` · `transcriptSource` string? · `transcriptAttempts` int default 0 · `transcriptClaimedAt` datetime? (D32) · `uploadStatus` string default `pending` · `recordedAt` datetime · `isActive` bool default true · `deletedAt` datetime? · `createdAt` · `updatedAt`; indexes `(userId, recordedAt)`, `(memberId, recordedAt)`, `(uploadStatus, createdAt)`; `user` relation onDelete Cascade (copy StudyNote's YAML block, `schema.yaml:3374-3420`). Status columns are strings with TS/zod unions, like `Media.uploadStatus`. No `url` column (D31) | `VoiceMemo` / `VoiceMemoSummary` | D7, D8, D26, D31, D32 | landed 20261120020900_voice_memos |
+| SC2 | ADD | `POST /api/memos` | §Contract | D9, D13 | landed 3d46508 |
+| SC3 | ADD | `PATCH /api/memos/:id/complete` | §Contract | D13, D5, D30, D33 | landed 3d46508 |
+| SC7 | ADD | `POST /api/memos/:id/upload` | §Contract | D29 | landed 3d46508 |
+| SC4 | ADD | `GET /api/memos`, `GET /api/memos/:id` | §Contract | D17, D24 | landed 3d46508 |
+| SC5 | ADD | `PATCH /api/memos/:id`, `DELETE /api/memos/:id` | §Contract | D6, D11 | landed 3d46508 |
+| SC6 | EDIT | `LINK_TYPES` + `MEMO` (`notes.service.ts:46`); `NoteLink.refType` is a free string column, so no DDL | notes link endpoints validate `MEMO` | D18, D36 | landed 63a6bfd (no DDL) |
 
 **Data plan:** additive only. One new table, generated from `server/schema/schema.yaml` by
 `npm run schema:diff` (never hand-edited). No existing rows are touched and no backfill is needed.
