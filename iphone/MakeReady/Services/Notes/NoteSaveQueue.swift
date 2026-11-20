@@ -96,6 +96,12 @@ final class NoteSaveQueue {
         items.first { $0.noteId == noteId }?.entry
     }
 
+    /// Forgets a note's entry without sending it (a never-created note emptied, D10).
+    func remove(noteId: String) {
+        guard entry(for: noteId) != nil else { return }
+        drop(noteId)
+    }
+
     /// Empties memory and deletes the file (sign-out, D24).
     func clear() {
         items = []
@@ -165,7 +171,8 @@ final class NoteSaveQueue {
         }
     }
 
-    private static func isTransient(_ error: APIHTTPError) -> Bool {
+    /// A session, rate-limit or server problem: the same request may succeed later.
+    static func isTransient(_ error: APIHTTPError) -> Bool {
         [401, 408, 429].contains(error.status) || error.status >= 500
     }
 
