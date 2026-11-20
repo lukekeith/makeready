@@ -1,4 +1,5 @@
-import { S3Client, type S3ClientConfig, PutObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, type S3ClientConfig, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3'
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import sharp from 'sharp'
 
 /**
@@ -9,6 +10,7 @@ import sharp from 'sharp'
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 
 let s3Client: S3Client | null = null
+let presignClient: S3Client | null = null
 
 /**
  * The S3 client settings. `R2_ENDPOINT` points the client at a local S3-compatible store (MinIO on
@@ -44,6 +46,26 @@ function getR2Client(): S3Client {
   return s3Client
 }
 
+/**
+ * The S3 client settings for presigning (D34). `R2_PRESIGN_ENDPOINT` names a host the phone or
+ * simulator can reach (local dev only); SigV4 signs the host, so the URL cannot be rewritten later.
+ */
+export function presignClientConfig(env: NodeJS.ProcessEnv = process.env): S3ClientConfig {
+  const config = r2ClientConfig(env)
+  if (env.R2_PRESIGN_ENDPOINT) {
+    config.endpoint = env.R2_PRESIGN_ENDPOINT
+    config.forcePathStyle = true
+  }
+  return config
+}
+
+function getPresignClient(): S3Client {
+  if (!process.env.R2_PRESIGN_ENDPOINT) return getR2Client()
+  if (presignClient) return presignClient
+  presignClient = new S3Client(presignClientConfig())
+  return presignClient
+}
+
 function getBucket(): string {
   return process.env.R2_BUCKET_NAME || 'makeready-media'
 }
@@ -71,6 +93,39 @@ export async function objectExists(key: string): Promise<boolean> {
     if (status === 404 || (error as { name?: string }).name === 'NotFound') return false
     throw error
   }
+}
+
+/** The object's size, or null when it is absent; any error other than not-found propagates. */
+export async function headObject(key: string): Promise<{ contentLength: number } | null> {
+  try {
+    const result = await getR2Client().send(new HeadObjectCommand({ Bucket: getBucket(), Key: key }))
+    return { contentLength: result.ContentLength ?? 0 }
+  } catch (error) {
+    const status = (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode
+    if (status === 404 || (error as { name?: string }).name === 'NotFound') return null
+    throw error
+  }
+}
+
+/** A presigned PUT URL that only accepts exactly `contentLength` bytes of `contentType` (D9). */
+export async function presignPut(key: string, contentType: string, contentLength: number, expiresInSeconds: number): Promise<string> {
+  return getSignedUrl(
+    getPresignClient(),
+    new PutObjectCommand({ Bucket: getBucket(), Key: key, ContentType: contentType, ContentLength: contentLength }),
+    { expiresIn: expiresInSeconds, signableHeaders: new Set(['content-type', 'content-length']) }
+  )
+}
+
+/** A presigned GET URL for a private object (D31). */
+export async function presignGet(key: string, expiresInSeconds: number): Promise<string> {
+  return getSignedUrl(getPresignClient(), new GetObjectCommand({ Bucket: getBucket(), Key: key }), { expiresIn: expiresInSeconds })
+}
+
+/** The object's bytes. */
+export async function downloadObject(key: string): Promise<Buffer> {
+  const result = await getR2Client().send(new GetObjectCommand({ Bucket: getBucket(), Key: key }))
+  if (!result.Body) throw new Error(`R2 object has no body: ${key}`)
+  return Buffer.from(await result.Body.transformToByteArray())
 }
 
 /**
