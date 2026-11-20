@@ -1,7 +1,7 @@
 size: lg
-state: audited
+state: planned
 next: /builder:resume --path docs/features/memo
-head: 5fd0b2ce
+head: dca2eed7
 ticket: none
 branch: builder/memo
 pr: none
@@ -15,3 +15,4 @@ walk: none
 verify: none
 ui2: none
 auto: off
+agent-walk: on 2026-11-20
