@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
+import { Prisma } from '../generated/prisma/index.js'
 import type { VoiceMemo as VoiceMemoRow } from '../generated/prisma/index.js'
-import { headObject, presignPut } from './storage.js'
+import { deleteFromR2, headObject, presignGet, presignPut } from './storage.js'
 import { transcribeMemo } from './transcription.service.js'
 
 const MEMO_MIME_TYPE = 'audio/mp4'
@@ -151,4 +152,74 @@ export async function completeMemo(userId: string, memoId: string) {
   })
   if (!hasTranscript) runTranscription(memo.id)
   return toVoiceMemo(updated)
+}
+
+const DETAIL_URL_TTL_SECONDS = 3600
+const PREVIEW_CHARS = 280
+
+/** Query of GET /api/memos (D44): paging bounds, optional search text. */
+export const listMemosQuery = z.object({
+  q: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+}).strict()
+
+/** Body of PATCH /api/memos/:id: the title is the only field (D11). */
+export const renameMemoBody = z.object({ title: z.string().trim().min(1).max(120) }).strict()
+
+export interface ListMemosOptions { q?: string; limit: number; offset: number }
+
+/** Active, ready, owned memos newest first as summaries; `q` is a literal substring of title or transcript (D17, D24, D44). */
+export async function listMemos(userId: string, { q, limit, offset }: ListMemosOptions) {
+  const pattern = q ? '%' + q.replace(/[\\%_]/g, '\\$&') + '%' : null
+  const search = pattern
+    ? Prisma.sql`AND (title ILIKE ${pattern} ESCAPE '\\' OR transcript ILIKE ${pattern} ESCAPE '\\')`
+    : Prisma.empty
+  const where = Prisma.sql`"userId"::text = ${userId} AND "isActive" = true AND "uploadStatus" = 'ready' ${search}`
+
+  const [rows, counted] = await Promise.all([
+    prisma.$queryRaw<(VoiceMemoRow & { transcriptPreview: string | null })[]>`
+      SELECT id, title, "mimeType", "fileSize", "durationMs", "transcriptStatus", "transcriptSource",
+             "uploadStatus", "recordedAt", "createdAt", "updatedAt",
+             left(transcript, ${PREVIEW_CHARS}::int) AS "transcriptPreview"
+      FROM voice_memos
+      WHERE ${where}
+      ORDER BY "recordedAt" DESC, id DESC
+      LIMIT ${limit}::int OFFSET ${offset}::int`,
+    prisma.$queryRaw<{ total: bigint }[]>`SELECT count(*) AS total FROM voice_memos WHERE ${where}`,
+  ])
+  return { memos: rows.map(toVoiceMemoSummary), total: Number(counted[0]?.total ?? 0) }
+}
+
+/** Full memo with a 60-minute presigned GET (D31). */
+export async function getMemo(userId: string, memoId: string) {
+  const memo = await findOwnedMemo(userId, memoId)
+  const url = await presignGet(memo.key, DETAIL_URL_TTL_SECONDS)
+  return toVoiceMemo(memo, { url, expiresAt: new Date(Date.now() + DETAIL_URL_TTL_SECONDS * 1000) })
+}
+
+export async function renameMemo(userId: string, memoId: string, title: string) {
+  const memo = await findOwnedMemo(userId, memoId)
+  return toVoiceMemo(await prisma.voiceMemo.update({ where: { id: memo.id }, data: { title: title.trim() } }))
+}
+
+/** Soft delete (D6); the maintenance job hard-deletes 30 days later. */
+export async function softDeleteMemo(userId: string, memoId: string): Promise<void> {
+  const memo = await findOwnedMemo(userId, memoId)
+  await prisma.voiceMemo.update({ where: { id: memo.id }, data: { isActive: false, deletedAt: new Date() } })
+}
+
+/** Deletes the R2 object of every memo the user has, active or not; a failure is logged and skipped (D35). Returns the count deleted. */
+export async function purgeUserMemoObjects(userId: string): Promise<number> {
+  const memos = await prisma.voiceMemo.findMany({ where: { userId }, select: { id: true, key: true } })
+  let deleted = 0
+  for (const { id, key } of memos) {
+    try {
+      await deleteFromR2(key)
+      deleted++
+    } catch (err) {
+      console.error(`[memos] failed to delete object for memo ${id}:`, err)
+    }
+  }
+  return deleted
 }
