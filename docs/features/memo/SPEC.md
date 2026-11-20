@@ -1,4 +1,5 @@
 # memo — spec
+> 🤖 AGENT SIGNED OFF 2026-11-20 — 48b8aae8 · agent walk round 1 · not human-tested · evidence: .builder/memo/agent-walk/round-1/
 > lg · ticket: none · the voice-memo **engine** (server + iPhone services/state); the screens are a later spec
 
 ## Idea
@@ -355,23 +356,3 @@ On a physical iPhone, check:
 | F24 | iPhone tests run hosted in MakeReady.app (`TEST_HOST`), so app launch code runs in every test | build-time risk: salvage, flush and the path monitor take an injected folder; tests never use `AppState.shared`'s controller; the monitor starts only with a non-empty queue |
 | F25 | iPhone lint: no `NSLog`/`print`/`asyncAfter`, static formatters; `Log` has no audio category; bodies built with `JSONSerialization` can't hold a `Date`; `DELETE` 204 fails the decoding path | build-time risk: the MemoActions and upload-controller tasks use `Task.sleep` backoff, `Log.media` (or a deliberate `Log.memo`), a static ISO8601 formatter for `recordedAt`, and `requestWithStatus` for `DELETE` (`EnrollmentDraftActions.swift:57`) |
 | F26 | Stale citations: `VideoActivityManager` is not in the app target; `objectExists` returns no size; D23 named the wrong Dockerfile stages; "a client listing link types" — `GET /notes/types` is shadowed by `GET /notes/:noteId` | corrected in place (footnote 8, D20, §server, D23, §Apps) |
-
-## Plan
-
-The plan, task by task: `docs/features/memo/PLAN.md` (§PLAN.md).
-
-- Phase 1 · Task 1 · `VoiceMemo` schema and migration
-- Phase 1 · Task 2 · storage presign, HEAD with size, download
-- Phase 1 · Task 3 · Groq fallback transcription service and ffmpeg
-- Phase 2 · Task 4 · memo create, re-mint and complete
-- Phase 2 · Task 5 · memo list, search, detail, rename, delete, user purge
-- Phase 2 · Task 6 · memo maintenance job
-- Phase 2 · Task 7 · `MEMO` note link type
-- Phase 2 · Task 8 · `/api/memos` routes, user hard-delete purge, contract freeze
-- Phase 3 · Task 9 · memo models and Info.plist strings
-- Phase 3 · Task 10 · `AppState` memo stores and `MemoActions`
-- Phase 4 · Task 11 · `MemoTranscriber`
-- Phase 4 · Task 12 · `MemoRecorderEngine` capture core
-- Phase 4 · Task 13 · engine audio session, interruptions and draft manifests
-- Phase 5 · Task 14 · `MemoUploadController` lifecycle and persistent queue
-- Phase 5 · Task 15 · flush policy, tenancy, salvage hand-off and `AppState` ownership

@@ -1,7 +1,7 @@
 size: lg
-state: built
-next: /builder:agent-walk --path docs/features/memo
-head: e31f18d4
+state: signed-off
+next: /builder:resume --path docs/features/memo
+head: 48b8aae8
 ticket: none
 branch: builder/memo
 pr: none
@@ -11,7 +11,7 @@ hold: none
 go-ahead: auto (recommended) 2026-11-20
 tests: walk=risk review=slice
 target: feature/memo
-walk: none
+walk: agent-pass 2026-11-20 48b8aae8
 verify: none
 ready: yes 2026-11-20 e31f18d4
 ui2: none
