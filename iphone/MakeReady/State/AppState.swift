@@ -909,6 +909,8 @@ final class AppState {
         initialLoad.reset()
         clearInMemory()
         StatePersistence.shared.clear()
+        // SPEC D24: unsent note saves belong to the signed-out user.
+        NoteSaveQueue.shared.clear()
         NSLog("📦 AppState: Cleared all state")
     }
 
