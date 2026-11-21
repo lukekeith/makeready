@@ -7,12 +7,16 @@ const MAX_CODE_POINTS = 120
 
 const LEADING_MARKER = /^(?:#{1,6} |- |\* |\+ |\d+\. |> )/
 
-/** One markdown line, stripped of block markers and inline marks, unescaped and trimmed. */
+/**
+ * One markdown line, stripped of block markers and inline marks, unescaped and trimmed. The codec writes edge
+ * whitespace as `&#32;`/`&#9;` (a typed `&` is always `\&`), so those two are decoded before the trim.
+ */
 export function stripMarkdownLine(line: string): string {
   let s = line.replace(LEADING_MARKER, '')
   s = s.replace(/\*\*|__|~~|==|<u>|<\/u>/g, '')
   s = s.replace(/(?<!\\)\*([^*]*?)(?<!\\)\*/g, '$1')
   s = s.replace(/(?<!\\)_([^_]*?)(?<!\\)_/g, '$1')
+  s = s.replace(/(?<!\\)&#(32|9);/g, (_, code) => (code === '32' ? ' ' : '\t'))
   s = s.replace(/\\(.)/gu, '$1')
   return s.trim()
 }

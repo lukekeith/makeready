@@ -6,7 +6,7 @@
  * user owns or holds a role in. A chosen link that does not resolve gives null; the next link is not tried.
  * Every list costs at most one query per entity kind, plus one for the user's visible orgs.
  *
- * MEMO resolves to null here: VoiceMemo is not on this branch (F9). The memo feature adds its label.
+ * MEMO resolves to the VoiceMemo's title when the user owns it and it is active (F9); otherwise null.
  */
 import { prisma } from '../lib/prisma.js'
 
@@ -46,8 +46,9 @@ export async function attachContextLabels<N extends { links: LabelLink[] }>(
   const chosen = notes.map((note) => chooseLink(note.links))
   const groupIds = [...new Set(chosen.filter((l) => l?.refType === 'GROUP').map((l) => l!.refId))]
   const programIds = [...new Set(chosen.filter((l) => l?.refType === 'PROGRAM').map((l) => l!.refId))]
+  const memoIds = [...new Set(chosen.filter((l) => l?.refType === 'MEMO').map((l) => l!.refId))]
 
-  const [orgIds, groups, programs] = await Promise.all([
+  const [orgIds, groups, programs, memos] = await Promise.all([
     groupIds.length + programIds.length > 0 ? visibleOrganizationIds(userId) : new Set<string>(),
     groupIds.length > 0
       ? prisma.group.findMany({ where: { id: { in: groupIds } }, select: { id: true, name: true, organizationId: true } })
@@ -55,17 +56,22 @@ export async function attachContextLabels<N extends { links: LabelLink[] }>(
     programIds.length > 0
       ? prisma.studyProgram.findMany({ where: { id: { in: programIds } }, select: { id: true, name: true, organizationId: true } })
       : [],
+    memoIds.length > 0
+      ? prisma.voiceMemo.findMany({ where: { id: { in: memoIds }, userId, isActive: true }, select: { id: true, title: true } })
+      : [],
   ])
 
   const groupById = new Map(groups.map((g) => [g.id, g]))
   const programById = new Map(programs.map((p) => [p.id, p]))
+  const memoTitleById = new Map(memos.map((m) => [m.id, m.title]))
   const visibleName = (entity: { name: string; organizationId: string | null } | undefined): string | null =>
     entity && entity.organizationId && orgIds.has(entity.organizationId) ? entity.name : null
 
   return notes.map((note, i) => {
     const link = chosen[i]
     let contextLabel: string | null = null
-    if (link?.refType === 'GROUP') contextLabel = visibleName(groupById.get(link.refId))
+    if (link?.refType === 'MEMO') contextLabel = memoTitleById.get(link.refId) ?? null
+    else if (link?.refType === 'GROUP') contextLabel = visibleName(groupById.get(link.refId))
     else if (link?.refType === 'PROGRAM') contextLabel = visibleName(programById.get(link.refId))
     return { ...note, contextLabel }
   })

@@ -9,10 +9,12 @@ import { createContentWorld, createGroupWithMember, destroyContentWorld, type Co
 describe('leader note contextLabel', () => {
   let w: ContentWorld
   const createdGroupIds: string[] = []
+  const createdMemoIds: string[] = []
   const createdUserRoleIds: string[] = []
   beforeAll(async () => { w = await createContentWorld() })
   afterAll(async () => {
     await prisma.studyNote.deleteMany({ where: { userId: { in: [w.leader.userId, w.outsider.userId] } } })
+    await prisma.voiceMemo.deleteMany({ where: { id: { in: createdMemoIds } } })
     await prisma.userRole.deleteMany({ where: { id: { in: createdUserRoleIds } } })
     await prisma.group.deleteMany({ where: { id: { in: createdGroupIds } } })
     await destroyContentWorld(w)
@@ -52,14 +54,43 @@ describe('leader note contextLabel', () => {
     expect((await get(w.leader, n.id)).body.data.contextLabel).toBe('Hidden')
   })
 
-  it('LESSON, MEMO and no links are null, and every list item carries the key', async () => {
+  it('LESSON and no links are null, and every list item carries the key', async () => {
     const l = await postWithLinks(w.leader, [{ refType: 'LESSON', refId: w.lessonId }])
     const m = await postWithLinks(w.leader, [])
-    await prisma.noteLink.create({ data: { noteId: m.id, refType: 'MEMO', refId: crypto.randomUUID() } })
     expect(l.contextLabel).toBeNull()
-    expect((await get(w.leader, m.id)).body.data.contextLabel).toBeNull()
+    expect(m.contextLabel).toBeNull()
     const list = await request(app).get('/api/notes?type=NOTE&limit=100').set('Authorization', bearer(w.leader.token))
     expect(list.body.data.length).toBeGreaterThan(0)
     for (const item of list.body.data) expect(item).toHaveProperty('contextLabel')
+  })
+
+  describe('MEMO', () => {
+    async function memo(userId: string, title: string, isActive = true) {
+      const row = await prisma.voiceMemo.create({ data: { userId, title, key: `k-${crypto.randomUUID()}`, recordedAt: new Date(), isActive } })
+      createdMemoIds.push(row.id)
+      return row
+    }
+    async function noteWithRawLinks(refs: { refType: string; refId: string }[]) {
+      const n = await postWithLinks(w.leader, [])
+      for (const ref of refs) await prisma.noteLink.create({ data: { noteId: n.id, ...ref } })
+      return n
+    }
+
+    it('an owned active memo names the note, and outranks a GROUP link', async () => {
+      const mine = await memo(w.leader.userId, 'Sunday sermon memo')
+      const { groupId } = await createGroupWithMember(w)
+      const n = await noteWithRawLinks([{ refType: 'GROUP', refId: groupId }, { refType: 'MEMO', refId: mine.id }])
+      expect((await get(w.leader, n.id)).body.data.contextLabel).toBe('Sunday sermon memo')
+    })
+
+    it('another user\'s or an inactive memo is null, with no fall-through to the GROUP link', async () => {
+      const theirs = await memo(w.outsider.userId, 'Not yours')
+      const gone = await memo(w.leader.userId, 'Deleted memo', false)
+      const { groupId } = await createGroupWithMember(w)
+      const a = await noteWithRawLinks([{ refType: 'MEMO', refId: theirs.id }])
+      const b = await noteWithRawLinks([{ refType: 'MEMO', refId: gone.id }, { refType: 'GROUP', refId: groupId }])
+      expect((await get(w.leader, a.id)).body.data.contextLabel).toBeNull()
+      expect((await get(w.leader, b.id)).body.data.contextLabel).toBeNull()
+    })
   })
 })
