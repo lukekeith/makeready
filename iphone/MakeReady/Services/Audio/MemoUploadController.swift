@@ -27,7 +27,7 @@ enum MemoUploadStep: Equatable {
 struct MemoQueueItem: Codable, Equatable {
     let localId: String
     let fileName: String
-    let title: String
+    var title: String
     let durationMs: Int
     let waveformPeaks: [Double]
     /// ISO-8601 with fractional seconds, formatted once at enqueue and re-POSTed verbatim, so a
@@ -78,6 +78,8 @@ final class MemoUploadController {
     private var backoffSteps: [String: (attempts: Int, wait: Duration)] = [:]
     private var wakeRequested = false
     private var wakeRetriesAll = false
+    /// `localId -> serverId` for items whose upload completed this session (D17).
+    private var completedServerIds: [String: String] = [:]
 
     /// 5 s, 30 s, 2 min, 10 min; every later attempt waits 10 min (D22).
     private static let backoff: [Duration] = [.seconds(5), .seconds(30), .seconds(120), .seconds(600)]
@@ -109,8 +111,10 @@ final class MemoUploadController {
 
     // MARK: Queue
 
-    /// Moves the `.m4a` into the queue folder and writes its manifest. No network (D22).
-    func enqueue(_ result: RecordingResult) throws {
+    /// Moves the `.m4a` into the queue folder and writes its manifest. No network (D22). Returns
+    /// the persisted item.
+    @discardableResult
+    func enqueue(_ result: RecordingResult) throws -> MemoQueueItem {
         let fm = FileManager.default
         try prepareDirectory()
         let localId = UUID().uuidString
@@ -129,9 +133,10 @@ final class MemoUploadController {
             try? fm.moveItem(at: destination, to: result.fileURL)
             throw error
         }
-        guard flushesOnEnqueue else { return }
+        guard flushesOnEnqueue else { return item }
         startPathMonitoring()
         Task { await flush() }
+        return item
     }
 
     /// This owner's and this environment's unsent items, oldest first (D37).
@@ -146,6 +151,38 @@ final class MemoUploadController {
                   item.ownerUserId == ownerUserId, item.environment == environment else { return nil }
             return item
         }.sorted { ($0.recordedAt, $0.localId) < ($1.recordedAt, $1.localId) }
+    }
+
+    /// The pending item with `localId`, if it is still queued.
+    func item(localId: String) -> MemoQueueItem? {
+        pending().first { $0.localId == localId }
+    }
+
+    /// Where the item's `.m4a` sits in the queue folder.
+    func fileURL(for item: MemoQueueItem) -> URL {
+        directory.appendingPathComponent(item.fileName)
+    }
+
+    /// A pending item's `serverId`, or the one recorded when that item completed (D17).
+    func serverId(forLocalId localId: String) -> String? {
+        item(localId: localId)?.serverId ?? completedServerIds[localId]
+    }
+
+    /// Renames a queued memo: the manifest's `title` (so the create POST carries it) and, when the
+    /// row already exists on the server, the server's too (D17). Unknown `localId`: `CancellationError`.
+    func rename(localId: String, title: String) async throws {
+        guard var item = item(localId: localId) else { throw CancellationError() }
+        item.title = title
+        try persist(item)
+        if let serverId = item.serverId { try await actions.rename(id: serverId, title: title) }
+    }
+
+    /// Deletes a queued memo's `.m4a` and manifest and, when the row exists on the server, soft-deletes
+    /// it there first, so a failed call leaves the item queued (D17). Unknown `localId`: `CancellationError`.
+    func remove(localId: String) async throws {
+        guard let item = item(localId: localId) else { throw CancellationError() }
+        if let serverId = item.serverId { try await actions.softDelete(id: serverId) }
+        remove(item)
     }
 
     // MARK: Flush
@@ -420,6 +457,7 @@ final class MemoUploadController {
             let data = try await api.requestWithStatus(endpoint: "/api/memos/\(serverId)/complete", method: "PATCH", body: [:], timeout: 30)
             let memo = try JSONDecoder.apiDecoder.decode(MemoResponse.self, from: data).memo
             actions.memoCompleted(memo)
+            completedServerIds[item.localId] = serverId
             remove(item)
             return .completed(serverId)
         } catch let error as APIHTTPError where error.status == 404 {
