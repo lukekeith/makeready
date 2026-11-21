@@ -19,13 +19,14 @@ final class MemoDetailMapperTests: XCTestCase {
         calendar.date(bySettingHour: hour, minute: minute, second: 0, of: now)!
     }
 
-    private func memo(status: String, segments: [(String, Int)]? = nil, transcript: String? = nil) -> VoiceMemo {
+    private func memo(status: String, segments: [(String, Int)]? = nil, transcript: String? = nil, durationMs: Int? = 42500) -> VoiceMemo {
         let stamp = "2026-11-20T16:00:00.000Z"
         let segmentsJSON = segments.map { list in
             "[" + list.map { #"{"text":"\#($0.0)","startMs":\#($0.1),"endMs":\#($0.1 + 1000)}"# }.joined(separator: ",") + "]"
         } ?? "null"
+        let durationJSON = durationMs.map(String.init) ?? "null"
         let transcriptJSON = transcript.map { "\"\($0)\"" } ?? "null"
-        let json = #"{"id":"m1","title":"Walk","url":null,"urlExpiresAt":null,"mimeType":"audio/mp4","fileSize":5000,"durationMs":42500,"waveformPeaks":null,"transcript":\#(transcriptJSON),"transcriptSegments":\#(segmentsJSON),"transcriptStatus":"\#(status)","transcriptSource":null,"uploadStatus":"ready","recordedAt":"\#(stamp)","createdAt":"\#(stamp)","updatedAt":"\#(stamp)"}"#
+        let json = #"{"id":"m1","title":"Walk","url":null,"urlExpiresAt":null,"mimeType":"audio/mp4","fileSize":5000,"durationMs":\#(durationJSON),"waveformPeaks":null,"transcript":\#(transcriptJSON),"transcriptSegments":\#(segmentsJSON),"transcriptStatus":"\#(status)","transcriptSource":null,"uploadStatus":"ready","recordedAt":"\#(stamp)","createdAt":"\#(stamp)","updatedAt":"\#(stamp)"}"#
         return try! JSONDecoder.apiDecoder.decode(VoiceMemo.self, from: Data(json.utf8))
     }
 
@@ -66,11 +67,14 @@ final class MemoDetailMapperTests: XCTestCase {
         XCTAssertEqual(s.transcript, .paragraphs)
         XCTAssertEqual(s.paragraphStarts, [0, 3]); XCTAssertEqual(s.paragraphTexts, ["One", "Two"])
         XCTAssertEqual(s.title, "Queued"); XCTAssertEqual(s.duration, 5)
+        XCTAssertEqual(s.dateLabel, "Today 10:30 AM")
         XCTAssertEqual(s.elapsed, 1); XCTAssertTrue(s.playing); XCTAssertFalse(s.playerReady)
     }
 
     func testDurationIsSecondsAndZeroWhenUnknown() {
         XCTAssertEqual(state(status: "ready").duration, 42.5)
+        let unknown = MemoDetailMapper.state(memo: memo(status: "ready", durationMs: nil), elapsed: 0, playing: false, playerReady: true, now: now, calendar: calendar)
+        XCTAssertEqual(unknown.duration, 0)
     }
 
     func testTheMetaDateReadsTodayAndTheTime() {
