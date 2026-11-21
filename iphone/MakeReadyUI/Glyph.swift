@@ -152,6 +152,7 @@ enum GlyphName: String, CaseIterable {
     case messageCircle = "message-circle"
     case messageCircleQuestion = "message-circle-question"
     case messageSquarePlus = "message-square-plus"
+    case microphone = "microphone"
     case minus = "minus"
     case money = "money"
     case moreHorizontal = "more-horizontal"

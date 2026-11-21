@@ -478,6 +478,8 @@ enum Token {
         static let popoverOpen = Animation.easeOut(duration: 0.125)
         static let formatToggleOff = Animation.easeOut(duration: 0.2)
         static let popoverClose = Animation.easeOut(duration: 0.1)
+        static let sheetSnap = Animation.spring(duration: 0.35, bounce: 0)  // ≈350ms spring, no overshoot
+        static let sheetPresent = Animation.easeOut(duration: 0.3)  // ≈300ms, ease-out slide up from the bottom edge; the reverse to dismiss
     }
 
     enum Elevation {
