@@ -6,6 +6,8 @@ import SwiftUI
 /// search). Compose and a row tap push the editor through `UI2Navigator`.
 struct LibraryHomeContainer: View {
     @Environment(\.ui2Navigator) private var navigator
+    /// Library owns its scroll (`ownsScroll`), so it reports to the TopNav morph itself.
+    @Environment(\.sectionScrollReport) private var scrollReport
     @State private var isLoading = false
     @State private var loadFailed = false
     @State private var query = ""
@@ -31,7 +33,8 @@ struct LibraryHomeContainer: View {
             },
             onCompose: { navigator.push(.newNote(flowId: UUID())) },
             onSearchChange: search,
-            filtersLocally: false
+            filtersLocally: false,
+            onScrollChange: { offset, interacting in scrollReport.report(offset, interacting) }
         )
         .task { await fetch(q: nil) }
         .onDisappear { searchTask?.cancel() }
