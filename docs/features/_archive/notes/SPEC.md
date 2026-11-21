@@ -1,5 +1,5 @@
 # notes — spec
-> 🤖 AGENT SIGNED OFF 2026-11-21 — 6dcc4a4f · agent walk round 2 · not human-tested · evidence: .builder/notes/agent-walk/round-2/
+> ✅ SHIPPED 2026-11-21 — merged into feature/memo · no ticket · 🤖 agent signed off (walk round 2), not human-tested · quick-checked
 > lg · ticket: none · leader notes on iPhone: Apple-Notes-style editor + the notes list in the Home tab's Library section
 
 ## Idea
@@ -289,6 +289,7 @@ then fills existing rows, idempotently. Run it locally in the build, and on stag
 | F12 | `GET /notes/types` (routes/notes.ts:1907) is shadowed by `/notes/:noteId` (1448) | out of scope: the feature doesn't use it |
 | F13 | `q` misses words split by markup (`un**believ**able`), because it searches escaped markdown | accepted for v1 (D8) |
 | F14 | Prototype item 8: no in-scope item is built, so there is no render to diff against a snapshot, and every state is unseen | build-time risk, T15: the wiring's walk is the first time these states are seen |
+| L1 | lesson for §Standing traps: an iPhone feature wired onto d2m-built views needs those views committed on its target branch before the build — a d2m change reading "done" can leave its output uncommitted in the main checkout, and the wiring phase then has nothing to build against (notes parked on this) | proposed |
 | R1 | repoint (iphone): library-home coming-soon default ← `UI2/Containers/Library/LibraryHomeContainer.swift:7` (this feature); `MakeReadyUI/Screens/Library/LibraryHomeScreen.swift:25,59` and `MakeReadyCapture…/ViewRegistry.swift:3318-3322,6112` (d2m-owned, changed by change cmwoogn700001v0h9l69stkz3) | builder:plan's repoint phase: T15 for the container; the d2m rows ride on F5's gate |
 | R2 | repoint (iphone): the inert Add-menu "Write a note" ← `UI2/Shell/UI2Shell.swift:24-32,96-99` | T15 (D17) |
 | R3 | repoint (server, client): none. No caller of `/api/notes` or `/api/member/notes*` exists in client/ or iphone/ (audit grep 2026-11-20); nothing depends on the old 403 | — |
