@@ -1,7 +1,7 @@
 size: lg
 state: building
 next: /builder:resume --path docs/features/notes
-head: 03adf1a4
+head: fcdb1a55
 ticket: none
 branch: builder/notes
 pr: none
@@ -13,6 +13,7 @@ tests: walk=risk review=slice
 target: feature/memo
 walk: none
 verify: none
+ready: pending "dev env (fleet walk lane)"
 ui2: library-home, C-001, C-002, C-003, C-005, C-008, C-009, C-010, C-015 (d2m changes cmwoogn700001v0h9l69stkz3, cmwoogs5g001mv0h9jj3070bk)
 auto: off
 blocked: none
