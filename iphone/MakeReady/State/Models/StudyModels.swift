@@ -449,7 +449,13 @@ extension JSONDecoder {
     /// Decoder configured for API responses with ISO8601 dates
     static var apiDecoder: JSONDecoder {
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let raw = try decoder.singleValueContainer().decode(String.self)
+            // The server emits fractional seconds ("…:00.123Z"); plain .iso8601 rejects them.
+            if let date = try? Date(raw, strategy: .iso8601.year().month().day().time(includingFractionalSeconds: true)) { return date }
+            if let date = try? Date(raw, strategy: .iso8601) { return date }
+            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Invalid ISO8601 date: \(raw)"))
+        }
         return decoder
     }
 }

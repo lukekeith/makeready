@@ -102,11 +102,13 @@
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>MakeReady uses local network access to connect to your development server for testing.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>MakeReady needs microphone access to record audio with your videos.</string>
+	<string>MakeReady uses the microphone to record videos and voice memos.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>MakeReady needs permission to save recorded videos to your photo library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>MakeReady needs access to your photo library to select videos for your content.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>MakeReady turns your voice memos into text on your iPhone.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -117,6 +119,7 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
+		<string>audio</string>
 	</array>
 	<key>UILaunchScreen</key>
 	<dict/>

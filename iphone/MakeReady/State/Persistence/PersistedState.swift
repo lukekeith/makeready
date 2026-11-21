@@ -56,6 +56,9 @@ struct PersistedState: Codable {
     /// Media library items
     var mediaLibrary: [MediaLibraryItem]
 
+    /// Voice memo list rows, newest 200 (D39)
+    var voiceMemos: [VoiceMemoSummary]
+
     /// Organization ID
     var organizationId: String?
 
@@ -95,6 +98,14 @@ struct PersistedState: Codable {
     /// Cached calendar events keyed by date string
     var calendarEvents: [String: [SplitCalendarEvent]]
 
+    // MARK: - Notes
+
+    /// The 200 most recently updated notes, full content (notes D26). Older ones reload from the server.
+    var studyNotes: [StudyNote]
+
+    /// How many notes the snapshot keeps.
+    static let studyNotesCap = 200
+
     // MARK: - Metadata
 
     /// When this state was persisted
@@ -106,6 +117,9 @@ struct PersistedState: Codable {
     /// 2: lessons carry rail summaries, `activities` is `[ContentActivity]`, themes and the
     /// lesson→activity index are gone (text-activity D44).
     static let currentSchemaVersion = 2
+
+    /// D39: the persisted memo list is capped at the newest 200.
+    static let voiceMemoLimit = 200
 
     // MARK: - Initialization
 
@@ -125,6 +139,7 @@ struct PersistedState: Codable {
         self.programEnrollmentsByProgram = [:]
         self.templates = []
         self.mediaLibrary = []
+        self.voiceMemos = []
         self.organizationId = nil
         self.dashboard = DashboardSnapshot()
         self.programEnrollmentIndex = [:]
@@ -136,6 +151,7 @@ struct PersistedState: Codable {
         self.homeTotalMembers = 0
         self.homeTotalGroups = 0
         self.calendarEvents = [:]
+        self.studyNotes = []
         self.persistedAt = Date()
         self.schemaVersion = Self.currentSchemaVersion
     }
@@ -205,6 +221,7 @@ struct PersistedState: Codable {
             self.mediaLibrary.count,
             MediaActions.libraryPageSize
         )
+        self.voiceMemos = Array(appState.voiceMemosNewestFirst.prefix(Self.voiceMemoLimit))
         self.organizationId = appState.organizationId
         self.dashboard = appState.dashboard
 
@@ -220,6 +237,7 @@ struct PersistedState: Codable {
         self.homeTotalGroups = appState.homeTotalGroups
 
         self.calendarEvents = appState.calendarEvents
+        self.studyNotes = Array(NotesSectioning.newestFirst(appState.studyNotes.all).prefix(Self.studyNotesCap))
 
         self.persistedAt = Date()
         self.schemaVersion = Self.currentSchemaVersion
@@ -242,6 +260,7 @@ struct PersistedState: Codable {
         case programEnrollmentsByProgram
         case templates
         case mediaLibrary
+        case voiceMemos
         case organizationId
         case dashboard
         case programEnrollmentIndex
@@ -253,6 +272,7 @@ struct PersistedState: Codable {
         case homeTotalMembers
         case homeTotalGroups
         case calendarEvents
+        case studyNotes
         case persistedAt
         case schemaVersion
     }
@@ -287,6 +307,7 @@ struct PersistedState: Codable {
 
         // Media library (optional for backwards compatibility)
         self.mediaLibrary = try container.decodeIfPresent([MediaLibraryItem].self, forKey: .mediaLibrary) ?? []
+        self.voiceMemos = try container.decodeIfPresent([VoiceMemoSummary].self, forKey: .voiceMemos) ?? []
         self.organizationId = try container.decodeIfPresent(String.self, forKey: .organizationId)
         // A malformed dashboard is only a cache miss; it never discards the rest of the snapshot.
         self.dashboard = (try? container.decodeIfPresent(DashboardSnapshot.self, forKey: .dashboard)) ?? DashboardSnapshot()
@@ -299,6 +320,9 @@ struct PersistedState: Codable {
 
         // Calendar events (optional for backwards compatibility)
         self.calendarEvents = try container.decodeIfPresent([String: [SplitCalendarEvent]].self, forKey: .calendarEvents) ?? [:]
+
+        // Notes (optional: caches written before notes existed lack it)
+        self.studyNotes = try container.decodeIfPresent([StudyNote].self, forKey: .studyNotes) ?? []
     }
 }
 

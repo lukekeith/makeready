@@ -5,8 +5,11 @@ import {
   createNote,
   getNotes,
   getNote,
+  getUserNote,
   updateNote,
+  updateUserNote,
   deleteNote,
+  deleteUserNote,
   getNotesForLLM,
   getNotesForEntity,
   getNotesWithContext,
@@ -15,6 +18,7 @@ import {
   type NoteType,
   type LinkType,
 } from '../services/notes.service.js'
+import { attachContextLabel, attachContextLabels } from '../services/note-context-label.js'
 
 /**
  * @openapi
@@ -228,6 +232,27 @@ const createNoteSchema = z.object({
 
 const updateNoteSchema = z.object({
   content: z.string().min(1),
+})
+
+// Leader PATCH (SC5, D23): strict so an unknown key is a 400, not silently stripped
+const updateUserNoteSchema = z
+  .object({
+    content: z.string().min(1),
+    baseUpdatedAt: z.string().datetime({ offset: true }).optional(),
+  })
+  .strict()
+
+// Leader GET /notes query (D25): bounded paging, a sort allow-list, a capped search term
+const listNotesQuerySchema = z.object({
+  type: z.string().optional(),
+  linkType: z.string().optional(),
+  linkRefId: z.string().optional(),
+  startDate: z.coerce.date().optional(),
+  endDate: z.coerce.date().optional(),
+  q: z.string().max(200).optional(),
+  orderBy: z.enum(['createdAt', 'updatedAt']).default('createdAt'),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
 })
 
 // ============================================================================
@@ -1226,7 +1251,7 @@ router.post('/notes', requireAuth, async (req: Request, res: Response) => {
 
     res.status(201).json({
       success: true,
-      data: result.data,
+      data: await attachContextLabel(result.data!, userId),
     })
   } catch (error) {
     console.error('Error creating note:', error)
@@ -1336,26 +1361,27 @@ router.get('/notes', requireAuth, async (req: Request, res: Response) => {
       })
     }
 
-    // Parse query params
-    const {
+    const parsed = listNotesQuerySchema.safeParse(req.query)
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid query',
+        details: parsed.error.flatten(),
+      })
+    }
+    const { type, linkType, linkRefId, startDate, endDate, q, orderBy, limit, offset } = parsed.data
+
+    const result = await getNotes({
+      userId,
       type,
       linkType,
       linkRefId,
       startDate,
       endDate,
+      q,
+      orderBy,
       limit,
       offset,
-    } = req.query
-
-    const result = await getNotes({
-      userId,
-      type: type as NoteType | undefined,
-      linkType: linkType as LinkType | undefined,
-      linkRefId: linkRefId as string | undefined,
-      startDate: startDate ? new Date(startDate as string) : undefined,
-      endDate: endDate ? new Date(endDate as string) : undefined,
-      limit: limit ? parseInt(limit as string) : 50,
-      offset: offset ? parseInt(offset as string) : 0,
     })
 
     if (!result.success) {
@@ -1367,15 +1393,12 @@ router.get('/notes', requireAuth, async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      data: result.data,
+      data: await attachContextLabels(result.data ?? [], userId),
       pagination: {
         total: result.total,
-        limit: limit ? parseInt(limit as string) : 50,
-        offset: offset ? parseInt(offset as string) : 0,
-        hasMore:
-          (result.total ?? 0) >
-          (offset ? parseInt(offset as string) : 0) +
-            (limit ? parseInt(limit as string) : 50),
+        limit,
+        offset,
+        hasMore: (result.total ?? 0) > offset + limit,
       },
     })
   } catch (error) {
@@ -1457,26 +1480,18 @@ router.get('/notes/:noteId', requireAuth, async (req: Request, res: Response) =>
       })
     }
 
-    const result = await getNote(noteId)
+    const result = await getUserNote(noteId, userId)
 
     if (!result.success) {
       return res.status(404).json({
         success: false,
-        error: result.error,
-      })
-    }
-
-    // Verify ownership
-    if (result.data?.userId !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: 'You do not have access to this note',
+        error: 'Note not found',
       })
     }
 
     res.json({
       success: true,
-      data: result.data,
+      data: await attachContextLabel(result.data, userId),
     })
   } catch (error) {
     console.error('Error fetching note:', error)
@@ -1575,7 +1590,7 @@ router.patch(
       }
 
       // Validate request body
-      const parsed = updateNoteSchema.safeParse(req.body)
+      const parsed = updateUserNoteSchema.safeParse(req.body)
       if (!parsed.success) {
         return res.status(400).json({
           success: false,
@@ -1584,34 +1599,24 @@ router.patch(
         })
       }
 
-      // Verify ownership first
-      const existingNote = await getNote(noteId)
-      if (!existingNote.success || !existingNote.data) {
+      const result = await updateUserNote({
+        noteId,
+        userId,
+        content: parsed.data.content,
+        baseUpdatedAt: parsed.data.baseUpdatedAt,
+      })
+
+      if (!result.success) {
         return res.status(404).json({
           success: false,
           error: 'Note not found',
         })
       }
 
-      if (existingNote.data.userId !== userId) {
-        return res.status(403).json({
-          success: false,
-          error: 'You do not have permission to update this note',
-        })
-      }
-
-      const result = await updateNote(noteId, parsed.data.content)
-
-      if (!result.success) {
-        return res.status(400).json({
-          success: false,
-          error: result.error,
-        })
-      }
-
       res.json({
         success: true,
-        data: result.data,
+        data: await attachContextLabel(result.data, userId),
+        stomped: result.stomped,
       })
     } catch (error) {
       console.error('Error updating note:', error)
@@ -1699,28 +1704,12 @@ router.delete(
         })
       }
 
-      // Verify ownership first
-      const existingNote = await getNote(noteId)
-      if (!existingNote.success || !existingNote.data) {
+      const result = await deleteUserNote(noteId, userId)
+
+      if (!result.success) {
         return res.status(404).json({
           success: false,
           error: 'Note not found',
-        })
-      }
-
-      if (existingNote.data.userId !== userId) {
-        return res.status(403).json({
-          success: false,
-          error: 'You do not have permission to delete this note',
-        })
-      }
-
-      const result = await deleteNote(noteId)
-
-      if (!result.success) {
-        return res.status(400).json({
-          success: false,
-          error: result.error,
         })
       }
 

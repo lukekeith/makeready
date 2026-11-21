@@ -200,6 +200,7 @@ model User {
   createdEvents        Event[] @relation("EventCreator")
   uploadedAttachments  EventAttachment[] @relation("AttachmentUploader")
   studyNotes           StudyNote[]
+  voiceMemos           VoiceMemo[]
   apiKeys              ApiKey[]
   previewToken         PreviewToken?
   deviceTokens         DeviceToken[]
@@ -1337,6 +1338,8 @@ model StudyNote {
   userId               String?
   type                 String // OBSERVATION, APPLICATION, PRAYER, JOURNAL, etc.
   content              String @db.Text
+  title                String?
+  preview              String?
   isActive             Boolean @default(true)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
@@ -1350,10 +1353,41 @@ model StudyNote {
   @@index([userId, type])
   @@index([memberId, createdAt])
   @@index([userId, createdAt])
+  @@index([userId, updatedAt])
   @@index([type])
   @@index([createdAt])
   @@index([isActive])
   @@map("study_notes")
+}
+
+model VoiceMemo {
+  id                   String @id @default(uuid())
+  userId               String?
+  memberId             String?
+  title                String
+  key                  String
+  mimeType             String @default("audio/mp4")
+  fileSize             Int?
+  durationMs           Int?
+  waveformPeaks        Json?
+  transcript           String? @db.Text
+  transcriptSegments   Json?
+  transcriptStatus     String @default("none") // none, pending, ready, failed
+  transcriptSource     String? // on_device, server
+  transcriptAttempts   Int @default(0)
+  transcriptClaimedAt  DateTime?
+  uploadStatus         String @default("pending") // pending, ready
+  recordedAt           DateTime
+  isActive             Boolean @default(true)
+  deletedAt            DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user                 User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, recordedAt])
+  @@index([memberId, recordedAt])
+  @@index([uploadStatus, createdAt])
+  @@map("voice_memos")
 }
 
 model NoteLink {

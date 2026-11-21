@@ -51,6 +51,11 @@ struct MakeReadyApp: App {
                 // M0.3: trim the image disk cache to its LRU budget on launch.
                 await ImageCache.shared.trimDiskCache()
             }
+            .task(id: authManager.currentUser?.id) {
+                // Memo queue: salvage cut-off drafts, then upload what is waiting. Signed out: nothing.
+                guard authManager.isAuthenticated, let userId = authManager.currentUser?.id else { return }
+                await AppState.shared.launchMemoUploads(userId: userId)
+            }
             .onChange(of: scenePhase) { _, newPhase in
                 if newPhase == .background {
                     // Flush any debounced state write before the OS suspends us
