@@ -1,7 +1,7 @@
 size: lg
 state: built
-next: /builder:agent-walk --path docs/features/notes
-head: 2bafde56
+next: /builder:resume --path docs/features/notes
+head: 8c06fc1c
 ticket: none
 branch: builder/notes
 pr: none

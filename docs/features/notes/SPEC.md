@@ -345,3 +345,9 @@ There are no `S#` gaps: neither surface has a capability today beyond showing a 
 | N3 | Search by any word | server | SC4, T4 |
 | N4 | List sorted by last edit | server | SC6, SC9, T5 |
 | N5 | Context line naming the linked item | server | SC7, T8 |
+
+## Fixes
+
+- [ ] iphone: E3 Bold in the note editor — expected tapping Bold with a collapsed caret bolds the word then typed, saw only its first character bold (`**b**oldword`) and no active state on the Bold button; lead: `MarkdownTextEditor.swift` (C-001, d2m-owned) `toggle(_:)` sets `typingAttributes`, which `textViewDidChange`/`normalize` reset after one character — fix through d2m (`check_project_change`/`request_project_change`), not in place (agent walk round 1)
+- [ ] iphone: E3 List style — expected tapping List style opens the C-015 list menu, saw the format strip vanish and the main thread hang 30 s+ with no recovery, so no bulleted list can be made; lead: `NoteEditorScreen.presentedListMenu` GeometryReader sizing its frame from its own global origin (layout loop) — d2m-owned, fix through d2m (agent walk round 1)
+- [ ] iphone: Library search/compose bar (C-008) — expected it floats above the TabBar with the list scrolling under it (library-home §2), saw it laid out at the end of the list, off screen/under the TabBar until scrolled to the bottom — `LibraryHomeScreen.swift` (d2m-owned) or its container's layout; fix through d2m (agent walk round 1)
