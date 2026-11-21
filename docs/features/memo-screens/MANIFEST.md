@@ -11,5 +11,5 @@ hold: none
 go-ahead: none
 walk: none
 verify: none
-ui2: library-home, memo-detail (new), C-004, C-006, C-011, C-012, C-014, C-016, C-017, C-018, SavedToast (new)
+ui2: library-home, memo-detail (new), C-004, C-006, C-011, C-012, C-014, C-016, C-017, C-018, SavedToast (new) (d2m changes cmwqnu18t00gnv0h9mm9dyxtf, cmwqnu56u00i8v0h981y7n5ya)
 auto: off
