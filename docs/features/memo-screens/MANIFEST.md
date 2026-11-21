@@ -1,7 +1,7 @@
 size: md
 state: built
-next: /builder:agent-walk --path docs/features/memo-screens
-head: 9f513daa
+next: /builder:resume --path docs/features/memo-screens
+head: 6951688f
 ticket: none
 branch: builder/memo-screens
 pr: none
