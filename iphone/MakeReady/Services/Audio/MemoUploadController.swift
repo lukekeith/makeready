@@ -171,10 +171,12 @@ final class MemoUploadController {
     /// Renames a queued memo: the manifest's `title` (so the create POST carries it) and, when the
     /// row already exists on the server, the server's too (D17). Unknown `localId`: `CancellationError`.
     func rename(localId: String, title: String) async throws {
-        guard var item = item(localId: localId) else { throw CancellationError() }
-        item.title = title
-        try persist(item)
+        guard let item = item(localId: localId) else { throw CancellationError() }
+        // The server first: a failed call leaves the manifest's title as it was, so local and server agree.
         if let serverId = item.serverId { try await actions.rename(id: serverId, title: title) }
+        // Re-read after the await: a flush may have moved the item on, or a remove deleted it.
+        guard let current = self.item(localId: localId) else { throw CancellationError() }
+        try update(current, title: title)
     }
 
     /// Deletes a queued memo's `.m4a` and manifest and, when the row exists on the server, soft-deletes
@@ -182,7 +184,7 @@ final class MemoUploadController {
     func remove(localId: String) async throws {
         guard let item = item(localId: localId) else { throw CancellationError() }
         if let serverId = item.serverId { try await actions.softDelete(id: serverId) }
-        remove(item)
+        discard(item)
     }
 
     // MARK: Flush
@@ -324,7 +326,7 @@ final class MemoUploadController {
         item.nextAttemptAt = due
         backoffSteps[item.localId] = (item.attempts, wait)
         do {
-            try persist(item)
+            try update(item)
             return (wait, true)
         } catch {
             Log.memo.error("backoff not persisted: \(error.localizedDescription)")
@@ -366,6 +368,8 @@ final class MemoUploadController {
             return (try await run(&item), item.localId)
         } catch {
             if Self.isUnauthorized(error) { return (.paused, item.localId) }
+            // Silent: the item was removed while this pass was in flight (`update` found no manifest).
+            if error is CancellationError { return (.retryLater, item.localId) }
             // Console-only: a background flush, never a user-initiated action (D21). A 400/403 from
             // the server is retried at the capped backoff rather than dropped: the recording is kept.
             AppState.shared.recordError(error, context: "MemoUploadController.runDue")
@@ -412,7 +416,7 @@ final class MemoUploadController {
         let response = try JSONDecoder.apiDecoder.decode(MemoCreateResponse.self, from: data)
         item.serverId = response.memo.id
         item.upload = response.upload
-        try persist(item)
+        try update(item)
     }
 
     /// `POST /api/memos/:id/upload` — a fresh ticket (D29). 404: the row is gone; 409: already uploaded.
@@ -420,7 +424,7 @@ final class MemoUploadController {
         do {
             let data = try await api.requestWithStatus(endpoint: "/api/memos/\(serverId)/upload", method: "POST", body: [:], timeout: 30)
             item.upload = try JSONDecoder.apiDecoder.decode(MemoUploadResponse.self, from: data).upload
-            try persist(item)
+            try update(item)
             return .proceed
         } catch let error as APIHTTPError where error.status == 404 {
             return .memoGone
@@ -438,7 +442,7 @@ final class MemoUploadController {
                 // A ticket URL that never parses would loop forever: drop it so the next pass re-mints.
                 Log.memo.error("memo upload ticket has an unparseable URL; re-minting next pass")
                 item.upload = nil
-                try persist(item)
+                try update(item)
                 return .retryLater
             }
             let status = try await transport.put(fileURL: directory.appendingPathComponent(item.fileName), to: url, headers: ticket.headers)
@@ -458,14 +462,14 @@ final class MemoUploadController {
             let memo = try JSONDecoder.apiDecoder.decode(MemoResponse.self, from: data).memo
             actions.memoCompleted(memo)
             completedServerIds[item.localId] = serverId
-            remove(item)
+            discard(item)
             return .completed(serverId)
         } catch let error as APIHTTPError where error.status == 404 {
             try forget(&item)
             return .retryLater
         } catch let error as APIHTTPError where error.status == 409 {
             item.upload = nil
-            try persist(item)
+            try update(item)
             return .retryLater
         }
     }
@@ -475,7 +479,7 @@ final class MemoUploadController {
     private func forget(_ item: inout MemoQueueItem) throws {
         item.serverId = nil
         item.upload = nil
-        try persist(item)
+        try update(item)
     }
 
     private func manifestURL(_ item: MemoQueueItem) -> URL {
@@ -486,7 +490,19 @@ final class MemoUploadController {
         try JSONEncoder.apiEncoder.encode(item).write(to: manifestURL(item), options: .atomic)
     }
 
-    private func remove(_ item: MemoQueueItem) {
+    /// Rewrites the manifest of an item that is already queued. A manifest that is gone (the memo
+    /// was removed while a flush was awaiting the server) throws `CancellationError` instead of
+    /// being resurrected. The title on disk wins unless `title` is given, so a rename that landed
+    /// during the flush is not overwritten by the flush's stale copy.
+    private func update(_ item: MemoQueueItem, title: String? = nil) throws {
+        guard let data = try? Data(contentsOf: manifestURL(item)),
+              let onDisk = try? JSONDecoder.apiDecoder.decode(MemoQueueItem.self, from: data) else { throw CancellationError() }
+        var merged = item
+        merged.title = title ?? onDisk.title
+        try persist(merged)
+    }
+
+    private func discard(_ item: MemoQueueItem) {
         for url in [directory.appendingPathComponent(item.fileName), manifestURL(item)] {
             do {
                 try FileManager.default.removeItem(at: url)

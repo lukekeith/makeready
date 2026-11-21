@@ -330,4 +330,52 @@ final class MemoUploadControllerTests: XCTestCase {
         XCTAssertEqual(controller.serverId(forLocalId: item.localId), "m9")
         XCTAssertTrue(controller.pending().isEmpty)
     }
+
+    // MARK: - A flush in flight while the user edits (D17)
+
+    /// Holds the create POST open until `release()`, so a test can act while a flush awaits the server.
+    private func gateCreate(id: String) -> (started: () async -> Void, release: () -> Void) {
+        var gate: CheckedContinuation<Void, Never>?
+        let body = Data(#"{"memo":\#(memoJSON(id)),"upload":\#(ticketJSON(url: "https://r2.test/\(id)", expiresIn: 900))}"#.utf8)
+        api.responseFor = { method, endpoint in
+            if method == "POST", endpoint == "/api/memos" { await withCheckedContinuation { gate = $0 } }
+            return body
+        }
+        return ({ while gate == nil { await Task.yield() } }, { gate?.resume(); gate = nil })
+    }
+
+    func testRemoveDuringAFlushedCreateLeavesNothingQueued() async throws {
+        let item = try controller.enqueue(resultWithoutTranscript)
+        let (started, release) = gateCreate(id: "m5")
+        let flush = Task { await controller.processNext() }
+        await started()
+        try await controller.remove(localId: item.localId)
+        release()
+        _ = await flush.value
+        XCTAssertTrue(controller.pending().isEmpty)
+        XCTAssertTrue(try queueFiles().isEmpty)
+    }
+
+    func testRenameDuringAFlushedCreateIsNotOverwritten() async throws {
+        let item = try controller.enqueue(resultWithoutTranscript)
+        let (started, release) = gateCreate(id: "m5")
+        transport.nextStatus = 500   // after the create the PUT fails, so the item stays queued
+        let flush = Task { await controller.processNext() }
+        await started()
+        try await controller.rename(localId: item.localId, title: "Renamed mid-flush")
+        release()
+        _ = await flush.value
+        XCTAssertEqual(controller.item(localId: item.localId)?.title, "Renamed mid-flush")
+        XCTAssertEqual(controller.item(localId: item.localId)?.serverId, "m5")
+    }
+
+    func testAFailedServerRenameLeavesTheQueuedTitleUnchanged() async throws {
+        let item = try controller.enqueue(resultWithoutTranscript)
+        stubCreate(id: "m9", expiresIn: 900)
+        transport.nextStatus = 500
+        _ = await controller.processNext()
+        api.errorFor = { endpoint, _ in endpoint == "/api/memos/m9" ? APIError.serverError("boom") : nil }
+        do { try await controller.rename(localId: item.localId, title: "Nope"); XCTFail("expected a throw") } catch {}
+        XCTAssertEqual(controller.item(localId: item.localId)?.title, "Memo 1")
+    }
 }
