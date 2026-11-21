@@ -222,6 +222,8 @@ final class MemoRecorderEngine {
     /// Throws the recording away (D7): no `.m4a`, no result, no `onAutoStop`. A no-op unless recording or paused.
     func discard() async {
         guard state == .recording || state == .paused, let session else { return }
+        // Before the first await, as `stop()` does: a second discard or an auto-stop now finds no live recording.
+        state = .finishing
         input.stop()
         _ = session.pipeline.close()
         _ = await finishTranscript(of: session)

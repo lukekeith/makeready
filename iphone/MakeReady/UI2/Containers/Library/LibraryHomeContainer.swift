@@ -24,7 +24,7 @@ struct LibraryHomeContainer: View {
         let now = Date()
         let calendar = Calendar.current
         let memos = LibraryHomeMapper.visibleMemos(stored: AppState.shared.voiceMemos.all,
-                                                   queued: AppState.shared.memoUploads?.pending() ?? [],
+                                                   queued: AppState.shared.memoUploads?.pendingItems ?? [],
                                                    searchMatches: searchMatches)
         let sections = LibraryHomeMapper.rows(notes: AppState.shared.studyNotes.all, searchIds: searchIds, memos: memos,
                                               now: now, calendar: calendar)

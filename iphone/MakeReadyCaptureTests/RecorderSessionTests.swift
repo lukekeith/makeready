@@ -101,6 +101,27 @@ final class RecorderSessionTests: XCTestCase {
         XCTAssertEqual(session.outcome, .discarded)
     }
 
+    func testDiscardTwiceAtOnceEndsTheRecordingOnce() async {
+        let session = makeSession(seconds: 1.0)
+        await session.begin()
+        async let first: Void = session.confirmDiscard()
+        async let second: Void = session.confirmDiscard()
+        _ = await (first, second)
+        XCTAssertEqual(session.outcome, .discarded)
+        XCTAssertEqual(engine.state, .idle)
+        XCTAssertTrue(enqueued.isEmpty)
+    }
+
+    func testFinishWhileDiscardingSavesNothing() async {
+        let session = makeSession(seconds: 1.0)
+        await session.begin()
+        async let discard: Void = session.confirmDiscard()
+        async let finish: Void = session.finish()
+        _ = await (discard, finish)
+        XCTAssertEqual(session.outcome, .discarded)
+        XCTAssertTrue(enqueued.isEmpty)
+    }
+
     func testMicDeniedMapsToTheMicDeniedPhase() {
         XCTAssertEqual(RecorderSession.phase(state: .idle, error: .micPermissionDenied), .micDenied)
         XCTAssertEqual(RecorderSession.phase(state: .paused, error: nil), .paused)

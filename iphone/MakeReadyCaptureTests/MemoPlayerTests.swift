@@ -13,6 +13,7 @@ import XCTest
 @MainActor
 private final class PlayerSpyBackend: MemoPlaybackBackend {
     var onFailure: ((Int?) -> Void)?
+    var onEnded: (() -> Void)?
     var currentTime: Double = 0
     private(set) var loaded: [URL] = []
     private(set) var seeks: [Double] = []
@@ -139,5 +140,38 @@ final class MemoPlayerTests: XCTestCase {
         player.play(); player.stop()
         XCTAssertEqual(session.calls, ["activatePlayback", "restore"])
         XCTAssertFalse(player.isPlaying)
+    }
+
+    func testPlayingToTheEndBeforeTheRecordedDurationStopsPlayback() async {
+        let player = makePlayer()
+        await player.load(.local(url: URL(fileURLWithPath: "/tmp/a.m4a"), durationMs: 12_000))
+        player.play()
+        backend.currentTime = 10.4  // the encoded audio is shorter than durationMs
+        backend.onEnded?()
+        XCTAssertFalse(player.isPlaying)
+        XCTAssertEqual(player.elapsed, 12)
+    }
+
+    func testPlayingAnEndedMemoRewindsToTheStart() async {
+        let player = makePlayer()
+        await player.load(.local(url: URL(fileURLWithPath: "/tmp/a.m4a"), durationMs: 12_000))
+        player.play()
+        backend.onEnded?()
+        player.play()
+        XCTAssertEqual(backend.seeks.last, 0)
+        XCTAssertEqual(player.elapsed, 0)
+        XCTAssertTrue(player.isPlaying)
+    }
+
+    func testAFailureThatIsNotA403LeavesPlayingAndSurfacesTheBanner() async {
+        AppState.shared.activeSurfacedError = nil
+        let player = makePlayer()
+        await player.load(.remote(memo(url: "https://r2/missing", expires: clock.addingTimeInterval(3600))))
+        player.play()
+        backend.onFailure?(404)
+        XCTAssertFalse(player.isPlaying)
+        XCTAssertFalse(player.isReady)
+        XCTAssertEqual(AppState.shared.activeSurfacedError?.message, "Couldn't play this memo")
+        AppState.shared.activeSurfacedError = nil
     }
 }

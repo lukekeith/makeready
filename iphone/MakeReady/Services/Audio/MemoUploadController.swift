@@ -13,6 +13,7 @@
 
 import Foundation
 import Network
+import Observation
 
 /// What one `processNext` pass did.
 enum MemoUploadStep: Equatable {
@@ -44,6 +45,7 @@ struct MemoQueueItem: Codable, Equatable {
 }
 
 @MainActor
+@Observable
 final class MemoUploadController {
 
     private static let recordedAtFormatter: ISO8601DateFormatter = {
@@ -87,6 +89,10 @@ final class MemoUploadController {
     /// True after a 401 until `resumeAfterSignIn` (D41).
     private(set) var isPausedForAuth = false
 
+    /// The queue as views read it: refreshed by every manifest write and delete, so a view that
+    /// reads it re-renders when a memo is queued, renamed, gains a server id or leaves the queue.
+    private(set) var pendingItems: [MemoQueueItem] = []
+
     /// `flushesOnEnqueue` is off by default so a test that enqueues stays in control of the
     /// network; `AppState` turns it on for the real queue (D22).
     init(api: APIClientProtocol, actions: MemoActions, transport: MemoPutTransport, directory: URL,
@@ -102,6 +108,7 @@ final class MemoUploadController {
         self.now = now
         self.flushesOnEnqueue = flushesOnEnqueue
         self.sleep = sleep
+        pendingItems = pending()
     }
 
     /// The wait after the `attempt`th failure (1-based), capped at the last backoff step.
@@ -488,6 +495,7 @@ final class MemoUploadController {
 
     private func persist(_ item: MemoQueueItem) throws {
         try JSONEncoder.apiEncoder.encode(item).write(to: manifestURL(item), options: .atomic)
+        pendingItems = pending()
     }
 
     /// Rewrites the manifest of an item that is already queued. A manifest that is gone (the memo
@@ -510,6 +518,7 @@ final class MemoUploadController {
                 Log.memo.error("queue file not removable: \(error.localizedDescription)")
             }
         }
+        pendingItems = pending()
     }
 
     /// Creates the folder and keeps it out of iCloud backup (D37).

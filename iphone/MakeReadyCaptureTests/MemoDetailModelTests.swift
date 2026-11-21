@@ -12,6 +12,7 @@ import XCTest
 @MainActor
 private final class DetailSpyBackend: MemoPlaybackBackend {
     var onFailure: ((Int?) -> Void)?
+    var onEnded: (() -> Void)?
     var currentTime: Double = 0
     private(set) var loaded: [URL] = []
     private(set) var seeks: [Double] = []

@@ -18,6 +18,8 @@ import Observation
 @MainActor
 protocol MemoPlaybackBackend: AnyObject {
     var onFailure: ((Int?) -> Void)? { get set }
+    /// Called when the loaded item plays through to its end.
+    var onEnded: (() -> Void)? { get set }
     /// Seconds from the start of the loaded item.
     var currentTime: Double { get }
     func load(url: URL)
@@ -68,6 +70,7 @@ final class MemoPlayer {
         self.fetchDetail = fetchDetail
         self.now = now
         backend.onFailure = { [weak self] status in self?.backendFailed(status: status) }
+        backend.onEnded = { [weak self] in self?.playedToEnd() }
     }
 
     func load(_ source: Source) async {
@@ -94,6 +97,8 @@ final class MemoPlayer {
     }
 
     func play() {
+        // A memo that has ended starts over.
+        if duration > 0, elapsed >= duration { seek(to: 0) }
         do {
             try session.activatePlayback()
         } catch {
@@ -169,7 +174,7 @@ final class MemoPlayer {
         guard generation == loadGeneration else { return }  // a newer load() owns the backend now
         isReloading = false
         guard let url = fresh else {
-            isPlaying = false
+            playbackFailed(status: nil)
             return
         }
         backend.load(url: url)
@@ -188,9 +193,33 @@ final class MemoPlayer {
     }
 
     private func backendFailed(status: Int?) {
-        guard status == 403, remote != nil, !hasRefetchedAfter403 else { return }
+        guard status == 403, remote != nil, !hasRefetchedAfter403 else {
+            playbackFailed(status: status)
+            return
+        }
         hasRefetchedAfter403 = true
         startReload()
+    }
+
+    private struct PlaybackFailure: LocalizedError {
+        let status: Int?
+        var errorDescription: String? { status.map { "memo playback failed (HTTP \($0))" } ?? "memo playback failed" }
+    }
+
+    /// Nothing is going to play: leave the playing state, mark the item unusable and tell the user.
+    private func playbackFailed(status: Int?) {
+        ticker?.cancel()
+        isPlaying = false
+        isReady = false
+        AppState.shared.recordError(PlaybackFailure(status: status), context: "MemoPlayer", surface: true,
+                                    friendlyMessage: "Couldn't play this memo")
+    }
+
+    /// The item reached its end, which may fall short of the recorded duration.
+    private func playedToEnd() {
+        ticker?.cancel()
+        isPlaying = false
+        elapsed = duration
     }
 
     private func startTicking() {
@@ -211,9 +240,15 @@ final class MemoPlayer {
 @MainActor
 final class AVMemoPlaybackBackend: MemoPlaybackBackend {
     var onFailure: ((Int?) -> Void)?
+    var onEnded: (() -> Void)?
 
     private let player = AVPlayer()
     private var statusObservation: NSKeyValueObservation?
+    private var endObserver: NSObjectProtocol?
+
+    deinit {
+        if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
+    }
 
     var currentTime: Double {
         let seconds = player.currentTime().seconds
@@ -226,6 +261,11 @@ final class AVMemoPlaybackBackend: MemoPlaybackBackend {
             guard item.status == .failed else { return }
             let status = item.errorLog()?.events.last(where: { $0.errorStatusCode != 0 })?.errorStatusCode
             Task { @MainActor in self?.onFailure?(status) }
+        }
+        if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
+        endObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.onEnded?() }
         }
         player.replaceCurrentItem(with: item)
     }

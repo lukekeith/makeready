@@ -30,6 +30,8 @@ final class RecorderSession {
     @ObservationIgnored private let now: () -> Date
     @ObservationIgnored private let calendar: Calendar
     @ObservationIgnored private var began = false
+    /// Set synchronously when finish or discard starts, so a second tap or a racing one is a no-op.
+    @ObservationIgnored private var ending = false
 
     init(engine: MemoRecorderEngine, title: String, enqueue: @escaping (RecordingResult) throws -> MemoQueueItem,
          now: @escaping () -> Date, calendar: Calendar) {
@@ -88,11 +90,13 @@ final class RecorderSession {
 
     /// Stop and Done both end here (D3): the engine's result goes to the queue and the recording is saved.
     func finish() async {
-        guard outcome == nil else { return }
+        guard outcome == nil, !ending else { return }
+        ending = true
         do {
             save(try await engine.stop())
         } catch is CancellationError {
             // Nothing to stop: `engineFailed` or `onAutoStop` has already ended (or will end) the session.
+            ending = false
             return
         } catch {
             fail(error)
@@ -126,7 +130,8 @@ final class RecorderSession {
 
     /// Throws the recording away (D7): nothing is enqueued.
     func confirmDiscard() async {
-        guard outcome == nil else { return }
+        guard outcome == nil, !ending else { return }
+        ending = true
         await engine.discard()
         menu = .none
         outcome = .discarded

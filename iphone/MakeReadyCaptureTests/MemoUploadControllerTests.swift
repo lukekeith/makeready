@@ -119,6 +119,16 @@ final class MemoUploadControllerTests: XCTestCase {
         XCTAssertNotNil(state.voiceMemos["m1"])
     }
 
+    func testPendingItemsFollowEnqueueRenameAndRemove() async throws {
+        XCTAssertTrue(controller.pendingItems.isEmpty)
+        let item = try controller.enqueue(result)
+        XCTAssertEqual(controller.pendingItems.map(\.localId), [item.localId])
+        try await controller.rename(localId: item.localId, title: "Renamed")
+        XCTAssertEqual(controller.pendingItems.first?.title, "Renamed")
+        try await controller.remove(localId: item.localId)
+        XCTAssertTrue(controller.pendingItems.isEmpty)
+    }
+
     func testAfterACrashBetweenPostAndPutItResumesWithoutASecondCreate() async throws {
         try controller.enqueue(result); stubCreate(id: "m1", expiresIn: 900)
         transport.nextStatus = 500
