@@ -17,21 +17,31 @@ struct MemoActions {
         self.stateOverride = state
     }
 
-    /// `GET /api/memos`. Without `q` the page replaces `voiceMemos`; with `q` the results are
-    /// returned and the store is left alone (D39).
+    /// `GET /api/memos`, every page: `limit=100`, `offset += 100` until `total` rows are in or a page
+    /// comes back empty (D18). Without `q` the full list replaces `voiceMemos` once, after the last
+    /// page; with `q` the results are returned and the store is left alone (D39). A failing page
+    /// throws before the store is touched.
     @MainActor
     func loadMemos(q: String?) async throws -> [VoiceMemoSummary] {
-        var endpoint = "/api/memos?limit=\(Self.pageSize)&offset=0"
-        if let q, !q.isEmpty {
+        let query = q.flatMap { $0.isEmpty ? nil : $0 }
+        var queryPrefix = ""
+        if let query {
             var allowed = CharacterSet.urlQueryAllowed
             allowed.remove(charactersIn: "&+=#?")
-            let encoded = q.addingPercentEncoding(withAllowedCharacters: allowed) ?? q
-            endpoint = "/api/memos?q=\(encoded)&limit=\(Self.pageSize)&offset=0"
+            queryPrefix = "q=\(query.addingPercentEncoding(withAllowedCharacters: allowed) ?? query)&"
         }
         do {
-            let response = try await api.get(endpoint, responseType: MemoListResponse.self)
-            if q == nil { state.voiceMemos.replaceAll(response.memos) }
-            return response.memos
+            var memos: [VoiceMemoSummary] = []
+            var offset = 0
+            while true {
+                let endpoint = "/api/memos?\(queryPrefix)limit=\(Self.pageSize)&offset=\(offset)"
+                let response = try await api.get(endpoint, responseType: MemoListResponse.self)
+                memos += response.memos
+                guard !response.memos.isEmpty, memos.count < response.total else { break }
+                offset += Self.pageSize
+            }
+            if query == nil { state.voiceMemos.replaceAll(memos) }
+            return memos
         } catch {
             Log.memo.error("loadMemos failed: \(error.localizedDescription)")
             throw error
