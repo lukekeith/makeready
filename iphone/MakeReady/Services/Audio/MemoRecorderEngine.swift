@@ -139,6 +139,7 @@ final class MemoRecorderEngine {
         } catch {
             Log.memo.error("audio session not activatable: \(error.localizedDescription)")
             _ = pipeline.close()
+            try? FileManager.default.removeItem(at: url) // Silent: nothing was recorded, so no partial .caf is kept
             audioSession.restore()
             lastError = .writeFailed
             throw MemoEngineError.writeFailed

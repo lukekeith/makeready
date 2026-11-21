@@ -38,11 +38,12 @@ final class RecorderSessionTests: XCTestCase {
 
     private func makeSession(seconds: Double, maxDuration: TimeInterval = 10_800,
                              input: AudioInputSource? = nil, micGranted: Bool = true,
+                             audioSession: MemoAudioSessionControlling = SpySession(),
                              writeBuffer: @escaping @Sendable (AVAudioFile, AVAudioPCMBuffer) throws -> Void = { try $0.write(from: $1) }) -> RecorderSession {
         let buffers = (try? MemoAudioFixtures.sineBuffers(seconds: seconds)) ?? []
         let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 44_100, channels: 1, interleaved: false)!
         engine = MemoRecorderEngine(input: input ?? BufferFeedInput(format: format, initial: buffers), transcriber: nil,
-                                    directory: dir, maxDuration: maxDuration, session: SpySession(), drafts: drafts,
+                                    directory: dir, maxDuration: maxDuration, session: audioSession, drafts: drafts,
                                     requestMicPermission: { micGranted }, writeBuffer: writeBuffer)
         let evening = calendar.date(from: DateComponents(year: 2026, month: 11, day: 21, hour: 19, minute: 43))!
         return RecorderSession(engine: engine, title: "Memo 1", enqueue: { [unowned self] result in
@@ -160,6 +161,21 @@ final class RecorderSessionTests: XCTestCase {
 
     func testAnInputThatFailsToStartFailsTheSessionAndLeavesNoCaf() async throws {
         let session = makeSession(seconds: 0, input: FailingInput())
+        await session.begin()
+        XCTAssertEqual(session.outcome, .failed)
+        XCTAssertTrue(enqueued.isEmpty)
+        XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: dir.path).isEmpty)
+    }
+
+    private final class UnactivatableSession: MemoAudioSessionControlling {
+        struct Failure: Error {}
+        func prepareForRecording() throws {}
+        func activate() throws { throw Failure() }
+        func restore() {}
+    }
+
+    func testAnAudioSessionThatCannotActivateFailsTheSessionAndLeavesNoCaf() async throws {
+        let session = makeSession(seconds: 0, audioSession: UnactivatableSession())
         await session.begin()
         XCTAssertEqual(session.outcome, .failed)
         XCTAssertTrue(enqueued.isEmpty)
