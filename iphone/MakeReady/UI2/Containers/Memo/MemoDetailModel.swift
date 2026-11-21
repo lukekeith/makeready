@@ -32,7 +32,12 @@ final class MemoDetailModel {
         self.uploads = uploads
         self.player = player
         self.state = state
-        if case .server(let id) = target { memo = state.voiceMemoDetails[id] }
+        switch target {
+        case .server(let id): memo = state.voiceMemoDetails[id]
+        // The screen copies its first title into the rename field once, so a queued page starts
+        // from the queue's copy rather than an empty loading title.
+        case .local(let localId): queued = uploads?.item(localId: localId)
+        }
     }
 
     /// A route id: `local:<localId>` is a queued memo, anything else a server id (D17).
@@ -49,9 +54,12 @@ final class MemoDetailModel {
         }
     }
 
-    /// D17: once the queue has a server id for this page's memo, show the server memo in place.
+    /// D17: once this page's memo has finished uploading (it has left the queue), show the server memo
+    /// in place. A queued item gains its server id when the create POST returns, before its audio is
+    /// uploaded — the page keeps playing the local file until then.
     func syncQueued() async {
-        guard case .local(let localId) = target, let serverId = uploads?.serverId(forLocalId: localId) else { return }
+        guard case .local(let localId) = target, let uploads, uploads.item(localId: localId) == nil,
+              let serverId = uploads.serverId(forLocalId: localId) else { return }
         target = .server(serverId)
         queued = nil
         await loadServer(serverId)

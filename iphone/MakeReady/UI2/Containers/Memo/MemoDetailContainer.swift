@@ -30,8 +30,9 @@ struct MemoDetailContainer: View {
             onSeekParagraph: model.seekParagraph
         )
         .task { await model.load() }
-        // D17: a queued memo's upload finished — the ids in Library change when its server row lands.
-        .onChange(of: state.voiceMemos.all.map(\.id)) { _, _ in Task { await model.syncQueued() } }
+        // D17: a queued memo's upload finished — it leaves the queue. (Library's ids are not the signal:
+        // a list refresh can bring the server row in while the audio is still uploading.)
+        .onChange(of: state.memoUploads?.pendingItems.map(\.localId) ?? []) { _, _ in Task { await model.syncQueued() } }
         .onDisappear { model.stop() }
     }
 

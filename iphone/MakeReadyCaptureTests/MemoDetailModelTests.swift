@@ -172,6 +172,31 @@ final class MemoDetailModelTests: XCTestCase {
         XCTAssertEqual(backend.loaded.last?.absoluteString, "https://r2.test/m9.m4a")
     }
 
+    /// Walk round 1 (E2): the page's first state already carries the queued memo's title — the screen
+    /// copies its title into the rename field once, when it is created.
+    func testALocalPagesFirstStateCarriesTheQueuedTitle() throws {
+        let item = try enqueueItem()
+        let model = makeModel(memoId: "local:\(item.localId)")
+        XCTAssertEqual(model.screenState(now: Date(), calendar: .current).title, "Memo 1")
+    }
+
+    /// Walk round 1 (item 3): the create POST has returned (the item has a server id) but the PUT has not
+    /// succeeded — the page keeps playing the local file.
+    func testALocalPageStaysLocalUntilTheUploadCompletes() async throws {
+        let item = try enqueueItem()
+        let model = makeModel(memoId: "local:\(item.localId)")
+        await model.load()
+        let stamp = Self.stampFormatter.string(from: Date().addingTimeInterval(900))
+        let ticket = #"{"url":"https://r2.test/m9","method":"PUT","headers":{"Content-Type":"audio/mp4","Content-Length":"4096"},"expiresAt":"\#(stamp)"}"#
+        api.stub("POST", "/api/memos", json: #"{"memo":\#(memoJSON("m9", status: "pending")),"upload":\#(ticket)}"#)
+        transport.nextStatus = 500
+        _ = await uploads.processNext()
+        XCTAssertEqual(uploads.item(localId: item.localId)?.serverId, "m9")
+        await model.syncQueued()
+        XCTAssertEqual(model.target, .local(item.localId))
+        XCTAssertEqual(backend.loaded, [uploads.fileURL(for: item)])
+    }
+
     func testRenamingAQueuedMemoRewritesItsManifest() async throws {
         let item = try enqueueItem()
         await makeModel(memoId: "local:\(item.localId)").rename("Retreat ideas")
