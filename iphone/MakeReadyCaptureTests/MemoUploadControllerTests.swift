@@ -119,6 +119,16 @@ final class MemoUploadControllerTests: XCTestCase {
         XCTAssertNotNil(state.voiceMemos["m1"])
     }
 
+    func testPendingItemsFollowEnqueueRenameAndRemove() async throws {
+        XCTAssertTrue(controller.pendingItems.isEmpty)
+        let item = try controller.enqueue(result)
+        XCTAssertEqual(controller.pendingItems.map(\.localId), [item.localId])
+        try await controller.rename(localId: item.localId, title: "Renamed")
+        XCTAssertEqual(controller.pendingItems.first?.title, "Renamed")
+        try await controller.remove(localId: item.localId)
+        XCTAssertTrue(controller.pendingItems.isEmpty)
+    }
+
     func testAfterACrashBetweenPostAndPutItResumesWithoutASecondCreate() async throws {
         try controller.enqueue(result); stubCreate(id: "m1", expiresIn: 900)
         transport.nextStatus = 500
@@ -273,5 +283,109 @@ final class MemoUploadControllerTests: XCTestCase {
         clock = clock.addingTimeInterval(61)
         stubCreate(id: "m1", expiresIn: 900); stubComplete(id: "m1")
         let later = await timed.processNext(); XCTAssertEqual(later, .completed("m1"))
+    }
+
+    // MARK: - Rename, remove and file access (D17)
+
+    func testRenameRewritesTheQueuedManifestTitle() async throws {
+        let controller = makeController()
+        let item = try controller.enqueue(makeResult(transcript: nil))
+        try await controller.rename(localId: item.localId, title: "Retreat ideas")
+        XCTAssertEqual(controller.item(localId: item.localId)?.title, "Retreat ideas")
+        XCTAssertEqual(makeController().pending().first?.title, "Retreat ideas")   // persisted
+    }
+
+    func testRemoveDeletesTheM4aAndManifest() async throws {
+        let controller = makeController()
+        let item = try controller.enqueue(makeResult(transcript: nil))
+        let file = controller.fileURL(for: item)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: file.path))
+        try await controller.remove(localId: item.localId)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+        XCTAssertTrue(controller.pending().isEmpty)
+    }
+
+    func testRemoveWithAServerIdAlsoSoftDeletesOnTheServer() async throws {
+        let item = try controller.enqueue(resultWithoutTranscript)
+        stubCreate(id: "m9", expiresIn: 900)
+        transport.nextStatus = 500   // the create lands, the PUT fails: the item keeps serverId m9
+        _ = await controller.processNext()
+        XCTAssertEqual(controller.item(localId: item.localId)?.serverId, "m9")
+        api.stub("DELETE", "/api/memos/m9", json: "{}")
+        try await controller.remove(localId: item.localId)
+        XCTAssertTrue(api.recordedStatusCalls.contains { $0.method == "DELETE" && $0.endpoint == "/api/memos/m9" })
+        XCTAssertTrue(controller.pending().isEmpty)
+    }
+
+    func testRenameWithAServerIdAlsoRenamesOnTheServer() async throws {
+        let item = try controller.enqueue(resultWithoutTranscript)
+        stubCreate(id: "m9", expiresIn: 900)
+        transport.nextStatus = 500
+        _ = await controller.processNext()
+        api.stub("PATCH", "/api/memos/m9", json: #"{"memo":\#(memoJSON("m9"))}"#)
+        try await controller.rename(localId: item.localId, title: "Renamed")
+        XCTAssertEqual(api.calls.last { $0.method == "PATCH" && $0.endpoint == "/api/memos/m9" }?.body?["title"] as? String, "Renamed")
+        XCTAssertEqual(controller.item(localId: item.localId)?.title, "Renamed")
+    }
+
+    func testAnUnknownLocalIdThrowsCancellation() async throws {
+        do { try await controller.rename(localId: "nope", title: "x"); XCTFail("expected CancellationError") } catch is CancellationError {}
+        do { try await controller.remove(localId: "nope"); XCTFail("expected CancellationError") } catch is CancellationError {}
+    }
+
+    func testACompletedUploadKeepsItsServerIdFindable() async throws {
+        let item = try controller.enqueue(resultWithoutTranscript)
+        stubCreate(id: "m9", expiresIn: 900); stubComplete(id: "m9")
+        let step = await controller.processNext(); XCTAssertEqual(step, .completed("m9"))
+        XCTAssertEqual(controller.serverId(forLocalId: item.localId), "m9")
+        XCTAssertTrue(controller.pending().isEmpty)
+    }
+
+    // MARK: - A flush in flight while the user edits (D17)
+
+    /// Holds the create POST open until `release()`, so a test can act while a flush awaits the server.
+    private func gateCreate(id: String) -> (started: () async -> Void, release: () -> Void) {
+        var gate: CheckedContinuation<Void, Never>?
+        let body = Data(#"{"memo":\#(memoJSON(id)),"upload":\#(ticketJSON(url: "https://r2.test/\(id)", expiresIn: 900))}"#.utf8)
+        api.responseFor = { method, endpoint in
+            if method == "POST", endpoint == "/api/memos" { await withCheckedContinuation { gate = $0 } }
+            return body
+        }
+        return ({ while gate == nil { await Task.yield() } }, { gate?.resume(); gate = nil })
+    }
+
+    func testRemoveDuringAFlushedCreateLeavesNothingQueued() async throws {
+        let item = try controller.enqueue(resultWithoutTranscript)
+        let (started, release) = gateCreate(id: "m5")
+        let flush = Task { await controller.processNext() }
+        await started()
+        try await controller.remove(localId: item.localId)
+        release()
+        _ = await flush.value
+        XCTAssertTrue(controller.pending().isEmpty)
+        XCTAssertTrue(try queueFiles().isEmpty)
+    }
+
+    func testRenameDuringAFlushedCreateIsNotOverwritten() async throws {
+        let item = try controller.enqueue(resultWithoutTranscript)
+        let (started, release) = gateCreate(id: "m5")
+        transport.nextStatus = 500   // after the create the PUT fails, so the item stays queued
+        let flush = Task { await controller.processNext() }
+        await started()
+        try await controller.rename(localId: item.localId, title: "Renamed mid-flush")
+        release()
+        _ = await flush.value
+        XCTAssertEqual(controller.item(localId: item.localId)?.title, "Renamed mid-flush")
+        XCTAssertEqual(controller.item(localId: item.localId)?.serverId, "m5")
+    }
+
+    func testAFailedServerRenameLeavesTheQueuedTitleUnchanged() async throws {
+        let item = try controller.enqueue(resultWithoutTranscript)
+        stubCreate(id: "m9", expiresIn: 900)
+        transport.nextStatus = 500
+        _ = await controller.processNext()
+        api.errorFor = { endpoint, _ in endpoint == "/api/memos/m9" ? APIError.serverError("boom") : nil }
+        do { try await controller.rename(localId: item.localId, title: "Nope"); XCTFail("expected a throw") } catch {}
+        XCTAssertEqual(controller.item(localId: item.localId)?.title, "Memo 1")
     }
 }

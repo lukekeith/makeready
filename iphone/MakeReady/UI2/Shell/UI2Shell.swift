@@ -22,10 +22,17 @@ struct UI2Shell: View {
     @State private var addMenuOpen = false
     /// notes D24: flushes the note save queue when the network comes back.
     @State private var notesConnectivity = NotesConnectivity()
+    /// memo-screens D3: the recorder sheet's session while it is up; nil otherwise (D14: one at a time).
+    @State private var recorder: RecorderSession?
+    /// Voice memo was chosen: the recorder starts once the add menu's slide-out has ended.
+    @State private var voiceMemoRequested = false
+    /// memo-screens D6: the "Saved to Library · View" toast.
+    @State private var toast = SavedToastPresenter()
 
     /// action-menu-overlay B3: the Add menu's actions, as frame 4717:52460 draws them. B5: none of
     /// their destinations existed in the 2.0 shell at the time. "Invite a member" now opens the invite
-    /// flow (invite-member D2), "Write a note" the note editor (notes D17); the other two still only close the menu.
+    /// flow (invite-member D2), "Write a note" the note editor (notes D17), "Voice memo" the recorder
+    /// (memo-screens D2); "Record a video" still only closes the menu.
     static let addMenuActions: [ActionMenuOverlay.ActionItem] = [
         .init(glyph: "c066-record", label: "Record a video"),
         .init(glyph: "c066-microphone", label: "Voice memo"),
@@ -89,11 +96,21 @@ struct UI2Shell: View {
             // with a page pushed pops it (D20, the system pop).
             // image-framing-editor (owner walk 2026-10-27): the image editors are full-screen; the
             // bar is drawn over the pages, so removing it changes no page's layout.
+            if let saved = toast.current {
+                SavedToast(message: "Saved to Library", actionLabel: "View", onView: {
+                    model.push(MemoEntry.viewDestination(localId: saved.localId), on: model.tab)
+                    toast.dismiss()
+                })
+                .padding(.horizontal, Token.Space.cardPadding)
+                .padding(.bottom, (model.showsTabBar ? tabBarHeight : safeBottom) + Token.Space.stackGap)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
             if model.showsTabBar {
                 TabBar(selected: model.tab, onSelect: { model.apply(.tab($0)) }, onAdd: { addMenuOpen = true })
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { tabBarHeight = $0 }
                     // action-menu-overlay: C-066 slides up over every piece of chrome (the host below).
-                    .actionMenuPresentation(isPresented: addMenuOpen, onDismiss: { addMenuOpen = false }) {
+                    .actionMenuPresentation(isPresented: addMenuOpen, onDismiss: { addMenuOpen = false },
+                                            onHidden: startRequestedRecorder) {
                         ActionMenuOverlay(
                             actions: Self.addMenuActions,
                             onSelect: { action in
@@ -101,6 +118,8 @@ struct UI2Shell: View {
                                 switch action.label {
                                 case InviteEntry.rowLabel: InviteEntry.open(on: model.tab, model: $model)
                                 case NoteEntry.rowLabel: NoteEntry.open(on: model.tab, model: $model)  // notes D17
+                                case MemoEntry.rowLabel:  // memo-screens D2, D14
+                                    voiceMemoRequested = MemoEntry.shouldStart(recorderPresented: recorder != nil)
                                 default: break  // the other rows land with their screens
                                 }
                             },
@@ -117,6 +136,17 @@ struct UI2Shell: View {
         }
         // The TabBar slides out under an editor's push and back in on its pop, on the push's timing.
         .animation(Motion.standard, value: model.showsTabBar)
+        // memo-screens D6: the toast enters and leaves on the shell's standard motion, and hides itself.
+        .animation(Motion.standard, value: toast.current?.id)
+        .task(id: toast.current?.id) {
+            guard let id = toast.current?.id else { return }
+            await toast.expire(id: id)
+        }
+        // memo-screens D2, D3: the recorder sheet rises over the whole shell; the host keeps one overlay.
+        .hostedOverlay(recorder.map { session in
+            UI2HostedOverlay(view: AnyView(RecorderSheetContainer(session: session, onEnd: recorderEnded)),
+                             transition: .move(edge: .bottom))
+        })
         .ignoresSafeArea(.container, edges: .bottom)
         // filter-menu-fullscreen: full-screen menus (C-036) draw here, above TopNav and TabBar.
         .ui2OverlayHost()
@@ -151,6 +181,21 @@ struct UI2Shell: View {
         .onChange(of: model.enrollmentFlowIds) { _, ids in
             EnrollDraftSyncs.prune(keeping: ids)
         }
+    }
+
+    /// memo-screens D3: the add menu has slid out, so the recorder can be the one hosted overlay.
+    private func startRequestedRecorder() {
+        guard voiceMemoRequested else { return }
+        voiceMemoRequested = false
+        guard MemoEntry.shouldStart(recorderPresented: recorder != nil),
+              let userId = authManager.currentUser?.id else { return }
+        recorder = MemoEntry.makeSession(userId: userId)
+    }
+
+    /// memo-screens D6, D7, D11: a saved memo raises the toast; a discarded or failed one raises nothing.
+    private func recorderEnded(_ outcome: RecorderSession.Outcome) {
+        recorder = nil
+        if case let .saved(localId) = outcome { toast.show(localId: localId) }
     }
 
     /// members-search-pinned: track the keyboard on its own animation timing.
@@ -246,6 +291,7 @@ struct UI2Shell: View {
         // notes D17: the editor on a fresh note (a new flowId per open) or a stored one.
         case let .newNote(flowId): NoteEditorContainer(noteId: nil).id(flowId)
         case let .noteEditor(noteId): NoteEditorContainer(noteId: noteId).id(noteId)
+        case let .memoDetail(memoId): MemoDetailContainer(memoId: memoId).id(memoId)  // memo-screens D4
         }
     }
 

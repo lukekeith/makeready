@@ -62,6 +62,35 @@ final class MemoActionsTests: XCTestCase {
         XCTAssertEqual(state.voiceMemos.all.map(\.id), ["m1"])
     }
 
+    func testLoadMemosPagesUntilTotal() async throws {
+        let first = (1...100).map { summaryJSON("m\($0)") }.joined(separator: ",")
+        let second = (101...130).map { summaryJSON("m\($0)") }.joined(separator: ",")
+        api.stub("GET", "/api/memos?limit=100&offset=0", json: #"{"memos":[\#(first)],"total":130}"#)
+        api.stub("GET", "/api/memos?limit=100&offset=100", json: #"{"memos":[\#(second)],"total":130}"#)
+        let memos = try await MemoActions(api: api, state: state).loadMemos(q: nil)
+        XCTAssertEqual(memos.count, 130)
+        XCTAssertEqual(state.voiceMemos.all.count, 130)
+    }
+
+    func testLoadMemosEmptyPageEndsTheLoop() async throws {
+        api.stub("GET", "/api/memos?limit=100&offset=0", json: #"{"memos":[],"total":5}"#)
+        let memos = try await MemoActions(api: api, state: state).loadMemos(q: nil)
+        XCTAssertEqual(memos, [])
+        XCTAssertEqual(api.calls.filter { $0.method == "GET" }.count, 1)
+    }
+
+    func testLoadMemosFailingPageLeavesTheStore() async throws {
+        state.voiceMemos.upsert(summary(id: "stale"))
+        let first = (1...100).map { summaryJSON("m\($0)") }.joined(separator: ",")
+        api.stub("GET", "/api/memos?limit=100&offset=0", json: #"{"memos":[\#(first)],"total":130}"#)
+        api.errorFor = { endpoint, _ in endpoint.hasSuffix("offset=100") ? URLError(.badServerResponse) : nil }
+        do {
+            _ = try await MemoActions(api: api, state: state).loadMemos(q: nil)
+            XCTFail("expected a throw")
+        } catch {}
+        XCTAssertEqual(state.voiceMemos.all.map(\.id), ["stale"])
+    }
+
     func testRenameUpdatesBothStores() async throws {
         state.voiceMemos.upsert(summary(id: "m1", title: "Old")); state.voiceMemoDetails.upsert(memo(id: "m1", title: "Old"))
         api.stub("PATCH", "/api/memos/m1", json: #"{"memo":\#(memoJSON("m1", title: "New"))}"#)

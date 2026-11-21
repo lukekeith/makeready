@@ -125,6 +125,7 @@ describe('layer discovery (D2, D6)', () => {
       'media-home',
       'members-home',
       'members-profile',
+      'memo-detail',
       'request-detail',
       'search-home',
       'shared-edit-field',

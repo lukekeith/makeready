@@ -50,6 +50,8 @@ export const FIXTURE_KIND = {
   contentActivity: '0024',
   // notes D19: the library-home screen's notes.
   studyNote: '0025',
+  // memo-screens D19: the library-home and memo-detail screens' voice memos.
+  voiceMemo: '0026',
 } as const
 
 export type FixtureKind = keyof typeof FIXTURE_KIND

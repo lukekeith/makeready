@@ -121,6 +121,10 @@ progress; base enrollment 4's progress (home-dashboard) is spread over days.
 
 `screens/search-home.ts` — master-search D25: rows of every search type sharing the word `Grace` (program + tag + lesson, an exact-title post, an org template, events and a recurring series, an untitled post, a photo and a video tagged `romans`) on the third base group, plus six recents for the fixture user.
 
+`screens/library-home.ts` — notes in each date bucket plus (memo-screens D19) 5 voice memos for the fixture user, one per Library preview state (ready, pending, failed, none, ready).
+
+`screens/memo-detail.ts` — memo-screens D19: gives the 1 h `ready` memo 3 transcript segments and uploads its short committed `audio/memo-detail.m4a` to the walk bucket once (same switches as images).
+
 `screens/media-home.ts` — 360 library photos over 3 years for the Media page (media-page D14); empty without base images.
 
 ### What `full` makes non-empty on the activity picker

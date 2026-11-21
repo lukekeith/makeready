@@ -1,0 +1,39 @@
+import Foundation
+
+/// memo-screens D5, T5: library-home's search runs the notes and memos searches together and keeps
+/// whichever side answered.
+enum LibraryHomeSearch {
+
+    struct Result {
+        let noteIds: [String]
+        let memos: [VoiceMemoSummary]
+        /// True when a side threw, so the caller can surface it while still showing the other side.
+        let failed: Bool
+    }
+
+    /// A side that throws contributes nothing and sets `failed`. A `CancellationError` from either side
+    /// is rethrown: a newer search or leaving the page cancelled this one, which is not a failure.
+    static func run(
+        q: String,
+        loadNotes: () async throws -> [String],
+        loadMemos: () async throws -> [VoiceMemoSummary]
+    ) async throws -> Result {
+        async let notes = attempt(loadNotes)
+        async let memos = attempt(loadMemos)
+        let (noteOutcome, memoOutcome) = try await (notes, memos)
+        return Result(noteIds: noteOutcome ?? [], memos: memoOutcome ?? [],
+                      failed: noteOutcome == nil || memoOutcome == nil)
+    }
+
+    /// The loader's value, or nil when it threw anything but a cancellation.
+    private static func attempt<T>(_ load: () async throws -> T) async throws -> T? {
+        do {
+            return try await load()
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            // Silent here: the caller sees `failed` and decides how to surface it.
+            return nil
+        }
+    }
+}

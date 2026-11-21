@@ -13,6 +13,7 @@
 
 import Foundation
 import Network
+import Observation
 
 /// What one `processNext` pass did.
 enum MemoUploadStep: Equatable {
@@ -27,7 +28,7 @@ enum MemoUploadStep: Equatable {
 struct MemoQueueItem: Codable, Equatable {
     let localId: String
     let fileName: String
-    let title: String
+    var title: String
     let durationMs: Int
     let waveformPeaks: [Double]
     /// ISO-8601 with fractional seconds, formatted once at enqueue and re-POSTed verbatim, so a
@@ -44,6 +45,7 @@ struct MemoQueueItem: Codable, Equatable {
 }
 
 @MainActor
+@Observable
 final class MemoUploadController {
 
     private static let recordedAtFormatter: ISO8601DateFormatter = {
@@ -78,12 +80,18 @@ final class MemoUploadController {
     private var backoffSteps: [String: (attempts: Int, wait: Duration)] = [:]
     private var wakeRequested = false
     private var wakeRetriesAll = false
+    /// `localId -> serverId` for items whose upload completed this session (D17).
+    private var completedServerIds: [String: String] = [:]
 
     /// 5 s, 30 s, 2 min, 10 min; every later attempt waits 10 min (D22).
     private static let backoff: [Duration] = [.seconds(5), .seconds(30), .seconds(120), .seconds(600)]
 
     /// True after a 401 until `resumeAfterSignIn` (D41).
     private(set) var isPausedForAuth = false
+
+    /// The queue as views read it: refreshed by every manifest write and delete, so a view that
+    /// reads it re-renders when a memo is queued, renamed, gains a server id or leaves the queue.
+    private(set) var pendingItems: [MemoQueueItem] = []
 
     /// `flushesOnEnqueue` is off by default so a test that enqueues stays in control of the
     /// network; `AppState` turns it on for the real queue (D22).
@@ -100,6 +108,7 @@ final class MemoUploadController {
         self.now = now
         self.flushesOnEnqueue = flushesOnEnqueue
         self.sleep = sleep
+        pendingItems = pending()
     }
 
     /// The wait after the `attempt`th failure (1-based), capped at the last backoff step.
@@ -109,8 +118,10 @@ final class MemoUploadController {
 
     // MARK: Queue
 
-    /// Moves the `.m4a` into the queue folder and writes its manifest. No network (D22).
-    func enqueue(_ result: RecordingResult) throws {
+    /// Moves the `.m4a` into the queue folder and writes its manifest. No network (D22). Returns
+    /// the persisted item.
+    @discardableResult
+    func enqueue(_ result: RecordingResult) throws -> MemoQueueItem {
         let fm = FileManager.default
         try prepareDirectory()
         let localId = UUID().uuidString
@@ -129,9 +140,10 @@ final class MemoUploadController {
             try? fm.moveItem(at: destination, to: result.fileURL)
             throw error
         }
-        guard flushesOnEnqueue else { return }
+        guard flushesOnEnqueue else { return item }
         startPathMonitoring()
         Task { await flush() }
+        return item
     }
 
     /// This owner's and this environment's unsent items, oldest first (D37).
@@ -146,6 +158,40 @@ final class MemoUploadController {
                   item.ownerUserId == ownerUserId, item.environment == environment else { return nil }
             return item
         }.sorted { ($0.recordedAt, $0.localId) < ($1.recordedAt, $1.localId) }
+    }
+
+    /// The pending item with `localId`, if it is still queued.
+    func item(localId: String) -> MemoQueueItem? {
+        pending().first { $0.localId == localId }
+    }
+
+    /// Where the item's `.m4a` sits in the queue folder.
+    func fileURL(for item: MemoQueueItem) -> URL {
+        directory.appendingPathComponent(item.fileName)
+    }
+
+    /// A pending item's `serverId`, or the one recorded when that item completed (D17).
+    func serverId(forLocalId localId: String) -> String? {
+        item(localId: localId)?.serverId ?? completedServerIds[localId]
+    }
+
+    /// Renames a queued memo: the manifest's `title` (so the create POST carries it) and, when the
+    /// row already exists on the server, the server's too (D17). Unknown `localId`: `CancellationError`.
+    func rename(localId: String, title: String) async throws {
+        guard let item = item(localId: localId) else { throw CancellationError() }
+        // The server first: a failed call leaves the manifest's title as it was, so local and server agree.
+        if let serverId = item.serverId { try await actions.rename(id: serverId, title: title) }
+        // Re-read after the await: a flush may have moved the item on, or a remove deleted it.
+        guard let current = self.item(localId: localId) else { throw CancellationError() }
+        try update(current, title: title)
+    }
+
+    /// Deletes a queued memo's `.m4a` and manifest and, when the row exists on the server, soft-deletes
+    /// it there first, so a failed call leaves the item queued (D17). Unknown `localId`: `CancellationError`.
+    func remove(localId: String) async throws {
+        guard let item = item(localId: localId) else { throw CancellationError() }
+        if let serverId = item.serverId { try await actions.softDelete(id: serverId) }
+        discard(item)
     }
 
     // MARK: Flush
@@ -287,7 +333,7 @@ final class MemoUploadController {
         item.nextAttemptAt = due
         backoffSteps[item.localId] = (item.attempts, wait)
         do {
-            try persist(item)
+            try update(item)
             return (wait, true)
         } catch {
             Log.memo.error("backoff not persisted: \(error.localizedDescription)")
@@ -329,6 +375,8 @@ final class MemoUploadController {
             return (try await run(&item), item.localId)
         } catch {
             if Self.isUnauthorized(error) { return (.paused, item.localId) }
+            // Silent: the item was removed while this pass was in flight (`update` found no manifest).
+            if error is CancellationError { return (.retryLater, item.localId) }
             // Console-only: a background flush, never a user-initiated action (D21). A 400/403 from
             // the server is retried at the capped backoff rather than dropped: the recording is kept.
             AppState.shared.recordError(error, context: "MemoUploadController.runDue")
@@ -375,7 +423,7 @@ final class MemoUploadController {
         let response = try JSONDecoder.apiDecoder.decode(MemoCreateResponse.self, from: data)
         item.serverId = response.memo.id
         item.upload = response.upload
-        try persist(item)
+        try update(item)
     }
 
     /// `POST /api/memos/:id/upload` — a fresh ticket (D29). 404: the row is gone; 409: already uploaded.
@@ -383,7 +431,7 @@ final class MemoUploadController {
         do {
             let data = try await api.requestWithStatus(endpoint: "/api/memos/\(serverId)/upload", method: "POST", body: [:], timeout: 30)
             item.upload = try JSONDecoder.apiDecoder.decode(MemoUploadResponse.self, from: data).upload
-            try persist(item)
+            try update(item)
             return .proceed
         } catch let error as APIHTTPError where error.status == 404 {
             return .memoGone
@@ -401,7 +449,7 @@ final class MemoUploadController {
                 // A ticket URL that never parses would loop forever: drop it so the next pass re-mints.
                 Log.memo.error("memo upload ticket has an unparseable URL; re-minting next pass")
                 item.upload = nil
-                try persist(item)
+                try update(item)
                 return .retryLater
             }
             let status = try await transport.put(fileURL: directory.appendingPathComponent(item.fileName), to: url, headers: ticket.headers)
@@ -420,14 +468,15 @@ final class MemoUploadController {
             let data = try await api.requestWithStatus(endpoint: "/api/memos/\(serverId)/complete", method: "PATCH", body: [:], timeout: 30)
             let memo = try JSONDecoder.apiDecoder.decode(MemoResponse.self, from: data).memo
             actions.memoCompleted(memo)
-            remove(item)
+            completedServerIds[item.localId] = serverId
+            discard(item)
             return .completed(serverId)
         } catch let error as APIHTTPError where error.status == 404 {
             try forget(&item)
             return .retryLater
         } catch let error as APIHTTPError where error.status == 409 {
             item.upload = nil
-            try persist(item)
+            try update(item)
             return .retryLater
         }
     }
@@ -437,7 +486,7 @@ final class MemoUploadController {
     private func forget(_ item: inout MemoQueueItem) throws {
         item.serverId = nil
         item.upload = nil
-        try persist(item)
+        try update(item)
     }
 
     private func manifestURL(_ item: MemoQueueItem) -> URL {
@@ -446,9 +495,22 @@ final class MemoUploadController {
 
     private func persist(_ item: MemoQueueItem) throws {
         try JSONEncoder.apiEncoder.encode(item).write(to: manifestURL(item), options: .atomic)
+        pendingItems = pending()
     }
 
-    private func remove(_ item: MemoQueueItem) {
+    /// Rewrites the manifest of an item that is already queued. A manifest that is gone (the memo
+    /// was removed while a flush was awaiting the server) throws `CancellationError` instead of
+    /// being resurrected. The title on disk wins unless `title` is given, so a rename that landed
+    /// during the flush is not overwritten by the flush's stale copy.
+    private func update(_ item: MemoQueueItem, title: String? = nil) throws {
+        guard let data = try? Data(contentsOf: manifestURL(item)),
+              let onDisk = try? JSONDecoder.apiDecoder.decode(MemoQueueItem.self, from: data) else { throw CancellationError() }
+        var merged = item
+        merged.title = title ?? onDisk.title
+        try persist(merged)
+    }
+
+    private func discard(_ item: MemoQueueItem) {
         for url in [directory.appendingPathComponent(item.fileName), manifestURL(item)] {
             do {
                 try FileManager.default.removeItem(at: url)
@@ -456,6 +518,7 @@ final class MemoUploadController {
                 Log.memo.error("queue file not removable: \(error.localizedDescription)")
             }
         }
+        pendingItems = pending()
     }
 
     /// Creates the folder and keeps it out of iCloud backup (D37).

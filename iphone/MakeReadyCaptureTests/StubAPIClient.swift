@@ -38,6 +38,9 @@ final class StubAPIClient: APIClientProtocol {
     var responseFor: (@MainActor (_ method: String, _ endpoint: String) async throws -> Data)?
     private var recordedStatusEndpoints: [String] = []
     var statusEndpoints: [String] { callsLock.withLock { recordedStatusEndpoints } }
+    private var recordedStatusCallList: [RecordedCall] = []
+    /// Every `requestWithStatus` call (method, endpoint, body), in order — how a test sees a 204 DELETE.
+    var recordedStatusCalls: [RecordedCall] { callsLock.withLock { recordedStatusCallList } }
 
     /// Every call made through the stub, in order.
     /// Recorded under a lock: `DashboardActions.refresh()` calls the stub from several tasks at
@@ -52,6 +55,16 @@ final class StubAPIClient: APIClientProtocol {
 
     func stub(_ method: String, _ endpoint: String, json: String) {
         responses["\(method) \(endpoint)"] = Data(json.utf8)
+    }
+
+    /// A bodyless answer for `requestWithStatus` (a 204 DELETE): `requestWithStatus` returns data only.
+    func stubStatus(_ method: String, _ endpoint: String, status: Int) {
+        responses["\(method) \(endpoint)"] = Data()
+    }
+
+    /// Every call made with `method`, in order.
+    func recordedCalls(method: String) -> [RecordedCall] {
+        calls.filter { $0.method == method }
     }
 
     func callCount(_ method: String, _ endpoint: String) -> Int {
@@ -84,7 +97,10 @@ final class StubAPIClient: APIClientProtocol {
     /// Recorded and answered like any call; a test returns an `APIHTTPError` from `errorFor`
     /// to play a status.
     func requestWithStatus(endpoint: String, method: String, body: [String: Any]?, timeout: TimeInterval) async throws -> Data {
-        callsLock.withLock { recordedStatusEndpoints.append(endpoint) }
+        callsLock.withLock {
+            recordedStatusEndpoints.append(endpoint)
+            recordedStatusCallList.append(RecordedCall(method: method, endpoint: endpoint, body: body))
+        }
         return try await request(endpoint: endpoint, method: method, body: body, timeout: timeout)
     }
 
