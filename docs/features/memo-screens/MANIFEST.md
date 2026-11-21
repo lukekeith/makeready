@@ -1,14 +1,14 @@
 size: md
 state: planned
 next: /builder:resume --path docs/features/memo-screens
-head: 36dd5565
+head: e37d859c
 ticket: none
 branch: builder/memo-screens
 pr: none
 apps: server+iphone
 contract: none
 hold: none
-go-ahead: none
+go-ahead: auto (recommended) 2026-11-21
 tests: walk=risk review=slice
 target: feature/memo
 walk: none
