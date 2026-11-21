@@ -55,6 +55,8 @@ final class MemoPlayer {
     @ObservationIgnored private let now: () -> Date
     @ObservationIgnored private var remote: VoiceMemo?
     @ObservationIgnored private var hasRefetchedAfter403 = false
+    @ObservationIgnored private var isReloading = false
+    @ObservationIgnored private var loadGeneration = 0
     @ObservationIgnored private var ticker: Task<Void, Never>?
 
     init(backend: MemoPlaybackBackend,
@@ -70,6 +72,8 @@ final class MemoPlayer {
 
     func load(_ source: Source) async {
         ticker?.cancel()
+        loadGeneration += 1
+        isReloading = false
         isPlaying = false
         isReady = false
         elapsed = 0
@@ -97,7 +101,7 @@ final class MemoPlayer {
         }
         isPlaying = true
         if let memo = remote, isExpired(memo) {
-            Task { [weak self] in await self?.reloadFromFreshURL() }
+            startReload()
             return
         }
         backend.play()
@@ -147,11 +151,24 @@ final class MemoPlayer {
         }
     }
 
+    /// Starts a reload unless one is already in flight; the flag is set before the task runs so
+    /// a second tap in the same turn cannot spawn a second fetch.
+    private func startReload() {
+        guard remote != nil, !isReloading else { return }
+        isReloading = true
+        Task { [weak self] in await self?.reloadFromFreshURL() }
+    }
+
     /// Re-fetch the detail, reload the fresh url and carry on from where playback was.
     private func reloadFromFreshURL() async {
         guard let memo = remote else { return }
-        let position = backend.currentTime
-        guard let url = await freshURL(for: memo) else {
+        let generation = loadGeneration
+        // The failed item's own clock can read 0, so the ticked position is the floor.
+        let position = max(backend.currentTime, elapsed)
+        let fresh = await freshURL(for: memo)
+        guard generation == loadGeneration else { return }  // a newer load() owns the backend now
+        isReloading = false
+        guard let url = fresh else {
             isPlaying = false
             return
         }
@@ -173,7 +190,7 @@ final class MemoPlayer {
     private func backendFailed(status: Int?) {
         guard status == 403, remote != nil, !hasRefetchedAfter403 else { return }
         hasRefetchedAfter403 = true
-        Task { [weak self] in await self?.reloadFromFreshURL() }
+        startReload()
     }
 
     private func startTicking() {

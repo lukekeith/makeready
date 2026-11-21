@@ -36,6 +36,7 @@ private final class PlayerSpySession: MemoPlaybackSessionControlling {
 @MainActor
 final class MemoPlayerTests: XCTestCase {
     private let clock = Date(timeIntervalSince1970: 1_800_000_000)
+    private var currentDate = Date(timeIntervalSince1970: 1_800_000_000)
     private var backend: PlayerSpyBackend!
     private var session: PlayerSpySession!
     private var fetches = 0
@@ -45,6 +46,7 @@ final class MemoPlayerTests: XCTestCase {
         backend = PlayerSpyBackend()
         session = PlayerSpySession()
         fetches = 0
+        currentDate = clock
     }
 
     // MARK: - Helpers
@@ -57,7 +59,7 @@ final class MemoPlayerTests: XCTestCase {
                        fetches += 1
                        return try await fetch(id)
                    },
-                   now: { [clock] in clock })
+                   now: { [unowned self] in currentDate })
     }
 
     private func memo(url: String?, expires: Date?, durationMs: Int = 60_000) -> VoiceMemo {
@@ -65,6 +67,11 @@ final class MemoPlayerTests: XCTestCase {
                   fileSize: nil, durationMs: durationMs, waveformPeaks: nil, transcript: nil,
                   transcriptSegments: nil, transcriptStatus: .none, transcriptSource: nil,
                   uploadStatus: .ready, recordedAt: clock, createdAt: clock, updatedAt: clock)
+    }
+
+    /// Waits for an async effect to land, up to a second, instead of sleeping a fixed time.
+    private func eventually(_ condition: () -> Bool) async {
+        for _ in 0..<100 where !condition() { try? await Task.sleep(for: .milliseconds(10)) }
     }
 
     // MARK: - Tests
@@ -87,13 +94,28 @@ final class MemoPlayerTests: XCTestCase {
         let player = makePlayer(fetch: { _ in self.memo(url: "https://r2/fresh", expires: self.clock.addingTimeInterval(3600)) })
         await player.load(.remote(memo(url: "https://r2/old", expires: clock.addingTimeInterval(3600))))
         XCTAssertEqual(fetches, 0)
-        backend.currentTime = 12
-        backend.onFailure?(403); try? await Task.sleep(for: .milliseconds(50))
+        player.seek(to: 12)
+        backend.currentTime = 0  // a failed item reads 0
+        backend.onFailure?(403)
+        await eventually { fetches == 1 && backend.loaded.count == 2 }
         XCTAssertEqual(fetches, 1)
         XCTAssertEqual(backend.loaded.last?.absoluteString, "https://r2/fresh")
         XCTAssertEqual(backend.seeks.last, 12)
-        backend.onFailure?(403); try? await Task.sleep(for: .milliseconds(50))
+        backend.onFailure?(403); try? await Task.sleep(for: .milliseconds(100))
         XCTAssertEqual(fetches, 1, "a second 403 must not loop")
+    }
+
+    func testAnExpiredURLAtPlayIsRefetchedBeforePlaying() async {
+        let player = makePlayer(fetch: { _ in self.memo(url: "https://r2/fresh", expires: self.clock.addingTimeInterval(7200)) })
+        await player.load(.remote(memo(url: "https://r2/old", expires: clock.addingTimeInterval(3600))))
+        XCTAssertEqual(fetches, 0)
+        currentDate = clock.addingTimeInterval(3601)
+        player.play()
+        player.play()  // a second tap must not start a second fetch
+        await eventually { backend.plays == 1 }
+        XCTAssertEqual(fetches, 1)
+        XCTAssertEqual(backend.loaded.last?.absoluteString, "https://r2/fresh")
+        XCTAssertEqual(backend.plays, 1)
     }
 
     func testAQueuedMemoPlaysFromTheLocalFile() async {
