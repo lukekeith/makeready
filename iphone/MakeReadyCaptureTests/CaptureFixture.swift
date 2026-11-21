@@ -225,7 +225,12 @@ struct CaptureComponent: Codable {
     let date: CaptureDateOrBlock?     // ISO or display date string, OR C-070's props
     let dateRange: String?
     let memberCount: Int?
-    let duration: String?
+    // RETYPED 2026-11-21 (/d2m:component:build C-004), by the same reasoning and in the same
+    // shape as `size` and `day` above. This was `String?` (a 1.0 card duration label, read by no
+    // case today). C-004 ScrubTrack §4's `duration` is ALSO named `duration` and is a
+    // **TimeInterval**, and rule 3 forbids bending a contract's prop name — so the field decodes
+    // both shapes: 1.0 readers ask for `.stringValue`; C-004 asks for `.doubleValue`.
+    let duration: CaptureDoubleOrString?
     let label: String?
     let value: String?
     let imageUrl: String?
@@ -1552,6 +1557,48 @@ struct CaptureComponent: Codable {
     let undoRequest: Int?                      // C-001
     let listRequest: Int?                      // C-001 (OQ-C-001-9)
     let listRequestStyle: String?              // C-001 — "bulleted" | "numbered"; absent = nil
+    // ── preview props ──
+    let samples: [Float]?                      // C-012 PlayheadWaveformView
+    let elapsed: Double?                       // C-012 — TimeInterval, seconds; C-004 reuses it
+    let dragging: Bool?                        // C-004 ScrubTrack
+    // C-006 MemoListRow — `title`, `dateLabel` and `preview` (the case name) are reused;
+    // `previewText` is §3's encoding of `.transcript(String)`'s associated text.
+    let durationLabel: String?                 // C-006
+    let previewText: String?                   // C-006
+    // ── screen library-home (memos) ──
+    let rowUpdatedAt: [String]?                // library-home — ISO8601, per note row
+    let memos: [CaptureUI2LibraryMemo]?        // library-home — State.MemoRowInput
+    // ── preview props ──
+    // C-018 RecorderExpandedView — `title`, `startTime`, `elapsed`, `samples` and `phase` are
+    // reused (same names, same types); `menu` is its Menu case name.
+    let menu: String?                          // C-018 — none | actions | discardConfirm
+    // ── preview props ──
+    // C-141 SavedToast — `message` is reused (same name, same type).
+    let actionLabel: String?                   // C-141
+    // ── preview props ──
+    // C-009 EditorNavChrome (D74) — `editing` and `canUndo` are reused.
+    let more: Bool?                            // C-009
+    // ── screen memo-detail ──
+    // `title`, `dateLabel`, `duration` (.doubleValue), `elapsed` and `playing` are reused.
+    let playerReady: Bool?
+    let transcript: String?                    // paragraphs | transcribing | unavailable
+    let paragraphStarts: [Double]?
+    let paragraphTexts: [String]?
+    let renaming: Bool?
+    let deleteConfirmPresented: Bool?
+}
+
+/// library-home `State.MemoRowInput` — `preview` and `previewText` encode C-006's `preview` as
+/// the C-006 case does; `recordedAt` is ISO8601.
+struct CaptureUI2LibraryMemo: Codable {
+    let id: String
+    let title: String
+    let durationLabel: String
+    let dateLabel: String
+    let section: Int
+    let recordedAt: String
+    let preview: String
+    let previewText: String?
 }
 
 /// C-123 §4 `look` — "Fixtures encode `look` as an object: `{\"kind\": \"<case>\", …associated

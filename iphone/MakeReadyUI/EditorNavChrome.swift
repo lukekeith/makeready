@@ -10,7 +10,8 @@ import SwiftUI
 
 /// C-009 EditorNavChrome — the note editor's floating navigation: a Back circle, an Undo
 /// circle that exists only while there is something to undo, and an accent-filled Done circle
-/// at the trailing edge while editing. No bar, no background, no title; the canvas scrolls
+/// at the trailing edge while editing; outside editing a host may ask for a trailing ⋯ (more)
+/// circle instead (D74, memo-detail). No bar, no background, no title; the canvas scrolls
 /// under it (01 §3.3).
 ///
 /// Controlled (R-01): it holds no state the design names and performs no navigation or undo
@@ -24,19 +25,25 @@ struct EditorNavChrome: View {
     let editing: Bool
     /// §4 `canUndo` — the host binds it to the editor's `UIUndoManager.canUndo`.
     let canUndo: Bool
+    /// §4 `more` — the trailing ⋯ circle renders only while `more && !editing` (D74). The
+    /// default leaves note-editor unchanged; memo-detail passes true.
+    var more: Bool = false
     /// §4 `onBack` — the host flushes autosave and pops (no Save — DECISIONS R6).
     var onBack: () -> Void = {}
     /// §4 `onUndo` — the host undoes one coalesced step.
     var onUndo: () -> Void = {}
     /// §4 `onDone` — the host dismisses keyboard + strip and leaves edit mode (never commit).
     var onDone: () -> Void = {}
+    /// §4 `onMore` — the host presents its menu (memo-detail: C-066 Rename · Delete) (D74).
+    var onMore: () -> Void = {}
 
     /// True only under the capture harness's element map; switches on the glass fallback disc.
     @Environment(\.ui2ElementCollecting) private var captureFallback
 
     var body: some View {
-        // §2: a leading cluster [Back][Undo] and a trailing [Done], separated by flexible
-        // space; all three circles share one vertical centre line (OQ-C-009-3, amended 2026-11-21).
+        // §2: a leading cluster [Back][Undo] and a trailing slot holding [Done] while editing or
+        // [More] while `more && !editing` (D74), separated by flexible space; all circles share
+        // one vertical centre line (OQ-C-009-3, amended 2026-11-21).
         HStack(alignment: .center, spacing: 0) {
             HStack(alignment: .center, spacing: Token.Space.elementGap) {
                 navCircle(glyph: .chevronLeftCarbon, label: "Back", name: "Back", action: onBack)
@@ -48,8 +55,13 @@ struct EditorNavChrome: View {
                 }
             }
             Spacer(minLength: 0)
+            // §2 "The trailing slot holds at most one circle": Done while editing; More only
+            // while not editing (D74).
             if editing {
                 doneCircle
+                    .transition(.opacity)
+            } else if more {
+                navCircle(glyph: .moreHorizontal, label: "More", name: "More", action: onMore)
                     .transition(.opacity)
             }
         }
@@ -61,7 +73,7 @@ struct EditorNavChrome: View {
 
     // MARK: - Parts (§2 anatomy)
 
-    /// §2 Back / Undo: a 40×40 circle filled with the iOS 26 Liquid Glass material, a 24pt
+    /// §2 Back / Undo / More: a 40×40 circle filled with the iOS 26 Liquid Glass material, a 24pt
     /// `color-text-primary` glyph centred, hit area expanded to 44×44 (OQ-C-009-3). Pressed is
     /// the plain style's system highlight with no geometry change (OQ-C-009-4).
     private func navCircle(
@@ -125,8 +137,8 @@ struct EditorNavChrome: View {
 
     /// §2 dimensions of fixed-size controls, not values of a token family.
     private enum Geometry {
-        /// FLAGGED LITERAL — C-009 §2: the single 40pt circle diameter shared by Back, Undo and
-        /// Done (owner change 2026-11-21), no size token.
+        /// FLAGGED LITERAL — C-009 §2: the single 40pt circle diameter shared by Back, Undo, Done
+        /// and More (owner change 2026-11-21; D74), no size token.
         static let nav: CGFloat = 40
         /// FLAGGED LITERAL — C-009 §2 / OQ-C-009-3: glyphs 24×24 (C-021's visual size).
         static let glyph: CGFloat = 24

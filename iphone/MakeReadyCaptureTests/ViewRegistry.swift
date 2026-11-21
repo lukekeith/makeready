@@ -3326,6 +3326,30 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
         guard let libraryPhase = MakeReadyUI.LibraryHomeScreen.State.Phase(rawValue: c.phase ?? "populated") else {
             throw ViewRegistryError.unknownView("screen.2.0.library-home: props.phase must be populated | loading | empty | coming-soon")
         }
+        let libraryISO = ISO8601DateFormatter()
+        let libraryUpdatedAt = try (c.rowUpdatedAt ?? []).map { raw -> Date in
+            guard let date = libraryISO.date(from: raw) else {
+                throw ViewRegistryError.unknownView("screen.2.0.library-home: props.rowUpdatedAt \"\(raw)\" is not ISO8601")
+            }
+            return date
+        }
+        let libraryMemos = try (c.memos ?? []).map { memo -> MakeReadyUI.LibraryHomeScreen.State.MemoRowInput in
+            guard let recordedAt = libraryISO.date(from: memo.recordedAt) else {
+                throw ViewRegistryError.unknownView("screen.2.0.library-home: memos[].recordedAt \"\(memo.recordedAt)\" is not ISO8601")
+            }
+            // C-006's `preview` encoding, as the component.ui2.C-006 case decodes it.
+            let preview: MakeReadyUI.MemoListRow.Preview
+            switch memo.preview {
+            case "transcript": preview = .transcript(memo.previewText ?? "")
+            case "transcribing": preview = .transcribing
+            case "audioOnly": preview = .audioOnly
+            case "waitingToUpload": preview = .waitingToUpload
+            default:
+                throw ViewRegistryError.unknownView("screen.2.0.library-home: memos[].preview \"\(memo.preview)\" must be transcript | transcribing | audioOnly | waitingToUpload")
+            }
+            return .init(id: memo.id, title: memo.title, durationLabel: memo.durationLabel, dateLabel: memo.dateLabel,
+                         section: memo.section, recordedAt: recordedAt, preview: preview)
+        }
         return AnyView(MakeReadyUI.LibraryHomeScreen(
             state: .init(
                 phase: libraryPhase,
@@ -3336,7 +3360,9 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
                 rowTitles: c.rowTitles ?? [],
                 rowDates: c.rowDates ?? [],
                 rowPreviews: c.rowPreviews ?? [],
-                rowContexts: c.rowContexts ?? []
+                rowContexts: c.rowContexts ?? [],
+                rowUpdatedAt: libraryUpdatedAt,
+                memos: libraryMemos
             ),
             // C-008 §4: capture drives C-034 non-editable so `searchFocused` draws the focus look.
             searchEditable: false
@@ -3365,6 +3391,30 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
                 canUndo: c.canUndo ?? false,
                 activeStyles: noteEditorStyles,
                 listMenuPresented: c.listMenuPresented ?? false
+            )
+        ))
+    case "screen.2.0.memo-detail":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("screen.2.0.memo-detail: missing state.component")
+        }
+        // §3 shared fixture defaults; a missing `transcript` is `paragraphs`. The canvas is the
+        // harness's (CaptureRunner's `screen.*` branch) — the bare screen here.
+        guard let memoTranscript = MakeReadyUI.MemoDetailScreen.State.Transcript(rawValue: c.transcript ?? "paragraphs") else {
+            throw ViewRegistryError.unknownView("screen.2.0.memo-detail: props.transcript must be paragraphs | transcribing | unavailable")
+        }
+        return AnyView(MakeReadyUI.MemoDetailScreen(
+            state: .init(
+                title: c.title ?? "Memo 3",
+                dateLabel: c.dateLabel ?? "Today 7:43 PM",
+                duration: c.duration?.doubleValue ?? 16,
+                elapsed: c.elapsed ?? 0,
+                playing: c.playing ?? false,
+                playerReady: c.playerReady ?? true,
+                transcript: memoTranscript,
+                paragraphStarts: c.paragraphStarts ?? [],
+                paragraphTexts: c.paragraphTexts ?? [],
+                renaming: c.renaming ?? false,
+                deleteConfirmPresented: c.deleteConfirmPresented ?? false
             )
         ))
     case "component.ui2.C-134":
@@ -3600,8 +3650,9 @@ private func buildCaptureViewPart11(_ fixture: CaptureFixture, authManager: Auth
             throw ViewRegistryError.unknownView("component.ui2.C-009: missing state.component")
         }
         // C-009 §4 (R-07): `editing` and `canUndo` are required, so a nil is a fixture bug;
-        // `onBack`, `onUndo` and `onDone` are the view's no-op defaults. §3 `pressed` is
-        // ephemeral (R-02, OQ-C-009-4) and renders at rest.
+        // `more` takes the contract's default `false` (D74); `onBack`, `onUndo`, `onDone` and
+        // `onMore` are the view's no-op defaults. §3 `pressed` is ephemeral (R-02,
+        // OQ-C-009-4) and renders at rest.
         guard let ui2C009Editing = c.editing else {
             throw ViewRegistryError.unknownView("component.ui2.C-009: props.editing is required")
         }
@@ -3609,7 +3660,11 @@ private func buildCaptureViewPart11(_ fixture: CaptureFixture, authManager: Auth
             throw ViewRegistryError.unknownView("component.ui2.C-009: props.canUndo is required")
         }
         return declareCase(
-            MakeReadyUI.EditorNavChrome(editing: ui2C009Editing, canUndo: ui2C009CanUndo),
+            MakeReadyUI.EditorNavChrome(
+                editing: ui2C009Editing,
+                canUndo: ui2C009CanUndo,
+                more: c.more ?? false
+            ),
             // C-009 §2: "fills the width it is given"; the master width is the page's 440 less
             // the page margins, as the notes siblings take it.
             PreviewFrame(width: 408)
@@ -3721,6 +3776,240 @@ private func buildCaptureViewPart12(_ fixture: CaptureFixture, authManager: Auth
             // C-001 §2: the editor fills what the caller gives it — here the recording's 440 × 956
             // Pro Max screen (01's source), with no outer padding (R-16).
             PreviewFrame(width: 440, height: 956, margin: 0, alignment: .top)
+        )
+    case "component.ui2.C-012":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-012: missing state.component")
+        }
+        // C-012 §4 (R-07): `samples` and `elapsed` are both required, so a nil is a fixture bug.
+        guard let ui2C012Samples = c.samples else {
+            throw ViewRegistryError.unknownView("component.ui2.C-012: props.samples is required")
+        }
+        guard let ui2C012Elapsed = c.elapsed else {
+            throw ViewRegistryError.unknownView("component.ui2.C-012: props.elapsed is required")
+        }
+        return declareCase(
+            MakeReadyUI.PlayheadWaveformView(samples: ui2C012Samples, elapsed: ui2C012Elapsed),
+            // C-012 §1/§2: the frozen crop is the full 440 pt width with no margin; the height is
+            // §2's 432.33 pt (a 400 pt pane), which the pane flexes to fill (OQ-C-012-6).
+            PreviewFrame(width: 440, height: 1297.0 / 3.0, margin: 0, alignment: .top)
+        )
+    case "component.ui2.C-004":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-004: missing state.component")
+        }
+        // C-004 §4 (R-07): `elapsed`, `duration` and `dragging` are required, so a nil is a fixture
+        // bug; `enabled` defaults to true (§4); the callbacks are the view's no-op defaults.
+        guard let ui2C004Elapsed = c.elapsed else {
+            throw ViewRegistryError.unknownView("component.ui2.C-004: props.elapsed is required")
+        }
+        guard let ui2C004Duration = c.duration?.doubleValue else {
+            throw ViewRegistryError.unknownView("component.ui2.C-004: props.duration (seconds) is required")
+        }
+        guard let ui2C004Dragging = c.dragging else {
+            throw ViewRegistryError.unknownView("component.ui2.C-004: props.dragging is required")
+        }
+        return declareCase(
+            MakeReadyUI.ScrubTrack(
+                elapsed: ui2C004Elapsed,
+                duration: ui2C004Duration,
+                dragging: ui2C004Dragging,
+                enabled: c.enabled ?? true
+            ),
+            // C-004 §2 names no master width (width-driven): the 440 pt screen less the page
+            // margin each side, as memo-detail will place it (default, unruled).
+            PreviewFrame(width: 408)
+        )
+    case "component.ui2.C-006":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-006: missing state.component")
+        }
+        // C-006 §4 (R-07): `title`, `durationLabel`, `dateLabel` and `preview` are required, so a
+        // nil is a fixture bug; `onTap` is the view's no-op default. §3 encodes `preview` as the
+        // case name, with `.transcript`'s text in `previewText`.
+        guard let ui2C006Title = c.title else {
+            throw ViewRegistryError.unknownView("component.ui2.C-006: props.title is required")
+        }
+        guard let ui2C006Duration = c.durationLabel else {
+            throw ViewRegistryError.unknownView("component.ui2.C-006: props.durationLabel is required")
+        }
+        guard let ui2C006Date = c.dateLabel else {
+            throw ViewRegistryError.unknownView("component.ui2.C-006: props.dateLabel is required")
+        }
+        let ui2C006Preview: MakeReadyUI.MemoListRow.Preview
+        switch c.preview {
+        case "transcript":
+            guard let text = c.previewText else {
+                throw ViewRegistryError.unknownView("component.ui2.C-006: preview transcript needs props.previewText")
+            }
+            ui2C006Preview = .transcript(text)
+        case "transcribing": ui2C006Preview = .transcribing
+        case "audioOnly": ui2C006Preview = .audioOnly
+        case "waitingToUpload": ui2C006Preview = .waitingToUpload
+        default:
+            throw ViewRegistryError.unknownView("component.ui2.C-006: props.preview is required (\(c.preview ?? "nil"))")
+        }
+        return declareCase(
+            MakeReadyUI.MemoListRow(
+                title: ui2C006Title,
+                durationLabel: ui2C006Duration,
+                dateLabel: ui2C006Date,
+                preview: ui2C006Preview
+            ),
+            // C-006 §2: "fills the width it is given"; the master width is the page's 440 less
+            // the page margins, as C-005 beside it takes it.
+            PreviewFrame(width: 408)
+        )
+    case "component.ui2.C-014":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-014: missing state.component")
+        }
+        // C-014 §4 (R-07): `playing` is required, so a nil is a fixture bug; `enabled` defaults
+        // to true (§4); the callbacks are the view's no-op defaults.
+        guard let ui2C014Playing = c.playing else {
+            throw ViewRegistryError.unknownView("component.ui2.C-014: props.playing is required")
+        }
+        return declareCase(
+            MakeReadyUI.TransportControls(
+                playing: ui2C014Playing,
+                enabled: c.enabled ?? true
+            ),
+            // C-014 §2 names no master width (width-driven): the 440 pt screen less the page
+            // margin each side, as memo-detail will place it under C-004 (default, unruled).
+            PreviewFrame(width: 408)
+        )
+    case "component.ui2.C-018":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-018: missing state.component")
+        }
+        // C-018 §4 (R-07): title, startTime, elapsed, samples, phase and menu are required, so a
+        // nil is a fixture bug; the callbacks are the view's no-op defaults.
+        guard let ui2C018Title = c.title, let ui2C018Start = c.startTime,
+              let ui2C018Elapsed = c.elapsed, let ui2C018Samples = c.samples else {
+            throw ViewRegistryError.unknownView("component.ui2.C-018: title, startTime, elapsed and samples are required")
+        }
+        let ui2C018Phase: MakeReadyUI.RecorderExpandedView.Phase
+        switch c.phase {
+        case "recording": ui2C018Phase = .recording
+        case "paused": ui2C018Phase = .paused
+        case "micDenied": ui2C018Phase = .micDenied
+        default:
+            throw ViewRegistryError.unknownView("component.ui2.C-018: props.phase is required (\(c.phase ?? "nil"))")
+        }
+        let ui2C018Menu: MakeReadyUI.RecorderExpandedView.Menu
+        switch c.menu {
+        case "none": ui2C018Menu = .none
+        case "actions": ui2C018Menu = .actions
+        case "discardConfirm": ui2C018Menu = .discardConfirm
+        default:
+            throw ViewRegistryError.unknownView("component.ui2.C-018: props.menu is required (\(c.menu ?? "nil"))")
+        }
+        return declareCase(
+            MakeReadyUI.RecorderExpandedView(
+                title: ui2C018Title,
+                startTime: ui2C018Start,
+                elapsed: ui2C018Elapsed,
+                samples: ui2C018Samples,
+                phase: ui2C018Phase,
+                menu: ui2C018Menu
+            ),
+            // C-018 §1/§2: the video's 440 pt width with no margin; the height is the detent's
+            // 894 − 20 top − 34 safe area = 840 pt the component fills (OQ-C-018-4).
+            PreviewFrame(width: 440, height: 840, margin: 0, alignment: .top)
+        )
+    case "component.ui2.C-141":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-141: missing state.component")
+        }
+        // C-141 §4 (R-07): `message` and `actionLabel` are required, so a nil is a fixture bug;
+        // `onView` is the view's no-op default.
+        guard let ui2C141Message = c.message, let ui2C141Action = c.actionLabel else {
+            throw ViewRegistryError.unknownView("component.ui2.C-141: message and actionLabel are required")
+        }
+        return declareCase(
+            MakeReadyUI.SavedToast(message: ui2C141Message, actionLabel: ui2C141Action),
+            // C-141 §2 names no master width (width-driven, the host places it above the
+            // TabBar): the 440 pt screen less the page margin each side (default, unruled).
+            PreviewFrame(width: 408)
+        )
+    case "component.ui2.C-011":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-011: missing state.component")
+        }
+        // C-011 §4 (R-07): `samples` is required, so a nil is a fixture bug.
+        guard let ui2C011Samples = c.samples else {
+            throw ViewRegistryError.unknownView("component.ui2.C-011: props.samples is required")
+        }
+        return declareCase(
+            MakeReadyUI.LiveWaveformView(samples: ui2C011Samples),
+            // C-011 §1: the frozen crop's bands are 418 × 80 pt with no margin (x 33–1287 px at
+            // 3×); the 80 pt height is the view's own (§2 FL-1).
+            PreviewFrame(width: 418, margin: 0)
+        )
+    case "component.ui2.C-017":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-017: missing state.component")
+        }
+        // C-017 §4 (R-07): title, elapsed and samples are required, so a nil is a fixture bug;
+        // `onStop` is the view's no-op default.
+        guard let ui2C017Title = c.title, let ui2C017Elapsed = c.elapsed,
+              let ui2C017Samples = c.samples else {
+            throw ViewRegistryError.unknownView("component.ui2.C-017: title, elapsed and samples are required")
+        }
+        return declareCase(
+            MakeReadyUI.RecorderCompactView(
+                title: ui2C017Title,
+                elapsed: ui2C017Elapsed,
+                samples: ui2C017Samples
+            ),
+            // C-017 §2 Placement: the content box is 418 pt wide (3 pt in from each side of the
+            // 424 pt sheet, C-011's band) with no margin; the 250 pt height is the view's own.
+            PreviewFrame(width: 418, margin: 0)
+        )
+    case "component.ui2.C-016":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-016: missing state.component")
+        }
+        // C-016 §4 (R-07): expansion, title, startTime, elapsed, samples, phase and menu are
+        // required, so a nil is a fixture bug; the callbacks are the view's no-op defaults.
+        guard let ui2C016Expansion = c.expansion, let ui2C016Title = c.title,
+              let ui2C016Start = c.startTime, let ui2C016Elapsed = c.elapsed,
+              let ui2C016Samples = c.samples else {
+            throw ViewRegistryError.unknownView("component.ui2.C-016: expansion, title, startTime, elapsed and samples are required")
+        }
+        let ui2C016Phase: MakeReadyUI.RecorderExpandedView.Phase
+        switch c.phase {
+        case "recording": ui2C016Phase = .recording
+        case "paused": ui2C016Phase = .paused
+        case "micDenied": ui2C016Phase = .micDenied
+        default:
+            throw ViewRegistryError.unknownView("component.ui2.C-016: props.phase is required (\(c.phase ?? "nil"))")
+        }
+        let ui2C016Menu: MakeReadyUI.RecorderExpandedView.Menu
+        switch c.menu {
+        case "none": ui2C016Menu = .none
+        case "actions": ui2C016Menu = .actions
+        case "discardConfirm": ui2C016Menu = .discardConfirm
+        default:
+            throw ViewRegistryError.unknownView("component.ui2.C-016: props.menu is required (\(c.menu ?? "nil"))")
+        }
+        return declareCase(
+            MakeReadyUI.RecorderSheet(
+                expansion: ui2C016Expansion,
+                title: ui2C016Title,
+                startTime: ui2C016Start,
+                elapsed: ui2C016Elapsed,
+                samples: ui2C016Samples,
+                phase: ui2C016Phase,
+                menu: ui2C016Menu
+            )
+            // C-016 §2: the expanded top is "the container's safe-area top (62 on the capture
+            // device)" and C-018 ends at "H − safe-area bottom" (34). The capture frame carries
+            // no safe area of its own, so the device's is supplied here, at the call site.
+            .safeAreaPadding(EdgeInsets(top: 62, leading: 0, bottom: 34, trailing: 0)),
+            // C-016 §1/§2: a full-screen presentation layer, so the frame is the video's
+            // 440×956 pt screen with no margin; nothing is drawn behind the sheet.
+            PreviewFrame(width: 440, height: 956, margin: 0)
         )
     default:
         return nil
@@ -6464,6 +6753,7 @@ enum ViewRegistry {
         "component.ui2.C-132",
         "screen.2.0.library-home",
         "screen.2.0.note-editor",
+        "screen.2.0.memo-detail",
         "component.ui2.C-015",
     ]
 }
