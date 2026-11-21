@@ -347,6 +347,7 @@
 		4C95CBA97DE926C5D88D7331 /* NoteActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = N0TE9ACT0000000000000003 /* NoteActions.swift */; };
 		4C9A7E21B6D04F1A8E3C5D21 /* LocalPortHealerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C9A7E21B6D04F1A8E3C5D22 /* LocalPortHealerTests.swift */; };
 		4CDE4ECB783FF419C968CC10 /* TopNavDragTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC8C4B11C668BCCF2F63D17F /* TopNavDragTests.swift */; };
+		4D09A767ADDE156B706B38D8 /* MemoDetailMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MAP0000000000000021 /* MemoDetailMapper.swift */; };
 		4D34F78C7EDFE8FE1FFD8062 /* MediaUploadQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3AA66C89ECCEB34E394CA38 /* MediaUploadQueue.swift */; };
 		4D56A39BDB67147582799168 /* MediaHomeMapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E2CEA3B881DF7671B73221E /* MediaHomeMapperTests.swift */; };
 		4DA5AD46DFE59835D7DDC6F1 /* FieldEditRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DE0189F4315086D68E5CF0F /* FieldEditRules.swift */; };
@@ -1235,6 +1236,8 @@
 		L1BH0MAP0000000000000004 /* LibraryHomeMapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MAP0000000000000003 /* LibraryHomeMapperTests.swift */; };
 		L1BH0MAP0000000000000012 /* LibraryHomeSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MAP0000000000000011 /* LibraryHomeSearch.swift */; };
 		L1BH0MAP0000000000000014 /* LibraryHomeSearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MAP0000000000000013 /* LibraryHomeSearchTests.swift */; };
+		L1BH0MAP0000000000000022 /* MemoDetailMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MAP0000000000000021 /* MemoDetailMapper.swift */; };
+		L1BH0MAP0000000000000024 /* MemoDetailMapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MAP0000000000000023 /* MemoDetailMapperTests.swift */; };
 		LOGW0001000000000000001 /* Log.swift in Sources */ = {isa = PBXBuildFile; fileRef = LOGW0002000000000000001 /* Log.swift */; };
 		LPHL0001000000000000001 /* LocalPortHealer.swift in Sources */ = {isa = PBXBuildFile; fileRef = LPHL0002000000000000001 /* LocalPortHealer.swift */; };
 		MDAC0001000000000000001 /* MediaActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDAC0002000000000000001 /* MediaActions.swift */; };
@@ -2067,6 +2070,8 @@
 		L1BH0MAP0000000000000003 /* LibraryHomeMapperTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LibraryHomeMapperTests.swift; sourceTree = "<group>"; };
 		L1BH0MAP0000000000000011 /* LibraryHomeSearch.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LibraryHomeSearch.swift; path = Containers/Library/LibraryHomeSearch.swift; sourceTree = "<group>"; };
 		L1BH0MAP0000000000000013 /* LibraryHomeSearchTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LibraryHomeSearchTests.swift; sourceTree = "<group>"; };
+		L1BH0MAP0000000000000021 /* MemoDetailMapper.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MemoDetailMapper.swift; path = Containers/Memo/MemoDetailMapper.swift; sourceTree = "<group>"; };
+		L1BH0MAP0000000000000023 /* MemoDetailMapperTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MemoDetailMapperTests.swift; sourceTree = "<group>"; };
 		LDPC0001000000000000001 /* LessonDetailPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonDetailPage.swift; sourceTree = "<group>"; };
 		LOGW0002000000000000001 /* Log.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Log.swift; sourceTree = "<group>"; };
 		LPHL0002000000000000001 /* LocalPortHealer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPortHealer.swift; sourceTree = "<group>"; };
@@ -2345,6 +2350,7 @@
 				429C1700CBC11241A622131B /* LibraryHomeContainer.swift */,
 				L1BH0MAP0000000000000001 /* LibraryHomeMapper.swift */,
 				L1BH0MAP0000000000000011 /* LibraryHomeSearch.swift */,
+				L1BH0MAP0000000000000021 /* MemoDetailMapper.swift */,
 				N14F00000000000000000001 /* NoteEditorContainer.swift */,
 				N14F10000000000000000001 /* NoteEntry.swift */,
 				180FFAA3DF567F5062535F5F /* SearchHomeMapper.swift */,
@@ -2784,6 +2790,7 @@
 				740ADE21BCEA7CDF0395D75B /* NoteSaveQueueTests.swift */,
 				L1BH0MAP0000000000000003 /* LibraryHomeMapperTests.swift */,
 				L1BH0MAP0000000000000013 /* LibraryHomeSearchTests.swift */,
+				L1BH0MAP0000000000000023 /* MemoDetailMapperTests.swift */,
 				N14T00000000000000000001 /* NoteEditorContainerTests.swift */,
 				F0E957FF286203F1E692E2E8 /* NoteAutosaveControllerTests.swift */,
 				E9D16B4F5EF90E16BC941277 /* MemoModelsTests.swift */,
@@ -4155,6 +4162,7 @@
 				C9D7A391F10F78F97AC79BA9 /* NoteSaveQueueTests.swift in Sources */,
 				L1BH0MAP0000000000000004 /* LibraryHomeMapperTests.swift in Sources */,
 				L1BH0MAP0000000000000014 /* LibraryHomeSearchTests.swift in Sources */,
+				L1BH0MAP0000000000000024 /* MemoDetailMapperTests.swift in Sources */,
 				N14T00000000000000000002 /* NoteEditorContainerTests.swift in Sources */,
 				84E61931CABE68F71A1F1B98 /* NoteAutosaveControllerTests.swift in Sources */,
 				7FE5CA828FA57FA6F2EE03DA /* MemoModelsTests.swift in Sources */,
@@ -4514,6 +4522,7 @@
 				FC653A4C64E454C7386E767B /* LibraryHomeContainer.swift in Sources */,
 				L1BH0MAP0000000000000002 /* LibraryHomeMapper.swift in Sources */,
 				L1BH0MAP0000000000000012 /* LibraryHomeSearch.swift in Sources */,
+				L1BH0MAP0000000000000022 /* MemoDetailMapper.swift in Sources */,
 				N14B00000000000000000002 /* NoteEditorContainer.swift in Sources */,
 				N14B10000000000000000002 /* NoteEntry.swift in Sources */,
 				F39E59F2831B8716ACBB571F /* SearchModels.swift in Sources */,
@@ -5202,6 +5211,7 @@
 				EF9503A12BFB5C40AF406A34 /* MemoDetailScreen.swift in Sources */,
 				93A1AB997C64886D2E893618 /* MemoPlayer.swift in Sources */,
 				F3357E860F90C1E52B8D5F85 /* LibraryHomeMapper.swift in Sources */,
+				4D09A767ADDE156B706B38D8 /* MemoDetailMapper.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
