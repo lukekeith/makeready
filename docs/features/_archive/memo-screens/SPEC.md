@@ -1,5 +1,5 @@
 # memo-screens — spec
-> 🤖 AGENT SIGNED OFF 2026-11-21 — 870a4859 · agent walk round 3 · not human-tested · evidence: .builder/memo-screens/agent-walk/round-3/
+> ✅ SHIPPED 2026-11-21 — merged into feature/memo · no ticket · 🤖 agent signed off (walk round 3), not human-tested · quick-checked
 > md · ticket: none · the voice-memo screens on the memo engine: + menu recorder sheet, memos in Library, memo page
 
 ## Idea
@@ -268,6 +268,7 @@ as given.
 | A6 | Render vs design: every in-scope item is d2m-built from references (no Figma, `no-figma`), so no frozen snapshot exists to diff; the owner approved the captures 2026-11-21 (b02bf689). d2m reports no open question on library-home, memo-detail, C-004/006/009/011/012/014/016/017/018/141 | none needed |
 | R1 | repoint (iphone): the + menu's Voice memo item ← `iphone/MakeReady/UI2/Shell/UI2Shell.swift:96-104` (closes the menu only). No surface is REPLACED or ABSORBED; nothing else to repoint | plan: the + menu task |
 | A7 | `pending`-memo fixture on the walk server: with no Groq key the server can't transcribe, so the walk's own recorded memo stays Transcribing… unless the on-device transcript arrives | build-time risk: the agent walk's Library item accepts Transcribing… or a preview |
+| L1 | lesson for §Standing traps: the agent walk's headless simulator records silence, has no transcription key and can't go offline — put device-only checks (mic, live transcription, airplane mode) in walk.md's human section, never in the agent's E-steps, or every agent round reports them UNVERIFIABLE | proposed |
 
 ## Fixes
 
