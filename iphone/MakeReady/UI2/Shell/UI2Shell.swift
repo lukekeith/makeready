@@ -235,6 +235,8 @@ struct UI2Shell: View {
         case let .bibleChapters(book, flowId): BibleChaptersContainer(book: book, flowId: flowId)
         case let .bibleVerses(book, chapter, flowId): BibleVersesContainer(book: book, chapter: chapter, flowId: flowId)
         case let .bibleReader(book, chapter, verse, flowId): BibleReaderContainer(book: book, chapter: chapter, verse: verse, flowId: flowId)
+        // notes D17: Task 14 replaces this with NoteEditorContainer.
+        case .newNote, .noteEditor: EmptyPage()
         }
     }
 

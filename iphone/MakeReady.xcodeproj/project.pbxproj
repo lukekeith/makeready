@@ -1031,6 +1031,7 @@
 		DC17ADE751C18E0BFF99C406 /* Poppins-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = D60E643488F4A1B9DB9ECAD6 /* Poppins-Italic.ttf */; };
 		DC78A67E074C877DB26E3775 /* MemoPutTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EE77BBB61E6BA4C786A152A /* MemoPutTransport.swift */; };
 		DC85C93A362583381276B3CF /* NotesConnectivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67BD32D082016E2907DC9523 /* NotesConnectivity.swift */; };
+		DC9CDB8CB59202B2442CF317 /* LibraryHomeMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MAP0000000000000001 /* LibraryHomeMapper.swift */; };
 		DCB6F0A868F43168381DF19D /* NotesConnectivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67BD32D082016E2907DC9523 /* NotesConnectivity.swift */; };
 		DD6C57955B172E93694C3D8B /* EnrollPickerWarnings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B809D30F802CA45B648DFC7 /* EnrollPickerWarnings.swift */; };
 		DD6E2910D13C1924D713BA4B /* FilterChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3180BFA78CF6854FCC37AA39 /* FilterChip.swift */; };
@@ -1194,6 +1195,8 @@
 		IMGVAR0001000000000001 /* String+ImageVariants.swift in Sources */ = {isa = PBXBuildFile; fileRef = IMGVAR0002000000000001 /* String+ImageVariants.swift */; };
 		INVA0001000000000001 /* InviteActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = INVA0002000000000001 /* InviteActions.swift */; };
 		KBST0001000000000000001 /* KeyboardState.swift in Sources */ = {isa = PBXBuildFile; fileRef = KBST0002000000000000001 /* KeyboardState.swift */; };
+		L1BH0MAP0000000000000002 /* LibraryHomeMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MAP0000000000000001 /* LibraryHomeMapper.swift */; };
+		L1BH0MAP0000000000000004 /* LibraryHomeMapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MAP0000000000000003 /* LibraryHomeMapperTests.swift */; };
 		LOGW0001000000000000001 /* Log.swift in Sources */ = {isa = PBXBuildFile; fileRef = LOGW0002000000000000001 /* Log.swift */; };
 		LPHL0001000000000000001 /* LocalPortHealer.swift in Sources */ = {isa = PBXBuildFile; fileRef = LPHL0002000000000000001 /* LocalPortHealer.swift */; };
 		MDAC0001000000000000001 /* MediaActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDAC0002000000000000001 /* MediaActions.swift */; };
@@ -2007,6 +2010,8 @@
 		KBST0002000000000000001 /* KeyboardState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardState.swift; sourceTree = "<group>"; };
 		KBTB0002000000000000001 /* KeyboardToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardToolbar.swift; sourceTree = "<group>"; };
 		KPI00002000000000000001 /* Kpi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Kpi.swift; sourceTree = "<group>"; };
+		L1BH0MAP0000000000000001 /* LibraryHomeMapper.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LibraryHomeMapper.swift; path = Containers/Library/LibraryHomeMapper.swift; sourceTree = "<group>"; };
+		L1BH0MAP0000000000000003 /* LibraryHomeMapperTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LibraryHomeMapperTests.swift; sourceTree = "<group>"; };
 		LDPC0001000000000000001 /* LessonDetailPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonDetailPage.swift; sourceTree = "<group>"; };
 		LOGW0002000000000000001 /* Log.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Log.swift; sourceTree = "<group>"; };
 		LPHL0002000000000000001 /* LocalPortHealer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPortHealer.swift; sourceTree = "<group>"; };
@@ -2280,6 +2285,7 @@
 				77189405B836992E28AD367F /* MediaTileImages.swift */,
 				410FE3F6A251ABCBE883110D /* MediaHomeContainer.swift */,
 				429C1700CBC11241A622131B /* LibraryHomeContainer.swift */,
+				L1BH0MAP0000000000000001 /* LibraryHomeMapper.swift */,
 				180FFAA3DF567F5062535F5F /* SearchHomeMapper.swift */,
 				D72F85D9E491F9268EF16561 /* SearchHomeContainer.swift */,
 				2A92627CFB5F9E2C3BFAF274 /* Viewer */,
@@ -2714,6 +2720,7 @@
 				F0178EDED14668829ADB0E1E /* NoteModelsTests.swift */,
 				N0TE9ACT0000000000000001 /* NoteActionsTests.swift */,
 				740ADE21BCEA7CDF0395D75B /* NoteSaveQueueTests.swift */,
+				L1BH0MAP0000000000000003 /* LibraryHomeMapperTests.swift */,
 				F0E957FF286203F1E692E2E8 /* NoteAutosaveControllerTests.swift */,
 				E9D16B4F5EF90E16BC941277 /* MemoModelsTests.swift */,
 				3CAE90FBE862C55E81F49A5B /* MemoActionsTests.swift */,
@@ -4071,6 +4078,7 @@
 				EAD869502484DFE30FD19DB2 /* NoteModelsTests.swift in Sources */,
 				N0TE9ACT0000000000000002 /* NoteActionsTests.swift in Sources */,
 				C9D7A391F10F78F97AC79BA9 /* NoteSaveQueueTests.swift in Sources */,
+				L1BH0MAP0000000000000004 /* LibraryHomeMapperTests.swift in Sources */,
 				84E61931CABE68F71A1F1B98 /* NoteAutosaveControllerTests.swift in Sources */,
 				7FE5CA828FA57FA6F2EE03DA /* MemoModelsTests.swift in Sources */,
 				5365ACF4037526FFD952E711 /* MemoActionsTests.swift in Sources */,
@@ -4426,6 +4434,7 @@
 				E30BF237AA094BBF9E13F94B /* EmptyState.swift in Sources */,
 				3A7E5970DD1F8592667BE5E3 /* LibraryHomeScreen.swift in Sources */,
 				FC653A4C64E454C7386E767B /* LibraryHomeContainer.swift in Sources */,
+				L1BH0MAP0000000000000002 /* LibraryHomeMapper.swift in Sources */,
 				F39E59F2831B8716ACBB571F /* SearchModels.swift in Sources */,
 				E03F9BF4850E8FFDF41DB469 /* SearchActions.swift in Sources */,
 				376EE43722798F5AA24B1010 /* SearchHomeMapper.swift in Sources */,
@@ -5076,6 +5085,7 @@
 				BDD156F3F1D59D24FEE4B1AA /* MarkdownTextEditor.swift in Sources */,
 				2DC4410952E5B404024E52DE /* NoteEditorScreen.swift in Sources */,
 				30DC09E145BE5EDAC408025A /* NoteDocumentCodec.swift in Sources */,
+				DC9CDB8CB59202B2442CF317 /* LibraryHomeMapper.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

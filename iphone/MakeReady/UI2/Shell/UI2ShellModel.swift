@@ -87,6 +87,11 @@ enum UI2Destination: Hashable {
     case bibleChapters(book: Int, flowId: UUID)
     case bibleVerses(book: Int, chapter: Int, flowId: UUID)
     case bibleReader(book: Int, chapter: Int, verse: Int, flowId: UUID)
+    /// notes D17: the note editor on a fresh note; `flowId` is new per open, so two new notes are never
+    /// the same destination. Reached only by pushing — no deep link.
+    case newNote(flowId: UUID)
+    /// notes D17: the note editor on an existing note.
+    case noteEditor(noteId: String)
 }
 
 extension UI2Destination {
@@ -109,6 +114,8 @@ extension UI2Destination {
         case .activitiesEditor, .activityViewer, .chooseActivityBackground: return true
         // bible-verse-picker D2: the picker's pages carry their own header and Select, so no TabBar.
         case .bibleBooks, .bibleChapters, .bibleVerses, .bibleReader: return true
+        // notes D17: the editor draws its own chrome, so no TabBar.
+        case .newNote, .noteEditor: return true
         // Owner 2026-10-29: no TabBar on any enrollment page — the enrollment's own page, the
         // checklist and its six pickers.
         case .enrollmentHome, .enrollChecklist, .enrollSelectGroup, .enrollSelectProgram, .enrollSelectSchedule,
