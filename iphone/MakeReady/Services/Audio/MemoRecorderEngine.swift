@@ -214,6 +214,22 @@ final class MemoRecorderEngine {
                                waveformPeaks: closed.peaks, recordedAt: session.recordedAt, transcript: transcript)
     }
 
+    /// Throws the recording away (D7): no `.m4a`, no result, no `onAutoStop`. A no-op unless recording or paused.
+    func discard() async {
+        guard state == .recording || state == .paused, let session else { return }
+        input.stop()
+        _ = session.pipeline.close()
+        _ = await finishTranscript(of: session)
+        do {
+            try FileManager.default.removeItem(at: session.cafURL)
+        } catch {
+            // Recovered: a leftover `.caf` is harmless; the draft manifest below is gone either way.
+            Log.memo.error("caf not removable on discard: \(error.localizedDescription)")
+        }
+        drafts.remove(cafURL: session.cafURL)
+        end()
+    }
+
     // MARK: Pipeline output
 
     private func handle(_ output: CapturePipeline.Output) async {

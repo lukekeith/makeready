@@ -180,4 +180,22 @@ final class MemoRecorderEngineTests: XCTestCase {
         XCTAssertEqual(r.waveformPeaks.count, Int(ceil(24_255.0 / 4_410.0)))
         XCTAssertEqual(r.waveformPeaks.count, 6)
     }
+
+    func testDiscardLeavesNoCafNoM4aAndNoDraft() async throws {
+        let engine = makeEngine(seconds: 1.0)
+        try await engine.prepare(title: "Memo 1")
+        try await engine.start()
+        try await Task.sleep(for: .milliseconds(200))
+        await engine.discard()
+        XCTAssertEqual(engine.state, .idle)
+        let left = try FileManager.default.contentsOfDirectory(atPath: dir.path)
+        XCTAssertTrue(left.filter { $0.hasSuffix(".caf") || $0.hasSuffix(".m4a") }.isEmpty, "\(left)")
+        XCTAssertTrue(drafts.recoverable().isEmpty)
+    }
+
+    func testDiscardWhenIdleDoesNothing() async {
+        let engine = makeEngine(seconds: 0)
+        await engine.discard()
+        XCTAssertEqual(engine.state, .idle)
+    }
 }
