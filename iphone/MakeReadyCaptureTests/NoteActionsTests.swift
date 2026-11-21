@@ -34,6 +34,27 @@ final class NoteActionsTests: XCTestCase {
         XCTAssertEqual(Set(state.studyNotes.all.map(\.id)), ["a", "b", "c"])
     }
 
+    private func tmpQueue(_ api: StubAPIClient, _ state: AppState) -> NoteSaveQueue {
+        NoteSaveQueue(fileURL: FileManager.default.temporaryDirectory.appendingPathComponent("notes-queue-\(UUID().uuidString).json"),
+                      actions: NoteActions(api: api, state: state), state: state)
+    }
+
+    func testFullLoadKeepsLocalNotesAndQueuedEditsAndSkipsQueuedDeletes() async throws {
+        let api = StubAPIClient(); let state = AppState()
+        let queue = tmpQueue(api, state)
+        state.studyNotes.upsert(.stub(id: "local-1"))
+        var edited = StudyNote.stub(id: "a"); edited.content = "offline edit"
+        state.studyNotes.upsert(edited)
+        queue.enqueue(noteId: "local-1", .upsert(content: "x", baseUpdatedAt: nil))
+        queue.enqueue(noteId: "a", .upsert(content: "offline edit", baseUpdatedAt: "2026-11-20T10:05:00.456Z"))
+        queue.enqueue(noteId: "c", .delete)
+        api.stub("GET", "/api/notes?type=NOTE&orderBy=updatedAt&limit=100&offset=0", json: page(["a", "b", "c"], total: 3, offset: 0, hasMore: false))
+        _ = try await NoteActions(api: api, state: state, queue: queue).load()
+        XCTAssertEqual(Set(state.studyNotes.all.map(\.id)), ["local-1", "a", "b"])
+        XCTAssertEqual(state.studyNotes["a"]?.content, "offline edit")
+        XCTAssertEqual(state.studyNotes["b"]?.content, "body")
+    }
+
     func testSearchUpsertsMatchesWithoutDroppingOthers() async throws {
         let api = StubAPIClient(); let state = AppState()
         state.studyNotes.upsert(.stub(id: "other"))

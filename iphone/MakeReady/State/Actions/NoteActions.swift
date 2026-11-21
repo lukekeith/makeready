@@ -18,15 +18,20 @@ struct NoteUpdateResult: Equatable {
 struct NoteActions {
     private let api: APIClientProtocol
     private let stateOverride: AppState?
+    private let queueOverride: NoteSaveQueue?
 
     @MainActor private var state: AppState { stateOverride ?? AppState.shared }
 
     /// The page size `load` asks for (the server's cap, D25).
     static let pageLimit = 100
 
-    init(api: APIClientProtocol = APIClient.shared, state: AppState? = nil) {
+    /// The offline queue `load` consults so a server copy never replaces a save that has not been sent (D13, D24).
+    @MainActor private var queue: NoteSaveQueue { queueOverride ?? NoteSaveQueue.shared }
+
+    init(api: APIClientProtocol = APIClient.shared, state: AppState? = nil, queue: NoteSaveQueue? = nil) {
         self.api = api
         self.stateOverride = state
+        self.queueOverride = queue
     }
 
     private struct One: Decodable { let success: Bool; let data: StudyNote; let stomped: Bool? }
@@ -34,7 +39,9 @@ struct NoteActions {
 
     /// SC6: every page of the list, newest `updatedAt` first, followed by `pagination.hasMore`.
     /// Without `q` the result replaces the stored list (a note deleted elsewhere drops); with `q` it
-    /// only upserts the matches (D8). Returns the ids in the server's order.
+    /// only upserts the matches (D8). Returns the ids in the server's order. A note with an entry in the
+    /// offline queue is never touched by the server's copy: a queued upsert (including a `local-` note the
+    /// server has not seen) stays as the store has it, and a note queued for deletion stays gone.
     @MainActor
     func load(q: String? = nil) async throws -> [String] {
         let query = q.flatMap { $0.isEmpty ? nil : $0 }
@@ -49,7 +56,10 @@ struct NoteActions {
             guard page.pagination.hasMore else { break }
             offset += Self.pageLimit
         }
-        state.studyNotes.merge(notes, removeStale: query == nil)
+        let queue = queue
+        let pending = state.studyNotes.all.filter { queue.entry(for: $0.id) != nil }
+        state.studyNotes.merge(notes.filter { queue.entry(for: $0.id) == nil }, removeStale: query == nil)
+        for note in pending where queue.entry(for: note.id) != NoteSaveEntry.delete { state.studyNotes.upsert(note) }
         state.persist()
         return notes.map(\.id)
     }
