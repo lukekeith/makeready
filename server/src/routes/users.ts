@@ -12,6 +12,7 @@ import {
 import { logSuccess, logFailure } from '../lib/activity-log.js'
 import { ActivityTypes } from '../lib/activity-types.js'
 import { requireAuth, requirePermission } from '../middleware/auth.js'
+import { purgeUserMemoObjects } from '../services/memos.service.js'
 import type { User } from '../generated/prisma/index.js'
 
 const router = Router()
@@ -734,6 +735,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'User not found' })
     }
 
+    await purgeUserMemoObjects(req.params.id)
     await prisma.user.delete({ where: { id: req.params.id } })
 
     res.json({ success: true })

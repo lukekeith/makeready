@@ -52,6 +52,19 @@ struct SearchField: View {
     /// members-search-pinned (routed to /ui2-resolve): C-039 ENDS the search instead of §4's
     /// "field stays focused" — `onClear` runs and the editable form drops focus. Defaults off.
     let clearDismisses: Bool
+    /// C-008 OQ-C-008-001 (owner 2026-11-20): the field's outline. `.rectangle` is §2's
+    /// `radius-card-sm` field and the default, so every existing consumer renders as before;
+    /// `.capsule` gives it `radius-circle` ends with everything else unchanged.
+    let shape: Shape
+    /// C-008 OQ-C-008-004 (owner 2026-11-20): `false` = the disabled field — the Default fill
+    /// and border, placeholder and glyph in `color-white-50`, not focusable or tappable, the
+    /// disabled accessibility trait. Defaults on, so every existing consumer renders as before.
+    let enabled: Bool
+
+    /// C-034 outline (OQ-C-008-001).
+    enum Shape: String, Equatable {
+        case rectangle, capsule
+    }
 
     /// The editable form's focus — ephemeral UI state (R-02), never a prop.
     @FocusState private var inputFocused: Bool
@@ -65,7 +78,9 @@ struct SearchField: View {
         showsClearWhenEmpty: Bool = false,
         onFocusChange: @escaping (Bool) -> Void = { _ in },
         clearDismisses: Bool = false,
-        editable: Bool = false
+        editable: Bool = false,
+        shape: Shape = .rectangle,
+        enabled: Bool = true
     ) {
         self.text = text
         self.placeholder = placeholder
@@ -76,6 +91,8 @@ struct SearchField: View {
         self.onFocusChange = onFocusChange
         self.clearDismisses = clearDismisses
         self.editable = editable
+        self.shape = shape
+        self.enabled = enabled
     }
 
     /// C-034 §2's placed geometry. §3 is explicit that `state` "is **not** a free variant: it is
@@ -113,7 +130,8 @@ struct SearchField: View {
 
     /// The `focused` §4 derives from: the prop when display-only, the field's own focus when
     /// editable (D19).
-    private var isFocused: Bool { editable ? inputFocused : focused }
+    /// A disabled field is never focused (OQ-C-008-004).
+    private var isFocused: Bool { enabled && (editable ? inputFocused : focused) }
     private var isDefault: Bool { Self.appearance(text: text, focused: isFocused) == .default }
     private var hasValue: Bool { Self.appearance(text: text, focused: isFocused) == .hasValue }
 
@@ -138,7 +156,26 @@ struct SearchField: View {
     // on color-input-placeholder in both states (Figma cleanup of the unfocused symbol)" —
     // so the Default render deliberately differs from the frozen snapshot here.
     private var textColor: Color {
-        hasValue ? Token.inputValue : Token.inputPlaceholder
+        if !enabled { return Token.white50 }       // OQ-C-008-004
+        return hasValue ? Token.inputValue : Token.inputPlaceholder
+    }
+
+    /// OQ-C-008-004: the glyph dims with the placeholder while disabled.
+    private var glyphColor: Color { enabled ? Token.textPrimary : Token.white50 }
+
+    /// OQ-C-008-001: §2's `radius-card-sm` rectangle, or a capsule. `radius-circle` is "50%"
+    /// and emits no token member, so the capsule is the shape itself.
+    @ViewBuilder private var outline: some View {
+        switch shape {
+        case .rectangle: outlined(RoundedRectangle(cornerRadius: Token.Radius.cardSm))
+        case .capsule: outlined(Capsule(style: .circular))
+        }
+    }
+
+    private func outlined(_ shape: some InsettableShape) -> some View {
+        shape
+            .fill(fill)
+            .overlay(shape.strokeBorder(border, lineWidth: Geometry.borderWidth))
     }
 
     // MARK: - Body
@@ -146,12 +183,7 @@ struct SearchField: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             ZStack(alignment: .topLeading) {
-                RoundedRectangle(cornerRadius: Token.Radius.cardSm)
-                    .fill(fill)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: Token.Radius.cardSm)
-                            .strokeBorder(border, lineWidth: Geometry.borderWidth)
-                    )
+                outline
 
                 searchGlyph
                 if editable { editableRow } else { contentRow }
@@ -160,10 +192,12 @@ struct SearchField: View {
             // D19: a tap anywhere on the field (the glyph, the inset) focuses the editable form.
             // The clear button sits outside this stack, so its tap never runs this gesture: its
             // own action is the only focus setter on that tap (`clearDismisses` must stick).
-            .simultaneousGesture(TapGesture().onEnded { if editable { inputFocused = true } })
+            .simultaneousGesture(TapGesture().onEnded { if editable && enabled { inputFocused = true } })
 
             if hasValue || showsClearWhenEmpty { clearButton }
         }
+        // OQ-C-008-004: not focusable or tappable; `.disabled` also carries the disabled trait.
+        .disabled(!enabled)
         .frame(maxWidth: .infinity, minHeight: Geometry.height, maxHeight: Geometry.height)
         .clipped()                                  // §2: "content clipped"
         .onChange(of: inputFocused) { _, focused in onFocusChange(focused) }
@@ -195,7 +229,7 @@ struct SearchField: View {
             // GAP — C-034 §2 states no colour for the glyph. The source vector strokes
             // `white` and the frozen snapshot renders it white, which is `color-text-primary`;
             // taken from the design, but §2 should say so.
-            .foregroundStyle(Token.textPrimary)
+            .foregroundStyle(glyphColor)
             .offset(x: Geometry.glyphLeft - Self.glyphBleed, y: Geometry.glyphTop - Self.glyphBleed)
             .ui2Element("Search glyph")
     }
@@ -233,7 +267,7 @@ struct SearchField: View {
         TextField(
             "",
             text: Binding(get: { text }, set: { onChange($0) }),
-            prompt: Text(placeholder).foregroundColor(Token.inputPlaceholder)
+            prompt: Text(placeholder).foregroundColor(textColor)
         )
         .designTextStyle(Token.TypeStyle.input)
         .foregroundColor(Token.inputValue)

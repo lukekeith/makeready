@@ -129,6 +129,7 @@ private func buildCaptureViewInline(for fixture: CaptureFixture) throws -> AnyVi
     if let view = try buildCaptureViewPart9(fixture, authManager: authManager) { return view }
     if let view = try buildCaptureViewPart10(fixture, authManager: authManager) { return view }
     if let view = try buildCaptureViewPart11(fixture, authManager: authManager) { return view }
+    if let view = try buildCaptureViewPart12(fixture, authManager: authManager) { return view }
     throw ViewRegistryError.unknownView(fixture.view)
 }
 
@@ -3316,10 +3317,56 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
             PreviewFrame(alignment: .leading, intrinsic: true)
         )
     case "screen.2.0.library-home":
-        // §3 names one state with static copy, so the screen's State has no field and the
-        // fixture's props are `{}` — nothing to decode. The canvas is the harness's
-        // (CaptureRunner's `screen.*` branch) — the bare screen here.
-        return AnyView(MakeReadyUI.LibraryHomeScreen(state: MakeReadyUI.LibraryHomeScreen.State.comingSoon))
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("screen.2.0.library-home: missing state.component")
+        }
+        // §3 phase; a missing one is the default `populated`. The search states are `populated`
+        // with search text (the screen filters live). The canvas is the harness's (CaptureRunner's
+        // `screen.*` branch) — the bare screen here.
+        guard let libraryPhase = MakeReadyUI.LibraryHomeScreen.State.Phase(rawValue: c.phase ?? "populated") else {
+            throw ViewRegistryError.unknownView("screen.2.0.library-home: props.phase must be populated | loading | empty | coming-soon")
+        }
+        return AnyView(MakeReadyUI.LibraryHomeScreen(
+            state: .init(
+                phase: libraryPhase,
+                searchText: c.searchText ?? "",
+                searchFocused: c.searchFocused ?? false,
+                sectionTitles: c.sectionTitles ?? [],
+                rowSections: c.rowSections ?? [],
+                rowTitles: c.rowTitles ?? [],
+                rowDates: c.rowDates ?? [],
+                rowPreviews: c.rowPreviews ?? [],
+                rowContexts: c.rowContexts ?? []
+            ),
+            // C-008 §4: capture drives C-034 non-editable so `searchFocused` draws the focus look.
+            searchEditable: false
+        ))
+    case "screen.2.0.note-editor":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("screen.2.0.note-editor: missing state.component")
+        }
+        // `text` is N1 markdown and `selection` its "location,length" string, decoded with C-001's
+        // own fixture helpers below. A missing value is this build's new-empty default. The canvas
+        // is the harness's (CaptureRunner's `screen.*` branch) — the bare screen here.
+        let noteEditorText = ui2C001ParseNoteMarkdown(c.text ?? "")
+        let noteEditorSelection = try ui2C001ResolveSelection(c.selection?.stringValue ?? "0,0", in: noteEditorText)
+        var noteEditorStyles = Set<MakeReadyUI.InlineStyle>()
+        for raw in c.activeStyles ?? [] {
+            guard let style = MakeReadyUI.InlineStyle(rawValue: raw) else {
+                throw ViewRegistryError.unknownView("screen.2.0.note-editor: props.activeStyles \"\(raw)\" must be bold|italic|underline|strikethrough")
+            }
+            noteEditorStyles.insert(style)
+        }
+        return AnyView(MakeReadyUI.NoteEditorScreen(
+            state: .init(
+                text: noteEditorText,
+                selection: noteEditorSelection,
+                editing: c.editing ?? true,
+                canUndo: c.canUndo ?? false,
+                activeStyles: noteEditorStyles,
+                listMenuPresented: c.listMenuPresented ?? false
+            )
+        ))
     case "component.ui2.C-134":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-134: missing state.component")
@@ -3441,6 +3488,132 @@ private func buildCaptureViewPart11(_ fixture: CaptureFixture, authManager: Auth
     case "component.ui2.C-140":
         // Out of line for the same stack-frame reason as C-083.
         return try buildUI2C140(fixture)
+    case "component.ui2.C-005":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-005: missing state.component")
+        }
+        // C-005 §4 (R-07): `title` and `dateLabel` are required, so a nil is a fixture bug;
+        // `preview` and `contextLabel` are optional values whose nil is a designed state.
+        guard let ui2C005Title = c.title else {
+            throw ViewRegistryError.unknownView("component.ui2.C-005: props.title is required")
+        }
+        guard let ui2C005DateLabel = c.dateLabel else {
+            throw ViewRegistryError.unknownView("component.ui2.C-005: props.dateLabel is required")
+        }
+        return declareCase(
+            MakeReadyUI.NoteListRow(
+                title: ui2C005Title,
+                preview: c.preview,
+                dateLabel: ui2C005DateLabel,
+                contextLabel: c.contextLabel
+            ),
+            // C-005 §2: "fills the width it is given"; the master width is the page's 440 less
+            // the page margins, as the neighbouring list rows take it.
+            PreviewFrame(width: 408)
+        )
+    case "component.ui2.C-008":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-008: missing state.component")
+        }
+        // C-008 §4 (R-07): `searchText` and `searchFocused` are required, so a nil is a fixture
+        // bug; `searchEnabled` and `composeEmphasis` take §4's defaults (`true`, `.regular`).
+        guard let ui2C008SearchText = c.searchText else {
+            throw ViewRegistryError.unknownView("component.ui2.C-008: props.searchText is required")
+        }
+        guard let ui2C008SearchFocused = c.searchFocused else {
+            throw ViewRegistryError.unknownView("component.ui2.C-008: props.searchFocused is required")
+        }
+        let ui2C008Emphasis = try c.composeEmphasis.map { raw -> MakeReadyUI.NotesBottomBar.ComposeEmphasis in
+            guard let value = MakeReadyUI.NotesBottomBar.ComposeEmphasis(rawValue: raw) else {
+                throw ViewRegistryError.unknownView("component.ui2.C-008: unknown composeEmphasis \(raw)")
+            }
+            return value
+        } ?? .regular
+        return declareCase(
+            MakeReadyUI.NotesBottomBar(
+                searchText: ui2C008SearchText,
+                searchFocused: ui2C008SearchFocused,
+                searchEnabled: c.searchEnabled ?? true,
+                composeEmphasis: ui2C008Emphasis,
+                // §4: "C-034 `editable: false` in the fixture", so `searchFocused` draws.
+                editable: false
+            ),
+            // C-008 §2: "fills the width it is given"; the master width is the page's 440 less
+            // the page margins, as C-005 beneath it takes it.
+            PreviewFrame(width: 408)
+        )
+    case "component.ui2.C-003":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-003: missing state.component")
+        }
+        // C-003 §4 (R-07): `glyph`, `active` and `accessibilityLabel` are required, so a nil is a
+        // fixture bug; `onTap` is the view's no-op default. §3 `pressed` is ephemeral (R-02,
+        // OQ-C-003-004) and renders at rest.
+        guard let ui2C003GlyphRaw = c.glyph else {
+            throw ViewRegistryError.unknownView("component.ui2.C-003: props.glyph is required")
+        }
+        guard let ui2C003Glyph = MakeReadyUI.GlyphName(rawValue: ui2C003GlyphRaw) else {
+            throw ViewRegistryError.unknownView("component.ui2.C-003: props.glyph \"\(ui2C003GlyphRaw)\" is not a library glyph")
+        }
+        guard let ui2C003Active = c.active else {
+            throw ViewRegistryError.unknownView("component.ui2.C-003: props.active is required")
+        }
+        guard let ui2C003Label = c.accessibilityLabel else {
+            throw ViewRegistryError.unknownView("component.ui2.C-003: props.accessibilityLabel is required")
+        }
+        return declareCase(
+            MakeReadyUI.FormatStripButton(
+                glyph: ui2C003Glyph,
+                active: ui2C003Active,
+                accessibilityLabel: ui2C003Label
+            ),
+            // C-003 §2: a fixed 37 × 37 box with no master width — it hugs its own size.
+            PreviewFrame(alignment: .leading, intrinsic: true)
+        )
+    case "component.ui2.C-010":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-010: missing state.component")
+        }
+        // C-010 §4 (R-07): `title` is required, so a nil is a fixture bug.
+        guard let ui2C010Title = c.title else {
+            throw ViewRegistryError.unknownView("component.ui2.C-010: props.title is required")
+        }
+        return declareCase(
+            MakeReadyUI.NoteSectionHeader(title: ui2C010Title),
+            // C-010 §2: "fills the width it is given"; the master width is the page's 440 less
+            // the page margins, as C-005 beneath it takes it.
+            PreviewFrame(width: 408)
+        )
+    case "component.ui2.C-015":
+        // C-015 §4: `onSelect` and `onDismiss` are the only props, both callbacks with no-op
+        // defaults and no render effect, so the fixture carries no props to decode. §3 `default`
+        // is the card alone; `row pressed` is ephemeral (R-02) and renders at rest.
+        return declareCase(
+            MakeReadyUI.ListStyleMenu(),
+            // C-015 §2: it fills the width it is given (the format strip's, which is not built
+            // yet); the master width is the page's 440 less the page margins, as the notes
+            // siblings take it.
+            PreviewFrame(width: 408)
+        )
+    case "component.ui2.C-009":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-009: missing state.component")
+        }
+        // C-009 §4 (R-07): `editing` and `canUndo` are required, so a nil is a fixture bug;
+        // `onBack`, `onUndo` and `onDone` are the view's no-op defaults. §3 `pressed` is
+        // ephemeral (R-02, OQ-C-009-4) and renders at rest.
+        guard let ui2C009Editing = c.editing else {
+            throw ViewRegistryError.unknownView("component.ui2.C-009: props.editing is required")
+        }
+        guard let ui2C009CanUndo = c.canUndo else {
+            throw ViewRegistryError.unknownView("component.ui2.C-009: props.canUndo is required")
+        }
+        return declareCase(
+            MakeReadyUI.EditorNavChrome(editing: ui2C009Editing, canUndo: ui2C009CanUndo),
+            // C-009 §2: "fills the width it is given"; the master width is the page's 440 less
+            // the page margins, as the notes siblings take it.
+            PreviewFrame(width: 408)
+        )
     case "screen.2.0.activities-player":
         // Out of line for the same stack-frame reason as C-083.
         return try buildScreenActivitiesPlayer(fixture)
@@ -3454,9 +3627,188 @@ private func buildCaptureViewPart11(_ fixture: CaptureFixture, authManager: Auth
         return try buildScreenBibleChapters(fixture)
     case "screen.2.0.bible-verses":
         return try buildScreenBibleVerses(fixture)
+    case "component.ui2.C-002":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-002: missing state.component")
+        }
+        // C-002 §4 (R-07): `activeStyles` and `listMenuPresented` are required, so a nil is a
+        // fixture bug; `onToggle` and `onListMenu` are the view's no-op defaults.
+        guard let ui2C002StylesRaw = c.activeStyles else {
+            throw ViewRegistryError.unknownView("component.ui2.C-002: props.activeStyles is required")
+        }
+        var ui2C002Styles = Set<MakeReadyUI.InlineStyle>()
+        for raw in ui2C002StylesRaw {
+            guard let style = MakeReadyUI.InlineStyle(rawValue: raw) else {
+                throw ViewRegistryError.unknownView("component.ui2.C-002: props.activeStyles \"\(raw)\" must be bold|italic|underline|strikethrough")
+            }
+            ui2C002Styles.insert(style)
+        }
+        guard let ui2C002ListMenuPresented = c.listMenuPresented else {
+            throw ViewRegistryError.unknownView("component.ui2.C-002: props.listMenuPresented is required")
+        }
+        return declareCase(
+            // C-002 §3 `list-menu-open`: the strip hides in place and C-015 draws over it. The
+            // caller (C-001) presents C-015, so the capture stands in for it: the C-015 card,
+            // as its §2 presentation places it — the strip's width, its bottom edge on the
+            // strip's bottom edge — shown at rest (the open motion is not a capturable state).
+            ZStack(alignment: .bottom) {
+                MakeReadyUI.FormatStrip(
+                    activeStyles: ui2C002Styles,
+                    listMenuPresented: ui2C002ListMenuPresented
+                )
+                if ui2C002ListMenuPresented {
+                    MakeReadyUI.ListStyleMenu()
+                }
+            },
+            // C-002 §2 (revised 2026-11-21): the capsule hugs its 287 pt row, capped at the
+            // width given; the frame is unchanged so the capture's canvas stays the same.
+            PreviewFrame(width: 414)
+        )
     default:
         return nil
     }
+}
+
+/// Part 12 of `buildCaptureView` — nil when `fixture.view` is not one of its cases.
+@MainActor @inline(never)
+private func buildCaptureViewPart12(_ fixture: CaptureFixture, authManager: AuthManager) throws -> AnyView? {
+    switch fixture.view {
+    case "component.ui2.C-001":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-001: missing state.component")
+        }
+        // C-001 §4 (R-07): text, selection, editing, listMenuPresented, topContentInset and
+        // undoRequest are required, so a nil is a fixture bug; the callbacks are the view's no-op
+        // defaults. §4 "Fixtures": `text` is N1 markdown, parsed here — the app's
+        // NoteDocumentCodec is outside the view and not yet built.
+        guard let ui2C001Markdown = c.text else {
+            throw ViewRegistryError.unknownView("component.ui2.C-001: props.text is required")
+        }
+        guard let ui2C001SelectionRaw = c.selection?.stringValue else {
+            throw ViewRegistryError.unknownView("component.ui2.C-001: props.selection is required (\"location,length\")")
+        }
+        guard let ui2C001Editing = c.editing else {
+            throw ViewRegistryError.unknownView("component.ui2.C-001: props.editing is required")
+        }
+        guard let ui2C001ListMenuPresented = c.listMenuPresented else {
+            throw ViewRegistryError.unknownView("component.ui2.C-001: props.listMenuPresented is required")
+        }
+        guard let ui2C001TopInset = c.topContentInset else {
+            throw ViewRegistryError.unknownView("component.ui2.C-001: props.topContentInset is required")
+        }
+        guard let ui2C001UndoRequest = c.undoRequest else {
+            throw ViewRegistryError.unknownView("component.ui2.C-001: props.undoRequest is required")
+        }
+        // OQ-C-001-9: `listRequest` is required; `listRequestStyle` is `ListStyle?`, so an absent
+        // or null value is its nil.
+        guard let ui2C001ListRequest = c.listRequest else {
+            throw ViewRegistryError.unknownView("component.ui2.C-001: props.listRequest is required")
+        }
+        let ui2C001ListRequestStyle = c.listRequestStyle.flatMap { MakeReadyUI.ListStyle(rawValue: $0) }
+        let ui2C001Text = ui2C001ParseNoteMarkdown(ui2C001Markdown)
+        let ui2C001Selection = try ui2C001ResolveSelection(ui2C001SelectionRaw, in: ui2C001Text)
+        return declareCase(
+            MakeReadyUI.MarkdownTextEditor(
+                text: ui2C001Text,
+                selection: ui2C001Selection,
+                editing: ui2C001Editing,
+                listMenuPresented: ui2C001ListMenuPresented,
+                topContentInset: ui2C001TopInset,
+                undoRequest: ui2C001UndoRequest,
+                listRequest: ui2C001ListRequest,
+                listRequestStyle: ui2C001ListRequestStyle
+            ),
+            // C-001 §2: the editor fills what the caller gives it — here the recording's 440 × 956
+            // Pro Max screen (01's source), with no outer padding (R-16).
+            PreviewFrame(width: 440, height: 956, margin: 0, alignment: .top)
+        )
+    default:
+        return nil
+    }
+}
+
+/// C-001 fixture text: the N1 subset its §3 rows use — `# ` Title, `- ` bulleted, `1. ` numbered,
+/// bare body paragraphs, and `**bold**`, `*italic*`, `~~strike~~`, `<u>underline</u>` inline.
+/// The paragraph rules (Title live, numbering) are the view's own and re-run on display.
+private func ui2C001ParseNoteMarkdown(_ markdown: String) -> AttributedString {
+    var out = AttributedString()
+    let lines = markdown.components(separatedBy: "\n")
+    for (index, line) in lines.enumerated() {
+        var content = Substring(line)
+        var style = MakeReadyUI.NoteParagraphStyle.body
+        if content.hasPrefix("# ") {
+            style = .title
+            content = content.dropFirst(2)
+        } else if content.hasPrefix("- ") {
+            style = .bulleted
+            content = content.dropFirst(2)
+        } else if let dot = content.firstIndex(of: "."), dot > content.startIndex,
+                  content[content.startIndex..<dot].allSatisfy(\.isNumber),
+                  content[content.index(after: dot)...].hasPrefix(" ") {
+            style = .numbered
+            content = content[content.index(dot, offsetBy: 2)...]
+        }
+        var paragraph = ui2C001ParseInline(String(content))
+        if index < lines.count - 1 { paragraph.append(AttributedString("\n")) }
+        paragraph[MakeReadyUI.NoteParagraphStyleAttribute.self] = style
+        out.append(paragraph)
+    }
+    return out
+}
+
+private func ui2C001ParseInline(_ text: String) -> AttributedString {
+    let markers: [(open: String, close: String, style: MakeReadyUI.InlineStyle)] = [
+        ("**", "**", .bold), ("~~", "~~", .strikethrough), ("<u>", "</u>", .underline), ("*", "*", .italic),
+    ]
+    var out = AttributedString()
+    var rest = Substring(text)
+    var plain = ""
+    while !rest.isEmpty {
+        var matched = false
+        for marker in markers where rest.hasPrefix(marker.open) {
+            let afterOpen = rest.dropFirst(marker.open.count)
+            guard let close = afterOpen.range(of: marker.close) else { continue }
+            if !plain.isEmpty { out.append(AttributedString(plain)); plain = "" }
+            var inner = ui2C001ParseInline(String(afterOpen[..<close.lowerBound]))
+            for run in inner.runs {
+                var styles = run[MakeReadyUI.NoteInlineStylesAttribute.self] ?? []
+                styles.insert(marker.style)
+                inner[run.range][MakeReadyUI.NoteInlineStylesAttribute.self] = styles
+            }
+            out.append(inner)
+            rest = afterOpen[close.upperBound...]
+            matched = true
+            break
+        }
+        if !matched {
+            plain.append(rest.removeFirst())
+        }
+    }
+    if !plain.isEmpty { out.append(AttributedString(plain)) }
+    return out
+}
+
+/// C-001 §3's selection cells, "location,length" in UTF-16 offsets: `location` is a number,
+/// `end` (the end of the text), or a word whose first occurrence is meant (`bold,4`).
+private func ui2C001ResolveSelection(_ raw: String, in text: AttributedString) throws -> NSRange {
+    let parts = raw.split(separator: ",", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
+    guard parts.count == 2, let length = Int(parts[1]) else {
+        throw ViewRegistryError.unknownView("component.ui2.C-001: props.selection \"\(raw)\" must be \"location,length\"")
+    }
+    let string = String(text.characters) as NSString
+    let location: Int
+    if let number = Int(parts[0]) {
+        location = number
+    } else if parts[0] == "end" {
+        location = string.length
+    } else {
+        let found = string.range(of: parts[0])
+        guard found.location != NSNotFound else {
+            throw ViewRegistryError.unknownView("component.ui2.C-001: props.selection word \"\(parts[0])\" is not in the text")
+        }
+        location = found.location
+    }
+    return NSRange(location: location, length: length)
 }
 
 /// `screen.2.0.activities-player` — the Activity viewer screen preview. See the case in
@@ -5992,6 +6344,7 @@ enum ViewRegistry {
         "component.ui2.C-021",
         "component.ui2.C-026",
         "component.ui2.C-034",
+        "component.ui2.C-008",
         "component.ui2.C-029",
         "component.ui2.C-030",
         "component.ui2.C-019",
@@ -6110,6 +6463,8 @@ enum ViewRegistry {
         "component.ui2.C-131",
         "component.ui2.C-132",
         "screen.2.0.library-home",
+        "screen.2.0.note-editor",
+        "component.ui2.C-015",
     ]
 }
 

@@ -473,6 +473,11 @@ enum Token {
         static let chipSelect = Animation.easeOut(duration: 0.15)
         static let menuFadeIn = Animation.easeOut(duration: 0.3)
         static let menuFadeOut = Animation.easeOut(duration: 0.25)
+        static let formatStripReveal = Animation.easeOut(duration: 0.1)
+        static let formatToggleOn = Animation.spring(duration: 0.15, bounce: 0.15)  // ≈150ms, pop in slightly oversized then settle
+        static let popoverOpen = Animation.easeOut(duration: 0.125)
+        static let formatToggleOff = Animation.easeOut(duration: 0.2)
+        static let popoverClose = Animation.easeOut(duration: 0.1)
     }
 
     enum Elevation {

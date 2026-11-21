@@ -51,6 +51,7 @@ export const LINK_TYPES = {
   GROUP: 'GROUP',
   VERSE: 'VERSE',
   PROGRAM: 'PROGRAM',
+  MEMO: 'MEMO',
 } as const
 
 /** Link types no write or read accepts any more (D42). */
@@ -204,6 +205,25 @@ function removedLinkRefusal(links: { refType: string }[] | undefined): { success
   return removed ? { success: false, code: 'VALIDATION', error: REMOVED_LINK_ERROR(removed.refType) } : null
 }
 
+export const MEMO_LINK_ERROR = 'Memo link must reference one of your memos'
+
+/**
+ * Refuses a `MEMO` link unless each one names an active memo owned by `ownerUserId` (D18).
+ * A member-owned note (`ownerUserId` null) is always refused. No `MEMO` link: null, no query.
+ */
+export async function memoLinkRefusal(
+  links: { refType: string; refId: string }[] | undefined,
+  ownerUserId: string | null
+): Promise<{ success: false; code: 'VALIDATION'; error: string } | null> {
+  const memoIds = links?.filter((link) => link.refType === LINK_TYPES.MEMO).map((link) => link.refId) ?? []
+  if (memoIds.length === 0) return null
+  const refusal = { success: false, code: 'VALIDATION', error: MEMO_LINK_ERROR } as const
+  if (!ownerUserId) return refusal
+  const unique = [...new Set(memoIds)]
+  const owned = await prisma.voiceMemo.count({ where: { id: { in: unique }, userId: ownerUserId, isActive: true } })
+  return owned === unique.length ? null : refusal
+}
+
 // ============================================================================
 // Note CRUD Operations
 // ============================================================================
@@ -215,6 +235,9 @@ export async function createNote(data: CreateNoteData): Promise<NoteResult> {
   const refusal = removedLinkRefusal(data.links)
   if (refusal) return refusal
   try {
+    const memoRefusal = await memoLinkRefusal(data.links, data.userId ?? null)
+    if (memoRefusal) return memoRefusal
+
     // Validate owner - must have either memberId or userId
     if (!data.memberId && !data.userId) {
       return {
@@ -640,6 +663,11 @@ export async function addNoteLink(
   const refusal = removedLinkRefusal([link])
   if (refusal) return refusal
   try {
+    if (link.refType === LINK_TYPES.MEMO) {
+      const owner = await prisma.studyNote.findUnique({ where: { id: noteId }, select: { userId: true } })
+      const memoRefusal = await memoLinkRefusal([link], owner?.userId ?? null)
+      if (memoRefusal) return memoRefusal
+    }
     await prisma.noteLink.create({
       data: {
         noteId,

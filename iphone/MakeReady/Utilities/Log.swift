@@ -45,4 +45,6 @@ enum Log {
     static let bible = Logger(subsystem: subsystem, category: "bible")
     /// Notes autosave, the offline save queue, conflicts.
     static let notes = Logger(subsystem: subsystem, category: "notes")
+    /// Voice-memo recorder, transcriber, upload queue.
+    static let memo = Logger(subsystem: subsystem, category: "memo")
 }
