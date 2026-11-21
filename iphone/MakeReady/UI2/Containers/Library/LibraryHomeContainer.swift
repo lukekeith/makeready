@@ -21,7 +21,7 @@ struct LibraryHomeContainer: View {
     var body: some View {
         let now = Date()
         let calendar = Calendar.current
-        let sections = LibraryHomeMapper.rows(notes: AppState.shared.studyNotes.all, searchIds: searchIds,
+        let sections = LibraryHomeMapper.rows(notes: AppState.shared.studyNotes.all, searchIds: searchIds, memos: [],
                                               now: now, calendar: calendar)
         let phase = LibraryHomeMapper.phase(isLoading: isLoading, loadFailed: loadFailed, sections: sections, query: query)
         let noteIds = LibraryHomeMapper.noteIds(in: sections)

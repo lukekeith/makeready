@@ -127,7 +127,8 @@ enum NotesSectioning {
 
     // MARK: Private
 
-    private static func sectionTitle(for date: Date, now: Date, calendar: Calendar) -> String {
+    /// Shared with the memos in Library (memo-screens D5): one section rule for both kinds.
+    static func sectionTitle(for date: Date, now: Date, calendar: Calendar) -> String {
         switch dayDiff(from: date, to: now, calendar: calendar) {
         case ...0: return "Today"
         case 1: return "Yesterday"
