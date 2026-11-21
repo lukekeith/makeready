@@ -180,6 +180,17 @@ final class MemoDetailModelTests: XCTestCase {
         XCTAssertEqual(model.screenState(now: Date(), calendar: .current).title, "Memo 1")
     }
 
+    /// Walk round 2 (E2): the toast's View is tapped after the upload already finished — the item has left
+    /// the queue, so the page opens on the server memo with its title in the first state.
+    func testALocalPageWhoseUploadAlreadyFinishedOpensTitledOnTheServerMemo() async throws {
+        let item = try enqueueItem()
+        await completeUpload(item, serverId: "m9")
+        XCTAssertNil(uploads.item(localId: item.localId))
+        let model = makeModel(memoId: "local:\(item.localId)")
+        XCTAssertEqual(model.target, .server("m9"))
+        XCTAssertEqual(model.screenState(now: Date(), calendar: .current).title, "Memo 1")
+    }
+
     /// Walk round 1 (item 3): the create POST has returned (the item has a server id) but the PUT has not
     /// succeeded — the page keeps playing the local file.
     func testALocalPageStaysLocalUntilTheUploadCompletes() async throws {

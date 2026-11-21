@@ -26,7 +26,13 @@ final class MemoDetailModel {
 
     init(memoId: String, actions: MemoActions, uploads: MemoUploadController?, player: MemoPlayer, state: AppState? = nil) {
         let state = state ?? AppState.shared
-        let target = Self.target(memoId)
+        var target = Self.target(memoId)
+        // Walk round 2 (E2): a `local:` route whose upload already finished (it left the queue before the
+        // page opened) opens on the server memo, so the screen's one-time title copy is not empty.
+        if case .local(let localId) = target, let uploads, uploads.item(localId: localId) == nil,
+           let serverId = uploads.serverId(forLocalId: localId) {
+            target = .server(serverId)
+        }
         self.target = target
         self.actions = actions
         self.uploads = uploads
