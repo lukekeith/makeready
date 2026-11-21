@@ -36,12 +36,14 @@ final class RecorderSessionTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private func makeSession(seconds: Double,
+    private func makeSession(seconds: Double, maxDuration: TimeInterval = 10_800,
+                             input: AudioInputSource? = nil, micGranted: Bool = true,
                              writeBuffer: @escaping @Sendable (AVAudioFile, AVAudioPCMBuffer) throws -> Void = { try $0.write(from: $1) }) -> RecorderSession {
         let buffers = (try? MemoAudioFixtures.sineBuffers(seconds: seconds)) ?? []
         let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 44_100, channels: 1, interleaved: false)!
-        engine = MemoRecorderEngine(input: BufferFeedInput(format: format, initial: buffers), transcriber: nil,
-                                    directory: dir, session: SpySession(), drafts: drafts, writeBuffer: writeBuffer)
+        engine = MemoRecorderEngine(input: input ?? BufferFeedInput(format: format, initial: buffers), transcriber: nil,
+                                    directory: dir, maxDuration: maxDuration, session: SpySession(), drafts: drafts,
+                                    requestMicPermission: { micGranted }, writeBuffer: writeBuffer)
         let evening = calendar.date(from: DateComponents(year: 2026, month: 11, day: 21, hour: 19, minute: 43))!
         return RecorderSession(engine: engine, title: "Memo 1", enqueue: { [unowned self] result in
             enqueued.append(result)
@@ -56,12 +58,25 @@ final class RecorderSessionTests: XCTestCase {
                       attempts: 0, nextAttemptAt: nil)
     }
 
+    /// Polls until `condition` holds (up to 5 s) instead of sleeping a fixed time.
+    private func waitUntil(_ message: String, _ condition: () -> Bool) async {
+        for _ in 0..<250 where !condition() { try? await Task.sleep(for: .milliseconds(20)) }
+        XCTAssertTrue(condition(), message)
+    }
+
+    private final class FailingInput: AudioInputSource {
+        struct Failure: Error {}
+        let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 44_100, channels: 1, interleaved: false)!
+        func start(_ onBuffer: @escaping (AVAudioPCMBuffer) -> Void) throws { throw Failure() }
+        func stop() {}
+    }
+
     // MARK: - Tests
 
     func testFinishEnqueuesOneResultAndSaves() async throws {
         let session = makeSession(seconds: 1.0)
         await session.begin()
-        try await Task.sleep(for: .milliseconds(200))
+        await waitUntil("progress reaches the session") { session.elapsed > 0 }
         await session.finish()
         XCTAssertEqual(enqueued.count, 1)
         guard case .saved = session.outcome else { return XCTFail("\(String(describing: session.outcome))") }
@@ -105,10 +120,50 @@ final class RecorderSessionTests: XCTestCase {
         struct WriterFailure: Error {}
         let session = makeSession(seconds: 1.0, writeBuffer: { _, _ in throw WriterFailure() })
         await session.begin()
-        try await Task.sleep(for: .milliseconds(300))
+        await waitUntil("the engine reports the write failure") { session.engineFailed }
         session.failIfEngineFailed()
         XCTAssertEqual(session.outcome, .failed)
         XCTAssertTrue(enqueued.isEmpty)
+    }
+
+    func testTheDurationLimitAutoStopSaves() async {
+        let session = makeSession(seconds: 1.5, maxDuration: 1.0)
+        await session.begin()
+        await waitUntil("auto-stop saves") { session.outcome != nil }
+        XCTAssertEqual(enqueued.count, 1)
+        guard case .saved = session.outcome else { return XCTFail("\(String(describing: session.outcome))") }
+    }
+
+    func testADeniedMicrophoneCreatesNothingAndCloseDiscards() async throws {
+        let session = makeSession(seconds: 0, input: LiveAudioInput(), micGranted: false)
+        await session.begin()
+        XCTAssertEqual(session.phase, .micDenied)
+        XCTAssertEqual(engine.state, .idle)
+        XCTAssertNil(session.outcome)
+        XCTAssertTrue(enqueued.isEmpty)
+        XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: dir.path).isEmpty)
+        session.close()
+        XCTAssertEqual(session.outcome, .discarded)
+        XCTAssertTrue(enqueued.isEmpty)
+    }
+
+    func testPauseAndResumeMoveTheEngineAndThePhase() async {
+        let session = makeSession(seconds: 1.0)
+        await session.begin()
+        session.pause()
+        XCTAssertEqual(engine.state, .paused)
+        XCTAssertEqual(session.phase, .paused)
+        session.resume()
+        XCTAssertEqual(engine.state, .recording)
+        XCTAssertEqual(session.phase, .recording)
+    }
+
+    func testAnInputThatFailsToStartFailsTheSessionAndLeavesNoCaf() async throws {
+        let session = makeSession(seconds: 0, input: FailingInput())
+        await session.begin()
+        XCTAssertEqual(session.outcome, .failed)
+        XCTAssertTrue(enqueued.isEmpty)
+        XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: dir.path).isEmpty)
     }
 
     func testTheAppRecordsInTheBackground() {

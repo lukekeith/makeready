@@ -36,6 +36,7 @@ final class MemoRecorderEngine {
     @ObservationIgnored private let audioSession: MemoAudioSessionControlling
     @ObservationIgnored private let drafts: MemoDraftStore
     @ObservationIgnored private let notificationCenter: NotificationCenter
+    @ObservationIgnored private let requestMicPermission: () async -> Bool
     @ObservationIgnored private var observers = ObserverBag()
     @ObservationIgnored private var prepared: Prepared?
     @ObservationIgnored private var session: Session?
@@ -63,10 +64,12 @@ final class MemoRecorderEngine {
          maxDuration: TimeInterval = 10_800, now: @escaping () -> Date = Date.init,
          session: MemoAudioSessionControlling = MemoAudioSession(), drafts: MemoDraftStore,
          notificationCenter: NotificationCenter = .default,
+         requestMicPermission: @escaping () async -> Bool = { await LiveAudioInput.requestPermission() },
          writeBuffer: @escaping @Sendable (AVAudioFile, AVAudioPCMBuffer) throws -> Void = { try $0.write(from: $1) }) {
         self.audioSession = session
         self.drafts = drafts
         self.notificationCenter = notificationCenter
+        self.requestMicPermission = requestMicPermission
         self.writeBuffer = writeBuffer
         self.input = input
         self.transcriber = transcriber
@@ -82,7 +85,7 @@ final class MemoRecorderEngine {
     func prepare(title: String) async throws {
         guard state == .idle else { throw CancellationError() }
         lastError = nil
-        if input is LiveAudioInput, !(await LiveAudioInput.requestPermission()) {
+        if input is LiveAudioInput, !(await requestMicPermission()) {
             lastError = .micPermissionDenied
             throw MemoEngineError.micPermissionDenied
         }
@@ -162,6 +165,7 @@ final class MemoRecorderEngine {
             Log.memo.error("audio input did not start: \(error.localizedDescription)")
             _ = pipeline.close()
             drafts.remove(cafURL: url)
+            try? FileManager.default.removeItem(at: url) // Silent: nothing was recorded, so no partial .caf is kept
             end()
             throw error
         }

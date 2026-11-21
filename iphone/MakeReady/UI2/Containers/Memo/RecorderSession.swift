@@ -69,6 +69,7 @@ final class RecorderSession {
         } catch is CancellationError {
             return
         } catch {
+            // The engine already ended itself and removed its partial .caf and draft manifest.
             fail(error)
         }
     }
@@ -91,6 +92,7 @@ final class RecorderSession {
         do {
             save(try await engine.stop())
         } catch is CancellationError {
+            // Nothing to stop: `engineFailed` or `onAutoStop` has already ended (or will end) the session.
             return
         } catch {
             fail(error)
