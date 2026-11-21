@@ -1,7 +1,7 @@
 size: md
 state: spec
 next: d2m builds the memo views (D1) → owner approves captures → /builder:resume --path docs/features/memo-screens
-head: none
+head: e611bd29
 ticket: none
 branch: main
 pr: none
