@@ -1,4 +1,5 @@
 # notes — spec
+> 🤖 AGENT SIGNED OFF 2026-11-21 — 6dcc4a4f · agent walk round 2 · not human-tested · evidence: .builder/notes/agent-walk/round-2/
 > lg · ticket: none · leader notes on iPhone: Apple-Notes-style editor + the notes list in the Home tab's Library section
 
 ## Idea
@@ -291,25 +292,6 @@ then fills existing rows, idempotently. Run it locally in the build, and on stag
 | R1 | repoint (iphone): library-home coming-soon default ← `UI2/Containers/Library/LibraryHomeContainer.swift:7` (this feature); `MakeReadyUI/Screens/Library/LibraryHomeScreen.swift:25,59` and `MakeReadyCapture…/ViewRegistry.swift:3318-3322,6112` (d2m-owned, changed by change cmwoogn700001v0h9l69stkz3) | builder:plan's repoint phase: T15 for the container; the d2m rows ride on F5's gate |
 | R2 | repoint (iphone): the inert Add-menu "Write a note" ← `UI2/Shell/UI2Shell.swift:24-32,96-99` | T15 (D17) |
 | R3 | repoint (server, client): none. No caller of `/api/notes` or `/api/member/notes*` exists in client/ or iphone/ (audit grep 2026-11-20); nothing depends on the old 403 | — |
-
-## Plan
-
-The plan, task by task: `docs/features/notes/PLAN.md` (§PLAN.md).
-
-- Phase 1 · Task 1 · `StudyNote.title`, `preview` and the `[userId, updatedAt]` index
-- Phase 1 · Task 2 · title/preview derivation on every write, and `NOTE_TYPES.NOTE`
-- Phase 1 · Task 3 · the validated leader list query: `q`, `orderBy`, bounds
-- Phase 1 · Task 4 · leader `:noteId` routes: 404 scoping, strict PATCH, locked `stomped`
-- Phase 2 · Task 5 · `contextLabel` on every leader note response
-- Phase 2 · Task 6 · the title/preview backfill script
-- Phase 2 · Task 7 · `library-home` fixture, the §Contract request suite, and the contract freeze
-- Phase 3 · Task 8 · `StudyNote` wire models, D3 sectioning, and `AppState.studyNotes`
-- Phase 3 · Task 9 · `NoteActions`
-- Phase 4 · Task 10 · `NoteSaveQueue` and its connectivity flush
-- Phase 4 · Task 11 · `NoteAutosaveController`
-- Phase 5 · Task 12 · the d2m gate, `swift-markdown`, and `NoteDocumentCodec`
-- Phase 5 · Task 13 · `LibraryHomeContainer`: the notes list
-- Phase 5 · Task 14 · `NoteEditorContainer`, the three D17 routes, launch flush
 
 ## Prototype
 
