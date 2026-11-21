@@ -246,6 +246,7 @@ struct UI2Shell: View {
         // notes D17: the editor on a fresh note (a new flowId per open) or a stored one.
         case let .newNote(flowId): NoteEditorContainer(noteId: nil).id(flowId)
         case let .noteEditor(noteId): NoteEditorContainer(noteId: noteId).id(noteId)
+        case let .memoDetail(memoId): MemoDetailContainer(memoId: memoId).id(memoId)  // memo-screens D4
         }
     }
 

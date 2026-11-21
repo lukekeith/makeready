@@ -92,6 +92,9 @@ enum UI2Destination: Hashable {
     case newNote(flowId: UUID)
     /// notes D17: the note editor on an existing note.
     case noteEditor(noteId: String)
+    /// memo-screens D4/D17: one voice memo. `memoId` is the server id, or `local:<localId>` for a memo still
+    /// in the upload queue. The TabBar stays, like the notes list.
+    case memoDetail(memoId: String)
 }
 
 extension UI2Destination {

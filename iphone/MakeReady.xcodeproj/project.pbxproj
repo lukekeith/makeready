@@ -65,6 +65,7 @@
 		0DE45D611857DDEBF778CB1C /* EnrollmentsHomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A140CA4833A6C31E514213 /* EnrollmentsHomeScreen.swift */; };
 		0E266C06A6AFF5BB9F41E704 /* ProgramsHomeHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8758E706A3D3B1D56CC6121 /* ProgramsHomeHost.swift */; };
 		0E2A091248CC38E1F5EE7473 /* HomeDashboardScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6A2E963F777311FDA1B0715 /* HomeDashboardScreen.swift */; };
+		0E9205A41B56B6B5EA2A5BB6 /* MemoDetailModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MDM0000000000000001 /* MemoDetailModel.swift */; };
 		0EAA9B79991F835A02B6FF5C /* MembersProfileScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A0769F269C502AB580380D1 /* MembersProfileScreen.swift */; };
 		0F01019C10672A5AFC77FA1F /* InputMaskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B05E227D00F57FBACEC5324E /* InputMaskTests.swift */; };
 		0FB40CBAF6AA32DDDDA497D5 /* EmptyPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3D93499CD42C4938E074090 /* EmptyPage.swift */; };
@@ -76,6 +77,7 @@
 		10A180EC46DF00664D302CD6 /* CalendarEventBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25377F4534AD219CDBB80400 /* CalendarEventBlock.swift */; };
 		10ABE0D8A673E976D63DF78C /* FollowedProgramHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BB3B6A000E676056325CB1C /* FollowedProgramHeader.swift */; };
 		10DE62216E818111201D48FE /* members.json in Resources */ = {isa = PBXBuildFile; fileRef = A1000081000000000000001 /* members.json */; };
+		10FD03F4E987AB5A25C52531 /* MemoDetailContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MDM0000000000000003 /* MemoDetailContainer.swift */; };
 		111FD0AAD2B04FD3B644956D /* Tokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCB9A932A6B3836809A12CCD /* Tokens.swift */; };
 		114C1C769BAB9DF7A3764DB9 /* MembersHomeMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47E424A2AD5810D68A013C40 /* MembersHomeMapper.swift */; };
 		1161B330C9C381327820AFCB /* ActivityThumbnail.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE85B0625A7188FE911BB568 /* ActivityThumbnail.swift */; };
@@ -1238,6 +1240,9 @@
 		L1BH0MAP0000000000000014 /* LibraryHomeSearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MAP0000000000000013 /* LibraryHomeSearchTests.swift */; };
 		L1BH0MAP0000000000000022 /* MemoDetailMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MAP0000000000000021 /* MemoDetailMapper.swift */; };
 		L1BH0MAP0000000000000024 /* MemoDetailMapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MAP0000000000000023 /* MemoDetailMapperTests.swift */; };
+		L1BH0MDM0000000000000002 /* MemoDetailModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MDM0000000000000001 /* MemoDetailModel.swift */; };
+		L1BH0MDM0000000000000004 /* MemoDetailContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MDM0000000000000003 /* MemoDetailContainer.swift */; };
+		L1BH0MDM0000000000000006 /* MemoDetailModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MDM0000000000000005 /* MemoDetailModelTests.swift */; };
 		LOGW0001000000000000001 /* Log.swift in Sources */ = {isa = PBXBuildFile; fileRef = LOGW0002000000000000001 /* Log.swift */; };
 		LPHL0001000000000000001 /* LocalPortHealer.swift in Sources */ = {isa = PBXBuildFile; fileRef = LPHL0002000000000000001 /* LocalPortHealer.swift */; };
 		MDAC0001000000000000001 /* MediaActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDAC0002000000000000001 /* MediaActions.swift */; };
@@ -2072,6 +2077,9 @@
 		L1BH0MAP0000000000000013 /* LibraryHomeSearchTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LibraryHomeSearchTests.swift; sourceTree = "<group>"; };
 		L1BH0MAP0000000000000021 /* MemoDetailMapper.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MemoDetailMapper.swift; path = Containers/Memo/MemoDetailMapper.swift; sourceTree = "<group>"; };
 		L1BH0MAP0000000000000023 /* MemoDetailMapperTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MemoDetailMapperTests.swift; sourceTree = "<group>"; };
+		L1BH0MDM0000000000000001 /* MemoDetailModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MemoDetailModel.swift; path = Containers/Memo/MemoDetailModel.swift; sourceTree = "<group>"; };
+		L1BH0MDM0000000000000003 /* MemoDetailContainer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MemoDetailContainer.swift; path = Containers/Memo/MemoDetailContainer.swift; sourceTree = "<group>"; };
+		L1BH0MDM0000000000000005 /* MemoDetailModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MemoDetailModelTests.swift; sourceTree = "<group>"; };
 		LDPC0001000000000000001 /* LessonDetailPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonDetailPage.swift; sourceTree = "<group>"; };
 		LOGW0002000000000000001 /* Log.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Log.swift; sourceTree = "<group>"; };
 		LPHL0002000000000000001 /* LocalPortHealer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPortHealer.swift; sourceTree = "<group>"; };
@@ -2351,6 +2359,8 @@
 				L1BH0MAP0000000000000001 /* LibraryHomeMapper.swift */,
 				L1BH0MAP0000000000000011 /* LibraryHomeSearch.swift */,
 				L1BH0MAP0000000000000021 /* MemoDetailMapper.swift */,
+				L1BH0MDM0000000000000003 /* MemoDetailContainer.swift */,
+				L1BH0MDM0000000000000001 /* MemoDetailModel.swift */,
 				N14F00000000000000000001 /* NoteEditorContainer.swift */,
 				N14F10000000000000000001 /* NoteEntry.swift */,
 				180FFAA3DF567F5062535F5F /* SearchHomeMapper.swift */,
@@ -2791,6 +2801,7 @@
 				L1BH0MAP0000000000000003 /* LibraryHomeMapperTests.swift */,
 				L1BH0MAP0000000000000013 /* LibraryHomeSearchTests.swift */,
 				L1BH0MAP0000000000000023 /* MemoDetailMapperTests.swift */,
+				L1BH0MDM0000000000000005 /* MemoDetailModelTests.swift */,
 				N14T00000000000000000001 /* NoteEditorContainerTests.swift */,
 				F0E957FF286203F1E692E2E8 /* NoteAutosaveControllerTests.swift */,
 				E9D16B4F5EF90E16BC941277 /* MemoModelsTests.swift */,
@@ -4163,6 +4174,7 @@
 				L1BH0MAP0000000000000004 /* LibraryHomeMapperTests.swift in Sources */,
 				L1BH0MAP0000000000000014 /* LibraryHomeSearchTests.swift in Sources */,
 				L1BH0MAP0000000000000024 /* MemoDetailMapperTests.swift in Sources */,
+				L1BH0MDM0000000000000006 /* MemoDetailModelTests.swift in Sources */,
 				N14T00000000000000000002 /* NoteEditorContainerTests.swift in Sources */,
 				84E61931CABE68F71A1F1B98 /* NoteAutosaveControllerTests.swift in Sources */,
 				7FE5CA828FA57FA6F2EE03DA /* MemoModelsTests.swift in Sources */,
@@ -4523,6 +4535,8 @@
 				L1BH0MAP0000000000000002 /* LibraryHomeMapper.swift in Sources */,
 				L1BH0MAP0000000000000012 /* LibraryHomeSearch.swift in Sources */,
 				L1BH0MAP0000000000000022 /* MemoDetailMapper.swift in Sources */,
+				L1BH0MDM0000000000000002 /* MemoDetailModel.swift in Sources */,
+				L1BH0MDM0000000000000004 /* MemoDetailContainer.swift in Sources */,
 				N14B00000000000000000002 /* NoteEditorContainer.swift in Sources */,
 				N14B10000000000000000002 /* NoteEntry.swift in Sources */,
 				F39E59F2831B8716ACBB571F /* SearchModels.swift in Sources */,
@@ -5212,6 +5226,8 @@
 				93A1AB997C64886D2E893618 /* MemoPlayer.swift in Sources */,
 				F3357E860F90C1E52B8D5F85 /* LibraryHomeMapper.swift in Sources */,
 				4D09A767ADDE156B706B38D8 /* MemoDetailMapper.swift in Sources */,
+				0E9205A41B56B6B5EA2A5BB6 /* MemoDetailModel.swift in Sources */,
+				10FD03F4E987AB5A25C52531 /* MemoDetailContainer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

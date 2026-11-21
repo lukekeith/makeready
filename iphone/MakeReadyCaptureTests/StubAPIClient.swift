@@ -57,6 +57,16 @@ final class StubAPIClient: APIClientProtocol {
         responses["\(method) \(endpoint)"] = Data(json.utf8)
     }
 
+    /// A bodyless answer for `requestWithStatus` (a 204 DELETE): `requestWithStatus` returns data only.
+    func stubStatus(_ method: String, _ endpoint: String, status: Int) {
+        responses["\(method) \(endpoint)"] = Data()
+    }
+
+    /// Every call made with `method`, in order.
+    func recordedCalls(method: String) -> [RecordedCall] {
+        calls.filter { $0.method == method }
+    }
+
     func callCount(_ method: String, _ endpoint: String) -> Int {
         calls.filter { $0.method == method && $0.endpoint == endpoint }.count
     }
