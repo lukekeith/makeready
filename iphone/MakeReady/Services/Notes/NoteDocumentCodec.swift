@@ -107,7 +107,8 @@ enum NoteDocumentCodec {
         var style: NoteParagraphStyle
         var pieces: [Piece] = []
 
-        var isEmpty: Bool { pieces.allSatisfy { $0.text.isEmpty } }
+        /// Whitespace-only counts as empty: markdown can't carry it, and it reads as a blank line.
+        var isEmpty: Bool { pieces.allSatisfy { $0.text.allSatisfy(NoteDocumentCodec.isEdgeWhitespace) } }
     }
 
     private static func kind(of style: NoteParagraphStyle) -> NoteParagraphKind {
@@ -241,19 +242,41 @@ enum NoteDocumentCodec {
                 out += open(style)
                 openStack.append(style)
             }
-            out += escaped(piece.text, leadingMarker: escapeLeadingMarker && index == 0)
+            out += escaped(piece.text, leadingMarker: escapeLeadingMarker && index == 0,
+                           encodeLeading: index == 0, encodeTrailing: index == pieces.count - 1)
         }
         for style in openStack.reversed() { out += close(style) }
         return out
     }
 
-    private static let escapedCharacters: Set<Character> = ["\\", "*", "_", "~", "=", "<", ">", "#"]
+    /// The D4 floor (`\ * _ ~ = < > #`) plus every other character a typed note could turn into
+    /// markdown on reload: code spans (`` ` ``), links and images (`[ ] !`), entities (`&`), tables
+    /// (`|`). The server's strip unescapes any `\X` (D11), so the wider set is safe.
+    private static let escapedCharacters: Set<Character> = ["\\", "*", "_", "~", "=", "<", ">", "#", "`", "[", "]", "!", "&", "|"]
 
-    /// Backslash-escapes the D4 characters; a leading `- `, `+ ` or `<digits>. ` is escaped too
-    /// so a body line never reads as a list.
-    private static func escaped(_ text: String, leadingMarker: Bool) -> String {
+    /// The whitespace markdown strips at a paragraph's edge (or reads as indentation).
+    fileprivate static func isEdgeWhitespace(_ character: Character) -> Bool {
+        character == " " || character == "\t"
+    }
+
+    /// Backslash-escapes the characters above; a leading `- `, `+ ` or `<digits>. ` is escaped too
+    /// so a body line never reads as a list. Whitespace at a paragraph's start or end is written as
+    /// a numeric character reference (`&#32;`, `&#9;`), the only form markdown keeps: leading
+    /// spaces are stripped (four or more would make a code block) and trailing ones are dropped.
+    private static func escaped(_ text: String, leadingMarker: Bool, encodeLeading: Bool, encodeTrailing: Bool) -> String {
+        let characters = Array(text)
+        var leading = 0
+        if encodeLeading { while leading < characters.count, isEdgeWhitespace(characters[leading]) { leading += 1 } }
+        var trailing = 0
+        if encodeTrailing {
+            while trailing < characters.count - leading, isEdgeWhitespace(characters[characters.count - 1 - trailing]) { trailing += 1 }
+        }
         var out = ""
-        for character in text {
+        for (index, character) in characters.enumerated() {
+            if index < leading || index >= characters.count - trailing, isEdgeWhitespace(character) {
+                out += character == " " ? "&#32;" : "&#9;"
+                continue
+            }
             if escapedCharacters.contains(character) { out.append("\\") }
             out.append(character)
         }

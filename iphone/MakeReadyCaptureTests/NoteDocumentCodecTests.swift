@@ -11,6 +11,13 @@ final class NoteDocumentCodecTests: XCTestCase {
         "# T\n\n1. first\n2. second",
         "# T\n\nescapes \\* \\_ \\~ \\= \\< \\> \\# \\\\ done",
         "# T\n\n\\- not a list\n\n1\\. not numbered",
+        // Escapes beyond D4's floor: markdown syntax a user can type must survive an open + autosave.
+        "# T\n\nticks \\`x\\` link \\[a\\](b) img \\!\\[i\\] amp \\&amp; pipe \\| done",
+        "# T\n\n- \\`x\\` \\[a\\]\n- \\&amp;",
+        // Edge whitespace is carried as numeric character references (never stripped, never code).
+        "# T\n\n&#32;&#32;&#32;&#32;four leading",
+        "# T\n\ntrailing&#32;&#32;",
+        "# T\n\n&#9;tab lead\n\n- &#32;item&#32;",
     ]
 
     func testCorpusRoundTripsExactly() {
@@ -46,5 +53,27 @@ final class NoteDocumentCodecTests: XCTestCase {
         XCTAssertEqual(NoteDocumentCodec.serialize(NoteDocumentCodec.parse("# T\n\n## Later")), "# T\n\nLater")
         let md = "# T\n\nkeep \\=\\= literal"
         XCTAssertEqual(NoteDocumentCodec.serialize(NoteDocumentCodec.parse(md)), md)
+    }
+
+    func testEdgeWhitespaceAndWhitespaceOnlyParagraphs() {
+        let doc = NoteDocumentCodec.document([
+            NoteRun(block: 0, text: "T", paragraph: .title),
+            NoteRun(block: 1, text: "    four leading", paragraph: .body),
+            NoteRun(block: 2, text: "trailing  ", paragraph: .body),
+            NoteRun(block: 3, text: " bold ", paragraph: .body, bold: true),
+            NoteRun(block: 4, text: "   ", paragraph: .body),
+            NoteRun(block: 5, text: "\t", paragraph: .bulleted),
+            NoteRun(block: 6, text: "x ", paragraph: .numbered),
+        ])
+        let md = NoteDocumentCodec.serialize(doc)
+        XCTAssertFalse(md.contains("\n\n\n"), md)
+        // Whitespace-only paragraphs are empty and drop; the rest survive a reload verbatim.
+        let reloaded = NoteDocumentCodec.runs(NoteDocumentCodec.parse(md)).map(\.text)
+        XCTAssertEqual(reloaded, ["T", "    four leading", "trailing  ", " ", "bold", " ", "x "], md)
+        XCTAssertEqual(NoteDocumentCodec.serialize(NoteDocumentCodec.parse(md)), md)
+    }
+
+    func testSingleNewlineInAParagraphBecomesTwoParagraphs() {
+        XCTAssertEqual(NoteDocumentCodec.serialize(NoteDocumentCodec.parse("# T\n\nline one\nline two")), "# T\n\nline one\n\nline two")
     }
 }
