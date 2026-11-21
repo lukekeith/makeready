@@ -169,6 +169,16 @@ final class RecorderSessionTests: XCTestCase {
         XCTAssertTrue(enqueued.isEmpty)
     }
 
+    /// Walk round 1: a denied microphone must expand the sheet to the mic-denied message (Open Settings,
+    /// Close) — the compact sheet has no way out, and the drag is disabled in that phase.
+    func testADeniedMicrophoneExpandsTheSheet() async {
+        let session = makeSession(seconds: 0, input: LiveAudioInput(), micGranted: false)
+        XCTAssertEqual(session.expansion, 0)
+        await session.begin()
+        XCTAssertEqual(session.phase, .micDenied)
+        XCTAssertEqual(session.expansion, 1)
+    }
+
     func testPauseAndResumeMoveTheEngineAndThePhase() async {
         let session = makeSession(seconds: 1.0)
         await session.begin()

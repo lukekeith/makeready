@@ -67,6 +67,9 @@ final class RecorderSession {
             try await engine.start()
             startTime = format(now())
         } catch MemoEngineError.micPermissionDenied {
+            // The mic-denied message (Open Settings, Close) lives in the expanded sheet, and the drag is
+            // off in that phase — so the session opens it; left compact, the sheet has no way out.
+            expansion = 1
             return
         } catch is CancellationError {
             return
