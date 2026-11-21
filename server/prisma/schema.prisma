@@ -1338,6 +1338,8 @@ model StudyNote {
   userId               String?
   type                 String // OBSERVATION, APPLICATION, PRAYER, JOURNAL, etc.
   content              String @db.Text
+  title                String?
+  preview              String?
   isActive             Boolean @default(true)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
@@ -1351,6 +1353,7 @@ model StudyNote {
   @@index([userId, type])
   @@index([memberId, createdAt])
   @@index([userId, createdAt])
+  @@index([userId, updatedAt])
   @@index([type])
   @@index([createdAt])
   @@index([isActive])

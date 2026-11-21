@@ -151,9 +151,13 @@ private struct ListStyleMenuPresentation: View {
         Group {
             if mounted {
                 menu
-                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { cardFrame = $0 }
                     // §2 Motion: scale + fade from `anchor` (open), back toward it (close).
                     .scaleEffect(shown ? 1 : 0, anchor: scaleOrigin)
+                    // Measured OUTSIDE the scale: the card's layout frame, which the scale never
+                    // moves. Measured inside it, the frame moved with the anchor it was computed
+                    // into — a feedback loop that diverges below half scale and hung the main
+                    // thread on open (notes agent walk round 1).
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { cardFrame = $0 }
                     .opacity(shown ? 1 : 0)
                     .background { outsideTapCatcher }
                     .accessibilityAddTraits(.isModal)

@@ -74,6 +74,15 @@ struct LibraryHomeScreen: View {
     var onOpenNote: (Int) -> Void = { _ in }
     /// §3 "Tap the compose circle: opens a new note in the editor".
     var onCompose: () -> Void = {}
+    /// The search text after every change, and "" when the capsule is cleared — for a caller that
+    /// searches elsewhere (R-01 change callback; the local query below still updates).
+    var onSearchChange: (String) -> Void = { _ in }
+    /// `false` when the caller owns the filtering: every row it passed is shown, with no needle
+    /// filter (search-no-results still shows when its rows are empty and the query is non-empty).
+    var filtersLocally: Bool = true
+    /// The list's scroll offset (0 at the top, negative on a pull) and whether a finger is on it —
+    /// the shell's TopNav morph reads it, since this screen owns its scroll (Library `ownsScroll`).
+    var onScrollChange: (CGFloat, Bool) -> Void = { _, _ in }
 
     // §3 search-active: "The list filters live by title and body text" — UI-only, seeded from
     // `state` (R-31: search text is ephemeral screen state).
@@ -84,28 +93,56 @@ struct LibraryHomeScreen: View {
         state: State,
         searchEditable: Bool = true,
         onOpenNote: @escaping (Int) -> Void = { _ in },
-        onCompose: @escaping () -> Void = {}
+        onCompose: @escaping () -> Void = {},
+        onSearchChange: @escaping (String) -> Void = { _ in },
+        filtersLocally: Bool = true,
+        onScrollChange: @escaping (CGFloat, Bool) -> Void = { _, _ in }
     ) {
         self.state = state
         self.searchEditable = searchEditable
         self.onOpenNote = onOpenNote
         self.onCompose = onCompose
+        self.onSearchChange = onSearchChange
+        self.filtersLocally = filtersLocally
+        self.onScrollChange = onScrollChange
         _query = SwiftUI.State(initialValue: state.searchText)
         _searchFocused = SwiftUI.State(initialValue: state.searchFocused)
     }
 
+    @SwiftUI.State private var fingerDown = false
+
     var body: some View {
-        // D22: no ScrollView at the page root — the content is laid out at full length.
-        content
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        // notes agent walk round 1: the screen owns its scroll (the shell's Library `ownsScroll`),
+        // so C-008 floats over the scroll view, not at the end of its content (§2 item 4: "pinned
+        // above the bottom safe area (and above the shell TabBar)").
+        GeometryReader { viewport in
+            ScrollView(.vertical) {
+                content
+                    // A short state (empty, no results) still centres in the visible area.
+                    .frame(maxWidth: .infinity, minHeight: max(0, viewport.size.height - Self.barClearance),
+                           alignment: showsList ? .top : .center)
+            }
+            .scrollIndicators(.hidden)
+            .scrollBounceBehavior(.always, axes: .vertical)
+            .scrollDismissesKeyboard(.interactively)
             // §2 item 2: "Content scrolls under the floating bottom bar, with bottom inset so the
             // last row clears it."
-            .padding(.bottom, Self.barClearance)
-            .overlay(alignment: .bottom) { bottomBar }
-            .background(Token.layoutBackground)              // §2: "Background `color-layout-background`"
+            .contentMargins(.bottom, Self.barClearance, for: .scrollContent)
+            .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                geometry.contentOffset.y + geometry.contentInsets.top
+            } action: { _, offset in
+                onScrollChange(offset, fingerDown)
+            }
+            .onScrollPhaseChange { _, phase in fingerDown = phase == .interacting }
+        }
+        .overlay(alignment: .bottom) { bottomBar }
+        .background(Token.layoutBackground)              // §2: "Background `color-layout-background`"
     }
 
     // MARK: - §2 content area
+
+    /// The notes list is drawn (top-aligned); every other state is a centred C-132 or blank.
+    private var showsList: Bool { state.phase == .populated && !visibleSections.isEmpty }
 
     @ViewBuilder
     private var content: some View {
@@ -168,7 +205,7 @@ struct LibraryHomeScreen: View {
                 guard state.rowSections.indices.contains(row), state.rowSections[row] == section else {
                     return false
                 }
-                guard !needle.isEmpty else { return true }
+                guard filtersLocally, !needle.isEmpty else { return true }
                 // §3: "filters live by title and body text" — the preview line is the body text
                 // this screen holds (§5).
                 return state.rowTitles[row].localizedCaseInsensitiveContains(needle)
@@ -240,9 +277,9 @@ struct LibraryHomeScreen: View {
             searchEnabled: state.phase == .populated,
             // §3 empty: "The compose circle in C-008 is emphasised (accent fill)".
             composeEmphasis: state.phase == .empty ? .prominent : .regular,
-            onSearchChange: { query = $0 },
+            onSearchChange: { query = $0; onSearchChange($0) },
             onSearchFocusChange: { searchFocused = $0 },
-            onSearchClear: { query = "" },
+            onSearchClear: { query = ""; onSearchChange("") },
             onCompose: onCompose,
             editable: searchEditable
         )

@@ -20,10 +20,12 @@ struct UI2Shell: View {
     @State private var tabBarHeight: CGFloat = 84
     /// action-menu-overlay: the TabBar's Add (+) menu is open.
     @State private var addMenuOpen = false
+    /// notes D24: flushes the note save queue when the network comes back.
+    @State private var notesConnectivity = NotesConnectivity()
 
     /// action-menu-overlay B3: the Add menu's actions, as frame 4717:52460 draws them. B5: none of
     /// their destinations existed in the 2.0 shell at the time. "Invite a member" now opens the invite
-    /// flow (invite-member D2); the other three still only close the menu until their screens land.
+    /// flow (invite-member D2), "Write a note" the note editor (notes D17); the other two still only close the menu.
     static let addMenuActions: [ActionMenuOverlay.ActionItem] = [
         .init(glyph: "c066-record", label: "Record a video"),
         .init(glyph: "c066-microphone", label: "Voice memo"),
@@ -96,8 +98,11 @@ struct UI2Shell: View {
                             actions: Self.addMenuActions,
                             onSelect: { action in
                                 addMenuOpen = false
-                                guard action.label == InviteEntry.rowLabel else { return }  // the other rows land with their screens
-                                InviteEntry.open(on: model.tab, model: $model)
+                                switch action.label {
+                                case InviteEntry.rowLabel: InviteEntry.open(on: model.tab, model: $model)
+                                case NoteEntry.rowLabel: NoteEntry.open(on: model.tab, model: $model)  // notes D17
+                                default: break  // the other rows land with their screens
+                                }
                             },
                             showsDone: false,
                             hairlineAfterLast: false
@@ -130,6 +135,9 @@ struct UI2Shell: View {
         .task {
             PushNotificationManager.shared.clearPendingDeepLink()  // SPEC D17
             await AppState.shared.loadInitialData()                 // SPEC D24
+            // notes D24: unsent note saves go out on launch, and each time the network returns.
+            notesConnectivity.start(queue: .shared)
+            _ = await NoteSaveQueue.shared.flush()
         }
         // SPEC D17: release 1 has no deep-link consumer, so a link set while the shell is
         // mounted (a push tap, a URL, a file open) is dropped rather than left to fire later.
@@ -235,6 +243,9 @@ struct UI2Shell: View {
         case let .bibleChapters(book, flowId): BibleChaptersContainer(book: book, flowId: flowId)
         case let .bibleVerses(book, chapter, flowId): BibleVersesContainer(book: book, chapter: chapter, flowId: flowId)
         case let .bibleReader(book, chapter, verse, flowId): BibleReaderContainer(book: book, chapter: chapter, verse: verse, flowId: flowId)
+        // notes D17: the editor on a fresh note (a new flowId per open) or a stored one.
+        case let .newNote(flowId): NoteEditorContainer(noteId: nil).id(flowId)
+        case let .noteEditor(noteId): NoteEditorContainer(noteId: noteId).id(noteId)
         }
     }
 

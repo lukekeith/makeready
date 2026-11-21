@@ -48,6 +48,8 @@ export const FIXTURE_KIND = {
   programVersion: '0022',
   lessonVersion: '0023',
   contentActivity: '0024',
+  // notes D19: the library-home screen's notes.
+  studyNote: '0025',
 } as const
 
 export type FixtureKind = keyof typeof FIXTURE_KIND

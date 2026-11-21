@@ -18,8 +18,10 @@ final class SectionScrollMorphTests: XCTestCase {
         XCTAssertNil(SectionScrollMorph.target(expansion: 0.5, interacting: true, offset: -50))
     }
 
-    func testOnlyMediaOwnsItsScroll() {
-        XCTAssertEqual(UI2Section.allCases.filter(\.ownsScroll), [.media])
+    /// notes agent walk round 1: Library owns its scroll too, so C-008 floats over the list
+    /// instead of riding at the end of the shell's page scroll.
+    func testLibraryAndMediaOwnTheirScroll() {
+        XCTAssertEqual(UI2Section.allCases.filter(\.ownsScroll), [.library, .media])
     }
 
     func testAScrollOwningSectionShrinksFromTheTopByTheRowsGrowth() {

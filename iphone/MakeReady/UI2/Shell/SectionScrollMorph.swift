@@ -45,6 +45,8 @@ extension EnvironmentValues {
 
 extension UI2Section {
     /// media-page D16: the section draws its own vertical scroll (Media's bottom-anchored, pinch-zoomed
-    /// grid can't nest in the page scroll). Every other section keeps `SectionPageScroll`.
-    var ownsScroll: Bool { self == .media }
+    /// grid can't nest in the page scroll). notes (agent walk round 1): Library too — its C-008 bar
+    /// floats over the list (library-home §2 item 4), which a bar inside the page scroll cannot.
+    /// Every other section keeps `SectionPageScroll`.
+    var ownsScroll: Bool { self == .media || self == .library }
 }

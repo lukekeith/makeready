@@ -121,6 +121,7 @@ describe('layer discovery (D2, D6)', () => {
       'invite-home',
       'invite-member',
       'invites-home',
+      'library-home',
       'media-home',
       'members-home',
       'members-profile',

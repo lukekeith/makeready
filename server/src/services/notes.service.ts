@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma.js'
+import { deriveTitlePreview } from './note-title.js'
 import type {
   StudyNote,
   NoteLink,
@@ -41,6 +42,7 @@ export const NOTE_TYPES = {
   REFLECTION: 'REFLECTION',
   SCRIPTURE_NOTE: 'SCRIPTURE_NOTE',
   QUESTION: 'QUESTION',
+  NOTE: 'NOTE',
 } as const
 
 export const LINK_TYPES = {
@@ -108,6 +110,10 @@ export interface GetNotesOptions {
   // Date filters
   startDate?: Date
   endDate?: Date
+  // Case-insensitive substring filter on content; blank is no filter
+  q?: string
+  // Sort column (always desc, id desc as the tiebreak)
+  orderBy?: 'createdAt' | 'updatedAt'
   // Pagination
   limit?: number
   offset?: number
@@ -249,6 +255,7 @@ export async function createNote(data: CreateNoteData): Promise<NoteResult> {
           userId: data.userId,
           type: data.type,
           content: data.content,
+          ...deriveTitlePreview(data.content),
         },
       })
 
@@ -291,6 +298,8 @@ export async function getNotes(options: GetNotesOptions): Promise<NotesResult> {
       linkRefId,
       startDate,
       endDate,
+      q,
+      orderBy = 'createdAt',
       limit = 50,
       offset = 0,
     } = options
@@ -318,12 +327,15 @@ export async function getNotes(options: GetNotesOptions): Promise<NotesResult> {
       if (endDate) where.createdAt.lte = endDate
     }
 
+    const search = q?.trim()
+    if (search) where.content = { contains: search, mode: 'insensitive' }
+
     // Query with pagination
     const [notes, total] = await Promise.all([
       prisma.studyNote.findMany({
         where,
         include: { links: true },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ [orderBy]: 'desc' }, { id: 'desc' }],
         take: limit,
         skip: offset,
       }),
@@ -553,6 +565,73 @@ export async function getNote(noteId: string): Promise<NoteResult> {
   }
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export type UserNoteResult =
+  | { success: true; data: StudyNoteWithLinks }
+  | { success: false; notFound: true }
+
+/**
+ * Get one active note owned by the user. Missing, inactive, another user's and a non-UUID id are all not found.
+ */
+export async function getUserNote(noteId: string, userId: string): Promise<UserNoteResult> {
+  if (!UUID_RE.test(noteId)) return { success: false, notFound: true }
+  const note = await prisma.studyNote.findFirst({
+    where: { id: noteId, userId, isActive: true },
+    include: { links: true },
+  })
+  if (!note) return { success: false, notFound: true }
+  return { success: true, data: note as StudyNoteWithLinks }
+}
+
+/**
+ * Whether the stored updatedAt is later than the base the client echoed (D23). A base with fractional seconds
+ * compares at ms; one without compares at whole seconds.
+ */
+export function isStomped(stored: Date, baseUpdatedAt: string): boolean {
+  const base = Date.parse(baseUpdatedAt)
+  if (/T[^Z+-]*\.\d+/.test(baseUpdatedAt)) return stored.getTime() > base
+  return Math.floor(stored.getTime() / 1000) > Math.floor(base / 1000)
+}
+
+/**
+ * Update an own, active note under a row lock so a concurrent DELETE cannot be overwritten (D23).
+ * The write always happens; `stomped` only reports that the stored copy was newer than the base (D7).
+ */
+export async function updateUserNote(input: {
+  noteId: string
+  userId: string
+  content: string
+  baseUpdatedAt?: string
+}): Promise<{ success: true; data: StudyNoteWithLinks; stomped: boolean } | { success: false; notFound: true }> {
+  const { noteId, userId, content, baseUpdatedAt } = input
+  if (!UUID_RE.test(noteId)) return { success: false, notFound: true }
+  return prisma.$transaction(async (tx) => {
+    const [row] = await tx.$queryRaw<{ updatedAt: Date; userId: string | null; isActive: boolean }[]>`
+      SELECT "updatedAt", "userId", "isActive" FROM study_notes WHERE id = ${noteId}::uuid FOR UPDATE`
+    if (!row || row.userId !== userId || !row.isActive) return { success: false as const, notFound: true as const }
+    const stomped = baseUpdatedAt ? isStomped(row.updatedAt, baseUpdatedAt) : false
+    const note = await tx.studyNote.update({
+      where: { id: noteId },
+      data: { content, ...deriveTitlePreview(content), updatedAt: new Date() },
+      include: { links: true },
+    })
+    return { success: true as const, data: note as StudyNoteWithLinks, stomped }
+  })
+}
+
+/**
+ * Soft delete an own note. Already-inactive own notes succeed again (idempotent for queue retries).
+ */
+export async function deleteUserNote(
+  noteId: string,
+  userId: string
+): Promise<{ success: true } | { success: false; notFound: true }> {
+  if (!UUID_RE.test(noteId)) return { success: false, notFound: true }
+  const { count } = await prisma.studyNote.updateMany({ where: { id: noteId, userId }, data: { isActive: false } })
+  return count > 0 ? { success: true } : { success: false, notFound: true }
+}
+
 /**
  * Update a note's content
  */
@@ -563,7 +642,7 @@ export async function updateNote(
   try {
     const note = await prisma.studyNote.update({
       where: { id: noteId },
-      data: { content, updatedAt: new Date() },
+      data: { content, ...deriveTitlePreview(content), updatedAt: new Date() },
       include: { links: true },
     })
 
