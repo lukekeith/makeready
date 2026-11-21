@@ -326,6 +326,17 @@ private struct NoteStripAccessory: View {
     }
 }
 
+/// The docked accessory's container. While C-015 is open the strip is hidden and C-015 — drawn by
+/// the screen, in the app's window — covers the strip's row; the keyboard's window sits above it,
+/// so the hidden strip must let those touches through to the menu beneath (agent walk round 1).
+private final class NoteAccessoryContainer: UIView {
+    var passesTouches: () -> Bool = { false }
+
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        passesTouches() ? nil : super.hitTest(point, with: event)
+    }
+}
+
 // MARK: - The text view
 
 /// The note's `UITextView`. Paste keeps only B/I/U/S and never converts markdown (OQ-C-001-005).
@@ -437,6 +448,16 @@ private struct NoteTextViewRepresentable: UIViewRepresentable {
         private var lastCanUndo = false
         private var applying = false
         private let stripState = NoteStripState()
+        /// The inline set a collapsed-caret B/I/U/S toggle chose, and the caret it belongs to.
+        /// UIKit rebuilds `typingAttributes` after each keystroke and does not keep this view's
+        /// custom `inlineKey` (agent walk round 1: only the first typed character came out bold),
+        /// so the coordinator owns the caret run itself: every insertion at that caret takes the
+        /// set, and the caret moving anywhere else ends it.
+        private var caretInline: Set<InlineStyle>?
+        private var caretLocation = -1
+        /// The range an in-flight keystroke inserts at `caretLocation`, set in
+        /// `shouldChangeTextIn` and styled in `textViewDidChange`.
+        private var pendingInsert: NSRange?
         /// Retained so the docked C-002 keeps updating; the text view holds only its view.
         private var accessoryHost: UIHostingController<NoteStripAccessory>?
 
@@ -451,10 +472,14 @@ private struct NoteTextViewRepresentable: UIViewRepresentable {
                 onListMenu: { [weak self] in self?.editor.onListMenu($0) }
             ))
             host.view.backgroundColor = .clear
-            host.view.frame = CGRect(x: 0, y: 0, width: 0, height: NoteGeometry.stripHeight)
-            host.view.autoresizingMask = [.flexibleWidth]
+            let container = NoteAccessoryContainer(frame: CGRect(x: 0, y: 0, width: 0, height: NoteGeometry.stripHeight))
+            container.autoresizingMask = [.flexibleWidth]
+            container.passesTouches = { [weak self] in self?.stripState.listMenuPresented ?? false }
+            host.view.frame = container.bounds
+            host.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            container.addSubview(host.view)
             accessoryHost = host
-            return host.view
+            return container
         }
 
         func load(_ text: AttributedString) {
@@ -518,6 +543,11 @@ private struct NoteTextViewRepresentable: UIViewRepresentable {
         // MARK: Edits out
 
         func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+            if caretInline != nil, range.length == 0, range.location == caretLocation, !text.isEmpty {
+                pendingInsert = NSRange(location: range.location, length: (text as NSString).length)
+            } else {
+                pendingInsert = nil
+            }
             // §2 behaviour 2 (02 §2): Return on an empty list item removes the list style from
             // that paragraph instead of inserting a new item.
             guard text == "\n", range.length == 0 else { return true }
@@ -534,6 +564,7 @@ private struct NoteTextViewRepresentable: UIViewRepresentable {
                 NoteDisplay.normalize(storage)
             }
             textView.typingAttributes = NoteDisplay.typingAttributes(paragraph: .body, inline: inline)
+            pendingInsert = nil
             emitText()
             return false
         }
@@ -542,13 +573,38 @@ private struct NoteTextViewRepresentable: UIViewRepresentable {
             // Never restyle under marked (IME) text.
             if textView.markedTextRange == nil {
                 let selection = textView.selectedRange
-                NoteDisplay.normalize(textView.textStorage)
+                let storage = textView.textStorage
+                if let inserted = pendingInsert, let styles = caretInline,
+                   NSMaxRange(inserted) <= storage.length {
+                    // The caret run (§2 behaviour 3): what was typed takes the toggled set.
+                    if styles.isEmpty {
+                        storage.removeAttribute(NoteDisplay.inlineKey, range: inserted)
+                    } else {
+                        storage.addAttribute(NoteDisplay.inlineKey, value: NoteDisplay.encode(styles), range: inserted)
+                    }
+                    caretLocation = NSMaxRange(inserted)
+                }
+                pendingInsert = nil
+                NoteDisplay.normalize(storage)
                 if textView.selectedRange != selection { textView.selectedRange = selection }
+                if let styles = caretInline, textView.selectedRange == NSRange(location: caretLocation, length: 0) {
+                    let paragraph = NoteDisplay.paragraphStyle(in: storage, at: max(0, caretLocation - 1))
+                    textView.typingAttributes = NoteDisplay.typingAttributes(paragraph: paragraph, inline: styles)
+                }
             }
             emitText()
         }
 
         func textViewDidChangeSelection(_ textView: UITextView) {
+            // The caret run ends when the caret goes anywhere but where typing leaves it.
+            if caretInline != nil {
+                let selection = textView.selectedRange
+                let typedTo = pendingInsert.map { NSMaxRange($0) }
+                if selection.length > 0 || (selection.location != caretLocation && selection.location != typedTo) {
+                    caretInline = nil
+                    caretLocation = -1
+                }
+            }
             refreshActiveStyles()
             guard !applying else { return }
             editor.onSelectionChange(textView.selectedRange)
@@ -577,7 +633,10 @@ private struct NoteTextViewRepresentable: UIViewRepresentable {
         private func activeStyles() -> Set<InlineStyle> {
             guard let textView else { return [] }
             let selection = textView.selectedRange
-            guard selection.length > 0 else { return NoteDisplay.decode(textView.typingAttributes[NoteDisplay.inlineKey]) }
+            guard selection.length > 0 else {
+                if let caretInline, selection.location == caretLocation { return caretInline }
+                return NoteDisplay.decode(textView.typingAttributes[NoteDisplay.inlineKey])
+            }
             var result: Set<InlineStyle>?
             textView.textStorage.enumerateAttribute(NoteDisplay.inlineKey, in: selection) { value, _, _ in
                 let styles = NoteDisplay.decode(value)
@@ -612,8 +671,10 @@ private struct NoteTextViewRepresentable: UIViewRepresentable {
                 textView.selectedRange = selection
                 emitText()
             } else {
-                var styles = NoteDisplay.decode(textView.typingAttributes[NoteDisplay.inlineKey])
+                var styles = activeStyles()
                 if adding { styles.insert(style) } else { styles.remove(style) }
+                caretInline = styles
+                caretLocation = selection.location
                 let paragraph = NoteParagraphStyle(rawValue: textView.typingAttributes[NoteDisplay.paragraphKey] as? String ?? "") ?? .body
                 textView.typingAttributes = NoteDisplay.typingAttributes(paragraph: paragraph, inline: styles)
                 refreshActiveStyles()
