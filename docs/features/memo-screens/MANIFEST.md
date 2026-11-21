@@ -1,7 +1,7 @@
 size: md
-state: audited
+state: planned
 next: /builder:resume --path docs/features/memo-screens
-head: 26343034
+head: 36dd5565
 ticket: none
 branch: builder/memo-screens
 pr: none
