@@ -74,6 +74,12 @@ struct LibraryHomeScreen: View {
     var onOpenNote: (Int) -> Void = { _ in }
     /// §3 "Tap the compose circle: opens a new note in the editor".
     var onCompose: () -> Void = {}
+    /// The search text after every change, and "" when the capsule is cleared — for a caller that
+    /// searches elsewhere (R-01 change callback; the local query below still updates).
+    var onSearchChange: (String) -> Void = { _ in }
+    /// `false` when the caller owns the filtering: every row it passed is shown, with no needle
+    /// filter (search-no-results still shows when its rows are empty and the query is non-empty).
+    var filtersLocally: Bool = true
 
     // §3 search-active: "The list filters live by title and body text" — UI-only, seeded from
     // `state` (R-31: search text is ephemeral screen state).
@@ -84,12 +90,16 @@ struct LibraryHomeScreen: View {
         state: State,
         searchEditable: Bool = true,
         onOpenNote: @escaping (Int) -> Void = { _ in },
-        onCompose: @escaping () -> Void = {}
+        onCompose: @escaping () -> Void = {},
+        onSearchChange: @escaping (String) -> Void = { _ in },
+        filtersLocally: Bool = true
     ) {
         self.state = state
         self.searchEditable = searchEditable
         self.onOpenNote = onOpenNote
         self.onCompose = onCompose
+        self.onSearchChange = onSearchChange
+        self.filtersLocally = filtersLocally
         _query = SwiftUI.State(initialValue: state.searchText)
         _searchFocused = SwiftUI.State(initialValue: state.searchFocused)
     }
@@ -168,7 +178,7 @@ struct LibraryHomeScreen: View {
                 guard state.rowSections.indices.contains(row), state.rowSections[row] == section else {
                     return false
                 }
-                guard !needle.isEmpty else { return true }
+                guard filtersLocally, !needle.isEmpty else { return true }
                 // §3: "filters live by title and body text" — the preview line is the body text
                 // this screen holds (§5).
                 return state.rowTitles[row].localizedCaseInsensitiveContains(needle)
@@ -240,9 +250,9 @@ struct LibraryHomeScreen: View {
             searchEnabled: state.phase == .populated,
             // §3 empty: "The compose circle in C-008 is emphasised (accent fill)".
             composeEmphasis: state.phase == .empty ? .prominent : .regular,
-            onSearchChange: { query = $0 },
+            onSearchChange: { query = $0; onSearchChange($0) },
             onSearchFocusChange: { searchFocused = $0 },
-            onSearchClear: { query = "" },
+            onSearchClear: { query = ""; onSearchChange("") },
             onCompose: onCompose,
             editable: searchEditable
         )
