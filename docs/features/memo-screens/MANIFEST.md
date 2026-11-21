@@ -1,11 +1,11 @@
 size: md
-state: aligned
+state: audited
 next: /builder:resume --path docs/features/memo-screens
-head: 343ff090
+head: 26343034
 ticket: none
 branch: builder/memo-screens
 pr: none
-apps: iphone
+apps: server+iphone
 contract: none
 hold: none
 go-ahead: none

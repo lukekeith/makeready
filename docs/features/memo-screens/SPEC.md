@@ -72,13 +72,14 @@ Reference material: `analysis/screens-brief.md` (this spec's brief to d2m), and 
 
 | App | In scope | What changes | Section |
 |---|---|---|---|
-| server | ⬜ | No change. `/api/memos` (list with `q`, detail with a presigned audio `url`, rename, delete) already serves every screen here, scoped to `userId` (engine D8, D17, D31) | — |
+| server | ✅ | **Fixtures only** (house rule: a feature that wires a UI 2.0 screen adds its `full` fixture layer) — `library-home` gains voice memos and a new `memo-detail` layer (D19). No route, service, schema or contract change: `/api/memos` (list with `q`, detail with a presigned audio `url`, rename, delete) already serves every screen here, scoped to `userId` (engine D8, D17, D31) | §server |
 | client | ⬜ | No web memo surface in v1 (engine D19). No web code calls `/api/memos` | — |
 | iphone | ✅ | Wire d2m's recorder sheet, Library memo rows, memo-detail and SavedToast. `MemoRecorderEngine.discard()`, a memo player, Library's merged list and search, + menu entry, `audio` background mode | §iphone |
 | capture | ⬜ | d2m writes its own preview fixtures. No capture-tool change | — |
 
-**Sequencing:** d2m builds the views (D1). The owner approves the captures. Then the iPhone wiring
-runs on `feature/memo` and is followed by the walk. There's no producer phase, so the contract stays `none`.
+**Sequencing:** d2m builds the views (D1). The owner approves the captures. Then the server fixtures
+phase (data only), then the iPhone wiring on `feature/memo`, then the walk. The server phase changes no
+endpoint, so the contract stays `none`.
 
 **Backward compatibility:** the released 2.0.0 build doesn't contain this code. It keeps the inert
 menu item. The server is unchanged.
@@ -114,14 +115,18 @@ menu item. The server is unchanged.
 | D5 | Memos in Library | `library-home` shows notes and memos in one list under its existing date sections. Memos sort by `recordedAt` and notes by `updatedAt`, merged newest first, using the same section rule as notes D3. A memo row (C-006) shows a mic glyph, title, duration, date label (the notes rule) and a preview slot: the transcript preview when `transcriptStatus: ready`; **Transcribing…** when `pending`; **Audio only** when `failed` or `none`; **Waiting to upload** for a memo still only in the local queue. The search box runs `GET /api/notes?q=` and `GET /api/memos?q=` in parallel and shows the merged result with the same ordering. Not a Notes / Memos switch (extra control); not a separate memos block (needs a memo list) | user 2026-11-21 |
 | D6 | After finishing | On stop or Done the sheet dismisses and the user stays on the screen they recorded from. SavedToast ("Saved to Library · View") shows above the TabBar for 4 s, and **View** pushes `memo-detail` for that memo on the current tab. Not opening the memo page; not jumping to Library: both pull the user away from where they were | user 2026-11-21 |
 | D7 | Discard | The expanded `⋯` menu holds **Discard recording**, which asks first ("Discard · Keep recording"). Confirming calls the new `MemoRecorderEngine.discard()`: it stops capture and the live transcriber, deletes the `.caf` and its draft manifest, enqueues nothing and dismisses with no toast. Not "always save, delete later": the recorder starts on open, so stray recordings are likely | user 2026-11-21 |
-| D8 | Rename and delete | On `memo-detail`, tapping the title edits it in place: 1–120 chars after trim (engine D11). Commit on return or on leaving the field calls `MemoActions.rename`; an empty title reverts. `⋯ → Delete` asks first ("Delete · Cancel"), calls `MemoActions.softDelete`, then pops to the previous screen. The memo leaves Library in the same call (engine D39) | user 2026-11-21 |
+| D8 | Rename and delete | On `memo-detail`, tapping the title — or `⋯ → Rename`, which the built view also offers — edits it in place: 1–120 chars after trim (engine D11). Commit on return or on leaving the field calls `MemoActions.rename`; an empty title reverts. `⋯ → Delete` asks first ("Delete · Cancel"), calls `MemoActions.softDelete`, then pops to the previous screen. The memo leaves Library in the same call (engine D39) | user 2026-11-21 |
 | D9 | Who can see a memo | Only the leader who recorded it. That's already enforced: every `/api/memos` query is scoped to `userId`, and another user's id returns 404 whatever their org role (engine D8, D19). This spec adds no sharing, link or org-visible surface | user 2026-11-21 |
 | D10 | Recording in the background | Add `audio` to `UIBackgroundModes` in `iphone/MakeReady/Info.plist`, so recording continues when the screen locks or the app backgrounds. This is the first build that records (engine D27). Not leaving it out: a memo would stop at lock | (assumed at brainstorm) 2026-11-21 |
 | D11 | States | Microphone permission denied (engine `micPermissionDenied`): C-018's `mic-denied` state, with **Open Settings** opening `UIApplication.openSettingsURLString`, and no memo created. `speechUnavailable`: recording proceeds and the server transcribes (engine D5). The 3 h limit (`durationLimitReached`) stops and saves as Done does, with the toast. Offline: the memo is saved in the queue and shows **Waiting to upload** in Library, and `memo-detail` plays the local file. A `writeFailed` error routes through `/ios-error-surface` as a banner | (assumed at brainstorm) 2026-11-21 |
 | D12 | Left out from the reference | Not built: the video's ⊕ layered take, transcript and EQ buttons on the expanded sheet; the Siri tip; Select mode; Edit Recording; folders; sharing; the memo player inside the row | (assumed at brainstorm) 2026-11-21 |
 | D13 | Playback | `MemoPlayer` (new, `Services/Audio/`) wraps `AVPlayer`. It plays the presigned `url` from `GET /api/memos/:id` and re-fetches the detail when `urlExpiresAt` has passed or playback fails with HTTP 403. For a memo still in the queue it plays the local `.m4a`. It sets the audio session to `.playback` while playing and restores it on leaving `memo-detail`. It publishes `elapsed`, `duration` and `isPlaying`, and offers ±15 s seek clamped to [0, duration]. Playback stops when the memo page is popped | (assumed at spec) 2026-11-21 |
 | D14 | One recording at a time | While the sheet is up, the + menu's Voice memo item is disabled. Starting a memo while a note editor is open is allowed: the sheet covers it and the editor keeps its text | (assumed at spec) 2026-11-21 |
-| D16 | A memo whose `transcriptStatus` decodes as `unknown` (a status a later server adds) | OPEN — recommended: render it as `transcriptStatus: none` does — C-006 preview **Audio only**, memo-detail transcript `unavailable`, playback unaffected — because a released build must show something stable for a status it can't read; rejected: **Transcribing…**, which would promise a transcript that may never come | align 2026-11-21 |
+| D16 | A memo whose `transcriptStatus` decodes as `unknown` (a status a later server adds) | Render it as `transcriptStatus: none` does — C-006 preview **Audio only**, memo-detail transcript `unavailable`, playback unaffected — because a released build must show something stable for a status it can't read; rejected: **Transcribing…**, which would promise a transcript that may never come | auto (recommended) 2026-11-21 |
+| D17 | A memo still only in the upload queue, opened from Library or the toast | `UI2Route.memoDetail(memoId:)` carries the server id, or `local:<localId>` for a queued memo. `MemoDetailContainer` resolves a `local:` id from `MemoUploadController.pending()` and plays its `.m4a` (D13); the transcript shows the on-device `Transcript` when present, else `transcribing`. When the item gains a `serverId` (upload completed) the container switches to `MemoActions.loadMemo(id:)` without leaving the page. On a queued memo, **Rename** rewrites the manifest's `title` (made `var`) so the create POST carries it, or calls `MemoActions.rename` when `serverId` is already set; **Delete** calls a new `MemoUploadController.remove(localId:)` that deletes the `.m4a` and manifest and, when `serverId` is set, also `MemoActions.softDelete`. Rejected: hiding rename/delete until upload — offline memos would sit un-deletable | auto (recommended) 2026-11-21 |
+| D18 | Library shows every memo, not the first page | `MemoActions.loadMemos(q:)` pages `GET /api/memos` with `limit=100` and `offset += 100` until it has `total` rows (or a page comes back empty), as `NoteActions.load` pages notes; only the unfiltered load replaces `AppState.voiceMemos`. Rejected: one page of 50 — a leader past 50 memos would silently lose the older ones from Library | auto (recommended) 2026-11-21 |
+| D19 | Walk fixtures | `server/fixtures/screens/library-home.ts` `full` adds 5 `voice_memos` for `FIXTURE_USER_ID`, one per D5 preview state and spread across the note buckets: `ready` with segments (1 h ago), `pending` (yesterday), `failed` (4 days), `none` (15 days), `ready` (45 days). New `server/fixtures/screens/memo-detail.ts` `full` gives the 1 h `ready` memo 3 `transcriptSegments` and uploads a short committed `.m4a` to the walk bucket under the key a real upload uses (only when `objectExists` is false, as `images.ts` does). The `pending` and `failed` rows carry `transcriptAttempts: TRANSCRIPT_MAX_ATTEMPTS` so the retry sweeper (`memoIdsDueForTranscriptRetry`) never claims them. Ids from `fixtureId('voiceMemo', n)` (new prefix in `ids.ts`); dates from `ctx`; the rows cascade away with the fixture user in `wipe.ts`. Rejected: no fixtures — the house rule requires them and the walk could not see any memo state but the one it records | auto (recommended) 2026-11-21 |
+
 | D15 | Where it lands | The build branches from and merges into `feature/memo`, where the engine lives. d2m's views are committed to `main` first, as notes did, then merged into `feature/memo` before the wiring | (assumed at spec) 2026-11-21 |
 
 ## Contract
@@ -161,7 +166,15 @@ unsent memos as `MemoUploadController` manifests + `.m4a`; an in-progress record
 manifest + `.caf` (engine D16 salvage). Playback position, the sheet's detent and the toast are session-only
 by design — nothing persists without being a field (no N1 miss).
 
+## server
+
+Fixtures only (D19): `server/fixtures/screens/library-home.ts` gains the memo rows; new
+`server/fixtures/screens/memo-detail.ts`; `ids.ts` gains the `voiceMemo` prefix; a short committed
+`server/fixtures/audio/memo-detail.m4a`. `server/fixtures/README.md` lists the new layer. No route,
+service or schema file changes.
+
 ## iphone
+
 
 All wiring lives under `MakeReady/UI2/` and `MakeReady/Services/Audio/`. d2m's views (D1) are used
 as given.
@@ -178,12 +191,16 @@ as given.
   - **Paragraphs:** built from `transcriptSegments`, or a single paragraph from `transcript` when segments are empty.
   - **Rename and delete:** D8.
 - **`Services/Audio/MemoPlayer.swift`** (new, D13).
+- **Queued memos on memo-detail** (D17): `local:` route ids, `MemoUploadController.remove(localId:)`, a `var title` on `MemoQueueItem`.
+- **`MemoActions.loadMemos(q:)`** pages to `total` (D18).
 - **SavedToast** is hosted by `UI2Shell` above the TabBar (D6).
 - **`Info.plist`:** add `audio` to `UIBackgroundModes` (D10).
 - **Project files:** new files get explicit `pbxproj` references, then `ruby iphone/scripts/capture-targets.rb`.
 - **Recipes:** `/present-overlay` (the sheet, menus and confirms), `/push-page`/`/nav-route` (memoDetail), `/ios-error-surface` (D11), `/transition-review` (the sheet's drag and the toast).
 
 ## Testing
+
+**server (vitest):** the fixture layers — `full` writes the 5 memos with the D19 statuses and attempts, `memo-detail` uploads its audio once, and a reset wipes them.
 
 **iphone (XCTest, `MakeReadyCaptureTests`):**
 - **The engine's `discard()`:** fed an injected PCM file, it leaves no `.caf`, no draft manifest and no queue item.
@@ -200,6 +217,9 @@ as given.
   - **Mic denied** creates no memo.
   - **Voice memo** is disabled while the sheet is up.
 - **Rename and delete:** an empty title reverts, and delete removes the memo from Library.
+- **Queued memos (D17):** rename rewrites the manifest title; delete removes the `.m4a` and manifest; a `local:` page switches to the server memo when the upload completes.
+- **Paging (D18):** 130 memos over two pages all reach `AppState.voiceMemos`.
+- **`unknown` status (D16):** maps to Audio only / unavailable.
 
 **Walk (the dev or agent-walk env, Fixtures identity):**
 1. **The engine D4 checks, on a real device** (human walk only):
@@ -235,3 +255,11 @@ as given.
 | T4 | iphone: `MemoPlayer` (D13) and a local-file accessor on `MemoUploadController` for a queued memo's `.m4a` (`MemoQueueItem.fileName` in the queue directory) | trailing |
 | T5 | iphone: merged search — `NoteActions.load(q:)` ∥ `MemoActions.loadMemos(q:)`, one failing still shows the other (D5) | trailing |
 | T6 | iphone: `MemoRecorderEngine.discard()` (D7) | trailing |
+| A1 | Fixtures house rule: wiring `library-home`'s memo rows and the new `memo-detail` screen needs their `full` layers; none has a memo today (`server/fixtures/screens/library-home.ts:11-35` is notes only). §Apps had server ⬜ — corrected to ✅ fixtures-only | D19; server phase |
+| A2 | `MemoActions.loadMemos` fetches one page (`limit=pageSize&offset=0`, `MemoActions.swift:24-31`), so Library would drop memos past the first page | D18 |
+| A3 | A queued memo has no server id, so `memoDetail(memoId:)`, `rename` and `softDelete` had no target for it; D11 promised it plays locally | D17 |
+| A4 | The built memo-detail `⋯` menu holds Rename and Delete (`MemoDetailScreen.swift:368-370`); D8 named only Delete | D8 corrected in place |
+| A5 | Fixture memos left `pending`/`failed` would be claimed by the transcript retry sweeper (`memos.service.ts:256-268`) and flip state mid-walk | D19 (attempts at max) |
+| A6 | Render vs design: every in-scope item is d2m-built from references (no Figma, `no-figma`), so no frozen snapshot exists to diff; the owner approved the captures 2026-11-21 (b02bf689). d2m reports no open question on library-home, memo-detail, C-004/006/009/011/012/014/016/017/018/141 | none needed |
+| R1 | repoint (iphone): the + menu's Voice memo item ← `iphone/MakeReady/UI2/Shell/UI2Shell.swift:96-104` (closes the menu only). No surface is REPLACED or ABSORBED; nothing else to repoint | plan: the + menu task |
+| A7 | `pending`-memo fixture on the walk server: with no Groq key the server can't transcribe, so the walk's own recorded memo stays Transcribing… unless the on-device transcript arrives | build-time risk: the agent walk's Library item accepts Transcribing… or a preview |
