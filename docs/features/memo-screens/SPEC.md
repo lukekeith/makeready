@@ -1,4 +1,5 @@
 # memo-screens — spec
+> 🤖 AGENT SIGNED OFF 2026-11-21 — 870a4859 · agent walk round 3 · not human-tested · evidence: .builder/memo-screens/agent-walk/round-3/
 > md · ticket: none · the voice-memo screens on the memo engine: + menu recorder sheet, memos in Library, memo page
 
 ## Idea
@@ -267,23 +268,6 @@ as given.
 | A6 | Render vs design: every in-scope item is d2m-built from references (no Figma, `no-figma`), so no frozen snapshot exists to diff; the owner approved the captures 2026-11-21 (b02bf689). d2m reports no open question on library-home, memo-detail, C-004/006/009/011/012/014/016/017/018/141 | none needed |
 | R1 | repoint (iphone): the + menu's Voice memo item ← `iphone/MakeReady/UI2/Shell/UI2Shell.swift:96-104` (closes the menu only). No surface is REPLACED or ABSORBED; nothing else to repoint | plan: the + menu task |
 | A7 | `pending`-memo fixture on the walk server: with no Groq key the server can't transcribe, so the walk's own recorded memo stays Transcribing… unless the on-device transcript arrives | build-time risk: the agent walk's Library item accepts Transcribing… or a preview |
-
-## Plan
-
-The plan, task by task: `docs/features/memo-screens/PLAN.md` (§PLAN.md).
-
-- Phase 1 · Task 1 · library-home memo rows
-- Phase 1 · Task 2 · memo-detail fixture layer with its audio
-- Phase 2 · Task 3 · `MemoRecorderEngine.discard()`
-- Phase 2 · Task 4 · queued memos — rename, remove, file, completed ids
-- Phase 2 · Task 5 · `MemoActions.loadMemos` pages to `total`
-- Phase 2 · Task 6 · `MemoPlayer`
-- Phase 2 · Task 7 · Library merge — notes and memos in one sectioned list, merged search
-- Phase 2 · Task 8 · memo-detail mapper
-- Phase 3 · Task 9 · memo-detail page — destination, model and container
-- Phase 3 · Task 10 · Library container shows memos and searches both
-- Phase 3 · Task 11 · the recorder session and sheet container
-- Phase 3 · Task 12 · + → Voice memo, and the SavedToast
 
 ## Fixes
 
