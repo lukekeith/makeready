@@ -510,6 +510,7 @@
 		6FF5240507E23A302F23BE19 /* PlayfairDisplay-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 3D8E062A659A942665E8BCA7 /* PlayfairDisplay-Italic.ttf */; };
 		7034D1EC10B872CF7F107F03 /* PlayfairDisplay-BoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 51910D552B913F75B59AF02D /* PlayfairDisplay-BoldItalic.ttf */; };
 		70845A812864D145B087A16C /* ActivityScreenshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63D8339CD187337F5E10F85F /* ActivityScreenshot.swift */; };
+		7096DF030356475E66443F87 /* MemoEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MEN0000000000000001 /* MemoEntry.swift */; };
 		70CC8E7E18EF993294782672 /* PlayfairDisplay-MediumItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 2D548963EF90B433BEEF5C2C /* PlayfairDisplay-MediumItalic.ttf */; };
 		70E87E0BD264DDA9B7A7F493 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 280805AC8E1F4024BA7D665C /* Foundation.framework */; };
 		7134E3F877546801BC984937 /* TrendIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 975627A655EA5CE4637D47EE /* TrendIndicator.swift */; };
@@ -1245,6 +1246,8 @@
 		L1BH0MDM0000000000000002 /* MemoDetailModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MDM0000000000000001 /* MemoDetailModel.swift */; };
 		L1BH0MDM0000000000000004 /* MemoDetailContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MDM0000000000000003 /* MemoDetailContainer.swift */; };
 		L1BH0MDM0000000000000006 /* MemoDetailModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MDM0000000000000005 /* MemoDetailModelTests.swift */; };
+		L1BH0MEN0000000000000002 /* MemoEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MEN0000000000000001 /* MemoEntry.swift */; };
+		L1BH0MEN0000000000000004 /* MemoEntryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MEN0000000000000003 /* MemoEntryTests.swift */; };
 		L1BH0RSE0000000000000002 /* RecorderSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0RSE0000000000000001 /* RecorderSession.swift */; };
 		L1BH0RSE0000000000000004 /* RecorderSheetContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0RSE0000000000000003 /* RecorderSheetContainer.swift */; };
 		L1BH0RSE0000000000000006 /* RecorderSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0RSE0000000000000005 /* RecorderSessionTests.swift */; };
@@ -2085,6 +2088,8 @@
 		L1BH0MDM0000000000000001 /* MemoDetailModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MemoDetailModel.swift; path = Containers/Memo/MemoDetailModel.swift; sourceTree = "<group>"; };
 		L1BH0MDM0000000000000003 /* MemoDetailContainer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MemoDetailContainer.swift; path = Containers/Memo/MemoDetailContainer.swift; sourceTree = "<group>"; };
 		L1BH0MDM0000000000000005 /* MemoDetailModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MemoDetailModelTests.swift; sourceTree = "<group>"; };
+		L1BH0MEN0000000000000001 /* MemoEntry.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MemoEntry.swift; path = Containers/Memo/MemoEntry.swift; sourceTree = "<group>"; };
+		L1BH0MEN0000000000000003 /* MemoEntryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MemoEntryTests.swift; sourceTree = "<group>"; };
 		L1BH0RSE0000000000000001 /* RecorderSession.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecorderSession.swift; path = Containers/Memo/RecorderSession.swift; sourceTree = "<group>"; };
 		L1BH0RSE0000000000000003 /* RecorderSheetContainer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecorderSheetContainer.swift; path = Containers/Memo/RecorderSheetContainer.swift; sourceTree = "<group>"; };
 		L1BH0RSE0000000000000005 /* RecorderSessionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RecorderSessionTests.swift; sourceTree = "<group>"; };
@@ -2370,6 +2375,7 @@
 				L1BH0MDM0000000000000003 /* MemoDetailContainer.swift */,
 				L1BH0MDM0000000000000001 /* MemoDetailModel.swift */,
 				L1BH0RSE0000000000000001 /* RecorderSession.swift */,
+				L1BH0MEN0000000000000001 /* MemoEntry.swift */,
 				L1BH0RSE0000000000000003 /* RecorderSheetContainer.swift */,
 				N14F00000000000000000001 /* NoteEditorContainer.swift */,
 				N14F10000000000000000001 /* NoteEntry.swift */,
@@ -2813,6 +2819,7 @@
 				L1BH0MAP0000000000000023 /* MemoDetailMapperTests.swift */,
 				L1BH0MDM0000000000000005 /* MemoDetailModelTests.swift */,
 				L1BH0RSE0000000000000005 /* RecorderSessionTests.swift */,
+				L1BH0MEN0000000000000003 /* MemoEntryTests.swift */,
 				N14T00000000000000000001 /* NoteEditorContainerTests.swift */,
 				F0E957FF286203F1E692E2E8 /* NoteAutosaveControllerTests.swift */,
 				E9D16B4F5EF90E16BC941277 /* MemoModelsTests.swift */,
@@ -4187,6 +4194,7 @@
 				L1BH0MAP0000000000000024 /* MemoDetailMapperTests.swift in Sources */,
 				L1BH0MDM0000000000000006 /* MemoDetailModelTests.swift in Sources */,
 				L1BH0RSE0000000000000006 /* RecorderSessionTests.swift in Sources */,
+				L1BH0MEN0000000000000004 /* MemoEntryTests.swift in Sources */,
 				N14T00000000000000000002 /* NoteEditorContainerTests.swift in Sources */,
 				84E61931CABE68F71A1F1B98 /* NoteAutosaveControllerTests.swift in Sources */,
 				7FE5CA828FA57FA6F2EE03DA /* MemoModelsTests.swift in Sources */,
@@ -4550,6 +4558,7 @@
 				L1BH0MDM0000000000000002 /* MemoDetailModel.swift in Sources */,
 				L1BH0MDM0000000000000004 /* MemoDetailContainer.swift in Sources */,
 				L1BH0RSE0000000000000002 /* RecorderSession.swift in Sources */,
+				L1BH0MEN0000000000000002 /* MemoEntry.swift in Sources */,
 				L1BH0RSE0000000000000004 /* RecorderSheetContainer.swift in Sources */,
 				N14B00000000000000000002 /* NoteEditorContainer.swift in Sources */,
 				N14B10000000000000000002 /* NoteEntry.swift in Sources */,
@@ -5244,6 +5253,7 @@
 				10FD03F4E987AB5A25C52531 /* MemoDetailContainer.swift in Sources */,
 				BF74EB16308AA9A284841BEA /* RecorderSession.swift in Sources */,
 				243A83E1F00699D1FAB9B976 /* RecorderSheetContainer.swift in Sources */,
+				7096DF030356475E66443F87 /* MemoEntry.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
