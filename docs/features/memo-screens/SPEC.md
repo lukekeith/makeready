@@ -121,6 +121,7 @@ menu item. The server is unchanged.
 | D12 | Left out from the reference | Not built: the video's ⊕ layered take, transcript and EQ buttons on the expanded sheet; the Siri tip; Select mode; Edit Recording; folders; sharing; the memo player inside the row | (assumed at brainstorm) 2026-11-21 |
 | D13 | Playback | `MemoPlayer` (new, `Services/Audio/`) wraps `AVPlayer`. It plays the presigned `url` from `GET /api/memos/:id` and re-fetches the detail when `urlExpiresAt` has passed or playback fails with HTTP 403. For a memo still in the queue it plays the local `.m4a`. It sets the audio session to `.playback` while playing and restores it on leaving `memo-detail`. It publishes `elapsed`, `duration` and `isPlaying`, and offers ±15 s seek clamped to [0, duration]. Playback stops when the memo page is popped | (assumed at spec) 2026-11-21 |
 | D14 | One recording at a time | While the sheet is up, the + menu's Voice memo item is disabled. Starting a memo while a note editor is open is allowed: the sheet covers it and the editor keeps its text | (assumed at spec) 2026-11-21 |
+| D16 | A memo whose `transcriptStatus` decodes as `unknown` (a status a later server adds) | OPEN — recommended: render it as `transcriptStatus: none` does — C-006 preview **Audio only**, memo-detail transcript `unavailable`, playback unaffected — because a released build must show something stable for a status it can't read; rejected: **Transcribing…**, which would promise a transcript that may never come | align 2026-11-21 |
 | D15 | Where it lands | The build branches from and merges into `feature/memo`, where the engine lives. d2m's views are committed to `main` first, as notes did, then merged into `feature/memo` before the wiring | (assumed at spec) 2026-11-21 |
 
 ## Contract
@@ -129,13 +130,36 @@ No producer change. The screens consume the memo engine's existing, unchanged en
 
 | Contract | Producer | Consumers | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|---|
-| `GET /api/memos?q=&page=&limit=` (existing, unchanged) | server | iphone (library-home memo rows, merged search) | requireAuth, userId-scoped | `q` optional | `{ memos: VoiceMemoSummary[], pagination }` | 401 |
+| `GET /api/memos?q=&limit=&offset=` (existing, unchanged; `limit` 1–100, default 50; `offset` default 0) | server | iphone (library-home memo rows, merged search) | requireAuth, userId-scoped | `q` optional | `{ memos: VoiceMemoSummary[], total: number }` (iphone `MemoListResponse`) | 400 bad query, 401 |
 | `GET /api/memos/:id` (existing, unchanged) | server | iphone (memo-detail, MemoPlayer) | requireAuth, userId-scoped | — | `{ memo: VoiceMemo }` with presigned `url`, `urlExpiresAt`, `transcriptSegments` | 404 not owned/absent |
 | `PATCH /api/memos/:id` · `DELETE /api/memos/:id` (existing, unchanged) | server | iphone (memo-detail rename/delete) | requireAuth, userId-scoped | `{ title }` | `{ memo }` · 204 | 400 title, 404 |
 
 ## Schema & API changes
 
 No schema change (established 2026-11-21).
+
+**Alignment (2026-11-21).** Every field the d2m views take traced from `voice_memos` → `memos.service.ts`
+(`toVoiceMemo`/`toVoiceMemoSummary`) → the wire → `MemoModels.swift` → the view input. 16 of 16 persisted
+fields ALIGNED; the one wire mismatch was this spec's own §Contract row (it said `page`/`pagination`; the
+server and the iPhone use `limit`/`offset` and `total`), corrected above — the app wins. The rest are
+consumer-side transforms, owed as T1–T6 below:
+
+| View input | Source | Verdict |
+|---|---|---|
+| C-006 `title` · memo-detail `title` | `VoiceMemoSummary.title` / `VoiceMemo.title` | ALIGNED |
+| C-006 `durationLabel` · memo-detail `duration` (s) | `durationMs: Int?` ÷ 1000, formatted; queued memo: `MemoQueueItem.durationMs` | ALIGNED (transform, T2) |
+| C-006 `dateLabel` · `MemoRowInput.section`/`recordedAt` | `recordedAt: Date`; queued: `MemoQueueItem.recordedAt` (ISO-8601 string, parsed) | ALIGNED (transform, T2) |
+| C-006 `preview` (`transcript`/`transcribing`/`audioOnly`/`waitingToUpload`) | `transcriptPreview` + `transcriptStatus` (`none·pending·ready·failed·unknown`); queued → `waitingToUpload` | ALIGNED; `unknown` has no D5 mapping → D16 |
+| memo-detail `transcript` (`paragraphs`/`transcribing`/`unavailable`), `paragraphStarts`, `paragraphTexts` | `transcriptStatus`; `transcriptSegments[].startMs` ÷ 1000, `.text`; fallback one paragraph from `transcript` | ALIGNED (transform, T3) |
+| memo-detail `elapsed`, `playing`, `playerReady` | `MemoPlayer` (D13) from `url`/`urlExpiresAt`, or the queued `.m4a` | ALIGNED (new service, T4) |
+| C-016/017/018 `title`, `elapsed`, `samples`, `phase` | `MemoRecorderEngine.title` (prepare), `elapsed`, `samples: [Float]`, `state` (`recording·paused`) + `micPermissionDenied` → `micDenied` | ALIGNED |
+| C-018 `startTime` | not published by the engine (`Session.recordedAt` is private) | ALIGNED via container (T1): the container stamps the start instant when `start()` returns |
+| SavedToast `message`, `actionLabel` | literals from D6 | DESIGN-ONLY (copy, no data) |
+
+Where each lives when the app is closed: server memos in `voice_memos` + `AppState.voiceMemos` (disk-cached);
+unsent memos as `MemoUploadController` manifests + `.m4a`; an in-progress recording as the engine's draft
+manifest + `.caf` (engine D16 salvage). Playback position, the sheet's detent and the toast are session-only
+by design — nothing persists without being a field (no N1 miss).
 
 ## iphone
 
@@ -205,3 +229,9 @@ as given.
 | F1 | The engine's on-device behaviour (latency, interruptions, `SpeechTranscriber` assets) has never run on a device (engine F1) | build-time risk: the first walk item (Testing walk 1); human walk only |
 | F2 | No toast component exists in UI 2.0 | d2m builds SavedToast (D1); approving this spec approves building it (new) |
 | F3 | `memo-detail` is a new screen and `discard()` is a new engine method | (new) both; approving this spec approves building them |
+| T1 | iphone: `RecorderSheetContainer` maps engine `state`/`elapsed`/`samples`/`micPermissionDenied` to C-016's `phase` and stamps C-018 `startTime` itself (the engine doesn't publish it) | trailing |
+| T2 | iphone: Library merge — generalise `NotesSectioning` (today `StudyNote`-only, `LibraryHomeMapper.swift:15-46`) to sort and section by a date key, so memos (`recordedAt`) and notes (`updatedAt`) share one rule; map `VoiceMemoSummary` and `MemoQueueItem` to `MemoRowInput` (duration and date labels, preview per D5/D16) | trailing |
+| T3 | iphone: `MemoDetailContainer` maps `VoiceMemo` to memo-detail's `State` — `transcriptSegments` → `paragraphStarts` (s) + `paragraphTexts`, a single paragraph from `transcript` when segments are empty, `transcriptStatus` → `paragraphs`/`transcribing`/`unavailable` | trailing |
+| T4 | iphone: `MemoPlayer` (D13) and a local-file accessor on `MemoUploadController` for a queued memo's `.m4a` (`MemoQueueItem.fileName` in the queue directory) | trailing |
+| T5 | iphone: merged search — `NoteActions.load(q:)` ∥ `MemoActions.loadMemos(q:)`, one failing still shows the other (D5) | trailing |
+| T6 | iphone: `MemoRecorderEngine.discard()` (D7) | trailing |
