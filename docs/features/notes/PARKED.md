@@ -44,3 +44,4 @@ revise the spec so the iPhone writes its own views (this reverses D1).
 - 2026-11-20 parked — d2m notes views absent at the Phase 5 gate
 - 2026-11-21 unparked by a person — named to /builder:agent or /builder:fleet
 - 2026-11-21 cause cleared — d2m views landed on feature/memo (dc83bf78) and merged in; gate passed with d2m's real type names; Library screen hooks obtained via d2m fast lane cmwq42w6m0003v02opee66eoo; phase 5 built and GREEN
+- 2026-11-21 agent walk round 1's three `## Fixes` worked through d2m fast lanes (39a9590d, 28b6b669, da25ba5d); phase tier GREEN at da25ba5d; awaiting the walk lane's re-walk
