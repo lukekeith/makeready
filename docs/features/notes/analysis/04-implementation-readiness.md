@@ -2,7 +2,7 @@
 
 
 > **Superseded as a decision source:** every ruling below was promoted into
-> [DECISIONS.md](DECISIONS.md) on 2026-08-31. This doc remains as the *evidence record* for
+> [DECISIONS.md](../DECISIONS.md) on 2026-08-31. This doc remains as the *evidence record* for
 > those rulings; "PROPOSED" language below is historical. DECISIONS.md wins on any conflict.
 
 **Date:** 2026-08-31. A gap/feasibility pass over this suite requested before `/build-spec-draft
