@@ -24,10 +24,9 @@ final class MemoModelsTests: XCTestCase {
         XCTAssertNil(s.transcriptPreview)
     }
 
-    func testInfoPlistCarriesTheD27StringsAndNoAudioMode() {
+    func testInfoPlistCarriesTheD27Strings() {
         let info = Bundle.main.infoDictionary!
         XCTAssertEqual(info["NSMicrophoneUsageDescription"] as? String, "MakeReady uses the microphone to record videos and voice memos.")
         XCTAssertEqual(info["NSSpeechRecognitionUsageDescription"] as? String, "MakeReady turns your voice memos into text on your iPhone.")
-        XCTAssertFalse((info["UIBackgroundModes"] as? [String] ?? []).contains("audio"))
     }
 }

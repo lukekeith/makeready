@@ -168,6 +168,7 @@
 		239DFFACE47FE3D7C7FD0488 /* FollowedProgramHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BB3B6A000E676056325CB1C /* FollowedProgramHeader.swift */; };
 		23FF05C975B4EBFC877D4BD0 /* ImageFramingCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF85A20653C34F45A6C52EC0 /* ImageFramingCanvas.swift */; };
 		2407C38A48B6B970E61016BB /* CalendarEmptyState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E8B672C41C1922CC793EB5E /* CalendarEmptyState.swift */; };
+		243A83E1F00699D1FAB9B976 /* RecorderSheetContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0RSE0000000000000003 /* RecorderSheetContainer.swift */; };
 		24D962D61E2C496899D1744A /* ImageViewerSeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79EED825353A5AC4319717C6 /* ImageViewerSeedTests.swift */; };
 		254052C652B537294783275B /* EnrollSelectGroupContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 782E4BB024F56824A81C0E7A /* EnrollSelectGroupContainer.swift */; };
 		254BCD8783D4C6449FF1DE6E /* ActivityBackgroundPick.swift in Sources */ = {isa = PBXBuildFile; fileRef = C32EC22B6BBA4C0664B9C656 /* ActivityBackgroundPick.swift */; };
@@ -890,6 +891,7 @@
 		BF38BAC59699DB8D42805F81 /* KeypadKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33C1FA9984819D347D1C876A /* KeypadKey.swift */; };
 		BF528480976FA36B4C77ABEE /* TextInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DDF81A3117A2576E375188C /* TextInput.swift */; };
 		BF6CD157A5C47DDD8E96E969 /* DateSpanIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1D03A5064C702D151BD4A15 /* DateSpanIndicator.swift */; };
+		BF74EB16308AA9A284841BEA /* RecorderSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0RSE0000000000000001 /* RecorderSession.swift */; };
 		BF8392FC638B4941E426FBB8 /* ActivityNewContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1D8316232BF5704F61EEAB0 /* ActivityNewContainer.swift */; };
 		BFC85F00B8435386F6F4B2F1 /* PlayfairDisplay-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 33CC20DF174B8516AD40C9BB /* PlayfairDisplay-Medium.ttf */; };
 		BMOD0001000000000000001 /* BibleModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BMOD0002000000000000001 /* BibleModels.swift */; };
@@ -1243,6 +1245,9 @@
 		L1BH0MDM0000000000000002 /* MemoDetailModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MDM0000000000000001 /* MemoDetailModel.swift */; };
 		L1BH0MDM0000000000000004 /* MemoDetailContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MDM0000000000000003 /* MemoDetailContainer.swift */; };
 		L1BH0MDM0000000000000006 /* MemoDetailModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MDM0000000000000005 /* MemoDetailModelTests.swift */; };
+		L1BH0RSE0000000000000002 /* RecorderSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0RSE0000000000000001 /* RecorderSession.swift */; };
+		L1BH0RSE0000000000000004 /* RecorderSheetContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0RSE0000000000000003 /* RecorderSheetContainer.swift */; };
+		L1BH0RSE0000000000000006 /* RecorderSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0RSE0000000000000005 /* RecorderSessionTests.swift */; };
 		LOGW0001000000000000001 /* Log.swift in Sources */ = {isa = PBXBuildFile; fileRef = LOGW0002000000000000001 /* Log.swift */; };
 		LPHL0001000000000000001 /* LocalPortHealer.swift in Sources */ = {isa = PBXBuildFile; fileRef = LPHL0002000000000000001 /* LocalPortHealer.swift */; };
 		MDAC0001000000000000001 /* MediaActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDAC0002000000000000001 /* MediaActions.swift */; };
@@ -2080,6 +2085,9 @@
 		L1BH0MDM0000000000000001 /* MemoDetailModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MemoDetailModel.swift; path = Containers/Memo/MemoDetailModel.swift; sourceTree = "<group>"; };
 		L1BH0MDM0000000000000003 /* MemoDetailContainer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MemoDetailContainer.swift; path = Containers/Memo/MemoDetailContainer.swift; sourceTree = "<group>"; };
 		L1BH0MDM0000000000000005 /* MemoDetailModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MemoDetailModelTests.swift; sourceTree = "<group>"; };
+		L1BH0RSE0000000000000001 /* RecorderSession.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecorderSession.swift; path = Containers/Memo/RecorderSession.swift; sourceTree = "<group>"; };
+		L1BH0RSE0000000000000003 /* RecorderSheetContainer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecorderSheetContainer.swift; path = Containers/Memo/RecorderSheetContainer.swift; sourceTree = "<group>"; };
+		L1BH0RSE0000000000000005 /* RecorderSessionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RecorderSessionTests.swift; sourceTree = "<group>"; };
 		LDPC0001000000000000001 /* LessonDetailPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonDetailPage.swift; sourceTree = "<group>"; };
 		LOGW0002000000000000001 /* Log.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Log.swift; sourceTree = "<group>"; };
 		LPHL0002000000000000001 /* LocalPortHealer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPortHealer.swift; sourceTree = "<group>"; };
@@ -2361,6 +2369,8 @@
 				L1BH0MAP0000000000000021 /* MemoDetailMapper.swift */,
 				L1BH0MDM0000000000000003 /* MemoDetailContainer.swift */,
 				L1BH0MDM0000000000000001 /* MemoDetailModel.swift */,
+				L1BH0RSE0000000000000001 /* RecorderSession.swift */,
+				L1BH0RSE0000000000000003 /* RecorderSheetContainer.swift */,
 				N14F00000000000000000001 /* NoteEditorContainer.swift */,
 				N14F10000000000000000001 /* NoteEntry.swift */,
 				180FFAA3DF567F5062535F5F /* SearchHomeMapper.swift */,
@@ -2802,6 +2812,7 @@
 				L1BH0MAP0000000000000013 /* LibraryHomeSearchTests.swift */,
 				L1BH0MAP0000000000000023 /* MemoDetailMapperTests.swift */,
 				L1BH0MDM0000000000000005 /* MemoDetailModelTests.swift */,
+				L1BH0RSE0000000000000005 /* RecorderSessionTests.swift */,
 				N14T00000000000000000001 /* NoteEditorContainerTests.swift */,
 				F0E957FF286203F1E692E2E8 /* NoteAutosaveControllerTests.swift */,
 				E9D16B4F5EF90E16BC941277 /* MemoModelsTests.swift */,
@@ -4175,6 +4186,7 @@
 				L1BH0MAP0000000000000014 /* LibraryHomeSearchTests.swift in Sources */,
 				L1BH0MAP0000000000000024 /* MemoDetailMapperTests.swift in Sources */,
 				L1BH0MDM0000000000000006 /* MemoDetailModelTests.swift in Sources */,
+				L1BH0RSE0000000000000006 /* RecorderSessionTests.swift in Sources */,
 				N14T00000000000000000002 /* NoteEditorContainerTests.swift in Sources */,
 				84E61931CABE68F71A1F1B98 /* NoteAutosaveControllerTests.swift in Sources */,
 				7FE5CA828FA57FA6F2EE03DA /* MemoModelsTests.swift in Sources */,
@@ -4537,6 +4549,8 @@
 				L1BH0MAP0000000000000022 /* MemoDetailMapper.swift in Sources */,
 				L1BH0MDM0000000000000002 /* MemoDetailModel.swift in Sources */,
 				L1BH0MDM0000000000000004 /* MemoDetailContainer.swift in Sources */,
+				L1BH0RSE0000000000000002 /* RecorderSession.swift in Sources */,
+				L1BH0RSE0000000000000004 /* RecorderSheetContainer.swift in Sources */,
 				N14B00000000000000000002 /* NoteEditorContainer.swift in Sources */,
 				N14B10000000000000000002 /* NoteEntry.swift in Sources */,
 				F39E59F2831B8716ACBB571F /* SearchModels.swift in Sources */,
@@ -5228,6 +5242,8 @@
 				4D09A767ADDE156B706B38D8 /* MemoDetailMapper.swift in Sources */,
 				0E9205A41B56B6B5EA2A5BB6 /* MemoDetailModel.swift in Sources */,
 				10FD03F4E987AB5A25C52531 /* MemoDetailContainer.swift in Sources */,
+				BF74EB16308AA9A284841BEA /* RecorderSession.swift in Sources */,
+				243A83E1F00699D1FAB9B976 /* RecorderSheetContainer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
