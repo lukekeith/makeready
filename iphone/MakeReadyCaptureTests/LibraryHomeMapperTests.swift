@@ -145,4 +145,9 @@ final class LibraryHomeMapperTests: XCTestCase {
         XCTAssertEqual(LibraryHomeMapper.state(sections: [], phase: .error, query: "", now: args.now, calendar: args.calendar).phase, .loading)
         XCTAssertEqual(LibraryHomeMapper.state(sections: [], phase: .empty, query: "", now: args.now, calendar: args.calendar).phase, .empty)
     }
+
+    func testMemoRowPushesMemoDetail() {
+        XCTAssertEqual(LibraryHomeContainer.destination(forMemoId: "m1"), .memoDetail(memoId: "m1"))
+        XCTAssertEqual(LibraryHomeContainer.destination(forMemoId: "local:q1"), .memoDetail(memoId: "local:q1"))
+    }
 }
