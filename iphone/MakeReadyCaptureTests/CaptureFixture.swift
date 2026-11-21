@@ -1522,6 +1522,36 @@ struct CaptureComponent: Codable {
     // `title` and `loading` are reused.
     let verseCount: Int?
     let usedVerses: [Int]?
+    // ── preview props ──
+    // C-005 NoteListRow — `title` and `dateLabel` are reused.
+    let preview: String?
+    let contextLabel: String?
+    // ── preview props ──
+    // C-008 NotesBottomBar — `searchText` and `searchFocused` are reused.
+    let searchEnabled: Bool?
+    let composeEmphasis: String?
+    // ── screen library-home ──
+    // `phase`, `searchText` and `searchFocused` are reused (same names, same types).
+    let sectionTitles: [String]?
+    let rowSections: [Int]?
+    let rowTitles: [String]?
+    let rowDates: [String]?
+    let rowPreviews: [String]?
+    let rowContexts: [String]?
+    // ── preview props ──
+    // C-009 EditorNavChrome — `editing` is reused (same name, same type).
+    let canUndo: Bool?
+    // ── preview props ──
+    // C-002 FormatStrip — `activeStyles` decodes to Set<MakeReadyUI.InlineStyle> in the case.
+    let activeStyles: [String]?
+    let listMenuPresented: Bool?
+    // ── preview props ──
+    // C-001 MarkdownTextEditor — `text` (N1 markdown, parsed in the case), `selection` (its
+    // string form, "location,length"), `editing` and `listMenuPresented` are reused (same names).
+    let topContentInset: CGFloat?              // C-001
+    let undoRequest: Int?                      // C-001
+    let listRequest: Int?                      // C-001 (OQ-C-001-9)
+    let listRequestStyle: String?              // C-001 — "bulleted" | "numbered"; absent = nil
 }
 
 /// C-123 §4 `look` — "Fixtures encode `look` as an object: `{\"kind\": \"<case>\", …associated
