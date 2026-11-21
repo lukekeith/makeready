@@ -222,20 +222,22 @@ as given.
 - **`unknown` status (D16):** maps to Audio only / unavailable.
 
 **Walk (the dev or agent-walk env, Fixtures identity):**
-1. **The engine D4 checks, on a real device** (human walk only — the agent walk skips this item; a simulator has no microphone, call, lock screen or speech assets):
+1. **The recorder:** + → Voice memo from the Groups tab starts the compact sheet with the timer running. Drag it up and down: the timer never resets. Pause, then resume. Done returns you to Groups, and the toast's View opens the memo.
+2. **Library:** the new memo sits at the top of Today among notes. It shows Transcribing… first; on the agent walk's simulator (silence recorded, no transcription key in the walk env) it then settles on **Audio only** — the live transcript is the device block's. Search for `Romans` (a word in the fixture memo's transcript) and that memo is found among the results.
+3. **The memo page:** play, ±15 s, scrub, and tap a paragraph to seek. Rename the memo and Library shows the new name. Delete it and it's gone.
+4. **Discard:** start a memo, `⋯ → Discard → Discard`. No toast, and nothing appears in Library.
+5. **Not yet uploaded:** on the agent walk's simulator, hold uploads with `docker pause makeready-s3mock` (standing in for offline — real airplane mode is the device block's) and record a memo. It shows Waiting to upload in Library, and its page plays the local file and stays on it until the upload completes; `docker unpause makeready-s3mock` and it uploads and becomes the server memo in place.
+6. **Privacy:** sign in as a second leader in the same org. Library shows none of the first leader's memos, and `GET /api/memos/<first's id>` returns 404.
+
+**iphone — on a real device (human walk only; the agent walk's headless simulator has no microphone, call, lock screen or speech assets):**
+1. **The engine D4 checks, on a real device** (human walk only — the agent walk skips this item):
    - recording has started within 200 ms of tapping Voice memo;
    - recording survives a screen lock and a 30 s background;
    - an incoming call auto-pauses it and it resumes;
    - the live transcript is final ≤ 5 s after Done;
    - the speech assets install on first use;
-   - (from item 3) a new memo's transcript arrives and its preview replaces Transcribing…;
-   - (from item 6) in real airplane mode a memo records, shows Waiting to upload and plays locally; back online it uploads and transcribes.
-2. **The recorder:** + → Voice memo from the Groups tab starts the compact sheet with the timer running. Drag it up and down: the timer never resets. Pause, then resume. Done returns you to Groups, and the toast's View opens the memo.
-3. **Library:** the new memo sits at the top of Today among notes. It shows Transcribing… first; on the agent walk's simulator (silence recorded, no transcription key in the walk env) it then settles on **Audio only** — the live transcript is item 1's. Search for `Romans` (a word in the fixture memo's transcript) and that memo is found among the results.
-4. **The memo page:** play, ±15 s, scrub, and tap a paragraph to seek. Rename the memo and Library shows the new name. Delete it and it's gone.
-5. **Discard:** start a memo, `⋯ → Discard → Discard`. No toast, and nothing appears in Library.
-6. **Not yet uploaded:** on the agent walk's simulator, hold uploads with `docker pause makeready-s3mock` (standing in for offline — real airplane mode is item 1's) and record a memo. It shows Waiting to upload in Library, and its page plays the local file and stays on it until the upload completes; `docker unpause makeready-s3mock` and it uploads and becomes the server memo in place.
-7. **Privacy:** sign in as a second leader in the same org. Library shows none of the first leader's memos, and `GET /api/memos/<first's id>` returns 404.
+   - (from walk item 2, E2) a new memo's transcript arrives and its preview replaces Transcribing…;
+   - (from walk item 5, E5) in real airplane mode a memo records, shows Waiting to upload and plays locally; back online it uploads and transcribes.
 
 ## Out of scope
 
@@ -248,7 +250,7 @@ as given.
 
 | # | Finding | Resolution |
 |---|---|---|
-| F1 | The engine's on-device behaviour (latency, interruptions, `SpeechTranscriber` assets) has never run on a device (engine F1) | build-time risk: the first walk item (Testing walk 1); human walk only |
+| F1 | The engine's on-device behaviour (latency, interruptions, `SpeechTranscriber` assets) has never run on a device (engine F1) | build-time risk: §Testing's real-device block; human walk only |
 | F2 | No toast component exists in UI 2.0 | d2m builds SavedToast (D1); approving this spec approves building it (new) |
 | F3 | `memo-detail` is a new screen and `discard()` is a new engine method | (new) both; approving this spec approves building them |
 | T1 | iphone: `RecorderSheetContainer` maps engine `state`/`elapsed`/`samples`/`micPermissionDenied` to C-016's `phase` and stamps C-018 `startTime` itself (the engine doesn't publish it) | trailing |
@@ -290,4 +292,4 @@ The plan, task by task: `docs/features/memo-screens/PLAN.md` (§PLAN.md).
 - [x] iphone: queued memo page while uploading (walk item 3) — expected the `local:` page to keep playing the local file until the upload completes, then switch to the server memo, saw it switch as soon as the create POST returned (before the upload finished) and sit on Pause at 0:00 — `MemoDetailModel.syncQueued()` switches to the server copy before the upload completes (agent walk round 1; was a deferred final-review minor)
 - [x] iphone (walk script): E1, E3, E6 are UNVERIFIABLE on the agent walk's headless simulator — expected each to be checkable by the driver, saw E1 needing a real device (D4 engine checks), E3's transcription never running (simulator records silence; the walk env has no transcription key, so every new memo goes to "Audio only"), and E6 needing airplane mode — rework `walk.md` so the agent walk checks what the simulator can (E3: Transcribing… then the "Audio only" fallback, and search on a fixture transcript; E6: the upload hold standing in for offline, which round 1 showed working) and move the device-only checks (E1, live transcription, real airplane mode) to the human's walk (agent walk round 1)
 - [x] iphone: toast View opens the memo after the upload already finished (walk E2) — expected the memo page titled "Memo 5", saw a blank title that never fills in — online the upload completes ~2 s before View is tapped; the toast routes `local:<localId>`, the item has left the queue so `MemoDetailModel.init` sets `queued = nil`, `loadingState` has no title for `.local`, and `MemoDetailScreen` copies that empty title into `titleText` once; `syncQueued` then loads the server memo but the title is never refreshed — the round-1 fix only covers a memo still queued (agent walk round 2)
-- [ ] iphone (walk script): E1 is still in `walk.md`'s `## Cross-app (verify E2E)` section, so the agent walk reports it UNVERIFIABLE every round — expected the device-only checks to sit only in the human's walk, saw E1 listed among the agent's E-steps with a "human walk only" note — move E1 out of the Cross-app section into the iphone section as a human-only item (or renumber), so the agent walk's scope holds only what its simulator can check (agent walk round 2)
+- [x] iphone (walk script): E1 is still in `walk.md`'s `## Cross-app (verify E2E)` section, so the agent walk reports it UNVERIFIABLE every round — expected the device-only checks to sit only in the human's walk, saw E1 listed among the agent's E-steps with a "human walk only" note — move E1 out of the Cross-app section into the iphone section as a human-only item (or renumber), so the agent walk's scope holds only what its simulator can check (agent walk round 2)
