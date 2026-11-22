@@ -4,6 +4,13 @@ FROM node:20-slim AS builder
 
 WORKDIR /app
 
+# OpenSSL before `prisma generate`: with none installed Prisma falls back to the openssl-1.1 engine,
+# but the production stage has OpenSSL 3 (ffmpeg pulls in libssl3), so the server would crash at
+# boot looking for the openssl-3.0 engine (staging, 2026-11-21).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends openssl \
+ && rm -rf /var/lib/apt/lists/*
+
 # Install dependencies first (for better caching)
 COPY package*.json ./
 RUN npm install
@@ -37,7 +44,7 @@ WORKDIR /app
 
 # ffmpeg splits over-cap voice memos for the Groq fallback (transcription.service.ts)
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ffmpeg \
+ && apt-get install -y --no-install-recommends ffmpeg openssl \
  && rm -rf /var/lib/apt/lists/*
 
 # Copy package files
