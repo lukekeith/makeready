@@ -45,21 +45,37 @@ are approximate (taken from the video at 3×); map them to the nearest tokens.
 
 5. **Stretch.** Dragging past full reveal stretches the **edge action** from a circle into a
    **capsule** of the same height. Its leading end follows the finger and its trailing end stays at
-   the edge inset. The glyph stays at the capsule's leading end, by the finger. The other circles stay
-   where they are and fade to about 40 %.
-6. **Arm.** When the offset passes the **arm threshold** (about 55 % of the row width), the capsule
-   **snaps** with a quick spring to cover almost the whole row width (the content is nearly off
-   screen), and a **haptic** fires (medium impact). This is the "ready to delete" moment.
-7. **Disarm.** Dragging back below the threshold minus about 5 % (hysteresis) un-arms it: the capsule
-   springs back to following the finger, and a lighter haptic fires.
-8. **Release while armed** runs the edge action:
-   - the capsule finishes covering the row and the content leaves the screen;
-   - the action fires;
-   - for delete, the row collapses its height and the rows below close the gap. The video's list
-     count goes from 60 to 61 and the row is gone.
+   the edge inset. **The glyph stays centred in the capsule** while it stretches. The other circles
+   stay where they are, at full strength.
+6. **Arm.** When the offset passes the **arm threshold** (about 55 % of the row width), one spring
+   (about 0.3 s) does three things together:
+   - the capsule's leading edge **snaps** left to cover almost the whole row, leaving a sliver of the
+     row card (about one circle wide) at the leading edge;
+   - the **glyph slides from the capsule's centre to its leading edge** (about 16 pt in) and stays
+     pinned there while armed;
+   - the other circles **dim** to about 40 %.
+
+   A **haptic** fires (medium impact). This is the "ready to delete" moment.
+7. **Disarm.** Dragging back below the threshold minus about 5 % (hysteresis) reverses all three on
+   the same spring:
+   - the capsule shrinks back to following the finger;
+   - the glyph slides back to the centre;
+   - the circles return to full strength.
+
+   A lighter haptic fires.
+8. **Release while armed** runs the edge action. **Nothing moves sideways.** The capsule (glyph still
+   at its leading edge), the dimmed circles and the sliver stay exactly where they are.
+   - **For a removing action (delete):** the whole row's **height collapses to 0** in about 0.25 s
+     (ease-in-out). It is clipped and top-anchored, so the content is cut off from the bottom, not
+     scaled. The rows below slide up into the gap on the same timing, and the action fires.
+   - **Order:** the collapse starts at release. The caller then removes the row from its data, and
+     the collapsed row must not come back.
 
    Only an **armed** release does this. A fast flick that never armed does **not** full-swipe, so a
    delete always has its haptic warning first.
+
+   (Corrected 2026-11-22 from the owner's second recording, `delete voicemail.MP4`. The first version
+   had the glyph at the leading end while stretching, and the row sliding fully off screen on release.)
 
 ## 4. The half swipe: rest open, tap to act
 
