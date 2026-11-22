@@ -67,3 +67,16 @@ engine delivers levels in bursts (now ~47 Hz, before ~12 Hz), so the bars jump.
 - **Prop:** if the view needs the time of the latest sample to stay in step, add a `sampleTime`
   prop (seconds); the container feeds it the engine's `elapsed`.
 - Reduce Motion: fall back to the current step-per-update drawing.
+
+## 4. note-editor: the same PageHeader
+
+> Asked whether note-editor should move to the PageHeader too: "yes" (owner 2026-11-21)
+
+- Replace C-009 EditorNavChrome on note-editor with **C-040 PageHeader**, the same detail-page
+  style as memo-detail (§2): back on the leading side, no circles.
+- **Trailing buttons, reading:** ⋯ (`rightButtons: [.threeDots]`), opening the same menu as today.
+- **Trailing buttons, editing:** C-009 shows Undo and Done while editing. Keep both actions, in
+  the PageHeader's own vocabulary: Done as its trailing text label (`trailingLabel: "Done"`, the
+  `.cancelDone`-style trailing label), and Undo as a glyph button beside it, if PageHeader can hold
+  both. If it can't, raise it as a question with a recommendation instead of inventing chrome.
+- **16 pt between the PageHeader and the content**, as on memo-detail.
