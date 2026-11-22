@@ -17,10 +17,12 @@ protocol AudioInputSource: AnyObject {
     func stop()
 }
 
-/// The microphone: a tap on `AVAudioEngine.inputNode` bus 0, 4 096 frames per buffer (D14).
+/// The microphone: a tap on `AVAudioEngine.inputNode` bus 0, 1 024 frames per buffer — about 47 Hz
+/// at 48 kHz, so the live waveform gets a new level every ~21 ms instead of jumping at ~12 Hz (was
+/// 4 096, D14; owner 2026-11-21: "it should be smooth while recording").
 /// The caller owns the `AVAudioSession` (category, activation, D20).
 final class LiveAudioInput: AudioInputSource {
-    static let tapFrames: AVAudioFrameCount = 4_096
+    static let tapFrames: AVAudioFrameCount = 1_024
 
     private let engine = AVAudioEngine()
 

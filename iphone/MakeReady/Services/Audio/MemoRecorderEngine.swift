@@ -219,6 +219,17 @@ final class MemoRecorderEngine {
                                waveformPeaks: closed.peaks, recordedAt: session.recordedAt, transcript: transcript)
     }
 
+    /// Undoes `prepare` when the recorder closes before recording starts (owner 2026-11-21: the
+    /// recorder waits for the record tap): ends the transcriber's idle stream, releases its speech
+    /// assets and gives the audio session back. A no-op unless prepared and not yet started.
+    func cancelPrepared() async {
+        guard state == .idle, let prepared else { return }
+        self.prepared = nil
+        prepared.live?.finish()
+        if prepared.live != nil { _ = await transcriber?.finish() }
+        audioSession.restore()
+    }
+
     /// Throws the recording away (D7): no `.m4a`, no result, no `onAutoStop`. A no-op unless recording or paused.
     func discard() async {
         guard state == .recording || state == .paused, let session else { return }

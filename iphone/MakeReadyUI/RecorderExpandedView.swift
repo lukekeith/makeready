@@ -45,6 +45,11 @@ struct RecorderExpandedView: View {
     let elapsed: TimeInterval
     /// §4 `samples` — levels 0…1, oldest first; passed straight to C-012.
     let samples: [Float]
+    /// §4 `sampleTime` — the recording time the newest sample stands for; passed to C-012.
+    /// Defaults to `0`, so callers that omit it keep C-012's still, stepped look.
+    var sampleTime: Double = 0
+    /// §4 `isRunning` — `true` while recording; passed to C-012. Defaults to `false`.
+    var isRunning: Bool = false
     /// §4 `phase`. Required.
     let phase: Phase
     /// §4 `menu`. Required; the caller owns it (`onMore` → `.actions`, `onDiscardRequest` →
@@ -127,7 +132,12 @@ struct RecorderExpandedView: View {
                     }
                     .padding(.horizontal, Token.Space.pageMargin)
                 }
-                PlayheadWaveformView(samples: samples, elapsed: elapsed)
+                PlayheadWaveformView(
+                    samples: samples,
+                    elapsed: elapsed,
+                    sampleTime: sampleTime,
+                    isRunning: isRunning
+                )
                     .frame(height: Geometry.waveformHeight)
                     .ui2Element("Waveform")
                 bigTimer

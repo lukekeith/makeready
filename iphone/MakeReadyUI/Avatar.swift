@@ -31,6 +31,10 @@ struct Avatar: View {
     enum FallbackGlyph: String {
         case person
         case image
+        /// library-home (owner 2026-11-21): a C-005 note row's leading avatar — `notebook-pen`.
+        case note
+        /// library-home (owner 2026-11-21): a C-006 memo row's leading avatar — `microphone`.
+        case microphone
     }
 
     /// C-038 §4 `shape` — the outline. Raw values are the contract's values verbatim.
@@ -176,6 +180,8 @@ struct Avatar: View {
                 switch fallbackGlyph {
                 case .person: personGlyph
                 case .image: imageGlyph
+                case .note: iconGlyph(.notebookPen)
+                case .microphone: iconGlyph(.microphone)
                 }
             }
         }
@@ -221,6 +227,20 @@ struct Avatar: View {
     /// the imageset at the ratio, as `personGlyph` is.
     private var imageGlyph: some View {
         Image(GlyphName.image.rawValue, bundle: .ui2Preview)
+            .renderingMode(.template)
+            .resizable()
+            .scaledToFit()
+            .frame(width: size * Self.glyphRatio, height: size * Self.glyphRatio)
+            .foregroundStyle(Token.white50)
+            .accessibilityHidden(true)
+            .ui2Element("Glyph")
+    }
+
+    /// library-home (owner 2026-11-21) — the `note` / `microphone` fallback glyphs, drawn on the
+    /// same Initials ground with the same treatment as `imageGlyph`: 60% of the diameter,
+    /// `color-white-50`, from the imageset at the ratio. Additive: the default stays `person`.
+    private func iconGlyph(_ name: GlyphName) -> some View {
+        Image(name.rawValue, bundle: .ui2Preview)
             .renderingMode(.template)
             .resizable()
             .scaledToFit()

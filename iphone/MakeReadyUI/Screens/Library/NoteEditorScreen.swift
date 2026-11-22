@@ -11,8 +11,9 @@
 import SwiftUI
 
 /// Note Editor — the pushed full-screen note canvas (§2): C-001 MarkdownTextEditor edge to edge,
-/// C-009 EditorNavChrome floating over it at the top safe area, C-002 FormatStrip docked by C-001
-/// as its keyboard accessory, and C-015 ListStyleMenu over the strip's row while open.
+/// C-040 PageHeader over it at the top safe area (reading `twoIcons` Back only, editing
+/// `twoIcons` Back · done check), C-001's keyboard accessory row — a C-021 Undo glyph beside the
+/// centred C-002 FormatStrip — and C-015 ListStyleMenu over the strip's row while open.
 ///
 /// Presentational (D6): the live document arrives in `State`; every edit leaves through
 /// `onTextChange` (the container's `NoteAutosaveController` owns the debounced PATCH — §3
@@ -22,8 +23,8 @@ import SwiftUI
 /// Capture stand-in: a snapshot draws no keyboard and no keyboard window, so C-001's
 /// `inputAccessoryView` never reaches the image. Beneath the capture element map only (C-009's
 /// capture-fallback precedent) the screen draws C-002 docked at the canvas bottom where the
-/// keyboard's top edge would be, centred and content-hugging with no side inset, with C-015 over
-/// it while open.
+/// keyboard's top edge would be — C-001's own accessory row (the Undo beside the centred,
+/// content-hugging strip, no side inset) — with C-015 over the strip while open.
 /// The app (no element map) never draws it — C-001 docks the real strip.
 struct NoteEditorScreen: View {
 
@@ -56,7 +57,8 @@ struct NoteEditorScreen: View {
     @SwiftUI.State private var selection: NSRange
     // §3 interactions 5–6: Done sets `editing = false`; a tap on text re-enters editing.
     @SwiftUI.State private var editing: Bool
-    // §3 interaction 4: "Undo shows while `editing && canUndo` (C-001 `onCanUndoChange`)".
+    // §3 interaction 4: the Undo is drawn while editing, dimmed while `canUndo` is false
+    // (C-001 `onCanUndoChange`).
     @SwiftUI.State private var canUndo: Bool
     @SwiftUI.State private var undoRequest = 0
     // §3 interaction 3: the list button presents C-015; choosing a row applies on the tap frame.
@@ -86,10 +88,10 @@ struct NoteEditorScreen: View {
     }
 
     var body: some View {
-        // §2 layers, back to front: canvas, nav chrome, (strip — C-001's accessory), popover.
+        // §2 layers, back to front: canvas, header, (accessory row — C-001's), popover.
         ZStack(alignment: .top) {
             canvas
-            navChrome
+            header
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .overlay(alignment: .bottom) {
@@ -118,46 +120,59 @@ struct NoteEditorScreen: View {
             editing: editing,
             onEditingChange: { editing = $0 },
             listMenuPresented: listMenuPresented,
-            // §2 (OQ-note-editor-1): top safe area + C-009's 40 pt row + `space-element-gap`, so the
-            // caret's first line starts 8 pt below the chrome row.
-            topContentInset: topSafeArea + Self.chromeHeight + Token.Space.elementGap,
+            // §2: top safe area + C-040's 56 pt bar + 16 (brief §4, `space-page-margin`), so the
+            // caret's first line starts 16 pt below the header's bottom edge.
+            topContentInset: topSafeArea + Self.headerHeight + Token.Space.pageMargin,
             undoRequest: undoRequest,
             onCanUndoChange: { canUndo = $0 },
             onListMenu: openListMenu,
+            // §3 interaction 4: the accessory row's C-021 Undo — one coalesced undo per tap.
+            onUndo: { undoRequest += 1 },
             listRequest: listRequest,
             listRequestStyle: listRequestStyle
         )
         .ui2Element("C-001 MarkdownTextEditor")
-        // §2: "It ignores the top safe area so text scrolls under the chrome."
+        // §2: "It ignores the top safe area so text scrolls under the header."
         .ignoresSafeArea(.container, edges: .top)
     }
 
-    // MARK: - §2 layer 2 — the nav chrome
+    // MARK: - §2 layer 2 — the header (C-040 PageHeader)
 
-    private var navChrome: some View {
-        EditorNavChrome(
-            editing: editing,
-            canUndo: canUndo,
-            onBack: onBack,
-            // §3 interaction 4: one coalesced undo per tap.
-            onUndo: { undoRequest += 1 },
-            // §3 interaction 5: dismiss editing, never commit (R6).
+    /// §2 / §4: existing C-040 styles only, no title in the bar, laid out by C-040 itself (its
+    /// own `space-page-margin` sides). Reading: `twoIcons` Back only — no ⋯ (owner 2026-11-22).
+    /// Editing: `twoIcons` Back only with C-040's `showsDone` check (owner, 2026-11-21).
+    private var header: some View {
+        PageHeader(
+            style: .twoIcons,
+            title: nil,
+            showTitle: false,
+            showIcons: false,
+            showsDone: editing,
+            leadingGlyph: .back,
+            rightButtons: [],
+            // §3 interaction 7.
+            onLeading: onBack,
+            // §3 interaction 5: the check dismisses editing, never commit (R6).
             onDone: { editing = false }
         )
-        .ui2Element("C-009 EditorNavChrome")
-        // §2 (OQ-note-editor-1): pinned to the top safe area, `space-page-margin` each side.
-        .padding(.horizontal, Token.Space.pageMargin)
+        .ui2Element("C-040 PageHeader")
     }
 
     // MARK: - §2 layers 3–4 — strip stand-in and popover (capture)
 
-    /// The capture stand-in for C-001's docked accessory (see the type's doc comment): the strip
-    /// is C-002's own content-hugging capsule, centred, flush at the bottom, no side inset (§2),
-    /// with C-015 replacing its row while open (C-015 §2: the strip's width, centred, its bottom
-    /// edge on the strip's bottom edge, extending upward).
+    /// The capture stand-in for C-001's docked accessory (see the type's doc comment): C-001's own
+    /// accessory row — the Undo beside C-002's centred content-hugging capsule, flush at the
+    /// bottom, no side inset (§2 layer 3) — with C-015 replacing the strip's row while open
+    /// (C-015 §2: the strip's width, centred, its bottom edge on the strip's bottom edge,
+    /// extending upward). The Undo stays visible beside it.
     private var captureStrip: some View {
         ZStack(alignment: .bottom) {
-            FormatStrip(activeStyles: state.activeStyles, listMenuPresented: listMenuPresented)
+            NoteAccessoryRow(
+                activeStyles: state.activeStyles,
+                listMenuPresented: listMenuPresented,
+                canUndo: canUndo,
+                onUndo: { undoRequest += 1 }
+            )
                 .ui2Element("C-002 FormatStrip")
             if listMenuPresented {
                 ListStyleMenu(onSelect: chooseList, onDismiss: dismissListMenu)
@@ -214,8 +229,8 @@ struct NoteEditorScreen: View {
 
     // MARK: - Geometry
 
-    /// FLAGGED LITERAL — C-009 §2: the chrome row's intrinsic height (40 pt circles); no size token.
-    private static let chromeHeight: CGFloat = 40
+    /// C-040 §2: the bar's 56 pt height — C-040's own literal, not this screen's (§2 flagged literals).
+    private static let headerHeight: CGFloat = 56
     /// C-002 §2: the strip's content-hugging width (3 + 5×37 + 4×24 + 3 = 287 pt) — C-002's own
     /// literal, not this screen's; C-015 takes it so it lines up with the strip (§2 layer 4).
     private static let stripWidth: CGFloat = 287

@@ -9,7 +9,8 @@
 import SwiftUI
 
 /// C-017 RecorderCompactView — the recorder sheet's compact-detent content: the memo's title,
-/// the running timer, C-011's live waveform and a single stop button, so the leader can see the
+/// the running timer, C-011's live waveform and a single stop button (or, while `isReady`, a
+/// record button), so the leader can see the
 /// memo is recording without the sheet covering the screen they were on. Stop saves the memo
 /// exactly as Done does (memo-screens D3).
 ///
@@ -21,12 +22,23 @@ struct RecorderCompactView: View {
 
     // MARK: - Props (§4, R-05 order)
 
-    /// §4 `title` — the memo's title (`Memo {n}`); one line, truncated. Required (R-07).
+    /// §4 `title` — the memo's title, plain text (`New voice memo` in `ready`, then `Memo {n}`);
+    /// one line, truncated, never editable. Required (R-07).
     let title: String
     /// §4 `elapsed` — seconds recorded so far; formatted per §2 item 3. Required.
     let elapsed: TimeInterval
     /// §4 `samples` — levels 0…1, oldest first, ≈20 Hz; passed straight to C-011. Required.
     let samples: [Float]
+    /// §4 `sampleTime` — the recording time the newest sample stands for; passed to C-011.
+    /// Defaults to `0`, so callers that omit it keep C-011's still, stepped look.
+    var sampleTime: Double = 0
+    /// §4 `isRunning` — `true` while recording; passed to C-011. Defaults to `false`.
+    var isRunning: Bool = false
+    /// §4 `isReady` — waiting for a record tap: the bottom control is Record and the timer line
+    /// reads "Ready to record". Defaults to `false`, so existing callers keep the recording look.
+    var isReady: Bool = false
+    /// §4 `onRecord` — the record button was tapped (`isReady` only); the caller starts the engine.
+    var onRecord: () -> Void = {}
     /// §4 `onStop` — the stop button was tapped; the caller stops and saves, as Done does (D3).
     var onStop: () -> Void = {}
 
@@ -37,6 +49,8 @@ struct RecorderCompactView: View {
         static let stopCircle: CGFloat = 58
         /// FLAGGED LITERAL — C-017 §2 FL-2: 24 pt stop square.
         static let stopSquare: CGFloat = 24
+        /// FLAGGED LITERAL — C-017 §2 FL-3: 46 pt record circle (the Voice Memos record button).
+        static let recordCircle: CGFloat = 46
         /// GAP — C-017 §2 item 7: "a 1 pt `color-white-10` stroke"; no stroke token.
         static let stroke: CGFloat = 1
         /// GAP — C-017 §2 Motion / OQ-C-017-3: "dims to 0.6 opacity while pressed"; no opacity token.
@@ -51,10 +65,10 @@ struct RecorderCompactView: View {
             Spacer().frame(height: Token.Space.metaGap)
             timerText
             Spacer().frame(height: Token.Space.sectionGap)
-            LiveWaveformView(samples: samples)
+            LiveWaveformView(samples: samples, sampleTime: sampleTime, isRunning: isRunning)
                 .ui2Element("Waveform")
             Spacer().frame(height: Token.Space.sectionGap)
-            stopButton
+            if isReady { recordButton } else { stopButton }
         }
         .frame(maxWidth: .infinity)
         // §2 Motion: a new elapsed/samples value re-renders without implicit animation.
@@ -86,8 +100,8 @@ struct RecorderCompactView: View {
             // §2 item 3: a 20 pt line box — the token's own line height.
             .frame(maxWidth: .infinity, alignment: .center)
             .frame(height: Self.lineBox(Token.TypeStyle.bodySm))
-            .accessibilityLabel("Recording, \(RecorderExpandedView.spoken(elapsed))")
-            .accessibilityAddTraits(.updatesFrequently)
+            .accessibilityLabel(isReady ? "Ready to record" : "Recording, \(RecorderExpandedView.spoken(elapsed))")
+            .accessibilityAddTraits(isReady ? [] : .updatesFrequently)
             .ui2Element("Elapsed timer")
     }
 
@@ -109,6 +123,26 @@ struct RecorderCompactView: View {
         .accessibilityHint("Saves the memo")
         .accessibilityAddTraits(.isButton)
         .ui2Element("StopButton")
+    }
+
+    /// §2 item 7 (`isReady`): the same ringed 58 pt circle holding a 46 pt `color-error` filled
+    /// circle (FL-3). Ring, size and position match the stop button, so the swap moves nothing.
+    private var recordButton: some View {
+        SwiftUI.Button(action: onRecord) {
+            Circle()
+                .fill(Token.error)
+                .frame(width: Geometry.recordCircle, height: Geometry.recordCircle)
+                .ui2Element("Record circle")
+                .frame(width: Geometry.stopCircle, height: Geometry.stopCircle)
+                .overlay(Circle().strokeBorder(Token.white10, lineWidth: Geometry.stroke))
+                .contentShape(Circle())
+                .accessibilityHidden(true)
+        }
+        .buttonStyle(PressedDim())
+        .accessibilityLabel("Record")
+        .accessibilityHint("Starts recording")
+        .accessibilityAddTraits(.isButton)
+        .ui2Element("RecordButton")
     }
 
     /// A single-line text's line box is its type token's line height.

@@ -73,6 +73,11 @@ struct MarkdownTextEditor: View {
     var onCanUndoChange: (Bool) -> Void = { _ in }
     /// §4 `onListMenu` — C-002's list-slot frame; the caller presents C-015 there. No render effect.
     var onListMenu: (CGRect) -> Void = { _ in }
+    /// The accessory row's C-021 Undo (note-editor §2 layer 3, owner 2026-11-21). nil (default):
+    /// no Undo — the strip alone, unchanged. Set: a C-021 `undo` glyph sits on the strip's leading
+    /// side, dimmed while the undo stack is empty, and each tap calls this (the caller increments
+    /// `undoRequest`). No render effect beyond the glyph's presence.
+    var onUndo: (() -> Void)? = nil
     /// §4 `listRequest` — each increment applies `listRequestStyle` at the caret under the
     /// OQ-C-001-004 toggle rule; on an empty paragraph it sets the typing attributes (OQ-C-001-9).
     /// Required.
@@ -118,6 +123,12 @@ private enum NoteGeometry {
     static let itemIndent: CGFloat = 35
     /// C-002 §2 FL-1's 43 pt capsule: the accessory's height is the strip's own.
     static let stripHeight: CGFloat = 43
+    /// C-002 §2 FL-3's 24 pt slot gap — the Undo's gap to the capsule (note-editor §2 layer 3).
+    static let undoGap: CGFloat = 24
+    /// The docked row's clear gap above the keyboard (owner 2026-11-21, revising FL-5's flush 0 pt:
+    /// a new note's strip sat on the keyboard while an existing note's had ~17 pt, by whichever
+    /// safe-area inset the accessory's hosting controller happened to read).
+    static let keyboardGap: CGFloat = Token.Space.stackGap
 }
 
 // MARK: - Model ↔ display
@@ -305,24 +316,83 @@ private enum NoteDisplay {
 private final class NoteStripState {
     var activeStyles: Set<InlineStyle> = []
     var listMenuPresented = false
+    var canUndo = false
 }
 
 private struct NoteStripAccessory: View {
     let state: NoteStripState
     let onToggle: (InlineStyle) -> Void
     let onListMenu: (CGRect) -> Void
+    let onUndo: (() -> Void)?
+
+    var body: some View {
+        NoteAccessoryRow(
+            activeStyles: state.activeStyles,
+            listMenuPresented: state.listMenuPresented,
+            canUndo: state.canUndo,
+            onToggle: onToggle,
+            onListMenu: onListMenu,
+            onUndo: onUndo
+        )
+    }
+}
+
+/// The docked accessory row C-001 hosts as its `inputAccessoryView`: C-002 centred, and — when the
+/// caller passes `onUndo` — a C-021 `undo` glyph on the strip's leading side (note-editor §2
+/// layer 3). Internal so a host's capture stand-in draws this same row, never a copy of it.
+struct NoteAccessoryRow: View {
+    let activeStyles: Set<InlineStyle>
+    let listMenuPresented: Bool
+    var canUndo: Bool = false
+    var onToggle: (InlineStyle) -> Void = { _ in }
+    var onListMenu: (CGRect) -> Void = { _ in }
+    var onUndo: (() -> Void)? = nil
 
     var body: some View {
         FormatStrip(
-            activeStyles: state.activeStyles,
-            listMenuPresented: state.listMenuPresented,
+            activeStyles: activeStyles,
+            listMenuPresented: listMenuPresented,
             onToggle: onToggle,
             onListMenu: onListMenu
         )
+        // note-editor §2 layer 3: outside the capsule, vertically centred on the strip, its
+        // trailing edge C-002 FL-3's 24 pt slot gap before the capsule's leading edge. An overlay,
+        // so the Undo never moves the strip off centre.
+        .overlay(alignment: .leading) {
+            if let onUndo {
+                // A zero-width slot on the capsule's leading edge, the glyph hung off its trailing
+                // side, then the gap: the glyph's trailing edge sits `undoGap` before the capsule.
+                undo(onUndo)
+                    .fixedSize()
+                    .frame(width: 0, alignment: .trailing)
+                    .offset(x: -NoteGeometry.undoGap)
+            }
+        }
         // C-001 §2 FL-5 (revised 2026-11-21): the strip hugs its 287 pt row and is centred
-        // horizontally, no side insets, flush (0 pt) above the keyboard. C-015's anchor is the
+        // horizontally, no side insets, `keyboardGap` above the keyboard (owner 2026-11-21). C-015's anchor is the
         // list slot's global frame (C-002 `onListMenu`), so it follows the centred strip.
         .frame(maxWidth: .infinity)
+    }
+
+    /// note-editor §3 interaction 4: enabled while `canUndo`; otherwise dimmed `color-white-50`
+    /// and not tappable. C-021 paints a fixed `color-accent` and has no disabled state
+    /// (OQ-C-021-1), so the dimmed look paints `color-white-50` through the glyph's own shape,
+    /// on the same 24 pt layout frame.
+    @ViewBuilder
+    private func undo(_ action: @escaping () -> Void) -> some View {
+        if canUndo {
+            GlyphButton(glyph: .undo, onTap: action)
+                .ui2Element("C-021 GlyphButton (undo)")
+        } else {
+            GlyphButton(glyph: .undo)
+                .hidden()
+                .overlay { Token.white50.mask { GlyphButton(glyph: .undo) } }
+                .accessibilityElement()
+                .accessibilityLabel("Undo")
+                .accessibilityAddTraits(.isButton)
+                .disabled(true)
+                .ui2Element("C-021 GlyphButton (undo, dimmed)")
+        }
     }
 }
 
@@ -333,7 +403,10 @@ private final class NoteAccessoryContainer: UIView {
     var passesTouches: () -> Bool = { false }
 
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-        passesTouches() ? nil : super.hitTest(point, with: event)
+        guard !passesTouches() else { return nil }
+        let hit = super.hitTest(point, with: event)
+        // The clear gap band below the strip is not a control: touches there reach the page.
+        return hit === self ? nil : hit
     }
 }
 
@@ -469,14 +542,20 @@ private struct NoteTextViewRepresentable: UIViewRepresentable {
             let host = UIHostingController(rootView: NoteStripAccessory(
                 state: stripState,
                 onToggle: { [weak self] in self?.toggle($0) },
-                onListMenu: { [weak self] in self?.editor.onListMenu($0) }
+                onListMenu: { [weak self] in self?.editor.onListMenu($0) },
+                onUndo: editor.onUndo == nil ? nil : { [weak self] in self?.editor.onUndo?() }
             ))
             host.view.backgroundColor = .clear
-            let container = NoteAccessoryContainer(frame: CGRect(x: 0, y: 0, width: 0, height: NoteGeometry.stripHeight))
+            // The row's position must not depend on the safe-area inset the host reads at the moment
+            // the keyboard appears (new note: none; reopened note: ~17 pt). It reads none, and the
+            // gap above the keyboard is an explicit clear band below the strip.
+            host.safeAreaRegions = []
+            let container = NoteAccessoryContainer(frame: CGRect(
+                x: 0, y: 0, width: 0, height: NoteGeometry.stripHeight + NoteGeometry.keyboardGap))
             container.autoresizingMask = [.flexibleWidth]
             container.passesTouches = { [weak self] in self?.stripState.listMenuPresented ?? false }
-            host.view.frame = container.bounds
-            host.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            host.view.frame = CGRect(x: 0, y: 0, width: container.bounds.width, height: NoteGeometry.stripHeight)
+            host.view.autoresizingMask = [.flexibleWidth, .flexibleBottomMargin]
             container.addSubview(host.view)
             accessoryHost = host
             return container
@@ -622,6 +701,7 @@ private struct NoteTextViewRepresentable: UIViewRepresentable {
             let canUndo = textView.undoManager?.canUndo ?? false
             if canUndo != lastCanUndo {
                 lastCanUndo = canUndo
+                stripState.canUndo = canUndo
                 editor.onCanUndoChange(canUndo)
             }
         }

@@ -99,3 +99,6 @@ iOSInjectionProject/
 *.swo
 *~
 .#*
+
+# Xcode DerivedData from on-device Debug builds (xcodebuild -derivedDataPath ./build-device)
+build-device/

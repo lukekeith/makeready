@@ -1,22 +1,34 @@
 import SwiftUI
 
-/// memo-screens D3, D7, D11: d2m's `RecorderSheet` over a `RecorderSession`. It starts the recording
+/// memo-screens D3 (record tap, owner 2026-11-21), D7, D11: d2m's `RecorderSheet` over a `RecorderSession`. It prepares the recording
 /// when it appears and reports how it ended; the shell hosts it (no `.sheet`, no `.fullScreenCover`).
 struct RecorderSheetContainer: View {
     let session: RecorderSession
     let onEnd: (RecorderSession.Outcome) -> Void
     @Environment(\.openURL) private var openURL
+    /// C-016 owns its slide (hosted overlays get no presenting transaction): false slides it out,
+    /// and its `onHidden` reports the outcome once it is gone (owner 2026-11-21).
+    @State private var visible = true
 
     var body: some View {
         RecorderSheet(
             expansion: session.expansion,
             onExpansionChange: session.settle,
-            title: session.title,
+            title: RecorderSession.displayTitle,
             startTime: session.startTime,
             elapsed: session.elapsed,
             samples: session.samples,
+            // Smooth scroll (owner 2026-11-21): the newest sample's time, and whether it advances.
+            sampleTime: session.elapsed,
+            isRunning: session.hasStarted && session.phase == .recording,
+            // Owner 2026-11-21: the recorder waits for the record tap.
+            isReady: !session.hasStarted && session.phase != .micDenied && session.outcome == nil,
+            onRecord: { Task { await session.record() } },
             phase: session.phase,
             menu: session.menu,
+            visible: visible,
+            onHidden: { if let outcome = session.outcome { onEnd(outcome) } },
+            onDismiss: dismiss,
             onStop: { Task { await session.finish() } },
             onMore: session.openMenu,
             onDone: { Task { await session.finish() } },
@@ -33,7 +45,17 @@ struct RecorderSheetContainer: View {
             if failed { session.failIfEngineFailed() }
         }
         .onChange(of: session.outcome) { _, outcome in
-            if let outcome { onEnd(outcome) }
+            if outcome != nil { visible = false }
+        }
+    }
+
+    /// The dim tap or a swipe down (like the + menu, owner 2026-11-21): before recording it closes
+    /// and keeps nothing; while recording it saves, as Done does — a stray tap never loses a memo.
+    private func dismiss() {
+        if session.hasStarted {
+            Task { await session.finish() }
+        } else {
+            session.close()
         }
     }
 

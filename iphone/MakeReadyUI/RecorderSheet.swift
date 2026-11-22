@@ -11,15 +11,18 @@ import SwiftUI
 /// C-016 RecorderSheet: the two-detent recorder sheet that + → Voice memo presents over the
 /// whole UI 2.0 shell. It holds C-017 RecorderCompactView at the compact detent and C-018
 /// RecorderExpandedView at the expanded detent, and the finger drags it between them. Dragging
-/// never touches the recording. There is no scrim and no swipe-to-dismiss (memo-screens D3, D7).
+/// between the detents never touches the recording; while `isReady` the sheet stays compact.
+/// It presents and dismisses the way C-066's ActionMenuLayer (the + menu) does: it owns its
+/// slide-up and slide-out, dims the shell behind it with a tappable black80 scrim, and a swipe
+/// down at the compact detent or a tap on the dim asks the caller to dismiss (`onDismiss`).
 ///
 /// §2: a full-screen presentation layer, the stated exception to R-16. It fills the container
-/// it is given (the whole screen, safe areas included) and positions the sheet inside it.
-/// Outside the sheet's rect it draws nothing and takes no touches (OQ-C-016-5).
+/// it is given (the whole screen, safe areas included) and positions the sheet inside it. The
+/// dim covers the whole layer, which takes touches everywhere while it is visible.
 ///
-/// Controlled (R-01): `expansion` belongs to the caller. The finger's in-flight translation is
-/// ephemeral gesture state (R-02), and the sheet reports only the detent it settles on. There is
-/// no engine, timer, presentation or navigation inside (R-04/R-19).
+/// Controlled (R-01): `expansion` and `visible` belong to the caller. The finger's in-flight
+/// translation and `shown` are ephemeral (R-02), and the sheet reports only the detent it settles
+/// on. There is no engine, timer or navigation inside (R-04/R-19); the sheet owns only its slide.
 struct RecorderSheet: View {
 
     // MARK: - Props (§4, R-05 order)
@@ -37,10 +40,27 @@ struct RecorderSheet: View {
     let elapsed: TimeInterval
     /// §4 `samples` → C-017 and C-018 `samples`.
     let samples: [Float]
+    /// §4 `sampleTime` → C-017 and C-018 `sampleTime`. Defaults to `0` (the still, stepped look).
+    var sampleTime: Double = 0
+    /// §4 `isRunning` → C-017 and C-018 `isRunning`. Defaults to `false`.
+    var isRunning: Bool = false
+    /// §4 `isReady` → C-017 `isReady`. While `true` the sheet is pinned to the compact detent
+    /// (it never expands) and a swipe down calls `onClose`. Defaults to `false`.
+    var isReady: Bool = false
+    /// §4 `onRecord` → C-017 `onRecord`.
+    var onRecord: () -> Void = {}
     /// §4 `phase` → C-018 `phase`; `.micDenied` also disables the drag (deviation 8).
     let phase: RecorderExpandedView.Phase
     /// §4 `menu` → C-018 `menu`.
     let menu: RecorderExpandedView.Menu
+    /// §4 `visible`: whether the sheet is presented. The caller sets it false to dismiss; the
+    /// sheet slides out, then calls `onHidden`. Defaults to `true`.
+    var visible: Bool = true
+    /// §4 `onHidden`: the slide-out finished; the caller unmounts the sheet.
+    var onHidden: () -> Void = {}
+    /// §4 `onDismiss`: the leader tapped the dim, swiped down at the compact detent, or used the
+    /// accessibility escape. The caller decides what it means and sets `visible` false.
+    var onDismiss: () -> Void = {}
     /// §4 `onStop` → C-017 `onStop`.
     var onStop: () -> Void = {}
     /// §4 → the C-018 callbacks of the same name, unchanged.
@@ -58,6 +78,13 @@ struct RecorderSheet: View {
     /// animation, so the sheet settles in one motion whether or not the caller moves `expansion`.
     @GestureState(resetTransaction: Transaction(animation: Token.Motion.sheetSnap))
     private var dragTranslation: CGFloat = 0
+
+    /// §2 Presentation (R-02): false until the sheet appears, then animated true with
+    /// `motion-sheet-present`; back to false when `visible` turns false. A hosted overlay gets no
+    /// presenting transaction, so the sheet slides itself (as ActionMenuLayer does).
+    @State private var shown = false
+    /// True only beneath the capture harness's element map (UI2Element.swift).
+    @Environment(\.ui2ElementCollecting) private var capturing
 
     // MARK: - Geometry
 
@@ -132,14 +159,56 @@ struct RecorderSheet: View {
             )
             let effective = effectiveExpansion(layout)
             let rect = layout.frame(at: effective)
-            sheet(layout: layout, effective: effective)
-                .frame(width: rect.width, height: rect.height)
-                // The reader's origin is the safe-area corner; the sheet's rect is full-screen.
-                .offset(x: rect.minX - insets.leading, y: rect.minY - insets.top)
-                .gesture(dragGesture(layout), including: phase == .micDenied ? .none : .all)
-                .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
+            // §2 Presentation: the distance from the sheet's top to the bottom edge.
+            let hiddenOffset = layout.height - rect.minY
+            ZStack(alignment: .topLeading) {
+                dim
+                sheet(layout: layout, effective: effective)
+                    .frame(width: rect.width, height: rect.height)
+                    // The reader's origin is the safe-area corner; the sheet's rect is full-screen.
+                    .offset(x: rect.minX - insets.leading, y: rect.minY - insets.top)
+                    // The whole sheet rides the slide together; nothing inside has a transition.
+                    .visualEffect { [shown, hiddenOffset] effect, _ in
+                        effect.offset(y: shown ? 0 : hiddenOffset)
+                    }
+                    .gesture(dragGesture(layout), including: phase == .micDenied ? .none : .all)
+                    .accessibilityAction(.escape, onDismiss)
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
+        }
+        .allowsHitTesting(visible)
+        .onAppear {
+            // The capture harness snapshots at once, so a captured preview shows the sheet at
+            // rest (presented) rather than the first frame of its slide-up.
+            if capturing { shown = true; return }
+            withAnimation(Token.Motion.sheetPresent) { shown = true }
+        }
+        .onChange(of: visible) { _, nowVisible in
+            // Re-presented mid slide-out: slide back up from wherever it is.
+            guard !nowVisible else {
+                withAnimation(Token.Motion.sheetPresent) { shown = true }
+                return
+            }
+            withAnimation(Token.Motion.sheetPresent) {
+                shown = false
+            } completion: {
+                onHidden()
+            }
         }
         .ui2Element("RecorderSheet")     // capture element map — UI2Element.swift
+    }
+
+    // MARK: - Dim
+
+    /// §2 Dim: the + menu's full-screen `black80`, fading with `shown`; a tap asks to dismiss.
+    private var dim: some View {
+        Token.black80
+            .opacity(shown ? 1 : 0)
+            .ignoresSafeArea()
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onDismiss)
+            .accessibilityHidden(true)
+            .ui2Element("Dim")
     }
 
     // MARK: - Sheet
@@ -161,7 +230,16 @@ struct RecorderSheet: View {
     @ViewBuilder
     private func content(layout: Layout, effective: Double) -> some View {
         if effective < Geometry.contentSwap {
-            RecorderCompactView(title: title, elapsed: elapsed, samples: samples, onStop: onStop)
+            RecorderCompactView(
+                title: title,
+                elapsed: elapsed,
+                samples: samples,
+                sampleTime: sampleTime,
+                isRunning: isRunning,
+                isReady: isReady,
+                onRecord: onRecord,
+                onStop: onStop
+            )
                 .frame(height: Geometry.compactContentHeight)
                 .padding(.top, Token.Space.sectionGap)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -172,6 +250,8 @@ struct RecorderSheet: View {
                 startTime: startTime,
                 elapsed: elapsed,
                 samples: samples,
+                sampleTime: sampleTime,
+                isRunning: isRunning,
                 phase: phase,
                 menu: menu,
                 onMore: onMore,
@@ -204,6 +284,7 @@ struct RecorderSheet: View {
             .accessibilityValue(expansion >= Geometry.contentSwap ? "Expanded" : "Compact")
             .accessibilityAction(named: "Expand") { settle(on: 1) }
             .accessibilityAction(named: "Collapse") { settle(on: 0) }
+            .accessibilityAction(named: "Close") { if isReady { onClose() } }
             .ui2Element("Grabber")
     }
 
@@ -212,7 +293,9 @@ struct RecorderSheet: View {
     /// §2 Drag: `expansion` plus the finger's translation (upward = toward expanded), with
     /// travel past either detent damped to one third (FL-4).
     private func effectiveExpansion(_ layout: Layout) -> Double {
-        let raw = expansion - Double(dragTranslation / layout.travel)
+        // `isReady` pins the compact detent: an upward drag does not move the sheet.
+        let translation = isReady ? max(dragTranslation, 0) : dragTranslation
+        let raw = expansion - Double(translation / layout.travel)
         if raw > 1 { return 1 + (raw - 1) * Geometry.overscrollDamping }
         if raw < 0 { return raw * Geometry.overscrollDamping }
         return raw
@@ -225,8 +308,21 @@ struct RecorderSheet: View {
                 state = value.translation.height
             }
             .onEnded { value in
-                // The detent nearest the gesture's predicted end; a swipe down from compact
-                // snaps back to compact and never dismisses (D3).
+                // §2 Dismiss: a downward swipe that starts at the compact detent calls
+                // `onDismiss` once past the + menu's threshold, in every phase; short of it the
+                // sheet snaps back to compact.
+                if isReady || expansion <= 0, value.translation.height > 0 {
+                    if ActionMenuMotion.shouldDismiss(
+                        translation: value.translation.height,
+                        predicted: value.predictedEndTranslation.height
+                    ) {
+                        onDismiss()
+                    } else {
+                        settle(on: 0)
+                    }
+                    return
+                }
+                // The detent nearest the gesture's predicted end.
                 let predicted = expansion - Double(value.predictedEndTranslation.height / layout.travel)
                 settle(on: predicted >= Geometry.contentSwap ? 1 : 0)
             }
@@ -236,6 +332,8 @@ struct RecorderSheet: View {
     /// denied the sheet stays where `expansion` puts it (deviation 8).
     private func settle(on detent: Double) {
         guard phase != .micDenied else { return }
-        withAnimation(Token.Motion.sheetSnap) { onExpansionChange(detent) }
+        // `isReady` pins the compact detent.
+        let target = isReady ? 0 : detent
+        withAnimation(Token.Motion.sheetSnap) { onExpansionChange(target) }
     }
 }

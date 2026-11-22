@@ -77,21 +77,42 @@ final class RecorderSessionTests: XCTestCase {
     func testFinishEnqueuesOneResultAndSaves() async throws {
         let session = makeSession(seconds: 1.0)
         await session.begin()
+        await session.record()
         await waitUntil("progress reaches the session") { session.elapsed > 0 }
         await session.finish()
         XCTAssertEqual(enqueued.count, 1)
         guard case .saved = session.outcome else { return XCTFail("\(String(describing: session.outcome))") }
     }
 
+    /// Owner 2026-11-21: opening the recorder prepares only; nothing records until the record tap.
+    func testBeginWaitsForTheRecordTap() async {
+        let session = makeSession(seconds: 1.0)
+        await session.begin()
+        XCTAssertFalse(session.hasStarted)
+        XCTAssertEqual(engine.state, .idle)
+        XCTAssertEqual(session.startTime, "")
+    }
+
+    /// Closing while ready keeps nothing.
+    func testClosingBeforeRecordingDiscards() async throws {
+        let session = makeSession(seconds: 1.0)
+        await session.begin()
+        session.close()
+        XCTAssertEqual(session.outcome, .discarded)
+        XCTAssertTrue(enqueued.isEmpty)
+    }
+
     func testBeginStampsTheStartTime() async {
         let session = makeSession(seconds: 1.0)
         await session.begin()
+        await session.record()
         XCTAssertEqual(session.startTime, "7:43 PM")
     }
 
     func testDiscardEnqueuesNothing() async {
         let session = makeSession(seconds: 1.0)
         await session.begin()
+        await session.record()
         session.openMenu()
         XCTAssertEqual(session.menu, .actions)
         session.requestDiscard()
@@ -104,6 +125,7 @@ final class RecorderSessionTests: XCTestCase {
     func testDiscardTwiceAtOnceEndsTheRecordingOnce() async {
         let session = makeSession(seconds: 1.0)
         await session.begin()
+        await session.record()
         async let first: Void = session.confirmDiscard()
         async let second: Void = session.confirmDiscard()
         _ = await (first, second)
@@ -115,6 +137,7 @@ final class RecorderSessionTests: XCTestCase {
     func testFinishWhileDiscardingSavesNothing() async {
         let session = makeSession(seconds: 1.0)
         await session.begin()
+        await session.record()
         async let discard: Void = session.confirmDiscard()
         async let finish: Void = session.finish()
         _ = await (discard, finish)
@@ -131,6 +154,7 @@ final class RecorderSessionTests: XCTestCase {
     func testDraggingNeverTouchesTheEngine() async {
         let session = makeSession(seconds: 1.0)
         await session.begin()
+        await session.record()
         session.settle(1)
         XCTAssertEqual(session.expansion, 1)
         session.settle(0)
@@ -142,6 +166,7 @@ final class RecorderSessionTests: XCTestCase {
         struct WriterFailure: Error {}
         let session = makeSession(seconds: 1.0, writeBuffer: { _, _ in throw WriterFailure() })
         await session.begin()
+        await session.record()
         await waitUntil("the engine reports the write failure") { session.engineFailed }
         session.failIfEngineFailed()
         XCTAssertEqual(session.outcome, .failed)
@@ -151,6 +176,7 @@ final class RecorderSessionTests: XCTestCase {
     func testTheDurationLimitAutoStopSaves() async {
         let session = makeSession(seconds: 1.5, maxDuration: 1.0)
         await session.begin()
+        await session.record()
         await waitUntil("auto-stop saves") { session.outcome != nil }
         XCTAssertEqual(enqueued.count, 1)
         guard case .saved = session.outcome else { return XCTFail("\(String(describing: session.outcome))") }
@@ -182,6 +208,7 @@ final class RecorderSessionTests: XCTestCase {
     func testPauseAndResumeMoveTheEngineAndThePhase() async {
         let session = makeSession(seconds: 1.0)
         await session.begin()
+        await session.record()
         session.pause()
         XCTAssertEqual(engine.state, .paused)
         XCTAssertEqual(session.phase, .paused)
@@ -193,6 +220,7 @@ final class RecorderSessionTests: XCTestCase {
     func testAnInputThatFailsToStartFailsTheSessionAndLeavesNoCaf() async throws {
         let session = makeSession(seconds: 0, input: FailingInput())
         await session.begin()
+        await session.record()
         XCTAssertEqual(session.outcome, .failed)
         XCTAssertTrue(enqueued.isEmpty)
         XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: dir.path).isEmpty)
@@ -208,6 +236,7 @@ final class RecorderSessionTests: XCTestCase {
     func testAnAudioSessionThatCannotActivateFailsTheSessionAndLeavesNoCaf() async throws {
         let session = makeSession(seconds: 0, audioSession: UnactivatableSession())
         await session.begin()
+        await session.record()
         XCTAssertEqual(session.outcome, .failed)
         XCTAssertTrue(enqueued.isEmpty)
         XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: dir.path).isEmpty)

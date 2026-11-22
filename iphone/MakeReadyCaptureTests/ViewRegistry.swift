@@ -184,7 +184,7 @@ private func buildCaptureViewPart5(_ fixture: CaptureFixture, authManager: AuthM
         // C-040 §4: `style` and `rightButtons` are required, so a nil is a fixture bug, not a
         // value to guess. `title` is `String?` outright. Every other prop has a §4 default:
         // showTitle / showIcons true, leadingGlyph back, leadingLabel "Cancel", trailingLabel "Done",
-        // trailingEnabled true, leadingEnabled true, trailingLoading false (D66).
+        // trailingEnabled true, leadingEnabled true, trailingLoading false (D66), showsDone false.
         guard let styleRaw = c.style else {
             throw ViewRegistryError.unknownView("component.ui2.C-040: missing props.style")
         }
@@ -223,6 +223,7 @@ private func buildCaptureViewPart5(_ fixture: CaptureFixture, authManager: AuthM
             title: c.title,
             showTitle: c.showTitle ?? true,
             showIcons: c.showIcons ?? true,
+            showsDone: c.showsDone ?? false,         // §4 default false (owner, 2026-11-21)
             leadingGlyph: ui2C040Leading,
             rightButtons: ui2C040Right,
             leadingLabel: c.leadingLabel ?? "Cancel",
@@ -295,7 +296,7 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         // `onTap` by R-33) is interaction-bearing and defaulted to a no-op in the view.
         guard let glyphRaw = c.glyph, let glyph = MakeReadyUI.GlyphButton.Glyph(rawValue: glyphRaw) else {
             throw ViewRegistryError.unknownView(
-                "component.ui2.C-021: props.glyph must be one of C-021 §3's nine glyph names"
+                "component.ui2.C-021: props.glyph must be one of C-021 §3's ten glyph names"
             )
         }
         return declareCase(
@@ -3326,6 +3327,12 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
         guard let libraryPhase = MakeReadyUI.LibraryHomeScreen.State.Phase(rawValue: c.phase ?? "populated") else {
             throw ViewRegistryError.unknownView("screen.2.0.library-home: props.phase must be populated | loading | empty | coming-soon")
         }
+        let librarySelectedTypes = try Set((c.selectedTypes ?? []).map { raw -> MakeReadyUI.LibraryItemType in
+            guard let type = MakeReadyUI.LibraryItemType(rawValue: raw) else {
+                throw ViewRegistryError.unknownView("screen.2.0.library-home: props.selectedTypes[] \"\(raw)\" must be note | memo")
+            }
+            return type
+        })
         let libraryISO = ISO8601DateFormatter()
         let libraryUpdatedAt = try (c.rowUpdatedAt ?? []).map { raw -> Date in
             guard let date = libraryISO.date(from: raw) else {
@@ -3355,6 +3362,8 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
                 phase: libraryPhase,
                 searchText: c.searchText ?? "",
                 searchFocused: c.searchFocused ?? false,
+                selectedTypes: librarySelectedTypes,
+                typeMenuOpen: c.typeMenuOpen ?? false,
                 sectionTitles: c.sectionTitles ?? [],
                 rowSections: c.rowSections ?? [],
                 rowTitles: c.rowTitles ?? [],
@@ -3363,9 +3372,7 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
                 rowContexts: c.rowContexts ?? [],
                 rowUpdatedAt: libraryUpdatedAt,
                 memos: libraryMemos
-            ),
-            // C-008 §4: capture drives C-034 non-editable so `searchFocused` draws the focus look.
-            searchEditable: false
+            )
         ))
     case "screen.2.0.note-editor":
         guard let c = fixture.state?.component else {
@@ -3789,7 +3796,15 @@ private func buildCaptureViewPart12(_ fixture: CaptureFixture, authManager: Auth
             throw ViewRegistryError.unknownView("component.ui2.C-012: props.elapsed is required")
         }
         return declareCase(
-            MakeReadyUI.PlayheadWaveformView(samples: ui2C012Samples, elapsed: ui2C012Elapsed),
+            // C-012 §4: `sampleTime` and `isRunning` default to 0 / false. §3 `scrolling` is a still
+            // taken mid-interval (frozen progress); absent = the still stepped layout.
+            MakeReadyUI.PlayheadWaveformView(
+                samples: ui2C012Samples,
+                elapsed: ui2C012Elapsed,
+                sampleTime: c.sampleTime ?? 0,
+                isRunning: c.isRunning ?? false
+            )
+            .stillProgress(c.progress ?? 1),
             // C-012 §1/§2: the frozen crop is the full 440 pt width with no margin; the height is
             // §2's 432.33 pt (a 400 pt pane), which the pane flexes to fill (OQ-C-012-6).
             PreviewFrame(width: 440, height: 1297.0 / 3.0, margin: 0, alignment: .top)
@@ -3910,6 +3925,8 @@ private func buildCaptureViewPart12(_ fixture: CaptureFixture, authManager: Auth
                 startTime: ui2C018Start,
                 elapsed: ui2C018Elapsed,
                 samples: ui2C018Samples,
+                sampleTime: c.sampleTime ?? 0,
+                isRunning: c.isRunning ?? false,
                 phase: ui2C018Phase,
                 menu: ui2C018Menu
             ),
@@ -3940,8 +3957,15 @@ private func buildCaptureViewPart12(_ fixture: CaptureFixture, authManager: Auth
         guard let ui2C011Samples = c.samples else {
             throw ViewRegistryError.unknownView("component.ui2.C-011: props.samples is required")
         }
+        // C-011 §4: `sampleTime` and `isRunning` default to 0 / false. §2: a still's scroll
+        // progress is frozen (the `scrolling` state is 0.5); absent = the resting layout.
         return declareCase(
-            MakeReadyUI.LiveWaveformView(samples: ui2C011Samples),
+            MakeReadyUI.LiveWaveformView(
+                samples: ui2C011Samples,
+                sampleTime: c.sampleTime ?? 0,
+                isRunning: c.isRunning ?? false
+            )
+            .stillProgress(c.progress ?? 1),
             // C-011 §1: the frozen crop's bands are 418 × 80 pt with no margin (x 33–1287 px at
             // 3×); the 80 pt height is the view's own (§2 FL-1).
             PreviewFrame(width: 418, margin: 0)
@@ -3960,7 +3984,10 @@ private func buildCaptureViewPart12(_ fixture: CaptureFixture, authManager: Auth
             MakeReadyUI.RecorderCompactView(
                 title: ui2C017Title,
                 elapsed: ui2C017Elapsed,
-                samples: ui2C017Samples
+                samples: ui2C017Samples,
+                sampleTime: c.sampleTime ?? ui2C017Elapsed,
+                isRunning: c.isRunning ?? false,
+                isReady: c.isReady ?? false
             ),
             // C-017 §2 Placement: the content box is 418 pt wide (3 pt in from each side of the
             // 424 pt sheet, C-011's band) with no margin; the 250 pt height is the view's own.
@@ -4000,6 +4027,9 @@ private func buildCaptureViewPart12(_ fixture: CaptureFixture, authManager: Auth
                 startTime: ui2C016Start,
                 elapsed: ui2C016Elapsed,
                 samples: ui2C016Samples,
+                sampleTime: c.sampleTime ?? 0,
+                isRunning: c.isRunning ?? false,
+                isReady: c.isReady ?? false,
                 phase: ui2C016Phase,
                 menu: ui2C016Menu
             )
@@ -4008,7 +4038,7 @@ private func buildCaptureViewPart12(_ fixture: CaptureFixture, authManager: Auth
             // no safe area of its own, so the device's is supplied here, at the call site.
             .safeAreaPadding(EdgeInsets(top: 62, leading: 0, bottom: 34, trailing: 0)),
             // C-016 §1/§2: a full-screen presentation layer, so the frame is the video's
-            // 440×956 pt screen with no margin; nothing is drawn behind the sheet.
+            // 440×956 pt screen with no margin; the black80 dim fills it behind the sheet.
             PreviewFrame(width: 440, height: 956, margin: 0)
         )
     default:

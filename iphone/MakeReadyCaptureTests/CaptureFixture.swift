@@ -1219,6 +1219,8 @@ struct CaptureComponent: Codable {
     // C-040 update 2026-10-27 (D66). Additive; no field of either name existed.
     let leadingEnabled: Bool?                  // C-040 — textButtons leading label; nil = §4's true
     let trailingLoading: Bool?                 // C-040 — textButtons saving spinner; nil = §4's false
+    // C-040 update 2026-11-21 (owner). Additive; no field of this name existed.
+    let showsDone: Bool?                       // C-040 — the trailing done check circle; nil = §4's false
     // ── preview props ──
     // C-045 TextInput rebuild 2026-10-19. Additive; reuses `kind` and `alignment` (same names,
     // same String type); no field named countryCode existed.
@@ -1543,6 +1545,8 @@ struct CaptureComponent: Codable {
     let rowDates: [String]?
     let rowPreviews: [String]?
     let rowContexts: [String]?
+    let selectedTypes: [String]?               // library-home — each "note" | "memo"
+    let typeMenuOpen: Bool?                    // library-home — §3 type-menu-open
     // ── preview props ──
     // C-009 EditorNavChrome — `editing` is reused (same name, same type).
     let canUndo: Bool?
@@ -1561,6 +1565,10 @@ struct CaptureComponent: Codable {
     let samples: [Float]?                      // C-012 PlayheadWaveformView
     let elapsed: Double?                       // C-012 — TimeInterval, seconds; C-004 reuses it
     let dragging: Bool?                        // C-004 ScrubTrack
+    // C-011 LiveWaveformView — `samples` and `progress` (the still's frozen scroll progress) are reused.
+    let sampleTime: Double?                    // C-011, C-012 (C-017 / C-018 / C-016 pass it through)
+    let isRunning: Bool?                       // C-011, C-012 (C-017 / C-018 / C-016 pass it through)
+    let isReady: Bool?                         // C-017 RecorderCompactView (C-016 passes it through)
     // C-006 MemoListRow — `title`, `dateLabel` and `preview` (the case name) are reused;
     // `previewText` is §3's encoding of `.transcript(String)`'s associated text.
     let durationLabel: String?                 // C-006

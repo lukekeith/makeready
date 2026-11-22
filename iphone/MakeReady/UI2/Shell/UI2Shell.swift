@@ -26,8 +26,6 @@ struct UI2Shell: View {
     @State private var recorder: RecorderSession?
     /// Voice memo was chosen: the recorder starts once the add menu's slide-out has ended.
     @State private var voiceMemoRequested = false
-    /// memo-screens D6: the "Saved to Library · View" toast.
-    @State private var toast = SavedToastPresenter()
 
     /// action-menu-overlay B3: the Add menu's actions, as frame 4717:52460 draws them. B5: none of
     /// their destinations existed in the 2.0 shell at the time. "Invite a member" now opens the invite
@@ -96,15 +94,6 @@ struct UI2Shell: View {
             // with a page pushed pops it (D20, the system pop).
             // image-framing-editor (owner walk 2026-10-27): the image editors are full-screen; the
             // bar is drawn over the pages, so removing it changes no page's layout.
-            if let saved = toast.current {
-                SavedToast(message: "Saved to Library", actionLabel: "View", onView: {
-                    model.push(MemoEntry.viewDestination(localId: saved.localId), on: model.tab)
-                    toast.dismiss()
-                })
-                .padding(.horizontal, Token.Space.cardPadding)
-                .padding(.bottom, (model.showsTabBar ? tabBarHeight : safeBottom) + Token.Space.stackGap)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
             if model.showsTabBar {
                 TabBar(selected: model.tab, onSelect: { model.apply(.tab($0)) }, onAdd: { addMenuOpen = true })
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { tabBarHeight = $0 }
@@ -136,16 +125,10 @@ struct UI2Shell: View {
         }
         // The TabBar slides out under an editor's push and back in on its pop, on the push's timing.
         .animation(Motion.standard, value: model.showsTabBar)
-        // memo-screens D6: the toast enters and leaves on the shell's standard motion, and hides itself.
-        .animation(Motion.standard, value: toast.current?.id)
-        .task(id: toast.current?.id) {
-            guard let id = toast.current?.id else { return }
-            await toast.expire(id: id)
-        }
         // memo-screens D2, D3: the recorder sheet rises over the whole shell; the host keeps one overlay.
         .hostedOverlay(recorder.map { session in
             UI2HostedOverlay(view: AnyView(RecorderSheetContainer(session: session, onEnd: recorderEnded)),
-                             transition: .move(edge: .bottom))
+                             transition: .identity)
         })
         .ignoresSafeArea(.container, edges: .bottom)
         // filter-menu-fullscreen: full-screen menus (C-036) draw here, above TopNav and TabBar.
@@ -189,13 +172,18 @@ struct UI2Shell: View {
         voiceMemoRequested = false
         guard MemoEntry.shouldStart(recorderPresented: recorder != nil),
               let userId = authManager.currentUser?.id else { return }
+        // C-016 slides itself in on appear and out before `onEnd` (a hosted overlay gets no
+        // presenting transaction — ActionMenuLayer's rule), so no animation here.
         recorder = MemoEntry.makeSession(userId: userId)
     }
 
-    /// memo-screens D6, D7, D11: a saved memo raises the toast; a discarded or failed one raises nothing.
+    /// memo-screens D7, D11: a saved memo opens its page at once, where the leader names it (owner
+    /// 2026-11-21, replacing D6's toast); a discarded or failed one opens nothing.
     private func recorderEnded(_ outcome: RecorderSession.Outcome) {
         recorder = nil
-        if case let .saved(localId) = outcome { toast.show(localId: localId) }
+        if case let .saved(localId) = outcome {
+            model.push(MemoEntry.viewDestination(localId: localId), on: model.tab)
+        }
     }
 
     /// members-search-pinned: track the keyboard on its own animation timing.

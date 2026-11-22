@@ -72,6 +72,9 @@ services:
       R2_ENDPOINT: http://dev-images:9090
       R2_BUCKET_NAME: makeready-dev
       R2_PUBLIC_URL: http://${MAKEREADY_DEV_HOST:-Lukes-MacBook-Pro-534.local}:9011/makeready-dev
+      # Presigned memo upload/playback URLs must name a host the phone can reach (memo D34) —
+      # `dev-images` only resolves inside Docker.
+      R2_PRESIGN_ENDPOINT: http://${MAKEREADY_DEV_HOST:-Lukes-MacBook-Pro-534.local}:9011
     depends_on:
       postgres:
         condition: service_healthy

@@ -11,7 +11,8 @@
 import SwiftUI
 
 /// Library — the Home tab's Library section root (§6, D51/D64): the leader's notes (C-005) and
-/// voice memos (C-006) in one list, interleaved newest first, in date sections (§2 item 3). No TopNav, no TabBar: the shell's
+/// voice memos (C-006) in one list, interleaved newest first, in date sections (§2 item 4), under
+/// the pinned C-131 search and `Type` filter header (§2 item 2). No TopNav, no TabBar: the shell's
 /// `HomeSectionLayout` owns both (§1 deviation 1). The content model is an ordered list of
 /// sections so memo and video sections can be appended later without restructuring (§2).
 ///
@@ -21,9 +22,9 @@ import SwiftUI
 /// day it runs). The live search filter (§3 `search-active`) is a UI-only rule and is real local
 /// state here.
 ///
-/// §3 `loading` names skeleton bars that no §4 component draws, so `loading` renders the bottom
-/// bar (search disabled) over an empty content area and the skeleton is reported as a spec gap —
-/// not improvised (the members-home / enrollments-home precedent).
+/// §3 `loading` names skeleton bars that no §4 component draws, so `loading` renders the header
+/// over an empty content area and the skeleton is reported as a spec gap — not improvised (the
+/// members-home / enrollments-home precedent).
 struct LibraryHomeScreen: View {
 
     /// One §3 state's inputs. Every §3 state is reachable by these alone. Parallel arrays — one
@@ -44,11 +45,17 @@ struct LibraryHomeScreen: View {
         }
 
         var phase: Phase
-        /// C-008 `searchText` — the initial query; "" → the placeholder shows.
+        /// C-131 `query` — the initial query; "" → the placeholder shows.
         var searchText: String = ""
-        /// C-008 `searchFocused` — §3 `search-active`: "the capsule is focused or has text".
+        /// C-131 `initiallyFocused` — §3 `search-active`: "the field is focused or has text".
         var searchFocused: Bool = false
-        /// C-010 `title` per section, newest first (§2 item 3: Today … years).
+        /// §3 input `selectedTypes`: "the seed for C-036's checked rows … It lives in the screen's
+        /// `State` and replaces `typeFilter`. `filter-memos` seeds `[.memo]`."
+        var selectedTypes: Set<LibraryItemType> = []
+        /// §3 `type-menu-open`: "the `Type` chip's C-036 multi-select menu is open" — the preview's
+        /// seed for the presented menu (R-31: ephemeral screen state, seeded here).
+        var typeMenuOpen: Bool = false
+        /// C-020 `title` per section, newest first (§2 item 4: Today … years).
         var sectionTitles: [String] = []
         /// Per row: the index into `sectionTitles` it sits under.
         var rowSections: [Int] = []
@@ -64,7 +71,7 @@ struct LibraryHomeScreen: View {
         /// are ordered by that date descending"). A note with none keeps its passed order, ahead
         /// of the section's memos.
         var rowUpdatedAt: [Date] = []
-        /// §3 input `memos` — the voice memos, interleaved with the note rows by date (§2 item 3).
+        /// §3 input `memos` — the voice memos, interleaved with the note rows by date (§2 item 4).
         var memos: [MemoRowInput] = []
 
         /// §3 `MemoRowInput` — one voice memo: "`id`, `title`, `duration`, `recordedAt`, the
@@ -92,80 +99,152 @@ struct LibraryHomeScreen: View {
     }
 
     let state: State
-    /// C-008 is driven editable in the app; capture passes `false` so `searchFocused` draws the
-    /// focus look (C-008 §4).
-    var searchEditable: Bool = true
-    /// §3 "Tap a row: opens that note in the editor" — the row's index in `state.rowTitles`.
+    /// §3 "Tap a note row: opens that note in the editor" — the row's index in `state.rowTitles`.
     var onOpenNote: (Int) -> Void = { _ in }
     /// §3 "Tap a memo row: pushes `memo-detail` for that memo" — the memo's `id`.
     var onOpenMemo: (String) -> Void = { _ in }
-    /// §3 "Tap the compose circle: opens a new note in the editor".
-    var onCompose: () -> Void = {}
-    /// The search text after every change, and "" when the capsule is cleared — for a caller that
+    /// The search text after every change, and "" when the field is cleared — for a caller that
     /// searches elsewhere (R-01 change callback; the local query below still updates).
     var onSearchChange: (String) -> Void = { _ in }
-    /// `false` when the caller owns the filtering: every row it passed is shown, with no needle
-    /// filter (search-no-results still shows when its rows are empty and the query is non-empty).
+    /// `false` when the caller owns the filtering: every row it passed is shown, with no text or
+    /// type filter (search-no-results still shows when its rows are empty and the query is
+    /// non-empty or one type is checked).
     var filtersLocally: Bool = true
     /// The list's scroll offset (0 at the top, negative on a pull) and whether a finger is on it —
     /// the shell's TopNav morph reads it, since this screen owns its scroll (Library `ownsScroll`).
     var onScrollChange: (CGFloat, Bool) -> Void = { _, _ in }
+    /// §3 "Tap `Save` in the `Type` menu: the screen applies the checked set and reports it through
+    /// `onSaveTypes`" — an empty set or both types means everything.
+    var onSaveTypes: (Set<LibraryItemType>) -> Void = { _ in }
+    /// §3 "Pull to refresh: the shared `PullToRefresh` calls `onRefresh`" — media-home's shape
+    /// (`() -> Void`, its page's own loading state shows the wait).
+    var onRefresh: () -> Void = {}
 
-    // §3 search-active: "The list filters live by title and body text" — UI-only, seeded from
-    // `state` (R-31: search text is ephemeral screen state).
+    // §3 search-active: "The list filters live across both kinds" — UI-only, seeded from `state`
+    // (R-31: search text and the presented menu are ephemeral screen state).
     @SwiftUI.State private var query: String
-    @SwiftUI.State private var searchFocused: Bool
+    @SwiftUI.State private var selectedTypes: Set<LibraryItemType>
+    @SwiftUI.State private var typeMenuOpen: Bool
 
     init(
         state: State,
-        searchEditable: Bool = true,
         onOpenNote: @escaping (Int) -> Void = { _ in },
         onOpenMemo: @escaping (String) -> Void = { _ in },
-        onCompose: @escaping () -> Void = {},
         onSearchChange: @escaping (String) -> Void = { _ in },
         filtersLocally: Bool = true,
-        onScrollChange: @escaping (CGFloat, Bool) -> Void = { _, _ in }
+        onScrollChange: @escaping (CGFloat, Bool) -> Void = { _, _ in },
+        onSaveTypes: @escaping (Set<LibraryItemType>) -> Void = { _ in },
+        onRefresh: @escaping () -> Void = {}
     ) {
         self.state = state
-        self.searchEditable = searchEditable
         self.onOpenNote = onOpenNote
         self.onOpenMemo = onOpenMemo
-        self.onCompose = onCompose
         self.onSearchChange = onSearchChange
         self.filtersLocally = filtersLocally
         self.onScrollChange = onScrollChange
+        self.onSaveTypes = onSaveTypes
+        self.onRefresh = onRefresh
         _query = SwiftUI.State(initialValue: state.searchText)
-        _searchFocused = SwiftUI.State(initialValue: state.searchFocused)
+        _selectedTypes = SwiftUI.State(initialValue: state.selectedTypes)
+        _typeMenuOpen = SwiftUI.State(initialValue: state.typeMenuOpen)
     }
 
     @SwiftUI.State private var fingerDown = false
 
+    // MARK: - §2 / §3 constants
+
+    /// §2 item 2: "C-034 SearchField (placeholder `Search library`)".
+    private static let searchPlaceholder = "Search library"
+
     var body: some View {
-        // notes agent walk round 1: the screen owns its scroll (the shell's Library `ownsScroll`),
-        // so C-008 floats over the scroll view, not at the end of its content (§2 item 4: "pinned
-        // above the bottom safe area (and above the shell TabBar)").
-        GeometryReader { viewport in
-            ScrollView(.vertical) {
-                content
-                    // A short state (empty, no results) still centres in the visible area.
-                    .frame(maxWidth: .infinity, minHeight: max(0, viewport.size.height - Self.barClearance),
-                           alignment: showsList ? .top : .center)
+        // §2 items 2–3: the C-131 header is pinned under the TopNav (the shell starts an
+        // `ownsScroll` section below its row) and stays put while the screen's own ScrollView
+        // scrolls beneath it.
+        VStack(spacing: 0) {
+            header
+            GeometryReader { viewport in
+                ScrollView(.vertical) {
+                    content
+                        // A short state (empty, no results) still centres in the visible area.
+                        .frame(maxWidth: .infinity, minHeight: viewport.size.height,
+                               alignment: showsList ? .top : .center)
+                }
+                .scrollIndicators(.hidden)
+                .scrollBounceBehavior(.always, axes: .vertical)
+                .scrollDismissesKeyboard(.interactively)
+                .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                    geometry.contentOffset.y + geometry.contentInsets.top
+                } action: { _, offset in
+                    onScrollChange(offset, fingerDown)
+                }
+                .onScrollPhaseChange { _, phase in fingerDown = phase == .interacting }
+                // §2 item 3: "the shared `PullToRefresh` wraps it, wired the way `media-home`
+                // wires it".
+                .pullToRefresh(onRefresh)
             }
-            .scrollIndicators(.hidden)
-            .scrollBounceBehavior(.always, axes: .vertical)
-            .scrollDismissesKeyboard(.interactively)
-            // §2 item 2: "Content scrolls under the floating bottom bar, with bottom inset so the
-            // last row clears it."
-            .contentMargins(.bottom, Self.barClearance, for: .scrollContent)
-            .onScrollGeometryChange(for: CGFloat.self) { geometry in
-                geometry.contentOffset.y + geometry.contentInsets.top
-            } action: { _, offset in
-                onScrollChange(offset, fingerDown)
-            }
-            .onScrollPhaseChange { _, phase in fingerDown = phase == .interacting }
         }
-        .overlay(alignment: .bottom) { bottomBar }
         .background(Token.layoutBackground)              // §2: "Background `color-layout-background`"
+        // §3 The `Type` chip: "Tapping it opens C-036 FilterMenuOverlay" (§6: the one overlay).
+        .filterMenuPresentation(isPresented: typeMenuOpen, onDismiss: { typeMenuOpen = false }) {
+            typeMenu
+        }
+    }
+
+    // MARK: - §2 item 2 — the pinned C-131 header
+
+    /// §2 item 2: "C-034 SearchField (placeholder `Search library`) over the C-130 rail of C-035
+    /// chips … There is one chip, `Type`." `.underShellTopNav`: the shell's TopNav sits above.
+    private var header: some View {
+        SearchFilterHeader(
+            query: query,
+            onQueryChange: { newValue in
+                query = newValue
+                onSearchChange(newValue)
+            },
+            placeholder: Self.searchPlaceholder,
+            placement: .underShellTopNav,
+            initiallyFocused: state.searchFocused
+        ) {
+            // §3: "one C-035 chip … tapping it opens C-036"; "The chip is active while anything is
+            // checked. Its label follows `members-home`'s rule" (filter-multiselect D4).
+            FilterChip(type: .menu, active: !selectedTypes.isEmpty, label: typeChipLabel, onTap: { typeMenuOpen = true })
+                .ui2Element("C-035 FilterChip")
+        }
+        // GAP — library-home §3 loading / empty: "its search field is disabled" — C-131 takes no
+        // `enabled` input (C-034 has one), so the header is made inert without the dimmed look.
+        .disabled(!searchEnabled)
+        .ui2Element("C-131 SearchFilterHeader")
+    }
+
+    /// §3 loading / empty: "The header's search field is disabled".
+    private var searchEnabled: Bool { state.phase == .populated }
+
+    /// §3 The `Type` chip: "C-036 FilterMenuOverlay in its multi-select form, with `Notes` and
+    /// `Voice memos` as checkable rows and **Save**. The menu has no "All types" row (D3)." As
+    /// members-home: picks are a draft, Save applies and closes, ✕ closes with no change.
+    private var typeMenu: some View {
+        FilterMenuOverlay(
+            options: LibraryItemType.menuOptions.map { FilterMenuOverlay.Option(id: $0.rawValue, label: $0.label) },
+            selectionMode: .multiple,
+            selectedIDs: Set(selectedTypes.map(\.rawValue)),
+            onClose: { typeMenuOpen = false },
+            onSave: { picked in
+                selectedTypes = Set(picked.compactMap(LibraryItemType.init(rawValue:)))
+                onSaveTypes(selectedTypes)
+                typeMenuOpen = false
+            }
+        )
+        .ui2Element("C-036 FilterMenuOverlay")
+    }
+
+    /// §3: "`All types` with nothing checked, otherwise the house wording for the checked set"
+    /// (members-home's rule — C-036's `chipLabel`), in menu order.
+    private var typeChipLabel: String {
+        FilterMenuOverlay.chipLabel(
+            picked: LibraryItemType.menuOptions.filter(selectedTypes.contains).map(\.label),
+            resting: "All types",
+            noun: "types"
+        )
     }
 
     // MARK: - §2 content area
@@ -179,11 +258,14 @@ struct LibraryHomeScreen: View {
         case .populated:
             if visibleSections.isEmpty {
                 // §3 search-no-results: "search glyph, title `No results`, message
-                // `Nothing in your Library matches “<text>”.`"
+                // `Nothing in your Library matches “<text>”.`, or `Nothing in your Library matches
+                // this filter.` when the text is empty".
                 centredEmptyState(
                     glyph: .searchCarbon,
                     title: "No results",
-                    message: "Nothing in your Library matches \u{201C}\(query)\u{201D}."
+                    message: query.trimmingCharacters(in: .whitespaces).isEmpty
+                        ? "Nothing in your Library matches this filter."
+                        : "Nothing in your Library matches \u{201C}\(query)\u{201D}."
                 )
             } else {
                 notesSection
@@ -194,11 +276,11 @@ struct LibraryHomeScreen: View {
             Color.clear.frame(maxWidth: .infinity)
         case .empty:
             // §3 empty: "note glyph, title "Nothing in your Library yet", message "You have no
-            // notes or memos yet. Tap the compose button to write your first note.""
+            // notes or memos yet. Tap + and choose Write a note or Voice memo.""
             centredEmptyState(
                 glyph: .fileText,
                 title: "Nothing in your Library yet",
-                message: "You have no notes or memos yet. Tap the compose button to write your first note."
+                message: "You have no notes or memos yet. Tap + and choose Write a note or Voice memo."
             )
         case .comingSoon:
             // §3 coming-soon: the former placeholder (C-132, "Library coming soon").
@@ -210,7 +292,7 @@ struct LibraryHomeScreen: View {
         }
     }
 
-    /// §2 item 5: "a centred C-132 EmptyState … between the TopNav and the bottom bar".
+    /// §2 item 5: "a centred C-132 EmptyState, or a loading placeholder, under the header".
     private func centredEmptyState(glyph: GlyphName, title: String, message: String) -> some View {
         EmptyState(glyph: glyph, title: title, message: message)
             .ui2Element("C-132 EmptyState")
@@ -218,7 +300,7 @@ struct LibraryHomeScreen: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
-    // MARK: - §2 item 3 — the Library list (notes and memos, one list)
+    // MARK: - §2 item 4 — the Library list (notes and memos, one list)
 
     /// One row of the merged list: a note (its index in `state.rowTitles`) or a memo (its index in
     /// `state.memos`).
@@ -238,9 +320,13 @@ struct LibraryHomeScreen: View {
     private var visibleSections: [VisibleSection] {
         let needle = query.trimmingCharacters(in: .whitespaces)
         let filtering = filtersLocally && !needle.isEmpty
+        // §3: "The filter combines with search … Nothing checked, or both checked, shows every row";
+        // caller-owned filtering applies neither.
+        let showsNotes = !filtersLocally || LibraryItemType.shows(.note, in: selectedTypes)
+        let showsMemos = !filtersLocally || LibraryItemType.shows(.memo, in: selectedTypes)
         return state.sectionTitles.indices.compactMap { section in
             let notes = state.rowTitles.indices.filter { row in
-                guard state.rowSections.indices.contains(row), state.rowSections[row] == section else {
+                guard showsNotes, state.rowSections.indices.contains(row), state.rowSections[row] == section else {
                     return false
                 }
                 guard filtering else { return true }
@@ -251,7 +337,7 @@ struct LibraryHomeScreen: View {
             }
             let memos = state.memos.indices.filter { index in
                 let memo = state.memos[index]
-                guard memo.section == section else { return false }
+                guard showsMemos, memo.section == section else { return false }
                 guard filtering else { return true }
                 // §3: "a memo by title and transcript text".
                 return memo.title.localizedCaseInsensitiveContains(needle)
@@ -262,7 +348,7 @@ struct LibraryHomeScreen: View {
         }
     }
 
-    /// §2 item 3: "Within a section, rows of both kinds are ordered by that date descending" —
+    /// §2 item 4: "Within a section, rows of both kinds are ordered by that date descending" —
     /// `updatedAt` for a note, `recordedAt` for a memo. A stable merge: the notes keep their passed
     /// order, and a note with no `rowUpdatedAt` stays ahead of every memo.
     private func merged(notes: [Int], memos: [Int]) -> [Item] {
@@ -294,30 +380,36 @@ struct LibraryHomeScreen: View {
         return nil
     }
 
+    /// §2 item 4: date sections, each a C-020 SectionHeader over flat house rows.
     private var notesSection: some View {
-        // §2: "a gap between section cards" — analysis §2.2 "~26 pt gap", nearest spacing token.
-        VStack(alignment: .leading, spacing: Token.Space.rowGap) {
+        VStack(alignment: .leading, spacing: Token.Space.sectionGap) {
             ForEach(Array(visibleSections.enumerated()), id: \.element.id) { position, section in
                 VStack(alignment: .leading, spacing: Token.Space.elementGap) {
-                    NoteSectionHeader(title: section.title)
-                        .ui2Element(Self.annotation("C-010 NoteSectionHeader", position))
-                    sectionCard(section)
+                    // §2: "Section headers are C-020 SectionHeader … carrying the date label with
+                    // no trailing accessory."
+                    SectionHeader(title: section.title, style: .section, accessory: .none)
+                        .ui2Element(Self.annotation("C-020 SectionHeader", position))
+                    sectionRows(section)
                 }
             }
         }
-        // §2: header "flush left at the page margin" (analysis §2.2 "~14 pt", `space-page-margin`).
+        // §2: rows and headers at the page margin, as on members-home.
         .padding(.horizontal, Token.Space.pageMargin)
-        .padding(.top, Token.Space.stackGap)
+        // §2 item 3: "The list ends with the page's normal bottom inset for the TabBar."
+        .padding(.bottom, Token.Space.sectionGap)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// §2: "rows grouped in one inset card (analysis §2.2: row surface one step lighter than the
-    /// page, rounded corners, hairline separators inset to the title edge)".
-    private func sectionCard(_ section: VisibleSection) -> some View {
+    /// §2: "Rows are flat house list rows, not inset cards … the C-088 hairline rule between rows."
+    private func sectionRows(_ section: VisibleSection) -> some View {
         VStack(spacing: 0) {
             ForEach(Array(section.rows.enumerated()), id: \.element) { position, item in
                 if position > 0 {
-                    separator
+                    // §2: "The hairline rule starts where the text column starts" — past the 32 pt
+                    // avatar and the row's 16 band gap.
+                    SectionDivider()
+                        .padding(.leading, NoteListRow.avatarSize + Token.Space.cardPadding)
+                        .ui2Element(Self.annotation("C-088 SectionDivider", dividerOrdinal(item)))
                 }
                 switch item {
                 case .note(let row):
@@ -330,8 +422,7 @@ struct LibraryHomeScreen: View {
                     )
                     .ui2Element(Self.annotation("C-005 NoteListRow", rowOrdinal(item)))
                 case .memo(let index):
-                    // §2 item 3: "A memo row is a C-006 MemoListRow with the same height rhythm,
-                    // insets and separators as C-005" — the row owns its insets; the card is shared.
+                    // §2: "A memo row is a C-006 MemoListRow in the same house row look".
                     let memo = state.memos[index]
                     MemoListRow(
                         title: memo.title,
@@ -344,55 +435,7 @@ struct LibraryHomeScreen: View {
                 }
             }
         }
-        .background(Token.cardBackground)
-        // analysis §2.2 "~18 pt corner radius" — nearest radius token.
-        .clipShape(RoundedRectangle(cornerRadius: Token.Radius.step16, style: .continuous))
     }
-
-    /// §2: "hairline separators inset to the title edge" — C-005's title sits at
-    /// `space-card-padding`.
-    private var separator: some View {
-        Rectangle()
-            .fill(Token.cardBorder)
-            // FLAGGED LITERAL — C-008 §2 precedent: "a 1 pt `color-card-border` stroke", the
-            // program-wide hairline; no stroke token.
-            .frame(height: 1)
-            .padding(.leading, Token.Space.cardPadding)
-            .accessibilityHidden(true)
-    }
-
-    // MARK: - §2 item 4 — the floating bottom bar
-
-    private var bottomBar: some View {
-        NotesBottomBar(
-            searchText: query,
-            searchFocused: searchFocused,
-            // §3 loading / empty: "the search capsule is disabled".
-            searchEnabled: state.phase == .populated,
-            // §3 empty: "The compose circle in C-008 is emphasised (accent fill)".
-            composeEmphasis: state.phase == .empty ? .prominent : .regular,
-            onSearchChange: { query = $0; onSearchChange($0) },
-            onSearchFocusChange: { searchFocused = $0 },
-            onSearchClear: { query = ""; onSearchChange("") },
-            onCompose: onCompose,
-            editable: searchEditable
-        )
-        .ui2Element("C-008 NotesBottomBar")
-        // C-008 §2 "Not this bar's": the side margins and "the ~14 pt offset above the bottom
-        // safe area" — `space-page-margin` on both.
-        .padding(.horizontal, Token.Space.pageMargin)
-        .padding(.top, Token.Space.sectionGap)
-        .padding(.bottom, Token.Space.pageMargin)
-        // §2 item 4: "a scrim gradient behind it so rows dim beneath it (analysis §2.3)".
-        .background(
-            LinearGradient(colors: [Color.clear, Token.layoutBackground], startPoint: .top, endPoint: .center)
-                .allowsHitTesting(false)
-        )
-    }
-
-    /// The list's bottom inset: the bar's 44 pt plus its bottom offset and a section gap of air.
-    // GAP — C-008 §2: "Intrinsic height 44, C-034's height"; no size token.
-    private static let barClearance: CGFloat = 44 + Token.Space.pageMargin + Token.Space.sectionGap
 
     // MARK: - Helpers
 
@@ -418,9 +461,40 @@ struct LibraryHomeScreen: View {
         return sameKind.firstIndex(of: item) ?? 0
     }
 
+    /// The divider above `item`'s position among every divider drawn (one per row that is not
+    /// first in its section), for the D11 annotation suffix.
+    private func dividerOrdinal(_ item: Item) -> Int {
+        let above = visibleSections.flatMap { $0.rows.dropFirst() }
+        return above.firstIndex(of: item) ?? 0
+    }
+
     /// D11: "a component placed twice gets " 2" on the second".
     private static func annotation(_ name: String, _ position: Int) -> String {
         position == 0 ? name : "\(name) \(position + 1)"
+    }
+}
+
+// MARK: - §3 The `Type` filter
+
+/// §3 inputs: "`LibraryItemType` is `note` or `memo`" — one checkable row of the `Type` menu.
+enum LibraryItemType: String {
+    case note
+    case memo
+
+    /// §3 The `Type` menu's checkable rows, in order: "`Notes` and `Voice memos`".
+    static let menuOptions: [Self] = [.note, .memo]
+
+    /// The row's label in C-036 and on the chip.
+    var label: String {
+        switch self {
+        case .note: return "Notes"
+        case .memo: return "Voice memos"
+        }
+    }
+
+    /// §3: "Nothing checked, or both checked, shows every row" — whether `type`'s rows show.
+    static func shows(_ type: Self, in selected: Set<Self>) -> Bool {
+        selected.isEmpty || selected.contains(type)
     }
 }
 
@@ -464,12 +538,16 @@ private extension LibraryHomeScreen.State {
 
     /// §3 `populated-mixed`: "notes and memos interleaved in the Today and Previous 7 Days
     /// sections, including one memo `transcribing` and one memo `waiting-to-upload`".
-    /// §3 `search-mixed` is this list with search text matching one note and one memo.
-    static func mixed(searchText: String = "", searchFocused: Bool = false) -> Self {
+    /// §3 `search-mixed` is this list with search text matching one note and one memo, and
+    /// `filter-memos` is it with `Voice memos` checked in the `Type` menu.
+    static func mixed(searchText: String = "", searchFocused: Bool = false, selectedTypes: Set<LibraryItemType> = [],
+                      typeMenuOpen: Bool = false) -> Self {
         .init(
             phase: .populated,
             searchText: searchText,
             searchFocused: searchFocused,
+            selectedTypes: selectedTypes,
+            typeMenuOpen: typeMenuOpen,
             sectionTitles: ["Today", "Previous 7 Days"],
             rowSections: [0, 1, 1],
             rowTitles: ["Sermon prep: Romans 8", "Small group questions", "Grocery list"],
@@ -528,14 +606,14 @@ private extension LibraryHomeScreen.State {
 }
 
 #Preview("search-active") {
-    LibraryHomeScreen(state: .notes(searchText: "lesson", searchFocused: true), searchEditable: false)
+    LibraryHomeScreen(state: .notes(searchText: "lesson", searchFocused: true))
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)
 }
 
 #Preview("search-no-results") {
-    LibraryHomeScreen(state: .notes(searchText: "bold", searchFocused: true), searchEditable: false)
+    LibraryHomeScreen(state: .notes(searchText: "bold", searchFocused: true))
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)
@@ -549,7 +627,21 @@ private extension LibraryHomeScreen.State {
 }
 
 #Preview("search-mixed") {
-    LibraryHomeScreen(state: .mixed(searchText: "rest", searchFocused: true), searchEditable: false)
+    LibraryHomeScreen(state: .mixed(searchText: "rest", searchFocused: true))
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
+
+#Preview("filter-memos") {
+    LibraryHomeScreen(state: .mixed(selectedTypes: [.memo]))
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
+
+#Preview("type-menu-open") {
+    LibraryHomeScreen(state: .mixed(typeMenuOpen: true))
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)

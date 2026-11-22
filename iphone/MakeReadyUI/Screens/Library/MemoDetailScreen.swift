@@ -10,7 +10,7 @@
 
 import SwiftUI
 
-/// Memo Detail — the pushed full-screen memo page (§2): C-009 EditorNavChrome (Back · ⋯), the
+/// Memo Detail — the pushed full-screen memo page (§2): C-040 PageHeader (Back · ⋯), the
 /// screen-local header (title + meta line), the pinned player block (C-004 ScrubTrack over C-014
 /// TransportControls), and the transcript — screen-local paragraphs (D75 superseded, owner
 /// 2026-11-21) or a status line — which alone scrolls.
@@ -118,11 +118,12 @@ struct MemoDetailScreen: View {
     }
 
     var body: some View {
-        // §2 top → bottom: chrome, header and player pinned; only the transcript scrolls.
+        // §2 top → bottom: PageHeader, header and player pinned; only the transcript scrolls.
         VStack(alignment: .leading, spacing: 0) {
             navChrome
             header
-                .padding(.top, Token.Space.elementGap)
+                // §2 item 2: 16 below the PageHeader (owner, 2026-11-21) — `space-page-margin`.
+                .padding(.top, Token.Space.pageMargin)
             playerBlock
                 .padding(.top, Token.Space.sectionGap)
             transcriptArea
@@ -183,19 +184,29 @@ struct MemoDetailScreen: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
     }
 
-    // MARK: - §2 item 1 — nav chrome
+    // MARK: - §2 item 1 — nav (C-040 PageHeader)
 
     private var navChrome: some View {
-        EditorNavChrome(
-            editing: false,
-            canUndo: false,
-            more: true,
-            onBack: onBack,
-            onMore: { menuPresented = true }
+        // §2 item 1: "style `.twoIcons`, `leadingGlyph = .back`, `rightButtons = [.threeDots]`,
+        // no title in the bar" — laid out by C-040 itself, as group-detail / enrollment-home use it.
+        PageHeader(
+            style: .twoIcons,
+            title: nil,
+            showTitle: false,
+            showIcons: true,
+            // C-040 `showsDone` (owner, 2026-11-21): the done check shows while renaming.
+            showsDone: renaming,
+            leadingGlyph: .back,
+            rightButtons: [.threeDots],
+            onLeading: onBack,
+            onRightButton: { _ in menuPresented = true },
+            // The check commits the rename and dismisses the keyboard (§3 interaction 3).
+            onDone: {
+                titleFocused = false
+                commitRename()
+            }
         )
-        .ui2Element("C-009 EditorNavChrome")
-        // §2: pinned to the top safe area, `space-page-margin` each side.
-        .padding(.horizontal, Token.Space.pageMargin)
+        .ui2Element("C-040 PageHeader")
     }
 
     // MARK: - §2 item 2 — header (screen-local)

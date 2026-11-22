@@ -5,8 +5,9 @@
 //  Built from C-021-glyph-button in d2m (§2 geometry, §3 states, §4 props).
 //  PREVIEW ONLY: referenced by no screen, route, tab or flag.
 //
-//  ARTWORK: the nine vectors are the ones exported from the normative Figma set
-//  (C-021 §1), carried in Resources/Glyphs.xcassets and keyed by the contract's own glyph
+//  ARTWORK: the nine designed vectors are the ones exported from the normative Figma set
+//  (C-021 §1); `undo` (Deviation 2) is the library's `rotate-ccw` at the set's 1.5 weight.
+//  All are carried in Resources/Glyphs.xcassets and keyed by the contract's own glyph
 //  names — so the asset name IS the §3 value and there is no mapping table to drift. The
 //  catalog is the only way iOS renders these: a raw .svg in a bundle is not loadable.
 //
@@ -28,13 +29,17 @@ extension Bundle {
 /// glyph and owns its 44pt tap area through an expanded content shape (OQ-C-021-001).
 struct GlyphButton: View {
 
-    /// C-021 §3 — the closed set of nine designed glyphs. Raw values are the contract's
-    /// own names, which are also the asset-catalog names and the fixture's prop values.
+    /// C-021 §3 — the closed set of ten glyphs (nine designed, `undo` owner-added by
+    /// Deviation 2). Raw values are the contract's own names, which are also the
+    /// asset-catalog names and the fixture's prop values.
     enum Glyph: String, CaseIterable {
         case export, settings, back, add, send
         case arrowForward = "arrow-forward"
         case threeDots = "three-dots"
         case search, calendar
+        /// C-021 §3 Deviation 2 (owner, 2026-11-21): counter-clockwise arrow, same 24×24 box,
+        /// stroke weight and `color-accent` ink as the drawn glyphs.
+        case undo
 
         /// R-17: every interactive element carries a label. The contract names no strings,
         /// so each is the glyph's §3 geometry word in plain English.
@@ -49,6 +54,7 @@ struct GlyphButton: View {
             case .threeDots: "More"
             case .search: "Search"
             case .calendar: "Calendar"
+            case .undo: "Undo"                          // C-021 §4: labelled "Undo"
             }
         }
     }
@@ -62,7 +68,7 @@ struct GlyphButton: View {
     // OQ-C-021-4 (owner, 2026-10-20): mint `size-hit-target` = 44 and cite it.
     private static let hitTarget: CGFloat = 44
 
-    /// C-021 §4: `glyph` — which of the nine designed vectors renders.
+    /// C-021 §4: `glyph` — which of the ten vectors renders.
     let glyph: Glyph
     /// C-021 §4: `action`, spelled `onTap` by R-33 — invoked on tap; carries no render
     /// effect. A defaulted no-op so the promoted view keeps its real signature.

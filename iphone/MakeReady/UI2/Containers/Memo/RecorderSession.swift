@@ -3,7 +3,8 @@
 //  MakeReady
 //
 //  memo-screens D3, D7, D11: one recording's logic over `MemoRecorderEngine`, for the recorder
-//  sheet. It starts the engine with no record tap, stamps the start time, hands the finished
+//  sheet. It prepares the engine when the sheet opens and starts it on the record tap (owner
+//  2026-11-21, reversing D3's auto-start), stamps the start time, hands the finished
 //  result to the upload queue and publishes how the recording ended. Dragging the sheet only
 //  moves `expansion`; it never reaches the engine.
 //
@@ -19,7 +20,13 @@ final class RecorderSession {
         case failed
     }
 
+    /// The memo's saved title, the auto `Memo {n}`; the leader renames it on memo-detail, which
+    /// opens when the recording ends (owner 2026-11-21).
     let title: String
+    /// What the recorder shows while recording (owner 2026-11-21: "make the title New voice memo").
+    static let displayTitle = "New voice memo"
+    /// True once the record tap has started the engine; before that the sheet is `ready`.
+    private(set) var hasStarted = false
     private(set) var expansion: Double = 0
     private(set) var menu: RecorderExpandedView.Menu = .none
     private(set) var startTime = ""
@@ -57,22 +64,34 @@ final class RecorderSession {
 
     // MARK: Recording
 
-    /// Prepares and starts at once, with no record tap (D3). A denied microphone leaves the engine
-    /// idle with `micPermissionDenied`, which `phase` shows; nothing is created or enqueued.
+    /// Prepares the engine when the sheet opens (mic permission, transcriber), so the record tap
+    /// starts at once. Nothing records until `record()`. A denied microphone leaves the engine idle
+    /// with `micPermissionDenied`, which `phase` shows; nothing is created or enqueued.
     func begin() async {
         guard !began else { return }
         began = true
         do {
             try await engine.prepare(title: title)
-            try await engine.start()
-            startTime = format(now())
         } catch MemoEngineError.micPermissionDenied {
             // The mic-denied message (Open Settings, Close) lives in the expanded sheet, and the drag is
             // off in that phase — so the session opens it; left compact, the sheet has no way out.
             expansion = 1
-            return
         } catch is CancellationError {
             return
+        } catch {
+            fail(error)
+        }
+    }
+
+    /// The record tap: starts the prepared engine.
+    func record() async {
+        guard began, !hasStarted, outcome == nil, engine.lastError != .micPermissionDenied else { return }
+        hasStarted = true
+        do {
+            try await engine.start()
+            startTime = format(now())
+        } catch is CancellationError {
+            hasStarted = false
         } catch {
             // The engine already ended itself and removed its partial .caf and draft manifest.
             fail(error)
@@ -140,10 +159,12 @@ final class RecorderSession {
         outcome = .discarded
     }
 
-    /// The mic-denied close: nothing was recorded, so nothing is kept.
+    /// Closing before recording (swipe down while ready, or the mic-denied Close): nothing was
+    /// recorded, so nothing is kept, and the prepared engine is let go.
     func close() {
-        guard outcome == nil else { return }
+        guard outcome == nil, !hasStarted else { return }
         outcome = .discarded
+        Task { await engine.cancelPrepared() }
     }
 
     // MARK: Helpers

@@ -3,7 +3,9 @@ import SwiftUI
 /// notes D3/D8/D17/D20: the Home tab's Library section root — the leader's notes list. Reads
 /// `AppState.studyNotes` (cache-first), refreshes through `NoteActions`, and sends the search
 /// capsule's text to the server as `q` 300 ms after the last keystroke (no client-side corpus
-/// search). Compose and a row tap push the editor through `UI2Navigator`.
+/// search). A row tap pushes the editor through `UI2Navigator`; new notes come from the TabBar +
+/// menu (library-home §3: no compose button). The `Type` chip filters by kind here, since the
+/// screen's filtering is caller-owned, and pull to refresh re-fetches.
 struct LibraryHomeContainer: View {
     @Environment(\.ui2Navigator) private var navigator
     /// Library owns its scroll (`ownsScroll`), so it reports to the TopNav morph itself.
@@ -16,6 +18,8 @@ struct LibraryHomeContainer: View {
     /// The server's memo matches for `query` (nil: no search, show every memo).
     @State private var searchMatches: [VoiceMemoSummary]?
     @State private var searchTask: Task<Void, Never>?
+    /// library-home §3 `Type` chip: the saved set of kinds (empty or both = everything).
+    @State private var selectedTypes: Set<LibraryItemType> = []
 
     /// D8: the pause after the last keystroke before `q` is sent.
     static let searchDebounce: Duration = .milliseconds(300)
@@ -26,21 +30,30 @@ struct LibraryHomeContainer: View {
         let memos = LibraryHomeMapper.visibleMemos(stored: AppState.shared.voiceMemos.all,
                                                    queued: AppState.shared.memoUploads?.pendingItems ?? [],
                                                    searchMatches: searchMatches)
-        let sections = LibraryHomeMapper.rows(notes: AppState.shared.studyNotes.all, searchIds: searchIds, memos: memos,
+        let sections = LibraryHomeMapper.rows(notes: LibraryItemType.shows(.note, in: selectedTypes) ? AppState.shared.studyNotes.all : [],
+                                              searchIds: searchIds, memos: LibraryItemType.shows(.memo, in: selectedTypes) ? memos : [],
                                               now: now, calendar: calendar)
-        let phase = LibraryHomeMapper.phase(isLoading: isLoading, loadFailed: loadFailed, sections: sections, query: query)
+        let phase = Self.filteredPhase(
+            LibraryHomeMapper.phase(isLoading: isLoading, loadFailed: loadFailed, sections: sections, query: query),
+            selectedTypes: selectedTypes)
         let noteIds = LibraryHomeMapper.noteIds(in: sections)
+        let state: LibraryHomeScreen.State = {
+            var state = LibraryHomeMapper.state(sections: sections, phase: phase, query: query, now: now, calendar: calendar)
+            state.selectedTypes = selectedTypes
+            return state
+        }()
         LibraryHomeScreen(
-            state: LibraryHomeMapper.state(sections: sections, phase: phase, query: query, now: now, calendar: calendar),
+            state: state,
             onOpenNote: { row in
                 guard noteIds.indices.contains(row) else { return }
                 navigator.push(.noteEditor(noteId: noteIds[row]))
             },
             onOpenMemo: { id in navigator.push(Self.destination(forMemoId: id)) },
-            onCompose: { navigator.push(.newNote(flowId: UUID())) },
             onSearchChange: search,
             filtersLocally: false,
-            onScrollChange: { offset, interacting in scrollReport.report(offset, interacting) }
+            onScrollChange: { offset, interacting in scrollReport.report(offset, interacting) },
+            onSaveTypes: { selectedTypes = $0 },
+            onRefresh: { Task { await fetch(q: Self.trimmedQuery(query)) } }
         )
         .task { await fetch(q: nil) }
         .onDisappear { searchTask?.cancel() }
@@ -60,6 +73,17 @@ struct LibraryHomeContainer: View {
             guard !Task.isCancelled else { return }
             await fetch(q: trimmed)
         }
+    }
+
+    /// library-home §3 search-no-results: a type filter matching nothing is no-results, not the empty Library.
+    private static func filteredPhase(_ phase: LibraryHomeMapper.Phase, selectedTypes: Set<LibraryItemType>) -> LibraryHomeMapper.Phase {
+        phase == .empty && !selectedTypes.isEmpty ? .noResults : phase
+    }
+
+    /// The query `fetch(q:)` takes: nil for none.
+    private static func trimmedQuery(_ text: String) -> String? {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     /// memo-screens D4, D17: a memo row opens its page; a queued memo's id is already `local:<localId>`.

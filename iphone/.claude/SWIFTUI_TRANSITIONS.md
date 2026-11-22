@@ -387,6 +387,34 @@ private func dismiss() {
 
 ---
 
+## UI 2.0 Hosted Overlays (`.hostedOverlay`) Own Their Motion
+
+### Problem: an overlay's surface slides in but its contents land at their final position — or it just appears
+
+**Seen:** C-016 RecorderSheet (+ → Voice memo), 2026-11-21. The sheet was handed to the shell with
+`UI2HostedOverlay(view:, transition: .move(edge: .bottom))`. When it gained new content (the ready
+state's record button), the slide stopped carrying the contents, and wrapping the presenting
+`recorder = …` in `withAnimation` didn't help.
+
+**Root cause:** `.hostedOverlay` hands the view up as a **preference value**. The shell's
+`.ui2OverlayHost()` inserts it in a later update pass, which **does not carry the transaction of the
+state change that presented it**. So an insertion or removal `transition:` never reliably animates,
+and any `.transaction { $0.animation = nil }` inside the content (common in d2m views, for "re-renders
+without implicit animation") makes late-laid-out children land at their final position.
+
+**Fix — the overlay owns its motion (C-066's `ActionMenuLayer`, `MakeReadyUI/ActionMenuPresentation.swift`):**
+1. Hand it up with `transition: .identity`, and don't use `withAnimation` around the presenting state.
+2. Keep a `@State var shown = false`. In `.onAppear`, run `withAnimation(<motion token>) { shown = true }`.
+3. Slide the whole laid-out view with `.visualEffect { [shown] e, proxy in e.offset(y: shown ? 0 : proxy.size.height) }`.
+   It moves as one piece, so children can't be left behind.
+4. Dismiss in two steps. A `visible` input turning false runs `withAnimation { shown = false } completion: { onHidden() }`,
+   and only `onHidden` unmounts the overlay or reports the outcome.
+5. Use the dim and the gestures in the same way: a `Token.black80` scrim faded by `shown`, tap it to dismiss,
+   and drag down past `ActionMenuMotion.shouldDismiss` to dismiss.
+
+**Rule:** never give a `.hostedOverlay` a `.move`, `.opacity` or other animated `transition:`. If it slides
+or fades, it does so itself, as above.
+
 ## General Rules
 
 1. **Prefer explicit `withAnimation()` over implicit `.animation()` modifier** when the animation is triggered by a button tap or user interaction — EXCEPT for HStack slide patterns, which need the implicit `.animation()` to catch the deferred state change from the two-step pattern.

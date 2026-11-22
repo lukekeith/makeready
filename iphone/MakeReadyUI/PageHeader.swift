@@ -28,6 +28,13 @@ struct PageHeader: View {
     // hit-target token yet. OQ-C-021-4 (owner, 2026-10-20) mints `size-hit-target` = 44 for
     // every C-021 host; this becomes that token's member once a spec run lands the row.
     private static let labelHitHeight: CGFloat = 44
+    // LITERAL — C-040 §2 (owner, 2026-11-21): every C-021 glyph in this bar draws at 32×32, one
+    // 8pt step above `size-glyph` (24); no token holds it yet. C-021 lays out at its own 24pt
+    // visual, so the bar scales the part (not a re-draw) and lays it out in a 32pt box.
+    private static let glyphSize: CGFloat = 32
+    private static let glyphNativeSize: CGFloat = 24
+    // LITERAL — C-040 §2 (owner, 2026-11-21): the done check is a 32×32 `color-accent` circle.
+    private static let doneSize: CGFloat = 32
 
     let style: Style
     /// §4 `title` — centred; single line, tail ellipsis (OQ-C-040-5).
@@ -37,6 +44,9 @@ struct PageHeader: View {
     /// §4 `showIcons` — gates the trailing glyph slot in `default` AND `twoIcons`
     /// (OQ-C-040-1, deviation 5). Figma default true.
     var showIcons: Bool = true
+    /// §4 `showsDone` (owner, 2026-11-21) — the 32pt `color-accent` check circle at the trailing
+    /// edge, animated in and out (§2). Label "Done". Pushes the other trailing controls left.
+    var showsDone: Bool = false
     /// §4 `leadingGlyph` — any C-021 glyph (OQ-C-040-6). Designed: `back`.
     var leadingGlyph: GlyphButton.Glyph = .back
     /// §4 `rightButtons` — trailing glyphs in order. Required. Designed: `[settings]` for
@@ -72,11 +82,15 @@ struct PageHeader: View {
     var body: some View {
         // §2: leading at the start, trailing at the end, title centred on the bar's full
         // width — never wider than the room the two slots leave it (OQ-C-040-5).
-        PageHeaderLayout(margin: Token.Space.pageMargin) {
+        // §2: padding 12 vertical (owner, 2026-11-21), `space-page-margin` horizontal.
+        PageHeaderLayout(margin: Token.Space.pageMargin, verticalMargin: Token.Space.step12,
+                         contentHeight: Self.glyphSize) {
             leading.ui2Element("Leading").layoutValue(key: PageHeaderSlot.self, value: .leading)
             trailing.ui2Element("Trailing").layoutValue(key: PageHeaderSlot.self, value: .trailing)
             titleView.layoutValue(key: PageHeaderSlot.self, value: .title)
         }
+        // §2: the done check enters / exits and the trailing controls slide, on the house spring.
+        .animation(Token.Motion.sheetSnap, value: showsDone)
         .background(Token.transparent)                // §2: no background, no hairline (OQ-C-040-3)
         .ui2Element("PageHeader")
     }
@@ -93,8 +107,7 @@ struct PageHeader: View {
     @ViewBuilder private var leading: some View {
         switch style {
         case .default, .twoIcons, .backAndLink:
-            GlyphButton(glyph: leadingGlyph, onTap: onLeading)
-                .colorMultiply(glyphInk)
+            glyphButton(leadingGlyph, action: onLeading)
         case .textButtons:
             // `.dark`: the leading label is `color-black`, `color-black` at 30% when not enabled.
             label(leadingLabel, color: isDark ? (leadingEnabled ? Token.black : dimmedInk) : Token.white50,
@@ -104,14 +117,49 @@ struct PageHeader: View {
         }
     }
 
-    @ViewBuilder private var trailing: some View {
+    /// §2: the trailing slot — the style's control, with the done check (§4 `showsDone`) at the
+    /// trailing edge pushing it left by the check's width plus the slot gap (24).
+    private var trailing: some View {
+        HStack(spacing: Token.Space.rowGap) {
+            styleTrailing
+            if showsDone {
+                doneCheck
+                    .transition(.scale(scale: 0.5).combined(with: .opacity))   // §2: enter / exit
+            }
+        }
+    }
+
+    /// §2 Done check (owner, 2026-11-21): a 32×32 `color-accent` circle with a white checkmark;
+    /// tapping it fires `onDone`; 44pt tap target.
+    private var doneCheck: some View {
+        SwiftUI.Button(action: onDone) {
+            Glyph(.checkmarkCarbon, size: .sm, tint: Token.white100)
+                .accessibilityHidden(true)
+                .frame(width: Self.doneSize, height: Self.doneSize)
+                .background(Circle().fill(Token.accent))
+                .contentShape(Rectangle().inset(by: -(Self.labelHitHeight - Self.doneSize) / 2))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Done")
+        .accessibilityAddTraits(.isButton)
+        .ui2Element("Done check")
+    }
+
+    /// A C-021 glyph at the bar's 32pt size (§2, owner 2026-11-21), with the `toolbarTone` ink.
+    private func glyphButton(_ glyph: GlyphButton.Glyph, action: @escaping () -> Void) -> some View {
+        GlyphButton(glyph: glyph, onTap: action)
+            .colorMultiply(glyphInk)
+            .scaleEffect(Self.glyphSize / Self.glyphNativeSize)
+            .frame(width: Self.glyphSize, height: Self.glyphSize)
+    }
+
+    @ViewBuilder private var styleTrailing: some View {
         switch style {
         case .default, .twoIcons:
             if showIcons {                               // OQ-C-040-1: gates both glyph styles
                 HStack(spacing: Token.Space.rowGap) {    // §2: gap 24
                     ForEach(Array(rightButtons.enumerated()), id: \.offset) { index, glyph in
-                        GlyphButton(glyph: glyph) { onRightButton(glyph) }
-                            .colorMultiply(glyphInk)
+                        glyphButton(glyph) { onRightButton(glyph) }
                             .ui2Element("Trailing glyph \(index + 1)")
                     }
                 }
@@ -190,18 +238,21 @@ private enum PageHeaderSlot: LayoutValueKey {
     static let defaultValue: Role = .title
 }
 
-/// §2's bar. Height is the margin, the taller slot (24 — the glyph and the label line), and
-/// the margin again: 16 + 24 + 16 = 56. The title is centred on the full width and gets the
+/// §2's bar. Height is the vertical margin, the taller slot (32 — the glyph and the done check),
+/// and the vertical margin again: 12 + 32 + 12 = 56. The title is centred on the full width and gets the
 /// width the slots leave symmetric about the centre, so a long title truncates instead of
 /// covering a slot.
 private struct PageHeaderLayout: Layout {
     let margin: CGFloat
+    let verticalMargin: CGFloat
+    /// §2: the bar stays 56 for every style — a label-only bar still sizes to the 32pt glyph row.
+    let contentHeight: CGFloat
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let slots = subviews.filter { $0[PageHeaderSlot.self] != .title }.map { $0.sizeThatFits(.unspecified) }
-        let content = slots.map(\.height).max() ?? 0
+        let content = max(contentHeight, slots.map(\.height).max() ?? 0)
         let width = proposal.width ?? (slots.map(\.width).reduce(0, +) + margin * 2)
-        return CGSize(width: width, height: content + margin * 2)
+        return CGSize(width: width, height: content + verticalMargin * 2)
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {

@@ -9,16 +9,19 @@
 import SwiftUI
 
 /// C-006 MemoListRow — "one voice memo in the leader's Library list, sitting beside C-005
-/// NoteListRow rows in the same date sections": line 1 is a mic glyph, the title and the
-/// duration; line 2 is the date and a preview slot that tracks the memo's transcript state.
+/// NoteListRow rows in the same date sections": a leading C-038 microphone avatar, then line 1 is
+/// the title and the accent `date · duration` label; line 2 is a preview slot that tracks the
+/// memo's transcript state (library-home §2).
 ///
 /// Stateless and controlled (R-01, R-02, R-04): the caller formats the duration and the date
 /// and maps `transcriptStatus` / the upload queue to `preview`; the row only lays it out and
 /// reports a tap through `onTap` (the caller pushes memo-detail, D4).
 ///
 /// Chrome-free and width-driven (R-16; deviation 3): it fills the width it is given and states
-/// its own intrinsic height. The section card's fill, radius, separators and gap belong to the
-/// consuming screen.
+/// its own intrinsic height. library-home change (house list page): the same house list-row look
+/// as C-005 — C-037 / C-059's type scale, vertical insets and row-height rhythm, no card; the page
+/// margin and the C-088 hairline between rows belong to the consuming screen. The four preview
+/// states are unchanged.
 struct MemoListRow: View {
 
     /// §4 `preview` — "Line 2 slot: `.transcript(String)` · `.transcribing` · `.audioOnly` ·
@@ -34,7 +37,7 @@ struct MemoListRow: View {
     let title: String
     /// §4 `durationLabel` — "Line 1 trailing: the duration already formatted by the caller".
     let durationLabel: String
-    /// §4 `dateLabel` — "Line 2 leading: `recordedAt` formatted by the caller (notes rule)".
+    /// §4 `dateLabel` — "`recordedAt` formatted by the caller (notes rule)" — line 1 trailing, before the duration (library-home §2).
     let dateLabel: String
     /// §4 `preview` — the line 2 slot.
     let preview: Preview
@@ -55,76 +58,74 @@ struct MemoListRow: View {
         .ui2Element("MemoListRow")             // capture element map — UI2Element.swift
     }
 
-    /// §2 Container: "a vertical stack, leading-aligned. Horizontal inset `space-card-padding`
-    /// (16) on both sides, vertical inset `space-step-12` top and bottom, and `space-step-2`
-    /// between the lines. The row paints no background (R-16)."
+    /// House list-row band (C-037 §2, as C-005): a leading C-038 Avatar, then the text column,
+    /// `space-card-padding` (16) between them, vertically centred, vertical inset
+    /// `space-card-padding` (16) top and bottom and `space-element-gap` (8) between the lines. No
+    /// horizontal inset of its own (the page margin is the screen's). The row paints no background
+    /// (R-16).
     private var lines: some View {
-        VStack(alignment: .leading, spacing: Token.Space.step2) {
-            titleLine
-            dateLine
+        // FLAGGED (D7) — C-037 §2: the 16 band gap is cited as `space-card-padding` (value-equal).
+        HStack(alignment: .center, spacing: Token.Space.cardPadding) {
+            leadingAvatar
+            VStack(alignment: .leading, spacing: Token.Space.elementGap) {
+                titleLine
+                previewLine
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.horizontal, Token.Space.cardPadding)
-        .padding(.vertical, Token.Space.step12)
+        .padding(.vertical, Token.Space.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
     }
 
-    /// §2 Line 1: "a horizontal stack in a `type-callout-bold` line box (21 pt)".
+    /// library-home §2 "Leading icon avatar": "a C-038 Avatar at 32 pt, round … a memo the
+    /// `microphone` glyph, drawn on the Initials ground". Decorative (§3 Accessibility).
+    private var leadingAvatar: some View {
+        Avatar(imageURL: nil, initials: nil, size: NoteListRow.avatarSize, fallbackGlyph: .microphone)
+            .accessibilityHidden(true)
+            .ui2Element("Leading")
+    }
+
+    /// library-home §2 Line 1: "the title on the left (one line, truncating) and, on the right, the
+    /// date label followed by the duration (`9:38 PM · 0:05`), the whole label in `color-accent` …
+    /// The memo drops its inline mic glyph before the title, since the avatar says it is a memo."
     private var titleLine: some View {
-        HStack(spacing: 0) {
-            // §2 Mic glyph (OQ-C-006-2): "`microphone`, 16×16, tinted `color-text-secondary`,
-            // vertically centred on the title line, with `space-meta-gap` (4) to the title".
-            Glyph(.microphone, size: .sm, tint: Token.textSecondary)
-                .ui2Element("Mic glyph")
+        HStack(spacing: Token.Space.elementGap) {
             Text(title)
-                .designTextStyle(Token.TypeStyle.calloutBold)
+                .designTextStyle(Token.TypeStyle.titleCard)
                 .foregroundStyle(Token.textPrimary)
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.leading, Token.Space.metaGap)
                 .ui2Element("Title")
-            // §2 Duration: "`type-body-sm`, `color-text-secondary`, with monospaced digits. It is
-            // right-aligned, has `space-element-gap` (8) before it, and never truncates or
-            // compresses."
-            Text(durationLabel)
+            // §2 Duration keeps its monospaced digits; the label never truncates or compresses.
+            Text("\(dateLabel) · \(durationLabel)")
                 .designTextStyle(Token.TypeStyle.bodySm)
                 .monospacedDigit()
-                .foregroundStyle(Token.textSecondary)
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
-                .layoutPriority(1)
-                .padding(.leading, Token.Space.elementGap)
-                .ui2Element("Duration")
-        }
-        .frame(height: Self.lineBox(Token.TypeStyle.calloutBold))
-        .ui2Element("Title line")
-    }
-
-    /// §2 Line 2 (OQ-C-006-3): "a horizontal stack with `space-element-gap` (8) between its parts
-    /// and no dot, exactly as C-005's line 2".
-    private var dateLine: some View {
-        HStack(spacing: Token.Space.elementGap) {
-            Text(dateLabel)
-                .designTextStyle(Token.TypeStyle.bodySm)
-                .foregroundStyle(Token.textSecondary)
+                .foregroundStyle(Token.accent)
                 .lineLimit(1)
                 .fixedSize(horizontal: true, vertical: false)
                 .layoutPriority(1)
                 .ui2Element("Date")
-            Text(previewText)
-                .designTextStyle(Token.TypeStyle.bodySm)
-                // FLAGGED — C-006 §2: italic applied to `type-body-sm` for `.transcribing`, a
-                // style modifier with no italic token.
-                .italic(isTranscribing)
-                .foregroundStyle(Token.textSecondary)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .ui2Element(isTranscript ? "Preview" : "Status")
         }
-        .frame(height: Self.lineBox(Token.TypeStyle.bodySm))
-        .ui2Element("Date line")
+        .frame(height: Self.lineBox(Token.TypeStyle.titleCard))
+        .ui2Element("Title line")
+    }
+
+    /// library-home §2 Line 2: "one line, truncating, with no date in front: the transcript
+    /// preview, or the state text".
+    private var previewLine: some View {
+        Text(previewText)
+            .designTextStyle(Token.TypeStyle.bodySm)
+            // FLAGGED — C-006 §2: italic applied to `type-body-sm` for `.transcribing`, a
+            // style modifier with no italic token.
+            .italic(isTranscribing)
+            .foregroundStyle(Token.textSecondary)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: Self.lineBox(Token.TypeStyle.bodySm))
+            .ui2Element(isTranscript ? "Preview" : "Status")
     }
 
     /// §2 Preview slot: the transcript text as given, or the row's own fixed copy

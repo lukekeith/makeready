@@ -17,29 +17,44 @@ import Speech
 /// Decides, per locale, whether on-device transcription can run, installing and reserving the
 /// speech assets when it can. A struct of one closure so tests substitute it.
 struct MemoSpeechAvailability {
-    let isAvailable: (Locale) async -> Bool
+    /// The supported locale equivalent to the one asked for, its assets installed and reserved for
+    /// this app — or nil when transcription can't run. The caller releases that locale when done.
+    let resolve: (Locale) async -> Locale?
 
-    /// Locale supported, assets installed (downloaded if needed) and reserved for this app. The
-    /// caller releases the reservation when its transcription ends.
-    static let system = MemoSpeechAvailability { locale in
+    static let system = MemoSpeechAvailability { requested in
+        // The device locale (`en_US@rg=…`, a custom calendar, …) is rarely the transcriber's own
+        // identifier: every later call — the module, the asset check, the reservation — uses the
+        // supported equivalent, or the assets and the reservation never line up.
         guard SpeechTranscriber.isAvailable,
-              await SpeechTranscriber.supportedLocale(equivalentTo: locale) != nil else { return false }
+              let locale = await SpeechTranscriber.supportedLocale(equivalentTo: requested) else {
+            Log.memo.error("speech unavailable for \(requested.identifier, privacy: .public)")
+            return nil
+        }
         do {
             let probe = Self.makeTranscriber(locale: locale)
             if await AssetInventory.status(forModules: [probe]) != .installed,
                let request = try await AssetInventory.assetInstallationRequest(supporting: [probe]) {
                 try await request.downloadAndInstall()
             }
-            return try await AssetInventory.reserve(locale: locale)
+            // `reserve` answers false when the locale is already reserved (an earlier session that
+            // never released it): that is still a reservation, not a failure.
+            if !(try await AssetInventory.reserve(locale: locale)) {
+                let held = await AssetInventory.reservedLocales
+                guard held.contains(where: { $0.identifier(.bcp47) == locale.identifier(.bcp47) }) else {
+                    Log.memo.error("speech locale not reservable: \(locale.identifier, privacy: .public)")
+                    return nil
+                }
+            }
+            return locale
         } catch {
             // Recovered: unavailable is a normal outcome here, the server transcribes instead (D5).
-            Log.memo.error("speech assets not installable: \(error.localizedDescription)")
-            return false
+            Log.memo.error("speech assets not installable: \(error.localizedDescription, privacy: .public)")
+            return nil
         }
     }
 
-    /// Always false (tests, and the fallback path).
-    static let unavailable = MemoSpeechAvailability { _ in false }
+    /// Always unavailable (tests, and the fallback path).
+    static let unavailable = MemoSpeechAvailability { _ in nil }
 
     fileprivate static func makeTranscriber(locale: Locale) -> SpeechTranscriber {
         SpeechTranscriber(locale: locale, transcriptionOptions: [], reportingOptions: [],
@@ -78,6 +93,8 @@ final class MemoTranscriber: MemoTranscribing, @unchecked Sendable {
 
     private let locale: Locale
     private let availability: MemoSpeechAvailability
+    /// The supported locale `availability` reserved for the transcription in flight.
+    private var reserved: Locale?
     private let lock = NSLock()
     private var session: LiveSession?
 
@@ -91,8 +108,9 @@ final class MemoTranscriber: MemoTranscribing, @unchecked Sendable {
     }
 
     func startLive(stream: AsyncStream<AnalyzerInput>) async -> Bool {
-        guard lock.withLock({ session == nil }), await availability.isAvailable(locale) else { return false }
-        let transcriber = MemoSpeechAvailability.makeTranscriber(locale: locale)
+        guard lock.withLock({ session == nil }), let resolved = await availability.resolve(locale) else { return false }
+        lock.withLock { reserved = resolved }
+        let transcriber = MemoSpeechAvailability.makeTranscriber(locale: resolved)
         guard let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber]) else {
             Log.memo.error("no analyzer audio format for \(self.locale.identifier)")
             await releaseAssets()
@@ -131,8 +149,9 @@ final class MemoTranscriber: MemoTranscribing, @unchecked Sendable {
     }
 
     func transcribeFile(_ url: URL) async -> Transcript? {
-        guard await availability.isAvailable(locale) else { return nil }
-        let transcriber = MemoSpeechAvailability.makeTranscriber(locale: locale)
+        guard let resolved = await availability.resolve(locale) else { return nil }
+        lock.withLock { reserved = resolved }
+        let transcriber = MemoSpeechAvailability.makeTranscriber(locale: resolved)
         let analyzer = SpeechAnalyzer(modules: [transcriber])
         let collector = Self.collect(from: transcriber)
         do {
@@ -200,6 +219,7 @@ final class MemoTranscriber: MemoTranscribing, @unchecked Sendable {
     }
 
     private func releaseAssets() async {
-        _ = await AssetInventory.release(reservedLocale: locale)
+        guard let held = lock.withLock({ () -> Locale? in defer { reserved = nil }; return reserved }) else { return }
+        _ = await AssetInventory.release(reservedLocale: held)
     }
 }

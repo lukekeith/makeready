@@ -223,6 +223,7 @@ enum GlyphName: String, CaseIterable {
     case trendingDown = "trending-down"
     case trendingUp = "trending-up"
     case underline = "underline"
+    case undo = "undo"
     case undo2 = "undo-2"
     case unlink = "unlink"
     case unlock = "unlock"

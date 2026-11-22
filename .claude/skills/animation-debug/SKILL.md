@@ -21,6 +21,7 @@ Ask (or determine from the report/code) these questions in order:
    - It's text that *intermittently* appears at final position in a menu/modal? → **Class 8**
    - It's a background layer (gradient, photo, scrim) popping when data loads? → **Class 9**
 5. **Two animations fighting** (stutter at start/end, double-motion)? → **Class 7**
+   - It's a UI 2.0 overlay handed up with `.hostedOverlay(... transition: .move/.opacity)`? → **Class 8 (UI 2.0 variant)**
 6. **A menu/overlay animates on top of an incoming modal** during a dismiss-then-present flow? → **Class 10**
 7. None of the above → check the **Additional patterns** section, then read both source docs in full before inventing anything.
 
@@ -78,6 +79,13 @@ Ask (or determine from the report/code) these questions in order:
 - **Cause:** animation starts in `.onAppear` before the text's layout pass completes.
 - **Fix:** defer the animation start by one run loop (`DispatchQueue.main.async` inside `.onAppear`). Already applied in `ManagedModalView`/`ManagedMenuView` — if you see this in a custom overlay, it's missing the deferral.
 - Doc: SWIFTUI_ANIMATION_PATTERNS.md § Deferred Animation Start.
+- **UI 2.0 variant — a `.hostedOverlay` with an animated `transition:`.** A preference-hosted overlay is inserted in a
+  later update pass without the presenting transaction, so `transition: .move(...)` (with or without `withAnimation`
+  at the call site) leaves content at its final position, or skips the slide entirely. Fix: `transition: .identity`,
+  and the overlay animates itself. Use a `shown` flag set in `.onAppear` inside `withAnimation`, a `.visualEffect`
+  offset of the whole view, and `visible` + `onHidden` to slide out before it unmounts. The reference is C-066's
+  `ActionMenuLayer` (`MakeReadyUI/ActionMenuPresentation.swift`). This happened to C-016 RecorderSheet on 2026-11-21.
+  Doc: SWIFTUI_TRANSITIONS.md § UI 2.0 Hosted Overlays.
 
 ### Class 9 — Background layer pops mid-animation when data loads
 - **Fix:** decompose backgrounds by lifecycle. Unconditional layers (base color, gradient, scrim) must live OUTSIDE any `if/else` so they render from frame 1; only the data-dependent layer (photo, initials) stays conditional — and it pops in *behind* the gradient, so it's invisible.

@@ -17,8 +17,9 @@ import SwiftUI
 /// per OQ-C-012-6 (owner), the height too: pane = given height − 32.33 pt, never under 200 pt.
 /// It draws its own pane fill (OQ-C-012-4); the ruler band is left unpainted.
 ///
-/// Display-only (R-01/R-03): no callbacks, no timer, no audio access (R-04/R-19) — the caller
-/// feeds new `samples` / `elapsed`, and stops feeding while paused (OQ-C-012-3).
+/// Display-only (R-01/R-03): no callbacks and no audio access (R-19) — the caller feeds new
+/// `samples` / `elapsed` / `sampleTime`. Per §2 Motion (owner ruling 2026-11-21) the view owns a
+/// display clock and reads Reduce Motion so the waveform and ruler scroll smoothly while recording.
 struct PlayheadWaveformView: View {
 
     // MARK: - Props (§4, R-05 order)
@@ -32,9 +33,93 @@ struct PlayheadWaveformView: View {
     /// ruler's ticks and labels." Required (R-07).
     let elapsed: TimeInterval
 
+    /// §4 `sampleTime` — "The recording time in seconds the newest sample stands for." It sets
+    /// `tNewest` and re-anchors the display clock only on a stall or seek; it never moves a bar.
+    /// Default `0`.
+    var sampleTime: Double = 0
+
+    /// §4 `isRunning` — "`true` while recording; `false` when paused or stopped, which stops the
+    /// scroll dead and draws the still stepped layout." Default `false`.
+    var isRunning: Bool = false
+
+    /// Capture-only: freezes the scroll progress for a still (§3 `scrolling` — "a still taken
+    /// mid-interval"). Not a prop; nil in the app. Set with `stillProgress(_:)`.
+    private var stillProgress: Double?
+
+    init(samples: [Float], elapsed: TimeInterval, sampleTime: Double = 0, isRunning: Bool = false) {
+        self.samples = samples
+        self.elapsed = elapsed
+        self.sampleTime = sampleTime
+        self.isRunning = isRunning
+    }
+
+    /// Capture-only: draws a still at a fixed scroll progress (0…1) instead of the clock.
+    func stillProgress(_ progress: Double?) -> PlayheadWaveformView {
+        var copy = self
+        copy.stillProgress = progress
+        return copy
+    }
+
+    // MARK: - Environment
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// §2 Motion: the display clock's one anchor `(date, time)` (C-011's clock T); nil until running.
+    @State private var anchor: ClockAnchor?
+
     // MARK: - Body
 
     var body: some View {
+        content
+            // OQ-C-012-6: fills the given height, never below a 200 pt pane.
+            .frame(maxWidth: .infinity, minHeight: Self.minPane + Self.chrome, maxHeight: .infinity)
+            // §2 Motion: "There is no implicit animation on a value change".
+            .transaction { $0.animation = nil }
+            // §2 Motion: one clock T, anchored to `(now, sampleTime)` when `isRunning` turns true …
+            .onAppear { if isRunning { anchor = ClockAnchor(date: Date(), time: sampleTime) } }
+            .onChange(of: isRunning) { _, running in
+                if running { anchor = ClockAnchor(date: Date(), time: sampleTime) }
+            }
+            // … and re-anchored only on a stall or seek (`|T − sampleTime| > 0.15 s`).
+            .onChange(of: sampleTime) { _, time in
+                guard isRunning else { return }
+                anchor = ClockAnchor.reanchored(anchor, to: time, at: Date())
+            }
+            .allowsHitTesting(false)
+            // §2 Accessibility: "decorative … `.accessibilityHidden(true)`".
+            .accessibilityHidden(true)
+            .ui2Element("PlayheadWaveformView")     // capture element map — UI2Element.swift
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if let stillProgress {
+            // A still mid-interval: `T = tNewest − (1 − progress) / 20`, as C-011.
+            let lag = (1 - min(max(stillProgress, 0), 1)) / Self.samplesPerSecond
+            pane(barTime: newestTime - lag, rulerTime: elapsed - lag)
+        } else if isRunning && !reduceMotion {
+            // §2 Motion: "a `TimelineView(.animation)` clock moves the waveform and the ruler left
+            // continuously under the fixed playhead".
+            TimelineView(.animation) { context in
+                let clock = anchor?.time(at: context.date) ?? newestTime
+                // The ruler follows the same clock, offset by the caller's `elapsed − sampleTime`.
+                pane(barTime: clock, rulerTime: clock + (elapsed - sampleTime))
+            }
+        } else {
+            // §2 Motion: paused, stopped or Reduce Motion — "the still stepped layout".
+            pane(barTime: newestTime, rulerTime: elapsed)
+        }
+    }
+
+    /// The time the newest sample stands for: `floor(sampleTime × 20) / 20` (C-011 §2).
+    private var newestTime: Double {
+        (sampleTime * Self.samplesPerSecond).rounded(.down) / Self.samplesPerSecond
+    }
+
+    /// The whole component at display time T: `barTime` places every bar from its own fixed time
+    /// (`tNewest` is the stepped layout) and `rulerTime` is the time under the playhead, so bars
+    /// and ruler both move at 80 pt/s on one clock and an arriving sample never moves a bar.
+    private func pane(barTime: Double, rulerTime: Double) -> some View {
         GeometryReader { proxy in
             let width = proxy.size.width
             let paneHeight = Self.paneHeight(forGiven: proxy.size.height)
@@ -49,11 +134,15 @@ struct PlayheadWaveformView: View {
                     .offset(y: Self.capDiameter)
                     .ui2Element("Pane")
 
-                bars(width: width, paneHeight: paneHeight)
+                bars(width: width, paneHeight: paneHeight, displayTime: barTime)
                     .frame(width: width, height: paneHeight, alignment: .topLeading)
+                    // §2 Anchor: "Nothing is drawn to the right of the playhead" — an arriving
+                    // bar slides out from under it; the extra leading slot clips at the edge.
+                    .frame(width: playheadX, height: paneHeight, alignment: .topLeading)
+                    .clipped()
                     .offset(y: Self.capDiameter)
 
-                ruler(width: width, playheadX: playheadX)
+                ruler(width: width, playheadX: playheadX, elapsed: rulerTime)
                     .frame(width: width, height: Self.rulerBand, alignment: .topLeading)
                     .clipped()
                     .offset(y: paneBottom)
@@ -83,14 +172,30 @@ struct PlayheadWaveformView: View {
             }
             .frame(width: width, height: proxy.size.height, alignment: .topLeading)
         }
-        // OQ-C-012-6: fills the given height, never below a 200 pt pane.
-        .frame(maxWidth: .infinity, minHeight: Self.minPane + Self.chrome, maxHeight: .infinity)
-        // §2 Motion: "Each new samples/elapsed value re-renders without implicit animation."
-        .transaction { $0.animation = nil }
-        .allowsHitTesting(false)
-        // §2 Accessibility: "decorative … `.accessibilityHidden(true)`".
-        .accessibilityHidden(true)
-        .ui2Element("PlayheadWaveformView")     // capture element map — UI2Element.swift
+    }
+
+    /// §2 Motion: the display clock T — "`T = anchor.time + (now − anchor.date)`" (C-011 §2).
+    private struct ClockAnchor: Equatable {
+        let date: Date
+        let time: Double
+
+        /// T at `now`; held (never backwards) while `now` is before a forward-dated anchor.
+        func time(at now: Date) -> Double {
+            time + max(0, now.timeIntervalSince(date))
+        }
+
+        /// Re-anchors only when `|T − sampleTime| > 0.15 s`; drift under that is left alone. A
+        /// T that ran ahead (a stall) holds still until the recording catches up — T never goes
+        /// backwards; a T that fell behind jumps forward to `sampleTime`.
+        static func reanchored(_ anchor: ClockAnchor?, to sampleTime: Double, at now: Date) -> ClockAnchor {
+            guard let anchor else { return ClockAnchor(date: now, time: sampleTime) }
+            let displayed = anchor.time(at: now)
+            guard abs(displayed - sampleTime) > PlayheadWaveformView.reanchorThreshold else { return anchor }
+            if displayed > sampleTime {
+                return ClockAnchor(date: now.addingTimeInterval(displayed - sampleTime), time: displayed)
+            }
+            return ClockAnchor(date: now, time: sampleTime)
+        }
     }
 
     // MARK: - Bars
@@ -98,20 +203,26 @@ struct PlayheadWaveformView: View {
     /// §2 Bars: 1 pt `color-error` rectangles at a `space-step-4` pitch; the newest sample's slot
     /// ends at the playhead, older ones go left, nothing right of the playhead; each centred on
     /// the pane's midline.
-    private func bars(width: CGFloat, paneHeight: CGFloat) -> some View {
+    private func bars(width: CGFloat, paneHeight: CGFloat, displayTime: Double) -> some View {
         let pitch = Token.Space.step4
         let playheadX = width / 2
-        // §2 Count: "slots left of the playhead = floor((width / 2) / 4)".
+        // §2 Count: "slots left of the playhead = floor((width / 2) / 4)" — "while scrolling, one
+        // extra slot at the leading edge is drawn and clipped so no gap opens".
         let slots = max(0, Int((playheadX / pitch).rounded(.down)))
-        let shown = Array(samples.suffix(min(slots, samples.count)))
+        let extra = displayTime < newestTime ? 1 : 0
+        let shown = Array(samples.suffix(min(slots + extra, samples.count)))
+        let tNewest = newestTime
         // OQ-C-012-6: "the bar full scale stays 240 pt, capped at the pane height".
         let fullScale = min(Self.fullScale, paneHeight)
 
         return ZStack(alignment: .topLeading) {
             ForEach(shown.indices, id: \.self) { index in
-                // age 0 = newest; its slot is [playheadX − pitch, playheadX], centre 2 pt left.
+                // age 0 = newest; it stands for `tBar = tNewest − age / 20` and sits at
+                // `x = playheadX − 2 − (T − tBar) × 80` (centre 2 pt left at rest).
                 let age = shown.count - 1 - index
-                let centreX = playheadX - CGFloat(age) * pitch - pitch / 2
+                let barTime = tNewest - Double(age) / Self.samplesPerSecond
+                let travel = CGFloat((displayTime - barTime) * Self.samplesPerSecond) * pitch
+                let centreX = playheadX - pitch / 2 - travel
                 let height = Self.barHeight(shown[index], fullScale: fullScale)
                 Rectangle()
                     .fill(Token.error)
@@ -127,7 +238,8 @@ struct PlayheadWaveformView: View {
 
     /// §2 Ruler: a time `t` sits at `x = width/2 − (elapsed − t) × 80`; only `t ≥ 0`, clipped at
     /// the component's edges. Minor ticks every 0.25 s, major + label on every whole second.
-    private func ruler(width: CGFloat, playheadX: CGFloat) -> some View {
+    private func ruler(width: CGFloat, playheadX: CGFloat, elapsed: TimeInterval) -> some View {
+        // §2 Motion: the ruler is placed from the same clock T as the bars (80 pt/s).
         let ticks = Self.ticks(elapsed: elapsed, playheadX: playheadX)
         return ZStack(alignment: .topLeading) {
             ForEach(ticks, id: \.quarter) { tick in
@@ -209,6 +321,10 @@ struct PlayheadWaveformView: View {
     private static let rulerBand: CGFloat = labelTop + labelLineHeight
     // DEVIATION 3 — C-012 §1/§2: ruler time scale 80 pt per second (OQ-C-012-2, owner).
     private static let pointsPerSecond: CGFloat = 80
+    // §2 Motion: "4 pt per sample, 80 pt per second (20 samples per second)" — C-011's FL-4 rate.
+    private static let samplesPerSecond: Double = 20
+    /// §2 Motion: re-anchor the clock only when it is more than 0.15 s off `sampleTime` (C-011 §2).
+    fileprivate static let reanchorThreshold: Double = 0.15
     // OWNER RULING — OQ-C-012-6: "a 200 pt minimum" pane; it supersedes §2's FL-2 fixed 400 pt
     // pane, and the ruling names the value itself (no token row).
     private static let minPane: CGFloat = 200
