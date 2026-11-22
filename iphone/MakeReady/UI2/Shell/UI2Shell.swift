@@ -88,8 +88,6 @@ struct UI2Shell: View {
                     }
                 }
             }
-            .safeAreaPadding(.bottom, Self.keyboardOverlap(keyboardHeight: keyboardHeight,
-                                                           tabBarHeight: model.showsTabBar ? tabBarHeight : 0))
             // C-084 §2 Motion: "the selection switches instantly with no animation"; a re-tap
             // with a page pushed pops it (D20, the system pop).
             // image-framing-editor (owner walk 2026-10-27): the image editors are full-screen; the
@@ -186,6 +184,19 @@ struct UI2Shell: View {
         }
     }
 
+    /// Only the page on top of its stack follows the keyboard. A page being pushed away (or under
+    /// another) keeps its keyboard-down layout, so a pushed page that raises the keyboard at once —
+    /// + → Write a note over Library — never squeezes the outgoing page mid-slide (owner 2026-11-22:
+    /// Library "shrinks and animates up to the left"). SWIFTUI_TRANSITIONS.md § Keyboard Insets.
+    private func keyboard(onTop: Bool) -> CGFloat { onTop ? keyboardHeight : 0 }
+
+    /// members-search-pinned's keyboard overlap (the keyboard covers the TabBar instead of lifting
+    /// it), applied per page and only to the top one.
+    private func keyboardPadding(onTop: Bool) -> CGFloat {
+        Self.keyboardOverlap(keyboardHeight: keyboard(onTop: onTop),
+                             tabBarHeight: model.showsTabBar ? tabBarHeight : 0)
+    }
+
     /// members-search-pinned: track the keyboard on its own animation timing.
     private func followKeyboard(_ note: Notification, hiding: Bool = false) {
         let info = note.userInfo
@@ -203,7 +214,8 @@ struct UI2Shell: View {
         NavigationStack(path: pathBinding(for: tab)) {
             root(for: tab)
                 .ui2PageBottom(Self.pageBottomPadding(fullScreen: false, tabBarHeight: tabBarHeight, safeBottom: safeBottom,
-                                                keyboardHeight: keyboardHeight))
+                                                keyboardHeight: keyboard(onTop: model.path(for: tab).isEmpty)))
+                .safeAreaPadding(.bottom, keyboardPadding(onTop: model.path(for: tab).isEmpty))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .toolbar(.hidden, for: .navigationBar)
                 .background(UI2InteractivePop())
@@ -212,7 +224,8 @@ struct UI2Shell: View {
                         page(for: destination)
                             .ui2PageBottom(Self.pageBottomPadding(fullScreen: destination.isFullScreen,
                                                                      tabBarHeight: tabBarHeight, safeBottom: safeBottom,
-                                                                     keyboardHeight: keyboardHeight))
+                                                                     keyboardHeight: keyboard(onTop: model.path(for: tab).last == destination)))
+                            .safeAreaPadding(.bottom, keyboardPadding(onTop: model.path(for: tab).last == destination))
                     }
                 }
         }

@@ -21,8 +21,9 @@ struct SwipeActionsAction: Identifiable {
     /// §4 — "only meaningful on the edge action": allows stretch, arm and full-swipe release.
     var fullSwipe: Bool = false
     /// §4 — "whether running the action removes the row from its list; nil resolves to true for a
-    /// destructive action — one tinted `Token.error` — and false otherwise; only `false` springs
-    /// the row back to 0 after a full swipe's `onAction`".
+    /// destructive action — one tinted `Token.error` — and false otherwise; a `true` action
+    /// collapses the row's height and then fires `onAction`, and never springs back; only `false`
+    /// springs back to 0".
     var removesRow: Bool?
     /// §4 (R-03) — "the action's closure; the component never decides what it means".
     var onAction: () -> Void = {}
@@ -70,8 +71,12 @@ private enum SwipeGeometry {
     static let circle: CGFloat = 48
     /// FLAGGED LITERAL — C-142 §2: a circle grows in from a 6 pt dot.
     static let dot: CGFloat = 6
-    /// FLAGGED LITERAL — C-142 §2: the other circles fade to 40 % while the edge action stretches.
-    static let stretchedSiblingOpacity: Double = 0.4
+    /// FLAGGED LITERAL — C-142 §2 Armed: "the other circles dim to 0.4" (full strength while
+    /// stretching).
+    static let armedSiblingOpacity: Double = 0.4
+    /// FLAGGED LITERAL — C-142 §2 Armed: the glyph's leading side sits 16 pt in from the capsule's
+    /// leading end.
+    static let armedGlyphInset: CGFloat = 16
     /// FLAGGED LITERAL — C-142 §2, OQ-C-142-2: the row arms at 55 % of its width.
     static let armFraction: CGFloat = 0.55
     /// FLAGGED LITERAL — C-142 §2: and disarms below 50 % (5 % hysteresis).
@@ -93,6 +98,10 @@ private enum SwipeGeometry {
 
     /// §2 "OQ-C-142-2 … the card snaps to |offset| = width − 48, leaving a 48 pt sliver".
     static func armedMagnitude(width: CGFloat) -> CGFloat { max(width - circle, 0) }
+
+    /// FLAGGED LITERAL — C-142 §2 Collapse: "the whole row's frame height animates to 0 over
+    /// 0.25 s ease-in-out" (the reference's step 8 timing; no motion token holds it).
+    static let collapse = Animation.easeInOut(duration: 0.25)
 }
 
 /// C-142 SwipeActions — "wraps any list row with trailing and/or leading actions: ~48 pt circles
@@ -102,8 +111,8 @@ private enum SwipeGeometry {
 ///
 /// Controlled (R-01): which side rests open is the caller's `openSide`, reported back through
 /// `onOpenSideChange`, so the screen keeps one row open per list and closes it on scroll
-/// (deviation 4). The drag offset, the armed flag and the full-swipe cover are ephemeral gesture
-/// state (R-02). `posedOffset` draws a mid-gesture phase from props alone, for captures.
+/// (deviation 4). The drag offset, the armed flag and the collapse are ephemeral gesture state
+/// (R-02). `posedOffset` and `posedCollapse` draw a mid-gesture phase from props alone, for captures.
 ///
 /// Chrome-free and width-driven (R-16): the content fills the width it is given and sets the
 /// height; C-142 adds no padding and paints nothing at rest.
@@ -122,7 +131,10 @@ struct SwipeActions<Content: View>: View {
     /// §4 #5 — "Pose override: when set, the row is drawn at this signed offset as if mid-drag
     /// (armed when past the threshold) and the gesture is off."
     let posedOffset: CGFloat?
-    /// §4 #6 — "The row the list already draws (R-08 slot)".
+    /// §4 #6 — "Pose override: when set (0–1), the row is drawn with its height collapsed by this
+    /// fraction (0.5 = half height), clipped and top-anchored."
+    let posedCollapse: CGFloat?
+    /// §4 #7 — "The row the list already draws (R-08 slot)".
     let content: Content
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -135,9 +147,12 @@ struct SwipeActions<Content: View>: View {
     @State private var dragStart: CGFloat = 0
     /// §2 "Armed (|offset| ≥ 0.55 × row width)" — ephemeral (R-02).
     @State private var armed = false
-    /// §2 release rule: "the capsule covers the row, the card leaves (|offset| = width)".
-    @State private var covering = false
-    /// The side being swiped while armed or covering.
+    /// §2 release rules: an armed release has run — the row holds the armed pose (collapsing, or
+    /// waiting to spring back) and takes no gesture.
+    @State private var released = false
+    /// §2 Collapse: the fraction of the row's height collapsed (0 = full height, 1 = gone).
+    @State private var collapse: CGFloat = 0
+    /// The side being swiped while armed or released.
     @State private var activeSide: Side = .trailing
 
     init(
@@ -146,6 +161,7 @@ struct SwipeActions<Content: View>: View {
         openSide: Side?,
         onOpenSideChange: @escaping (Side?) -> Void = { _ in },
         posedOffset: CGFloat? = nil,
+        posedCollapse: CGFloat? = nil,
         @ViewBuilder content: () -> Content
     ) {
         self.trailing = trailing
@@ -153,6 +169,7 @@ struct SwipeActions<Content: View>: View {
         self.openSide = openSide
         self.onOpenSideChange = onOpenSideChange
         self.posedOffset = posedOffset
+        self.posedCollapse = posedCollapse
         self.content = content()
         _liveOffset = State(initialValue: Self.restOffset(openSide, trailing: trailing, leading: leading))
     }
@@ -160,6 +177,7 @@ struct SwipeActions<Content: View>: View {
     var body: some View {
         SwipeLayers(
             offset: cardOffset,
+            armedProgress: isArmedPose ? 1 : 0,
             trailing: trailing,
             leading: leading,
             catchesTaps: openSide != nil,
@@ -168,10 +186,13 @@ struct SwipeActions<Content: View>: View {
             onContentTap: close,
             content: content
         )
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+        // §2 Collapse: "the whole row's frame height animates to 0 … clipped and top-anchored: the
+        // content is cut off from the bottom, never scaled." Rows below follow the frame height.
+        .modifier(SwipeCollapse(fraction: min(max(posedCollapse ?? collapse, 0), 1)))
         // Content that moves past the row's edges is not drawn over its neighbours: the row is
         // its own clip, as a list cell is (default, unruled — §2 names no clip).
         .clipped()
-        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         // §2 "Drag via the house .horizontalPan (HorizontalScrolling.swift), never DragGesture".
         .horizontalPan(onChanged: panChanged, onEnded: panEnded)
         // §2 Haptics: "medium when armed turns true, light when it turns false by dragging back;
@@ -181,7 +202,7 @@ struct SwipeActions<Content: View>: View {
             return dragging ? .impact(weight: .light) : nil
         }
         .onChange(of: openSide) { _, side in
-            guard !dragging, !covering else { return }
+            guard !dragging, !released else { return }
             withAnimation(Token.Motion.swipeSettle) {
                 liveOffset = Self.restOffset(side, trailing: trailing, leading: leading)
             }
@@ -210,9 +231,17 @@ struct SwipeActions<Content: View>: View {
                 ? side.sign * SwipeGeometry.armedMagnitude(width: width)
                 : posed
         }
-        if covering { return activeSide.sign * width }
         if armed { return activeSide.sign * SwipeGeometry.armedMagnitude(width: width) }
         return liveOffset
+    }
+
+    /// Whether the row is drawn armed: the posed offset past the arm threshold, or the live flag.
+    private var isArmedPose: Bool {
+        if let posed = posedOffset {
+            let side: Side = posed < 0 ? .trailing : .leading
+            return isArmable(side) && abs(posed) >= SwipeGeometry.armFraction * width && width > 0
+        }
+        return armed
     }
 
     private func actions(_ side: Side) -> [Action] { side == .trailing ? trailing : leading }
@@ -231,7 +260,7 @@ struct SwipeActions<Content: View>: View {
     // MARK: - Gesture
 
     private func panChanged(_ value: HorizontalPanValue) {
-        guard posedOffset == nil, !covering else { return }
+        guard posedOffset == nil, !released else { return }
         if !dragging {
             dragging = true
             dragStart = armed ? cardOffset : liveOffset
@@ -287,42 +316,65 @@ struct SwipeActions<Content: View>: View {
         }
     }
 
-    /// §2 "Armed → the capsule covers the row, the card leaves (|offset| = width), then onAction
-    /// of the edge action fires (animation completion)." Then, per the action's `removesRow`:
-    /// true → "the row stays covered and off screen … no spring back, no onOpenSideChange, no
-    /// further motion from this view"; false → "the row reports closed and springs to 0".
+    /// §2 "Armed release: nothing moves sideways. The card stays in the armed pose." Then, per the
+    /// edge action's `removesRow`: true → "the row collapses, then the edge action's onAction fires
+    /// (on the collapse's completion). The view never springs back, and reports no
+    /// onOpenSideChange"; false → "onAction fires at release, then the row reports closed and
+    /// springs to 0 on motion-swipe-settle, with the capsule back to a circle".
     private func fullSwipe(_ side: Side) {
         guard let edge = actions(side).first else { return }
+        released = true
+        if edge.resolvedRemovesRow {
+            collapseRow(then: edge.onAction)
+            return
+        }
+        edge.onAction()
+        if openSide != nil { onOpenSideChange(nil) }
         withAnimation(Token.Motion.swipeSettle) {
-            covering = true
+            liveOffset = 0
+            armed = false
         } completion: {
-            edge.onAction()
-            // §2 "The caller's removal … is the last motion".
-            guard !edge.resolvedRemovesRow else { return }
-            if openSide != nil { onOpenSideChange(nil) }
-            withAnimation(Token.Motion.swipeSettle) {
-                liveOffset = 0
-                covering = false
-                armed = false
-            }
+            released = false
         }
     }
 
-    /// §2 / §4: "Drag offset, the armed flag, `covering` and the reveal phase … reset when the view
-    /// reappears or its actions change" — the row comes back closed (or at its caller-owned rest).
+    /// §2 Collapse — "0.25 s ease-in-out … With Reduce Motion the collapse is instant" — then the
+    /// action fires. The capsule, glyph, circles and sliver stay exactly where they were.
+    private func collapseRow(then action: @escaping () -> Void) {
+        released = true
+        withAnimation(reduceMotion ? nil : SwipeGeometry.collapse) {
+            collapse = 1
+        } completion: {
+            action()
+        }
+    }
+
+    /// §2 / §4: "Drag offset, the armed flag, the collapse and the reveal phase … reset when the
+    /// view reappears or its actions change" — the row comes back closed and at full height (or at
+    /// its caller-owned rest).
     private func resetGesture() {
         dragging = false
-        covering = false
+        released = false
         armed = false
+        collapse = 0
         liveOffset = Self.restOffset(openSide, trailing: trailing, leading: leading)
     }
 
-    /// §2 While open: "a tap on a circle fires its onAction then onOpenSideChange(nil) (no capsule
-    /// on tap)". An action with `onTap` calls it instead and stays open: the caller closes the row
-    /// through `openSide` (library-home's delete confirmation keeps the row open while it is up).
+    /// §2 While open: "a tap on a circle fires its onAction, then calls onOpenSideChange(nil) (no
+    /// capsule on tap). For a removesRow action the row then collapses as above" — collapse first,
+    /// then onAction and the close report, as the armed release does. An action with `onTap` calls
+    /// it instead and stays open: the caller closes the row through `openSide` (library-home's
+    /// delete confirmation keeps the row open while it is up).
     private func tapCircle(_ action: Action) {
         if let onTap = action.onTap {
             onTap()
+            return
+        }
+        if action.resolvedRemovesRow {
+            collapseRow {
+                action.onAction()
+                if openSide != nil { onOpenSideChange(nil) }
+            }
             return
         }
         action.onAction()
@@ -336,10 +388,46 @@ struct SwipeActions<Content: View>: View {
     }
 }
 
-/// The drawn layers at one card offset — animatable, so every frame of a settle, arm snap or
-/// cover re-derives the circles' reveal scale and the capsule from the moving offset (§2).
+/// §2 Collapse: sizes the row to its natural height × (1 − fraction), the content laid out at
+/// full height from the top, so the parent's `.clipped()` cuts it from the bottom and never
+/// scales it. Animatable, so the frame height — and every row below it — moves on the collapse.
+private struct SwipeCollapse: ViewModifier, Animatable {
+    var fraction: CGFloat
+
+    var animatableData: CGFloat {
+        get { fraction }
+        set { fraction = newValue }
+    }
+
+    func body(content: Content) -> some View {
+        SwipeCollapseLayout(fraction: fraction) { content }
+    }
+}
+
+private struct SwipeCollapseLayout: Layout {
+    var fraction: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard let row = subviews.first else { return .zero }
+        let natural = row.sizeThatFits(ProposedViewSize(width: proposal.width, height: nil))
+        return CGSize(width: natural.width, height: natural.height * (1 - fraction))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard let row = subviews.first else { return }
+        let natural = row.sizeThatFits(ProposedViewSize(width: bounds.width, height: nil))
+        row.place(at: bounds.origin, anchor: .topLeading,
+                  proposal: ProposedViewSize(width: bounds.width, height: natural.height))
+    }
+}
+
+/// The drawn layers at one card offset — animatable, so every frame of a settle or arm snap
+/// re-derives the circles' reveal scale and the capsule from the moving offset, and the glyph slide
+/// and sibling dim from the moving arm progress (§2: "on one spring … three things happen together").
 private struct SwipeLayers<Content: View>: View, Animatable {
     var offset: CGFloat
+    /// 0 = not armed, 1 = armed; animated on `motion-swipe-settle` with the arm snap (§2 Armed).
+    var armedProgress: CGFloat
     let trailing: [SwipeActionsAction]
     let leading: [SwipeActionsAction]
     let catchesTaps: Bool
@@ -348,9 +436,12 @@ private struct SwipeLayers<Content: View>: View, Animatable {
     let onContentTap: () -> Void
     let content: Content
 
-    var animatableData: CGFloat {
-        get { offset }
-        set { offset = newValue }
+    var animatableData: AnimatablePair<CGFloat, CGFloat> {
+        get { AnimatablePair(offset, armedProgress) }
+        set {
+            offset = newValue.first
+            armedProgress = newValue.second
+        }
     }
 
     var body: some View {
@@ -412,21 +503,29 @@ private struct SwipeLayers<Content: View>: View, Animatable {
         let diameter = reduceMotion ? SwipeGeometry.circle
             : SwipeGeometry.dot + (SwipeGeometry.circle - SwipeGeometry.dot) * progress
         // §2 Stretch: "its outer end fixed at the 8 pt edge inset, its inner end at the card's edge
-        // minus 8 … Other circles stay put at full size and fade to opacity 0.4".
+        // minus 8 … The other circles stay put at full size and full strength". §2 Armed: "the
+        // other circles dim to 0.4"; disarm returns them to full strength.
         let length = stretched ? max(SwipeGeometry.circle, magnitude - 2 * SwipeGeometry.gap) : SwipeGeometry.circle
-        let opacity = stretched ? 1 : progress * (edgeStretched ? SwipeGeometry.stretchedSiblingOpacity : 1)
+        let dim = 1 - (1 - SwipeGeometry.armedSiblingOpacity) * Double(armedProgress)
+        let opacity = stretched ? 1 : progress * dim
         let outer: Alignment = side == .trailing ? .trailing : .leading
-        let inner: Alignment = side == .trailing ? .leading : .trailing
         let anchor: UnitPoint = side == .trailing ? .trailing : .leading
+        // §2 Stretch: "The glyph stays centred in the capsule while it stretches." §2 Armed: "the
+        // glyph slides from the capsule's centre to its leading edge, its leading side 16 pt in"
+        // (the inner end toward the sliver; mirrored for a leading side). The 24 pt glyph sits
+        // centred in a 48 pt square, so its leading side is 12 pt inside the square.
+        let glyphInsetCentre = SwipeGeometry.armedGlyphInset + GlyphSize.md.points / 2
+        let pinned = (glyphInsetCentre - length / 2) * (side == .trailing ? 1 : -1)
+        let glyphShift = stretched ? pinned * armedProgress : 0
 
         return SwiftUI.Button {
             onCircleTap(action)
         } label: {
-            // §2 "The glyph sits in a 48 pt square at the capsule's inner (finger) end."
-            ZStack(alignment: inner) {
+            ZStack {
                 Capsule().fill(action.tint)
                 Glyph(action.glyph, size: .md, tint: Token.textPrimary)
                     .frame(width: SwipeGeometry.circle, height: SwipeGeometry.circle)
+                    .offset(x: glyphShift)
             }
             .frame(width: length, height: SwipeGeometry.circle)
         }

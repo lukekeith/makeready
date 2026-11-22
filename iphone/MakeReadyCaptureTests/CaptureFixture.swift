@@ -1606,6 +1606,7 @@ struct CaptureComponent: Codable {
     let leading: [CaptureSwipeAction]?         // C-142 — [SwipeActions.Action], edge-first
     let openSide: String?                      // C-142 — "leading" | "trailing"; absent = nil (closed)
     let posedOffset: CGFloat?                  // C-142 — signed pose override; absent = nil
+    let posedCollapse: CGFloat?                // C-142 — height-collapse pose override (0–1); absent = nil
 }
 
 /// library-home `State.MemoRowInput` — `preview` and `previewText` encode C-006's `preview` as

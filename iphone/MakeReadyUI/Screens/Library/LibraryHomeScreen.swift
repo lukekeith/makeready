@@ -528,6 +528,9 @@ struct LibraryHomeScreen: View {
                     }
                 }
                 .ui2Element(Self.annotation("C-142 SwipeActions", swipeOrdinal(item)))
+                // §3 Delete: "no fade/removal transition of its own" — C-142 collapses the row's
+                // height; the screen's removal draws nothing.
+                .transition(.identity)
             }
         }
     }
@@ -546,7 +549,7 @@ struct LibraryHomeScreen: View {
                     glyph: .trash2,
                     tint: Token.error,
                     fullSwipe: true,
-                    onAction: { delete(item) },
+                    onAction: { delete(item, animated: false) },
                     onTap: { confirmingItem = item }
                 ),
             ],
@@ -563,10 +566,13 @@ struct LibraryHomeScreen: View {
     }
 
     /// §3 "The screen removes the row at once (it collapses), and the caller owns the effect" —
-    /// "the date section drops with its last row".
-    private func delete(_ item: Item) {
+    /// "the date section drops with its last row". An armed release (`animated: false`) arrives
+    /// after C-142's own height collapse, so the row is removed instantly with no transition of the
+    /// screen's own (C-142 deviation 3). The confirmation's Delete, whose row has not collapsed,
+    /// still moves the rows below on `motion-swipe-settle`, with no fade (`.transition(.identity)`).
+    private func delete(_ item: Item, animated: Bool = true) {
         if openItem == item { openItem = nil }
-        withAnimation(Token.Motion.swipeSettle) { _ = deletedItems.insert(item) }
+        withAnimation(animated ? Token.Motion.swipeSettle : nil) { _ = deletedItems.insert(item) }
         switch item {
         case .note(let key): if let row = noteRow(key) { onDeleteNote(row) }
         case .memo(let id): onDeleteMemo(id)

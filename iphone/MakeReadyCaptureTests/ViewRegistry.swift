@@ -4047,8 +4047,8 @@ private func buildCaptureViewPart12(_ fixture: CaptureFixture, authManager: Auth
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-142: missing state.component")
         }
-        // C-142 §4 (R-07): `trailing`, `leading`, `onOpenSideChange` and `posedOffset` are
-        // defaulted (`[]`, `[]`, no-op, nil); `openSide` is required but optional-valued, so an
+        // C-142 §4 (R-07): `trailing`, `leading`, `onOpenSideChange`, `posedOffset` and
+        // `posedCollapse` are defaulted (`[]`, `[]`, no-op, nil, nil); `openSide` is required but optional-valued, so an
         // absent key is its designed nil (closed). Each action's `tint` is a colour token row,
         // resolved to its generated member; `onAction` is the view's no-op default.
         func ui2C142Actions(_ raw: [CaptureSwipeAction]?, _ prop: String) throws -> [MakeReadyUI.SwipeActionsAction] {
@@ -4083,7 +4083,8 @@ private func buildCaptureViewPart12(_ fixture: CaptureFixture, authManager: Auth
                 trailing: ui2C142Trailing,
                 leading: ui2C142Leading,
                 openSide: ui2C142OpenSide,
-                posedOffset: c.posedOffset
+                posedOffset: c.posedOffset,
+                posedCollapse: c.posedCollapse
             ) {
                 // §4 `content` is a slot (R-08), not a fixture prop: the sample row is library-home's
                 // first consumer, a C-005 NoteListRow, with C-005's own `full` preview strings.

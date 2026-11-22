@@ -415,6 +415,26 @@ without implicit animation") makes late-laid-out children land at their final po
 **Rule:** never give a `.hostedOverlay` a `.move`, `.opacity` or other animated `transition:`. If it slides
 or fades, it does so itself, as above.
 
+## Keyboard Insets Follow Only the Top Page
+
+### Problem: pushing a page that raises the keyboard squeezes the page sliding away
+
+**Seen:** + → Write a note over Library, 2026-11-22. The outgoing Library page shrank and drifted up
+while it slid left.
+
+**Root cause:** `UI2Shell` ignores the system keyboard safe area and pads pages itself
+(`keyboardOverlap` / `pageBottomPadding`, animated by `followKeyboard`). Both used the current
+keyboard height for **every** page in the NavigationStack. The note editor focuses as it pushes in,
+so the keyboard rose while Library was still on screen: Library's bottom inset grew inside an
+animation, and its layout compressed and moved up during the push.
+
+**Fix:** only the top page of a stack follows the keyboard. The root gets the keyboard height only
+when its path is empty, and a pushed page only when it is `path.last`. Every other page keeps its
+keyboard-down layout. See `keyboard(onTop:)` and `keyboardPadding(onTop:)` in `UI2Shell.swift`.
+
+**Rule:** any inset that tracks the keyboard is scoped to the visible (top) page, never to a whole
+NavigationStack or a container that also holds pages mid-transition.
+
 ## General Rules
 
 1. **Prefer explicit `withAnimation()` over implicit `.animation()` modifier** when the animation is triggered by a button tap or user interaction — EXCEPT for HStack slide patterns, which need the implicit `.animation()` to catch the deferred state change from the two-step pattern.

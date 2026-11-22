@@ -98,6 +98,16 @@ Ask (or determine from the report/code) these questions in order:
 
 ## Additional patterns (not in the 10 classes)
 
+- **An outgoing page shrinks or drifts during a push that raises the keyboard:** a keyboard-driven inset is
+  applied to the whole NavigationStack, so the page sliding away re-lays out while the keyboard animates up.
+  Scope the inset to the top page only (`UI2Shell.keyboard(onTop:)`). Doc: SWIFTUI_TRANSITIONS.md § Keyboard
+  Insets Follow Only the Top Page. (+ → Write a note over Library, 2026-11-22.)
+
+- **An outgoing page shrinks or drifts during a push that raises the keyboard:** a keyboard-driven inset is
+  applied to the whole NavigationStack, so the page sliding away re-lays out while the keyboard animates up.
+  Scope the inset to the top page only (`UI2Shell.keyboard(onTop:)`). Doc: SWIFTUI_TRANSITIONS.md § Keyboard
+  Insets Follow Only the Top Page. (+ → Write a note over Library, 2026-11-22.)
+
 - **matchedGeometryEffect stutter:** never wrap its state change in `withAnimation` (use a container-level `.animation(value:)`); never put `.shadow` inside the matched view — hoist it to the static container.
 - **Expensive shadows on animated views:** use `.optimizedShadow(...)` (`Utilities/OptimizedShadow.swift`) instead of `.shadow`.
 - **Cards inside `SwipeableCard`:** no `.animation()`/`.transition()` modifiers on card content — they animate independently during swipe.
