@@ -113,3 +113,32 @@ The model is C-066's presentation, `ActionMenuLayer` in `MakeReadyUI/ActionMenuP
 5. **What dismissing means** is decided by the caller: while ready it closes and keeps nothing; while
    recording it saves, exactly like Done.
 6. **Captures:** `compact` with the dim, `ready`, `expanded`.
+
+## 6. C-040 PageHeader: a Done check and larger icon buttons
+
+> "there is no way to dismiss the keyboard on the memo page like we did on the notes page. I think we
+> should standardize it and add support to the pageHeader that does this … a purple circle with a
+> checkmark animates into the right position of the pageheader, pushing any other button or icon to
+> the left … the three dot action menu in pageHeader is hard to see because it's so small … the back
+> chevron [too]. We need to take it another step larger (a step is 8px). Maybe they should be 24x24 or
+> 32x32, whichever is a step larger than the current size." (owner 2026-11-21; the reference is Apple
+> Notes, `/Users/lukekeith/MakeReady/Notes/notes dismiss.MP4`)
+
+1. **Larger icon buttons.** Every C-021 glyph PageHeader draws (back, three-dots, the rest) goes one
+   8 pt step up from today's 24 pt to **32 pt**. Hit targets stay at least 44 pt. The glyph's stroke
+   weight scales with it, and the 56 pt bar height doesn't change. This covers every screen that
+   uses PageHeader.
+2. **Done check.** Add `showsDone: Bool = false` and `onDone: () -> Void = {}`. When true, a 32 pt
+   `color-accent` filled circle with a white checkmark sits at the trailing edge.
+   - **Showing it:** it animates in, scaling from 0.5 and fading in on the house spring. Any trailing
+     glyph buttons slide left to make room.
+   - **Hiding it:** the same in reverse.
+   - Spacing between it and the other trailing buttons uses PageHeader's existing gap.
+   - Its accessibility label is "Done".
+3. **memo-detail:** while the title is being renamed (keyboard up), pass `showsDone: true`. Tapping it
+   commits the rename and dismisses the keyboard, exactly as Return does.
+4. **note-editor:** while editing, swap `backAndLink` (back · "Done" text) for `twoIcons` (back, no
+   right buttons) with `showsDone: true`. The check calls the old Done action: stop editing and
+   dismiss the keyboard. The reading state doesn't change. Undo stays beside the format strip.
+5. **Captures:** PageHeader `done` (with ⋯ pushed left) and `done-only`; memo-detail `renaming` with
+   the check; note-editor `typing` with the check.
