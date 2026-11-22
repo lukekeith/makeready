@@ -181,3 +181,19 @@ The model is C-066's presentation, `ActionMenuLayer` in `MakeReadyUI/ActionMenuP
    - A note with no body text has no line 2, and its row is shorter, as today.
 3. The context line on notes stays as it is.
 4. This goes together with §7's leading avatar.
+
+## 9. library-home Type filter: the house multi-select
+
+> "you also made a mistake on the filters for the library page, when I click the type, it is a single
+> select to select and dismiss, but it should be the same multi-select style we use on all the other
+> filters." (owner 2026-11-21)
+
+The Type chip works exactly like members-home's Groups and Leaders chips (filter-multiselect D1/D4/D15):
+- C-036 opens in its multi-select form, with `Notes` and `Voice memos` as checkable rows and **Save**.
+  The menu has no "All types" row (D3).
+- The chip is active while anything is checked, and its label follows members-home's rule: `All types`
+  with nothing checked, otherwise the house wording for the checked set.
+- The screen takes `selectedTypes: Set<…>` as C-036's seed and reports `onSaveTypes(Set<…>)`. It
+  replaces the single-select `typeFilter` / `onTypeFilterChange`.
+- Nothing checked, or both checked, shows every row. The container filters by the set.
+- Captures: `filter-memos` (Voice memos checked) and the open menu.
