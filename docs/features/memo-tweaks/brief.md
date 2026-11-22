@@ -142,3 +142,22 @@ The model is C-066's presentation, `ActionMenuLayer` in `MakeReadyUI/ActionMenuP
    dismiss the keyboard. The reading state doesn't change. Undo stays beside the format strip.
 5. **Captures:** PageHeader `done` (with ⋯ pushed left) and `done-only`; memo-detail `renaming` with
    the check; note-editor `typing` with the check.
+
+## 7. library-home rows: a leading icon avatar
+
+> "the list items on the library page for memos and notes need an icon in a circle on the left of the
+> list item, just like we do on the members page, same relative size as the avatars on the member
+> page too... except it will be styled like the fallback with initials, but have an icon instead."
+> (owner 2026-11-21)
+
+1. **C-038 Avatar:** add two `FallbackGlyph` cases, `microphone` (library `microphone`) and `note`
+   (library `notebook-pen`). Draw them on the same ground, glyph tone and glyph-to-diameter ratio as
+   the **Initials** state, not the Unknown-user ground. Existing consumers don't change.
+2. **C-005 NoteListRow / C-006 MemoListRow:** lead with C-038 at **32 pt, round**, exactly like the
+   member rows (C-037 `subject=member`) on members-home, with the same gap to the text column and the
+   same vertical alignment. Notes use `note` and memos use `microphone`, with no photo or initials.
+   Memo rows drop their inline mic glyph before the title, since the avatar now says it's a memo.
+   Duration, preview states and the hairline rules don't change; the rule starts where the text
+   column starts, as it does on members-home.
+3. **Captures:** every C-005 and C-006 state, library-home `populated-mixed` and `search-mixed`, and
+   C-038 with the new glyphs.
