@@ -161,3 +161,23 @@ The model is C-066's presentation, `ActionMenuLayer` in `MakeReadyUI/ActionMenuP
    column starts, as it does on members-home.
 3. **Captures:** every C-005 and C-006 state, library-home `populated-mixed` and `search-mixed`, and
    C-038 with the new glyphs.
+
+## 8. library-home rows: the time moves up, in purple
+
+> "the timestamp on the voice memo's list item on the library page, it should be purple" — asked whether
+> that means the duration or the time: "Both, and move the time to the same position as the duration,
+> the second line of the note's list item should be the first line of the note truncated" (owner
+> 2026-11-21)
+
+1. **Line 1:** the title on the left (one line, truncating). On the right, the date label (the notes
+   rule: the time today, the weekday within 7 days, a short date otherwise).
+   - Memos add their duration after it: `9:38 PM · 0:05`.
+   - The whole right-hand label is **`color-accent`** in both row types, so a note and a memo look
+     alike. A note's label is just its date label.
+2. **Line 2:** one line, truncating, with no date in front.
+   - A note shows the first line of its body text after the title.
+   - A memo shows the transcript preview, or its state text: Transcribing… / Audio only / Waiting to
+     upload, with today's styles.
+   - A note with no body text has no line 2, and its row is shorter, as today.
+3. The context line on notes stays as it is.
+4. This goes together with §7's leading avatar.
