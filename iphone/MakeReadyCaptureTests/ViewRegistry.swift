@@ -3371,7 +3371,9 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
                 rowPreviews: c.rowPreviews ?? [],
                 rowContexts: c.rowContexts ?? [],
                 rowUpdatedAt: libraryUpdatedAt,
-                memos: libraryMemos
+                memos: libraryMemos,
+                openRow: c.openRow,
+                deleteConfirmPresented: c.deleteConfirmPresented ?? false
             )
         ))
     case "screen.2.0.note-editor":
@@ -4040,6 +4042,61 @@ private func buildCaptureViewPart12(_ fixture: CaptureFixture, authManager: Auth
             // C-016 §1/§2: a full-screen presentation layer, so the frame is the video's
             // 440×956 pt screen with no margin; the black80 dim fills it behind the sheet.
             PreviewFrame(width: 440, height: 956, margin: 0)
+        )
+    case "component.ui2.C-142":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-142: missing state.component")
+        }
+        // C-142 §4 (R-07): `trailing`, `leading`, `onOpenSideChange` and `posedOffset` are
+        // defaulted (`[]`, `[]`, no-op, nil); `openSide` is required but optional-valued, so an
+        // absent key is its designed nil (closed). Each action's `tint` is a colour token row,
+        // resolved to its generated member; `onAction` is the view's no-op default.
+        func ui2C142Actions(_ raw: [CaptureSwipeAction]?, _ prop: String) throws -> [MakeReadyUI.SwipeActionsAction] {
+            try (raw ?? []).map { a in
+                guard let glyph = MakeReadyUI.GlyphName(rawValue: a.glyph) else {
+                    throw ViewRegistryError.unknownView("component.ui2.C-142: props.\(prop) glyph \(a.glyph) is not in the library")
+                }
+                let tint: Color
+                switch a.tint {
+                case "color-error": tint = MakeReadyUI.Token.error
+                case "color-warning": tint = MakeReadyUI.Token.warning
+                case "color-accent": tint = MakeReadyUI.Token.accent
+                case "color-success": tint = MakeReadyUI.Token.success
+                default:
+                    throw ViewRegistryError.unknownView("component.ui2.C-142: props.\(prop) tint \(a.tint) is not a mapped colour token")
+                }
+                return MakeReadyUI.SwipeActionsAction(label: a.label, glyph: glyph, tint: tint, fullSwipe: a.fullSwipe ?? false)
+            }
+        }
+        let ui2C142Trailing = try ui2C142Actions(c.trailing?.swipeActions, "trailing")
+        let ui2C142Leading = try ui2C142Actions(c.leading, "leading")
+        let ui2C142OpenSide: MakeReadyUI.SwipeActionsSide?
+        switch c.openSide {
+        case nil: ui2C142OpenSide = nil
+        case "trailing": ui2C142OpenSide = .trailing
+        case "leading": ui2C142OpenSide = .leading
+        default:
+            throw ViewRegistryError.unknownView("component.ui2.C-142: props.openSide must be leading|trailing or absent")
+        }
+        return declareCase(
+            MakeReadyUI.SwipeActions(
+                trailing: ui2C142Trailing,
+                leading: ui2C142Leading,
+                openSide: ui2C142OpenSide,
+                posedOffset: c.posedOffset
+            ) {
+                // §4 `content` is a slot (R-08), not a fixture prop: the sample row is library-home's
+                // first consumer, a C-005 NoteListRow, with C-005's own `full` preview strings.
+                MakeReadyUI.NoteListRow(
+                    title: "Sermon prep: Romans 8",
+                    preview: "Start with verse 28 and work backwards to the context",
+                    dateLabel: "2:16 PM",
+                    contextLabel: "Sunday sermon recap"
+                )
+            },
+            // C-142 §3: "Previews render at 408 pt wide (a library-home row: 440 pt device −
+            // 2 × space-page-margin)".
+            PreviewFrame(width: 408)
         )
     default:
         return nil
@@ -5302,7 +5359,7 @@ private func buildUI2C085(_ fixture: CaptureFixture) throws -> AnyView {
     guard let ui2C085Title = c.title else {
         throw ViewRegistryError.unknownView("component.ui2.C-085: props.title is required")
     }
-    guard let ui2C085Trailing = c.trailing.flatMap(MakeReadyUI.SearchResultRow.Trailing.init(rawValue:)) else {
+    guard let ui2C085Trailing = c.trailing?.stringValue.flatMap(MakeReadyUI.SearchResultRow.Trailing.init(rawValue:)) else {
         throw ViewRegistryError.unknownView("component.ui2.C-085: props.trailing must be remove|none")
     }
     // Seed the image synchronously, same mechanism and same reason as the C-033 case. A URL that
@@ -5847,7 +5904,7 @@ private func buildUI2C037(_ fixture: CaptureFixture) throws -> AnyView {
         throw ViewRegistryError.unknownView("component.ui2.C-037: props.detail must be text|chips")
     }
     let ui2C037Trailing: MakeReadyUI.ListResultRow.Trailing
-    switch c.trailing {
+    switch c.trailing?.stringValue {
     case "chevron": ui2C037Trailing = .chevron
     case "cancel": ui2C037Trailing = .cancel
     case "none": ui2C037Trailing = .none

@@ -793,7 +793,13 @@ struct CaptureComponent: Codable {
     // precedent) with C-043's `align` added there.
     let subject: String?                       // C-037 — "member" | "group"
     let detail: String?                        // C-037 — "text" | "chips"
-    let trailing: String?                      // C-037 — "chevron" | "cancel" | "none"
+    // RETYPED 2026-11-22 (/d2m:component:build C-142), in the same either-shape pattern as
+    // `selection`, `options` and `enabledDays`. This was `String?` (C-037's "chevron" | "cancel" |
+    // "none"; C-085 reads it too). C-142 SwipeActions §4's first prop is ALSO named `trailing` and
+    // is `[SwipeActions.Action]`, and the build rules forbid bending a contract's prop name to fit
+    // an existing field, so the field decodes both shapes. C-037 / C-085 read `.stringValue`;
+    // C-142 reads `.swipeActions`.
+    let trailing: CaptureStringOrSwipeActions? // C-037 — "chevron" | "cancel" | "none"; OR C-142's actions
     let chips: [CaptureDataItem]?              // C-037 — [C-043 MetaChip] props
     // C-037 update 2026-10-24 (selectable form): `subject` gains "program"; additive field.
     // RETYPED 2026-11-11 (/d2m:component:build C-140), in the same either-shape pattern as
@@ -1576,6 +1582,7 @@ struct CaptureComponent: Codable {
     // ── screen library-home (memos) ──
     let rowUpdatedAt: [String]?                // library-home — ISO8601, per note row
     let memos: [CaptureUI2LibraryMemo]?        // library-home — State.MemoRowInput
+    let openRow: String?                       // library-home — §3 row-open: "note:<row>" | "memo:<id>"; absent = closed
     // ── preview props ──
     // C-018 RecorderExpandedView — `title`, `startTime`, `elapsed`, `samples` and `phase` are
     // reused (same names, same types); `menu` is its Menu case name.
@@ -1593,7 +1600,12 @@ struct CaptureComponent: Codable {
     let paragraphStarts: [Double]?
     let paragraphTexts: [String]?
     let renaming: Bool?
-    let deleteConfirmPresented: Bool?
+    let deleteConfirmPresented: Bool?          // memo-detail; library-home §3 delete-confirm (seeded with openRow)
+    // ── preview props ──
+    // C-142 SwipeActions — `trailing` is the retyped field above (`.swipeActions`).
+    let leading: [CaptureSwipeAction]?         // C-142 — [SwipeActions.Action], edge-first
+    let openSide: String?                      // C-142 — "leading" | "trailing"; absent = nil (closed)
+    let posedOffset: CGFloat?                  // C-142 — signed pose override; absent = nil
 }
 
 /// library-home `State.MemoRowInput` — `preview` and `previewText` encode C-006's `preview` as
@@ -2586,6 +2598,45 @@ struct CaptureStringsOrOptions: Codable {
             try container.encode(items)
         }
     }
+}
+
+/// `trailing` decodes a string (C-037 ListResultRow / C-085 SearchResultRow's trailing slot) OR a
+/// list of C-142 SwipeActions.Action objects — see the RETYPED note on the field.
+struct CaptureStringOrSwipeActions: Codable {
+    let stringValue: String?
+    let swipeActions: [CaptureSwipeAction]?
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let s = try? container.decode(String.self) {
+            stringValue = s
+            swipeActions = nil
+        } else if let a = try? container.decode([CaptureSwipeAction].self) {
+            swipeActions = a
+            stringValue = nil
+        } else {
+            stringValue = nil
+            swipeActions = nil
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        if let s = stringValue {
+            try container.encode(s)
+        } else {
+            try container.encode(swipeActions)
+        }
+    }
+}
+
+/// C-142 §4 `SwipeActions.Action`: `label` · `glyph` (a library glyph name) · `tint` (a colour
+/// token row, e.g. "color-error") · `fullSwipe` (nil = §4's false). `onAction` has no render effect.
+struct CaptureSwipeAction: Codable {
+    let label: String
+    let glyph: String
+    let tint: String
+    let fullSwipe: Bool?
 }
 
 /// C-036 §4 `FilterMenuOverlay.Option`: `id` · `label` · `glyph` (nil = no glyph box).

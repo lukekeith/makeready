@@ -67,12 +67,22 @@ struct LibraryHomeScreen: View {
         var rowPreviews: [String] = []
         /// C-005 `contextLabel` per row; "" = nil (no context line, §2 "its row is shorter").
         var rowContexts: [String] = []
+        /// Per note row: the note's model id — the row's stable identity, so an open or deleted row
+        /// stays that note when the rows shift. Empty (previews only) = keyed by row index.
+        var noteIDs: [String] = []
         /// Per note row: its `updatedAt`, the key §2 interleaves memos against ("rows of both kinds
         /// are ordered by that date descending"). A note with none keeps its passed order, ahead
         /// of the section's memos.
         var rowUpdatedAt: [Date] = []
         /// §3 input `memos` — the voice memos, interleaved with the note rows by date (§2 item 4).
         var memos: [MemoRowInput] = []
+        /// §3 `row-open`: "one row, swiped half way, rests open with its trailing `Delete` circle
+        /// showing" — the preview's seed for the open row (R-31: ephemeral screen state, seeded
+        /// here): `note:<row index>` or `memo:<memo id>`; nil = every row closed.
+        var openRow: String?
+        /// §3 `delete-confirm`: "the `row-open` row, with the delete confirmation card presented
+        /// over the dimmed page … Seeded like `row-open`" — the card is up for `openRow`'s row.
+        var deleteConfirmPresented: Bool = false
 
         /// §3 `MemoRowInput` — one voice memo: "`id`, `title`, `duration`, `recordedAt`, the
         /// transcript state and its preview". Duration and date arrive formatted (D6), with the
@@ -119,12 +129,29 @@ struct LibraryHomeScreen: View {
     /// §3 "Pull to refresh: the shared `PullToRefresh` calls `onRefresh`" — media-home's shape
     /// (`() -> Void`, its page's own loading state shows the wait).
     var onRefresh: () -> Void = {}
+    /// §3 "Swipe a note row to Delete: the screen calls `onDeleteNote(row)`" — the row's index in
+    /// `state.rowTitles`, as `onOpenNote` takes it (the screen's note rows are index-addressed).
+    var onDeleteNote: (Int) -> Void = { _ in }
+    /// §3 "Swipe a memo row to Delete: the screen calls `onDeleteMemo(id)`" — the memo's `id`.
+    var onDeleteMemo: (String) -> Void = { _ in }
 
     // §3 search-active: "The list filters live across both kinds" — UI-only, seeded from `state`
     // (R-31: search text and the presented menu are ephemeral screen state).
     @SwiftUI.State private var query: String
     @SwiftUI.State private var selectedTypes: Set<LibraryItemType>
     @SwiftUI.State private var typeMenuOpen: Bool
+    /// §3 Swipe actions: "Only one row is open at a time in the list: the screen holds that state."
+    @SwiftUI.State private var openItem: Item?
+    /// §3 "The screen removes the row at once (it collapses), and the caller owns the effect" —
+    /// rows deleted since the caller last passed its rows; cleared when new rows arrive, so a
+    /// caller that restores a row (a failed delete) shows it again.
+    @SwiftUI.State private var deletedItems: Set<Item> = []
+    /// §3 Delete confirmation: the row whose resting Delete circle was tapped — the C-066 card is
+    /// up while it is set (R-31: a presented sheet is ephemeral screen state).
+    @SwiftUI.State private var confirmingItem: Item?
+
+    /// True only under the capture harness's element map (memo-detail's `captureDeleteConfirm`).
+    @Environment(\.ui2ElementCollecting) private var captureStandIn
 
     init(
         state: State,
@@ -134,7 +161,9 @@ struct LibraryHomeScreen: View {
         filtersLocally: Bool = true,
         onScrollChange: @escaping (CGFloat, Bool) -> Void = { _, _ in },
         onSaveTypes: @escaping (Set<LibraryItemType>) -> Void = { _ in },
-        onRefresh: @escaping () -> Void = {}
+        onRefresh: @escaping () -> Void = {},
+        onDeleteNote: @escaping (Int) -> Void = { _ in },
+        onDeleteMemo: @escaping (String) -> Void = { _ in }
     ) {
         self.state = state
         self.onOpenNote = onOpenNote
@@ -144,6 +173,12 @@ struct LibraryHomeScreen: View {
         self.onScrollChange = onScrollChange
         self.onSaveTypes = onSaveTypes
         self.onRefresh = onRefresh
+        self.onDeleteNote = onDeleteNote
+        self.onDeleteMemo = onDeleteMemo
+        _openItem = SwiftUI.State(initialValue: Self.seededItem(state.openRow, in: state))
+        _confirmingItem = SwiftUI.State(
+            initialValue: state.deleteConfirmPresented ? Self.seededItem(state.openRow, in: state) : nil
+        )
         _query = SwiftUI.State(initialValue: state.searchText)
         _selectedTypes = SwiftUI.State(initialValue: state.selectedTypes)
         _typeMenuOpen = SwiftUI.State(initialValue: state.typeMenuOpen)
@@ -177,16 +212,34 @@ struct LibraryHomeScreen: View {
                 } action: { _, offset in
                     onScrollChange(offset, fingerDown)
                 }
-                .onScrollPhaseChange { _, phase in fingerDown = phase == .interacting }
+                .onScrollPhaseChange { _, phase in
+                    fingerDown = phase == .interacting
+                    // C-142 deviation 4: the screen closes the open row when the list scrolls.
+                    if phase == .interacting, openItem != nil { openItem = nil }
+                }
                 // §2 item 3: "the shared `PullToRefresh` wraps it, wired the way `media-home`
                 // wires it".
                 .pullToRefresh(onRefresh)
             }
         }
         .background(Token.layoutBackground)              // §2: "Background `color-layout-background`"
+        // The caller passed new rows (its delete landed, or failed and restored the row): the
+        // screen's own removals are superseded.
+        .onChange(of: rowsIdentity) { _, _ in deletedItems = [] }
         // §3 The `Type` chip: "Tapping it opens C-036 FilterMenuOverlay" (§6: the one overlay).
         .filterMenuPresentation(isPresented: typeMenuOpen, onDismiss: { typeMenuOpen = false }) {
             typeMenu
+        }
+        // §3 Delete confirmation: "the same C-066 ActionMenuOverlay card through
+        // `.actionMenuPresentation` that `memo-detail`'s delete-confirm uses".
+        .actionMenuPresentation(isPresented: confirmingItem != nil && !captureStandIn,
+                                onDismiss: cancelDelete) {
+            deleteConfirmCard
+        }
+        .overlay {
+            if captureStandIn && confirmingItem != nil {
+                captureDeleteConfirm
+            }
         }
     }
 
@@ -302,12 +355,45 @@ struct LibraryHomeScreen: View {
 
     // MARK: - §2 item 4 — the Library list (notes and memos, one list)
 
-    /// One row of the merged list: a note (its index in `state.rowTitles`) or a memo (its index in
-    /// `state.memos`).
+    /// One row of the merged list, keyed by its model's stable id: a note (`state.noteIDs`, or its
+    /// row index when the caller passed none — previews only) or a memo (its `id`).
     private enum Item: Hashable {
-        case note(Int)
-        case memo(Int)
+        case note(String)
+        case memo(String)
     }
+
+    /// A note row's stable key: its model id, else (previews only) its row index.
+    private static func noteKey(_ row: Int, in state: State) -> String {
+        state.noteIDs.indices.contains(row) ? state.noteIDs[row] : "row:\(row)"
+    }
+
+    /// The note row a key names now, in `state.rowTitles`.
+    private func noteRow(_ key: String) -> Int? {
+        state.rowTitles.indices.first { Self.noteKey($0, in: state) == key }
+    }
+
+    /// The memo a key names now, in `state.memos`.
+    private func memoIndex(_ id: String) -> Int? {
+        state.memos.firstIndex { $0.id == id }
+    }
+
+    /// The caller's rows, for resetting `deletedItems` when they change.
+    private var rowsIdentity: [String] {
+        state.rowTitles.indices.map { Self.noteKey($0, in: state) } + state.memos.map(\.id)
+    }
+
+    /// §3 `row-open`'s seed: `note:<row index>` → that note row, `memo:<id>` → that memo row.
+    private static func seededItem(_ key: String?, in state: State) -> Item? {
+        guard let key, let colon = key.firstIndex(of: ":") else { return nil }
+        let value = String(key[key.index(after: colon)...])
+        switch key[..<colon] {
+        case "note":
+            return Int(value).flatMap { state.rowTitles.indices.contains($0) ? Item.note(noteKey($0, in: state)) : nil }
+        case "memo": return state.memos.contains { $0.id == value } ? Item.memo(value) : nil
+        default: return nil
+        }
+    }
+
 
     /// One date section after the live filter (§3: "sections and their order are preserved and
     /// empty sections are dropped").
@@ -343,7 +429,7 @@ struct LibraryHomeScreen: View {
                 return memo.title.localizedCaseInsensitiveContains(needle)
                     || (Self.transcript(memo) ?? "").localizedCaseInsensitiveContains(needle)
             }
-            let rows = merged(notes: notes, memos: memos)
+            let rows = merged(notes: notes, memos: memos).filter { !deletedItems.contains($0) }
             return rows.isEmpty ? nil : VisibleSection(id: section, title: state.sectionTitles[section], rows: rows)
         }
     }
@@ -356,19 +442,21 @@ struct LibraryHomeScreen: View {
         var noteCursor = notes.startIndex
         var memoCursor = memos.startIndex
         let sortedMemos = memos.sorted { state.memos[$0].recordedAt > state.memos[$1].recordedAt }
+        let note = { (row: Int) in Item.note(Self.noteKey(row, in: state)) }
+        let memo = { (index: Int) in Item.memo(state.memos[index].id) }
         while noteCursor < notes.endIndex || memoCursor < sortedMemos.endIndex {
             guard memoCursor < sortedMemos.endIndex else {
-                result.append(.note(notes[noteCursor])); noteCursor += 1; continue
+                result.append(note(notes[noteCursor])); noteCursor += 1; continue
             }
             guard noteCursor < notes.endIndex else {
-                result.append(.memo(sortedMemos[memoCursor])); memoCursor += 1; continue
+                result.append(memo(sortedMemos[memoCursor])); memoCursor += 1; continue
             }
             let noteDate = state.rowUpdatedAt.indices.contains(notes[noteCursor])
                 ? state.rowUpdatedAt[notes[noteCursor]] : .distantFuture
             if noteDate >= state.memos[sortedMemos[memoCursor]].recordedAt {
-                result.append(.note(notes[noteCursor])); noteCursor += 1
+                result.append(note(notes[noteCursor])); noteCursor += 1
             } else {
-                result.append(.memo(sortedMemos[memoCursor])); memoCursor += 1
+                result.append(memo(sortedMemos[memoCursor])); memoCursor += 1
             }
         }
         return result
@@ -411,30 +499,130 @@ struct LibraryHomeScreen: View {
                         .padding(.leading, NoteListRow.avatarSize + Token.Space.cardPadding)
                         .ui2Element(Self.annotation("C-088 SectionDivider", dividerOrdinal(item)))
                 }
-                switch item {
-                case .note(let row):
-                    NoteListRow(
-                        title: state.rowTitles[row],
-                        preview: preview(row),
-                        dateLabel: state.rowDates.indices.contains(row) ? state.rowDates[row] : "",
-                        contextLabel: context(row),
-                        onTap: { onOpenNote(row) }
-                    )
-                    .ui2Element(Self.annotation("C-005 NoteListRow", rowOrdinal(item)))
-                case .memo(let index):
-                    // §2: "A memo row is a C-006 MemoListRow in the same house row look".
-                    let memo = state.memos[index]
-                    MemoListRow(
-                        title: memo.title,
-                        durationLabel: memo.durationLabel,
-                        dateLabel: memo.dateLabel,
-                        preview: memo.preview,
-                        onTap: { onOpenMemo(memo.id) }
-                    )
-                    .ui2Element(Self.annotation("C-006 MemoListRow", rowOrdinal(item)))
+                swipeRow(item) {
+                    switch item {
+                    case .note(let key):
+                        if let row = noteRow(key) {
+                        NoteListRow(
+                            title: state.rowTitles[row],
+                            preview: preview(row),
+                            dateLabel: state.rowDates.indices.contains(row) ? state.rowDates[row] : "",
+                            contextLabel: context(row),
+                            onTap: { onOpenNote(row) }
+                        )
+                        .ui2Element(Self.annotation("C-005 NoteListRow", rowOrdinal(item)))
+                        }
+                    case .memo(let id):
+                        // §2: "A memo row is a C-006 MemoListRow in the same house row look".
+                        if let index = memoIndex(id) {
+                        let memo = state.memos[index]
+                        MemoListRow(
+                            title: memo.title,
+                            durationLabel: memo.durationLabel,
+                            dateLabel: memo.dateLabel,
+                            preview: memo.preview,
+                            onTap: { onOpenMemo(memo.id) }
+                        )
+                        .ui2Element(Self.annotation("C-006 MemoListRow", rowOrdinal(item)))
+                        }
+                    }
                 }
+                .ui2Element(Self.annotation("C-142 SwipeActions", swipeOrdinal(item)))
             }
         }
+    }
+
+    /// §3 Swipe actions: "every note row and every memo row is wrapped in the global SwipeActions
+    /// component, with one trailing `Delete` action: a `trash` glyph on a solid `color-error`
+    /// circle, with full-swipe on … Only one row is open at a time in the list: the screen holds
+    /// that state."
+    private func swipeRow<Row: View>(_ item: Item, @ViewBuilder row: () -> Row) -> some View {
+        SwipeActions(
+            trailing: [
+                // §3: "an armed release deletes at once, with no confirmation"; "Tapping the resting
+                // circle asks for confirmation" (`onTap` overrides `onAction` for the circle only).
+                SwipeActionsAction(
+                    label: "Delete",
+                    glyph: .trash2,
+                    tint: Token.error,
+                    fullSwipe: true,
+                    onAction: { delete(item) },
+                    onTap: { confirmingItem = item }
+                ),
+            ],
+            openSide: openItem == item ? .trailing : nil,
+            onOpenSideChange: { side in
+                if side != nil {
+                    openItem = item
+                } else if openItem == item {
+                    openItem = nil
+                }
+            },
+            content: row
+        )
+    }
+
+    /// §3 "The screen removes the row at once (it collapses), and the caller owns the effect" —
+    /// "the date section drops with its last row".
+    private func delete(_ item: Item) {
+        if openItem == item { openItem = nil }
+        withAnimation(Token.Motion.swipeSettle) { _ = deletedItems.insert(item) }
+        switch item {
+        case .note(let key): if let row = noteRow(key) { onDeleteNote(row) }
+        case .memo(let id): onDeleteMemo(id)
+        }
+    }
+
+    // MARK: - §3 Delete confirmation
+
+    private static let deleteAction = ActionMenuOverlay.ActionItem(glyph: "trash-2", label: "Delete", tone: .destructive)
+
+    /// §3: "The title is `Delete this note?` or `Delete this memo?`, with the actions **Delete**
+    /// (destructive) and **Cancel**."
+    private var deleteConfirmCard: some View {
+        ActionMenuOverlay(
+            title: confirmingItem.map(Self.confirmTitle) ?? "",
+            actions: [Self.deleteAction],
+            doneLabel: "Cancel",
+            onSelect: { _ in confirmDelete() },
+            onDone: cancelDelete
+        )
+        .ui2Element("C-066 ActionMenuOverlay")
+    }
+
+    private static func confirmTitle(_ item: Item) -> String {
+        switch item {
+        case .note: return "Delete this note?"
+        case .memo: return "Delete this memo?"
+        }
+    }
+
+    /// §3: "**Delete** runs the delete: the row collapses and `onDeleteNote` or `onDeleteMemo` fires."
+    private func confirmDelete() {
+        guard let item = confirmingItem else { return }
+        confirmingItem = nil
+        delete(item)
+    }
+
+    /// §3: "**Cancel**, a tap on the dim, or a swipe down dismisses the card and closes the open row."
+    private func cancelDelete() {
+        if let item = confirmingItem, openItem == item { openItem = nil }
+        confirmingItem = nil
+    }
+
+    /// Capture stand-in (memo-detail precedent): C-066's presentation mounts after the first frame
+    /// and slides in on appear, so a snapshot never sees it. Beneath the capture element map only,
+    /// the screen draws the presented layer at rest exactly as `actionMenuPresentation` lays it out.
+    private var captureDeleteConfirm: some View {
+        ZStack(alignment: .bottom) {
+            Token.black80
+                .ignoresSafeArea()
+                .ui2Element("Dim")
+            deleteConfirmCard
+                .padding(.horizontal, ActionMenuMotion.edgeInset)
+                .padding(.bottom, ActionMenuMotion.edgeInset)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
     }
 
     // MARK: - Helpers
@@ -459,6 +647,11 @@ struct LibraryHomeScreen: View {
             }
         }
         return sameKind.firstIndex(of: item) ?? 0
+    }
+
+    /// The row's position among every visible row, for the D11 annotation suffix.
+    private func swipeOrdinal(_ item: Item) -> Int {
+        visibleSections.flatMap(\.rows).firstIndex(of: item) ?? 0
     }
 
     /// The divider above `item`'s position among every divider drawn (one per row that is not
@@ -541,7 +734,8 @@ private extension LibraryHomeScreen.State {
     /// §3 `search-mixed` is this list with search text matching one note and one memo, and
     /// `filter-memos` is it with `Voice memos` checked in the `Type` menu.
     static func mixed(searchText: String = "", searchFocused: Bool = false, selectedTypes: Set<LibraryItemType> = [],
-                      typeMenuOpen: Bool = false) -> Self {
+                      typeMenuOpen: Bool = false, openRow: String? = nil,
+                      deleteConfirmPresented: Bool = false) -> Self {
         .init(
             phase: .populated,
             searchText: searchText,
@@ -569,7 +763,9 @@ private extension LibraryHomeScreen.State {
                     id: "memo-2", title: "Memo 2", durationLabel: "0:42", dateLabel: "Tuesday", section: 1,
                     recordedAt: at("2026-11-17T08:00:00Z"), preview: .waitingToUpload
                 ),
-            ]
+            ],
+            openRow: openRow,
+            deleteConfirmPresented: deleteConfirmPresented
         )
     }
 
@@ -642,6 +838,20 @@ private extension LibraryHomeScreen.State {
 
 #Preview("type-menu-open") {
     LibraryHomeScreen(state: .mixed(typeMenuOpen: true))
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
+
+#Preview("row-open") {
+    LibraryHomeScreen(state: .mixed(openRow: "note:0"))
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
+
+#Preview("delete-confirm") {
+    LibraryHomeScreen(state: .mixed(openRow: "note:0", deleteConfirmPresented: true))
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)

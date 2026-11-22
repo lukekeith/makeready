@@ -20,6 +20,10 @@ struct LibraryHomeContainer: View {
     @State private var searchTask: Task<Void, Never>?
     /// library-home §3 `Type` chip: the saved set of kinds (empty or both = everything).
     @State private var selectedTypes: Set<LibraryItemType> = []
+    /// library-home §3 Swipe actions: rows deleted and not yet confirmed by the server — hidden at
+    /// once, restored when the delete fails.
+    @State private var deletingNoteIds: Set<String> = []
+    @State private var deletingMemoIds: Set<String> = []
 
     /// D8: the pause after the last keystroke before `q` is sent.
     static let searchDebounce: Duration = .milliseconds(300)
@@ -30,7 +34,9 @@ struct LibraryHomeContainer: View {
         let memos = LibraryHomeMapper.visibleMemos(stored: AppState.shared.voiceMemos.all,
                                                    queued: AppState.shared.memoUploads?.pendingItems ?? [],
                                                    searchMatches: searchMatches)
-        let sections = LibraryHomeMapper.rows(notes: LibraryItemType.shows(.note, in: selectedTypes) ? AppState.shared.studyNotes.all : [],
+            .filter { !deletingMemoIds.contains($0.id) }
+        let notes = AppState.shared.studyNotes.all.filter { !deletingNoteIds.contains($0.id) }
+        let sections = LibraryHomeMapper.rows(notes: LibraryItemType.shows(.note, in: selectedTypes) ? notes : [],
                                               searchIds: searchIds, memos: LibraryItemType.shows(.memo, in: selectedTypes) ? memos : [],
                                               now: now, calendar: calendar)
         let phase = Self.filteredPhase(
@@ -40,6 +46,7 @@ struct LibraryHomeContainer: View {
         let state: LibraryHomeScreen.State = {
             var state = LibraryHomeMapper.state(sections: sections, phase: phase, query: query, now: now, calendar: calendar)
             state.selectedTypes = selectedTypes
+            state.noteIDs = noteIds
             return state
         }()
         LibraryHomeScreen(
@@ -53,11 +60,54 @@ struct LibraryHomeContainer: View {
             filtersLocally: false,
             onScrollChange: { offset, interacting in scrollReport.report(offset, interacting) },
             onSaveTypes: { selectedTypes = $0 },
-            onRefresh: { Task { await fetch(q: Self.trimmedQuery(query)) } }
+            onRefresh: { Task { await fetch(q: Self.trimmedQuery(query)) } },
+            onDeleteNote: { row in
+                guard noteIds.indices.contains(row) else { return }
+                Task { await deleteNote(id: noteIds[row]) }
+            },
+            onDeleteMemo: { id in Task { await deleteMemo(id: id) } }
         )
         .task { await fetch(q: nil) }
         .onDisappear { searchTask?.cancel() }
     }
+
+    /// library-home §3 "The container calls `NoteActions.softDelete` for a note … A failure goes to
+    /// the app's error banner with a Retry, and the row is restored."
+    private func deleteNote(id: String) async {
+        deletingNoteIds.insert(id)
+        defer { deletingNoteIds.remove(id) }
+        do {
+            try await NoteActions().softDelete(id: id)
+            searchIds?.removeAll { $0 == id }
+        } catch {
+            AppState.shared.recordError(error, context: "LibraryHomeContainer.deleteNote", surface: true,
+                                        friendlyMessage: "Couldn't delete this note",
+                                        retry: { Task { await deleteNote(id: id) } })
+        }
+    }
+
+    /// library-home §3 "… `MemoActions.softDelete` for a memo, or removes a queued (not yet uploaded)
+    /// memo from the upload queue" — a queued memo's id is `local:<localId>` (D17).
+    private func deleteMemo(id: String) async {
+        deletingMemoIds.insert(id)
+        defer { deletingMemoIds.remove(id) }
+        do {
+            if id.hasPrefix(Self.localMemoPrefix) {
+                guard let uploads = AppState.shared.memoUploads else { throw CancellationError() }
+                try await uploads.remove(localId: String(id.dropFirst(Self.localMemoPrefix.count)))
+            } else {
+                try await MemoActions().softDelete(id: id)
+            }
+            searchMatches?.removeAll { $0.id == id }
+        } catch {
+            AppState.shared.recordError(error, context: "LibraryHomeContainer.deleteMemo", surface: true,
+                                        friendlyMessage: "Couldn't delete this memo",
+                                        retry: { Task { await deleteMemo(id: id) } })
+        }
+    }
+
+    /// memo-screens D17: a queued memo's row id prefix (`LibraryHomeMapper`).
+    private static let localMemoPrefix = "local:"
 
     private func search(_ text: String) {
         query = text
