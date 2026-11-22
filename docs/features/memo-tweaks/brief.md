@@ -80,3 +80,36 @@ engine delivers levels in bursts (now ~47 Hz, before ~12 Hz), so the bars jump.
   `.cancelDone`-style trailing label), and Undo as a glyph button beside it, if PageHeader can hold
   both. If it can't, raise it as a question with a recommendation instead of inventing chrome.
 - **16 pt between the PageHeader and the content**, as on memo-detail.
+
+## 5. C-016 RecorderSheet: present and dismiss like the + menu
+
+> "the red dot and contents of the voice memo modal don't animate up with the modal, I thought we
+> fixed this and documented how to prevent it from happening again" (owner 2026-11-21)
+
+> "the voice memo modal should work just like the plus button's, dim the background and make it
+> tappable to dismiss, also swipe down to dismiss, I don't see why it's different" (owner 2026-11-21)
+
+The model is C-066's presentation, `ActionMenuLayer` in `MakeReadyUI/ActionMenuPresentation.swift`
+(the + menu's sheet).
+
+1. **It owns its motion.** The recorder is presented through the shell's `.hostedOverlay`, which
+   arrives without the presenting transaction, so its `.move(edge: .bottom)` insertion transition
+   never carries the contents (see ActionMenuLayer's doc comment, and animation-debug Class 8). Do
+   what ActionMenuLayer does:
+   - keep a `shown` @State that is false on insert;
+   - in `.onAppear`, `withAnimation(motion-sheet-present) { shown = true }`;
+   - slide the whole sheet with `.visualEffect { offset(y: shown ? 0 : proxy.size.height) }`, so it
+     moves as one laid-out piece;
+   - add `visible: Bool` (default true) and `onHidden: () -> Void`. When `visible` turns false, run
+     `withAnimation { shown = false } completion: { onHidden() }`.
+2. **Dim.** A full-screen `Token.black80` behind the sheet, faded by `shown` exactly like
+   ActionMenuLayer's dim, ignoring safe areas. Tapping it calls `onDismiss`. This replaces
+   OQ-C-016-5's "undimmed, touches pass through".
+3. **Swipe down to dismiss.** At the compact detent, a downward drag past
+   `ActionMenuMotion.shouldDismiss` calls `onDismiss` in every phase. The drag up to expanded and the
+   expanded↔compact snap don't change; from expanded, a drag down snaps to compact first.
+4. **Props**, all defaulted: `visible`, `onHidden`, `onDismiss`. The ready-state swipe that called
+   `onClose` now calls `onDismiss`. `onClose` stays for the mic-denied Close button.
+5. **What dismissing means** is decided by the caller: while ready it closes and keeps nothing; while
+   recording it saves, exactly like Done.
+6. **Captures:** `compact` with the dim, `ready`, `expanded`.
