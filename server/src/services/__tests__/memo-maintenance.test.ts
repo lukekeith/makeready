@@ -99,6 +99,21 @@ describe('memo maintenance', () => {
     expect(out).toMatchObject({ streamSynced: expect.any(Number) })
   })
 
+  it('transcribes due videos after the stream sync, and not without a key', async () => {
+    const id = randomUUID()
+    await prisma.video.create({ data: { id, userId, cloudflareUid: `uid-${id}`, playbackUrl: '', status: 'ready', transcriptStatus: 'pending' } })
+    try {
+      const transcribeVideo = vi.fn(async (_id: string) => 'ready')
+      await runMemoMaintenance({ transcribe: vi.fn(), transcribeVideo, env: { ...process.env, GROQ_API_KEY: '' } })
+      expect(transcribeVideo).not.toHaveBeenCalled()
+      const out = await runMemoMaintenance({ transcribe: vi.fn(), transcribeVideo, env: { ...process.env, GROQ_API_KEY: 'k' } })
+      expect(transcribeVideo.mock.calls.map((c) => c[0])).toContain(id)
+      expect(out).toMatchObject({ videosTranscribed: expect.any(Number) })
+    } finally {
+      await prisma.video.deleteMany({ where: { id } })
+    }
+  })
+
   it('a failing step does not stop the next', async () => {
     const gone = await seed(userId, { isActive: false, deletedAt: daysAgo(31) })
     const transcribe = vi.fn(async () => { throw new Error('boom') })

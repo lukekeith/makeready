@@ -56,6 +56,12 @@ export interface DeleteVideoResult {
   error?: string
 }
 
+/** A Stream MP4 download (`result.default` of the downloads endpoint). `url` is set once `ready`. */
+export interface StreamDownload {
+  status: 'inprogress' | 'ready' | 'error'
+  url?: string
+}
+
 // Cloudflare API response types
 interface CloudflareError {
   code: number
@@ -284,4 +290,38 @@ export function getRandomThumbnailUrl(videoUid: string, duration: number): strin
   const maxTime = Math.floor(duration * 0.9)
   const randomTime = Math.floor(Math.random() * (maxTime - minTime + 1)) + minTime
   return getThumbnailUrl(videoUid, randomTime)
+}
+
+// ============================================================================
+// Stream MP4 downloads (POST/GET/DELETE /accounts/{acct}/stream/{uid}/downloads)
+// The response is `{ result: { default: { status, url, percentComplete } } }`; a video with no
+// download yet answers `result: {}`. These throw on a failure so a caller can count an attempt.
+// ============================================================================
+
+async function downloadsRequest(videoUid: string, method: 'POST' | 'GET' | 'DELETE'): Promise<StreamDownload | null> {
+  if (!isConfigured()) throw new Error('Cloudflare Stream credentials not configured')
+  const response = await fetch(`${CLOUDFLARE_API_BASE}/accounts/${accountId}/stream/${videoUid}/downloads`, { method, headers: getHeaders() })
+  const data = (await response.json().catch(() => ({}))) as CloudflareResponse<{ default?: StreamDownload }>
+  if (!response.ok || data.success === false) {
+    throw new Error(`Stream downloads ${method} failed: ${data.errors?.[0]?.message || response.status}`)
+  }
+  const download = data.result?.default
+  return download ? { status: download.status, url: download.url } : null
+}
+
+/** Starts an MP4 download for a video (idempotent on Stream's side). */
+export async function createDownload(videoUid: string): Promise<StreamDownload> {
+  const download = await downloadsRequest(videoUid, 'POST')
+  if (!download) throw new Error('Stream downloads POST returned no download')
+  return download
+}
+
+/** The video's current MP4 download, or null when none was created. */
+export function getDownload(videoUid: string): Promise<StreamDownload | null> {
+  return downloadsRequest(videoUid, 'GET')
+}
+
+/** Deletes the video's MP4 download. */
+export async function deleteDownload(videoUid: string): Promise<void> {
+  await downloadsRequest(videoUid, 'DELETE')
 }

@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma.js'
 import { Prisma } from '../generated/prisma/index.js'
 import type { Video } from '../generated/prisma/index.js'
 import { getVideo as getCloudflareVideo } from './cloudflare.js'
+import { TRANSCRIPT_MAX_ATTEMPTS } from './transcription.service.js'
 import { decodeLibraryCursor, encodeLibraryCursor, getUserOrgId, syncVideoStatus } from './media-library.js'
 import { videoActivityUseCount } from './content-media.service.js'
 import { deriveVideoMetadata } from './media-metadata.js'
@@ -261,4 +262,14 @@ export async function syncPendingVideos(now: Date): Promise<{ refreshed: number;
     data: { status: 'error' },
   })
   return { refreshed, expired }
+}
+
+/** Ids of ready videos waiting on the server fallback transcript: the claim's predicate without its timestamp (D11). `libraryRemovedAt` rows are included. */
+export async function videoIdsDueForTranscript(): Promise<string[]> {
+  const rows = await prisma.video.findMany({
+    where: { isActive: true, status: 'ready', transcriptStatus: { in: ['pending', 'failed'] }, transcriptAttempts: { lt: TRANSCRIPT_MAX_ATTEMPTS } },
+    select: { id: true },
+    orderBy: { createdAt: 'asc' },
+  })
+  return rows.map((r) => r.id)
 }
