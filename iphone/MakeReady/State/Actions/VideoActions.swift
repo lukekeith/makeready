@@ -134,6 +134,103 @@ private let api: APIClientProtocol
         return video
     }
 
+    // MARK: - Library window (D20, D27)
+
+    /// `GET /api/videos/library`. No cursor replaces the window (page 1), so videos removed or deleted
+    /// elsewhere drop out; a cursor appends. Both upsert `libraryVideos`.
+    @MainActor
+    func loadLibrary(cursor: String?, q: String?) async throws {
+        var endpoint = "/api/videos/library?limit=\(Self.libraryPageSize)"
+        if let cursor { endpoint += "&cursor=\(Self.encoded(cursor))" }
+        if let q, !q.isEmpty { endpoint += "&q=\(Self.encoded(q))" }
+
+        let response: VideoLibraryResponse = try await api.get(endpoint, responseType: VideoLibraryResponse.self)
+        guard response.success, let rows = response.data else {
+            throw APIError.serverError(response.error ?? "Failed to load the video library")
+        }
+
+        state.libraryVideos.upsertMany(rows)
+        let page = VideoLibraryWindow.Page(ids: rows.map(\.id), nextCursor: response.nextCursor, hasMore: response.hasMore ?? false)
+        let query = (q?.isEmpty ?? true) ? nil : q
+        if cursor == nil {
+            state.videoLibraryWindow = VideoLibraryWindow(query: query).replacing(with: page)
+        } else {
+            state.videoLibraryWindow = state.videoLibraryWindow.appending(page: page)
+        }
+        state.persist()
+    }
+
+    /// The next page of the window the Library shows. A window with no cursor (a restored, capped one)
+    /// has no page to append to, so it loads page 1; a window with no more pages loads nothing.
+    @MainActor
+    func loadNextLibraryPage() async throws {
+        let window = state.videoLibraryWindow
+        guard window.hasMore else { return }
+        try await loadLibrary(cursor: window.nextCursor, q: window.query)
+    }
+
+    // MARK: - Detail, rename, delete or remove
+
+    /// `GET /api/videos/:id` into `videos`: the transcript, segments and `lessonUseCount`.
+    @MainActor
+    func loadDetail(id: String) async throws {
+        _ = try await getVideo(id: id)
+    }
+
+    /// `PATCH /api/videos/:id` with the title; the Library row follows in the same call (D27).
+    @MainActor
+    func rename(id: String, title: String) async throws {
+        let video = try await updateVideo(id: id, title: title)
+        _ = state.libraryVideos.update(id) { $0.title = video.title }
+        state.persist()
+    }
+
+    /// `POST /api/videos/:id/remove-from-library`: the video leaves the Library but stays in lessons (D17).
+    @MainActor
+    func removeFromLibrary(id: String) async throws {
+        let response: RemoveFromLibraryResponse = try await api.post(
+            "/api/videos/\(id)/remove-from-library",
+            responseType: RemoveFromLibraryResponse.self
+        )
+        guard response.success else {
+            throw APIError.serverError(response.error ?? "Failed to remove the video from your Library")
+        }
+        dropFromLibrary(id: id)
+    }
+
+    /// Which confirm a delete shows (D17): from `lessonUseCount` on `GET /api/videos/:id`.
+    /// A failed read throws, for the caller's error banner, and changes nothing.
+    @MainActor
+    func deleteDecision(id: String) async throws -> VideoDeleteDecision {
+        let video = try await getVideo(id: id)
+        let count = video.lessonUseCount ?? 0
+        return count > 0 ? .removeFromLibrary(lessonCount: count) : .delete
+    }
+
+    /// Runs the call the decision names; the id leaves both stores and the window in the same Action (D27).
+    @MainActor
+    func deleteOrRemove(id: String, decision: VideoDeleteDecision) async throws {
+        switch decision {
+        case .delete: try await deleteVideo(id: id)
+        case .removeFromLibrary: try await removeFromLibrary(id: id)
+        }
+        dropFromLibrary(id: id)
+    }
+
+    @MainActor
+    private func dropFromLibrary(id: String) {
+        _ = state.videos.remove(id)
+        _ = state.libraryVideos.remove(id)
+        state.videoLibraryWindow.ids.removeAll { $0 == id }
+        state.persist()
+    }
+
+    private static let libraryPageSize = 50
+
+    private static func encoded(_ value: String) -> String {
+        value.addingPercentEncoding(withAllowedCharacters: .urlQueryValueAllowed) ?? value
+    }
+
     // MARK: - Update Video
 
     /// Update video metadata
@@ -407,6 +504,44 @@ private let api: APIClientProtocol
             }
         }
     }
+}
+
+// MARK: - Library types
+
+/// What deleting a Library video does (D17): delete it, or take it out of the Library when lessons use it.
+enum VideoDeleteDecision: Equatable {
+    case delete
+    case removeFromLibrary(lessonCount: Int)
+
+    /// The confirm's title, word for word from the spec.
+    var confirmTitle: String {
+        switch self {
+        case .delete:
+            return "Delete this video?"
+        case .removeFromLibrary(let n):
+            return "This video is used in \(n) lesson activities. It will stay in them and leave your Library."
+        }
+    }
+}
+
+/// `GET /api/videos/library`.
+struct VideoLibraryResponse: Decodable {
+    let success: Bool
+    let data: [VideoSummary]?
+    let nextCursor: String?
+    let hasMore: Bool?
+    let error: String?
+}
+
+/// `POST /api/videos/:id/remove-from-library`.
+struct RemoveFromLibraryResponse: Decodable {
+    let success: Bool
+    let error: String?
+}
+
+private extension CharacterSet {
+    /// Query-value characters left as they are; `&`, `=`, `+`, `#` and spaces are escaped.
+    static let urlQueryValueAllowed: CharacterSet = CharacterSet.urlQueryAllowed.subtracting(CharacterSet(charactersIn: "&=+#"))
 }
 
 // MARK: - Upload Delegate

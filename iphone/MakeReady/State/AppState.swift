@@ -827,7 +827,13 @@ final class AppState {
     /// `Memo n` for a new recording: cached memos plus unsent queue items (D11, D43).
     func nextMemoTitle() -> String {
         let titles = voiceMemos.all.map(\.title) + (memoUploads?.pending().map(\.title) ?? [])
-        return MemoActions.nextDefaultTitle(existingTitles: titles)
+        return MemoActions.nextDefaultTitle(prefix: "Memo", existingTitles: titles)
+    }
+
+    /// `Video n` for a new recording: the Library's videos (D14). Queued, unsent videos join the
+    /// titles when the video upload queue lands.
+    func nextVideoTitle() -> String {
+        MemoActions.nextDefaultTitle(prefix: "Video", existingTitles: libraryVideos.all.compactMap(\.title))
     }
 
     /// Builds the queue for `userId` if there is none (D37). Nil when the folder cannot be made.
@@ -879,7 +885,8 @@ final class AppState {
         enrollments.replaceAll(persisted.enrollments)
         videos.replaceAll(persisted.videos)
         libraryVideos.replaceAll(persisted.libraryVideos)
-        if let window = persisted.videoLibraryWindow { videoLibraryWindow = window }
+        // A search window is not the Library; only the whole-Library window survives a relaunch (D20).
+        if let window = persisted.videoLibraryWindow, window.query == nil { videoLibraryWindow = window }
 
         // Restore posts and members by group
         var allPosts: [GroupPost] = []

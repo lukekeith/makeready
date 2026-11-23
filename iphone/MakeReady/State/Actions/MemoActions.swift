@@ -5,7 +5,6 @@ import Foundation
 /// to the caller (console-only until a surface exists, D21).
 struct MemoActions {
     private static let pageSize = 100
-    private static let titlePattern = #"^Memo (\d+)$"#
 
     private let api: APIClientProtocol
     private let stateOverride: AppState?
@@ -93,16 +92,18 @@ struct MemoActions {
         store(memo)
     }
 
-    /// D11 / D43: `Memo n`, n = 1 + the largest integer in `^Memo (\d+)$` among the titles.
-    static func nextDefaultTitle(existingTitles: [String]) -> String {
-        guard let regex = try? NSRegularExpression(pattern: titlePattern) else { return "Memo 1" }
+    /// D11 / D43 / video-recorder D14: `<prefix> n`, n = 1 + the largest integer in `^<prefix> (\d+)$`
+    /// among the titles.
+    static func nextDefaultTitle(prefix: String, existingTitles: [String]) -> String {
+        let pattern = "^" + NSRegularExpression.escapedPattern(for: prefix) + #" (\d+)$"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return "\(prefix) 1" }
         let largest = existingTitles.compactMap { title -> Int? in
             let range = NSRange(title.startIndex..., in: title)
             guard let match = regex.firstMatch(in: title, range: range),
                   let digits = Range(match.range(at: 1), in: title) else { return nil }
             return Int(title[digits])
         }.max() ?? 0
-        return "Memo \(largest + 1)"
+        return "\(prefix) \(largest + 1)"
     }
 
     @MainActor
