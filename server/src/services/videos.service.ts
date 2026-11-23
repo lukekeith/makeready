@@ -137,6 +137,11 @@ export async function createVideo(userId: string, body: CreateVideoInput): Promi
 
 const PREVIEW_CHARS = 160
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** Whether `id` can name a `videos.id`; the column is `uuid`, so any other string would error in the database instead of finding nothing. */
+export const isVideoId = (id: string): boolean => UUID.test(id)
+
 export interface VideoSummary {
   id: string
   title: string | null
@@ -158,21 +163,21 @@ export interface ListLibraryVideosOptions { limit: number; cursor?: string; q?: 
 export async function listLibraryVideos(userId: string, { limit, cursor, q }: ListLibraryVideosOptions) {
   if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new VideoServiceError(400, 'limit must be an integer from 1 to 100')
   const decoded = cursor === undefined ? null : decodeLibraryCursor(cursor)
-  if (cursor !== undefined && !decoded) throw new VideoServiceError(400, 'Invalid cursor')
+  if (cursor !== undefined && (!decoded || !isVideoId(decoded.id))) throw new VideoServiceError(400, 'Invalid cursor')
 
   const pattern = q ? '%' + q.replace(/[\\%_]/g, '\\$&') + '%' : null
   const search = pattern
     ? Prisma.sql`AND (title ILIKE ${pattern} ESCAPE '\\' OR transcript ILIKE ${pattern} ESCAPE '\\')`
     : Prisma.empty
   const after = decoded
-    ? Prisma.sql`AND ("createdAt", id) < (${decoded.createdAt.toISOString()}::timestamp, ${decoded.id})`
+    ? Prisma.sql`AND ("createdAt", id) < (${decoded.createdAt.toISOString()}::timestamp, ${decoded.id}::uuid)`
     : Prisma.empty
 
   const rows = await prisma.$queryRaw<VideoSummary[]>`
     SELECT id, title, "thumbnailUrl", "playbackUrl", duration, status, "transcriptStatus",
            left(transcript, ${PREVIEW_CHARS}::int) AS "transcriptPreview", "createdAt"
     FROM videos
-    WHERE "userId" = ${userId} AND "isActive" = true AND "libraryRemovedAt" IS NULL ${search} ${after}
+    WHERE "userId"::text = ${userId} AND "isActive" = true AND "libraryRemovedAt" IS NULL ${search} ${after}
     ORDER BY "createdAt" DESC, id DESC
     LIMIT ${limit + 1}::int`
 
@@ -184,7 +189,9 @@ export async function listLibraryVideos(userId: string, { limit, cursor, q }: Li
 
 /** Takes a video out of its owner's Library while lessons keep playing it (D17). Owner only; the first call's timestamp stays. */
 export async function removeFromLibrary(userId: string, id: string): Promise<{ id: string; libraryRemovedAt: Date }> {
-  const video = await prisma.video.findUnique({ where: { id }, select: { id: true, userId: true, libraryRemovedAt: true } })
+  const video = isVideoId(id)
+    ? await prisma.video.findUnique({ where: { id }, select: { id: true, userId: true, libraryRemovedAt: true } })
+    : null
   if (!video) throw new VideoServiceError(404, 'Video not found')
   if (video.userId !== userId) throw new VideoServiceError(403, 'Not authorized to remove this video')
   if (video.libraryRemovedAt) return { id, libraryRemovedAt: video.libraryRemovedAt }

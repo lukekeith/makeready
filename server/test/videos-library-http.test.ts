@@ -37,10 +37,11 @@ describe('Video Library routes', () => {
     expect(ok.status).toBe(200)
     expect(ok.body).toHaveProperty('hasMore')
     expect(ok.body.data.map((v: any) => v.id)).toContain(someId)
-    for (const qs of ['cursor=%%%', 'limit=101', 'limit=0', 'limit=1.5', 'limit=abc']) {
+    for (const qs of ['cursor=%%%', 'limit=101', 'limit=0', 'limit=1.5', 'limit=abc', `cursor=${Buffer.from('2026-11-01T00:00:00.000Z|not-a-uuid').toString('base64url')}`]) {
       expect((await request(app).get(`/api/videos/library?${qs}`).set('Authorization', bearer(owner.token))).status).toBe(400)
     }
     expect((await request(app).get('/api/videos/library')).status).toBe(401)
+    expect((await request(app).get('/api/videos/not-a-uuid').set('Authorization', bearer(owner.token))).status).toBe(404)
     const one = await request(app).get(`/api/videos/${someId}`).set('Authorization', bearer(owner.token))
     expect(one.body.data).toHaveProperty('lessonUseCount', 0)
   })

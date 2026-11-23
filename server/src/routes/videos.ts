@@ -10,6 +10,7 @@ import { trackActivity } from '../services/activity.js'
 import {
   createVideo,
   createVideoBody,
+  isVideoId,
   lessonUseCount,
   listLibraryVideos,
   refreshFromStream,
@@ -708,9 +709,7 @@ router.get('/:videoId', requireAuth, async (req, res) => {
     const userId = (req.user as any)?.id
     const { videoId } = req.params
 
-    const video = await prisma.video.findUnique({
-      where: { id: videoId },
-    })
+    const video = isVideoId(videoId) ? await prisma.video.findUnique({ where: { id: videoId } }) : null
 
     if (!video) {
       return res.status(404).json({
