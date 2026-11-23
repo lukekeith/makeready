@@ -126,6 +126,7 @@
 		191051B68EF4B8B4024562A8 /* VideoDraftStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 721344B54A5A913BAA8299B1 /* VideoDraftStoreTests.swift */; };
 		194B6122D6EEC2C3753D1048 /* VideoModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E44F68DB3A6E6C8D69747B5 /* VideoModelsTests.swift */; };
 		1957C4188B21F3C04AFA54A0 /* ViewerEndPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B498AB6B626A973DB04A29D6 /* ViewerEndPage.swift */; };
+		19866B2BA8839DBDF6744F44 /* VideoDetailContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VDC0000000000000001 /* VideoDetailContainer.swift */; };
 		19BA1E53C0DF0785DC63E16A /* InviteMemberScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE698C12540E4C979111EFA4 /* InviteMemberScreen.swift */; };
 		19C9D4D8DAE4CA02C655EE6A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1000006000000000000001 /* Assets.xcassets */; };
 		1A5571101B12947BBCED5AFD /* CreateGroupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E6B91B8AAFC5C75411DFD88 /* CreateGroupScreen.swift */; };
@@ -474,6 +475,7 @@
 		5F1CE048279E74424C559E52 /* ActivitiesEditorMapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6D6BCCD5ED099C974FF639A /* ActivitiesEditorMapperTests.swift */; };
 		5F439B1036E50736D8DBA89B /* ActivityNewScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E952CAE97D190453E43F7C7A /* ActivityNewScreen.swift */; };
 		5FA14526DA18B52A0A99CD8A /* Avatar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F19BDEACACDBD227ACFB2CF /* Avatar.swift */; };
+		5FDC49988CD0155EC426D921 /* VideoDetailPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VDP0000000000000001 /* VideoDetailPlayer.swift */; };
 		5FFD6809648EA70C67B1DB0E /* BibleVersesScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C8693C230ADF20B08F1D3D /* BibleVersesScreen.swift */; };
 		602CFE3CC0DAC604C1BA7BE1 /* RecordButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BFBEB50C944983E058538C9 /* RecordButton.swift */; };
 		6032756FF30705A3166977BA /* EnrollmentBrowseModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 040F8EF86E7BB4B09F8FA931 /* EnrollmentBrowseModels.swift */; };
@@ -1120,6 +1122,7 @@
 		D9A0690B99E84051B5C9A371 /* UI2Element.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E8A41D64AA544DBE3A969FD /* UI2Element.swift */; };
 		DA024325F4AB240B44974107 /* ActionMenuOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1415CE5DD9954FF8FEC16114 /* ActionMenuOverlay.swift */; };
 		DA0DA1C537A0BB741B79BA36 /* ClearSearchButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDE294872DE18CB5A3638502 /* ClearSearchButton.swift */; };
+		DA1199537CBB2F89DDEA3268 /* VideoDetailModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VDM0000000000000001 /* VideoDetailModel.swift */; };
 		DA234CD9941E327CD6E5F815 /* EmptyState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A4DDAB3732C27D2369C971C /* EmptyState.swift */; };
 		DA40394F38A6DAA5B692C00D /* AISuggestionsBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = C91B1CE3E660CE68CA31F598 /* AISuggestionsBlock.swift */; };
 		DA79B671E918E696FD20F9F5 /* SuggestionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5139CC5D78B5F9B7C7821644 /* SuggestionRow.swift */; };
@@ -1312,9 +1315,6 @@
 		L1BH0MAP0000000000000002 /* LibraryHomeMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MAP0000000000000001 /* LibraryHomeMapper.swift */; };
 		L1BH0MAP0000000000000004 /* LibraryHomeMapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MAP0000000000000003 /* LibraryHomeMapperTests.swift */; };
 		L1BH0MAP0000000000000012 /* LibraryHomeSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MAP0000000000000011 /* LibraryHomeSearch.swift */; };
-		L1BH0VFL0000000000000002 /* LibraryHomeVideoFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VFL0000000000000001 /* LibraryHomeVideoFlow.swift */; };
-		L1BH0VFL0000000000000005 /* LibraryHomeVideoFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VFL0000000000000001 /* LibraryHomeVideoFlow.swift */; };
-		L1BH0VFL0000000000000004 /* LibraryHomeVideoFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VFL0000000000000003 /* LibraryHomeVideoFlowTests.swift */; };
 		L1BH0MAP0000000000000014 /* LibraryHomeSearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MAP0000000000000013 /* LibraryHomeSearchTests.swift */; };
 		L1BH0MAP0000000000000022 /* MemoDetailMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MAP0000000000000021 /* MemoDetailMapper.swift */; };
 		L1BH0MAP0000000000000024 /* MemoDetailMapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MAP0000000000000023 /* MemoDetailMapperTests.swift */; };
@@ -1326,6 +1326,13 @@
 		L1BH0RSE0000000000000002 /* RecorderSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0RSE0000000000000001 /* RecorderSession.swift */; };
 		L1BH0RSE0000000000000004 /* RecorderSheetContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0RSE0000000000000003 /* RecorderSheetContainer.swift */; };
 		L1BH0RSE0000000000000006 /* RecorderSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0RSE0000000000000005 /* RecorderSessionTests.swift */; };
+		L1BH0VDC0000000000000002 /* VideoDetailContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VDC0000000000000001 /* VideoDetailContainer.swift */; };
+		L1BH0VDM0000000000000002 /* VideoDetailModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VDM0000000000000001 /* VideoDetailModel.swift */; };
+		L1BH0VDP0000000000000002 /* VideoDetailPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VDP0000000000000001 /* VideoDetailPlayer.swift */; };
+		L1BH0VDT0000000000000002 /* VideoDetailModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VDT0000000000000001 /* VideoDetailModelTests.swift */; };
+		L1BH0VFL0000000000000002 /* LibraryHomeVideoFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VFL0000000000000001 /* LibraryHomeVideoFlow.swift */; };
+		L1BH0VFL0000000000000004 /* LibraryHomeVideoFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VFL0000000000000003 /* LibraryHomeVideoFlowTests.swift */; };
+		L1BH0VFL0000000000000005 /* LibraryHomeVideoFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VFL0000000000000001 /* LibraryHomeVideoFlow.swift */; };
 		LOGW0001000000000000001 /* Log.swift in Sources */ = {isa = PBXBuildFile; fileRef = LOGW0002000000000000001 /* Log.swift */; };
 		LPHL0001000000000000001 /* LocalPortHealer.swift in Sources */ = {isa = PBXBuildFile; fileRef = LPHL0002000000000000001 /* LocalPortHealer.swift */; };
 		MDAC0001000000000000001 /* MediaActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDAC0002000000000000001 /* MediaActions.swift */; };
@@ -2193,8 +2200,6 @@
 		L1BH0MAP0000000000000001 /* LibraryHomeMapper.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LibraryHomeMapper.swift; path = Containers/Library/LibraryHomeMapper.swift; sourceTree = "<group>"; };
 		L1BH0MAP0000000000000003 /* LibraryHomeMapperTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LibraryHomeMapperTests.swift; sourceTree = "<group>"; };
 		L1BH0MAP0000000000000011 /* LibraryHomeSearch.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LibraryHomeSearch.swift; path = Containers/Library/LibraryHomeSearch.swift; sourceTree = "<group>"; };
-		L1BH0VFL0000000000000001 /* LibraryHomeVideoFlow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LibraryHomeVideoFlow.swift; path = Containers/Library/LibraryHomeVideoFlow.swift; sourceTree = "<group>"; };
-		L1BH0VFL0000000000000003 /* LibraryHomeVideoFlowTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LibraryHomeVideoFlowTests.swift; sourceTree = "<group>"; };
 		L1BH0MAP0000000000000013 /* LibraryHomeSearchTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LibraryHomeSearchTests.swift; sourceTree = "<group>"; };
 		L1BH0MAP0000000000000021 /* MemoDetailMapper.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MemoDetailMapper.swift; path = Containers/Memo/MemoDetailMapper.swift; sourceTree = "<group>"; };
 		L1BH0MAP0000000000000023 /* MemoDetailMapperTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MemoDetailMapperTests.swift; sourceTree = "<group>"; };
@@ -2206,6 +2211,12 @@
 		L1BH0RSE0000000000000001 /* RecorderSession.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecorderSession.swift; path = Containers/Memo/RecorderSession.swift; sourceTree = "<group>"; };
 		L1BH0RSE0000000000000003 /* RecorderSheetContainer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecorderSheetContainer.swift; path = Containers/Memo/RecorderSheetContainer.swift; sourceTree = "<group>"; };
 		L1BH0RSE0000000000000005 /* RecorderSessionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RecorderSessionTests.swift; sourceTree = "<group>"; };
+		L1BH0VDC0000000000000001 /* VideoDetailContainer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = VideoDetailContainer.swift; path = Containers/Video/VideoDetailContainer.swift; sourceTree = "<group>"; };
+		L1BH0VDM0000000000000001 /* VideoDetailModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = VideoDetailModel.swift; path = Containers/Video/VideoDetailModel.swift; sourceTree = "<group>"; };
+		L1BH0VDP0000000000000001 /* VideoDetailPlayer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = VideoDetailPlayer.swift; path = Containers/Video/VideoDetailPlayer.swift; sourceTree = "<group>"; };
+		L1BH0VDT0000000000000001 /* VideoDetailModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VideoDetailModelTests.swift; sourceTree = "<group>"; };
+		L1BH0VFL0000000000000001 /* LibraryHomeVideoFlow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LibraryHomeVideoFlow.swift; path = Containers/Library/LibraryHomeVideoFlow.swift; sourceTree = "<group>"; };
+		L1BH0VFL0000000000000003 /* LibraryHomeVideoFlowTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LibraryHomeVideoFlowTests.swift; sourceTree = "<group>"; };
 		LDPC0001000000000000001 /* LessonDetailPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonDetailPage.swift; sourceTree = "<group>"; };
 		LOGW0002000000000000001 /* Log.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Log.swift; sourceTree = "<group>"; };
 		LPHL0002000000000000001 /* LocalPortHealer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPortHealer.swift; sourceTree = "<group>"; };
@@ -2485,6 +2496,9 @@
 				L1BH0MAP0000000000000001 /* LibraryHomeMapper.swift */,
 				L1BH0MAP0000000000000011 /* LibraryHomeSearch.swift */,
 				L1BH0VFL0000000000000001 /* LibraryHomeVideoFlow.swift */,
+				L1BH0VDM0000000000000001 /* VideoDetailModel.swift */,
+				L1BH0VDC0000000000000001 /* VideoDetailContainer.swift */,
+				L1BH0VDP0000000000000001 /* VideoDetailPlayer.swift */,
 				L1BH0MAP0000000000000021 /* MemoDetailMapper.swift */,
 				L1BH0MDM0000000000000003 /* MemoDetailContainer.swift */,
 				L1BH0MDM0000000000000001 /* MemoDetailModel.swift */,
@@ -2949,6 +2963,7 @@
 				L1BH0MAP0000000000000003 /* LibraryHomeMapperTests.swift */,
 				L1BH0MAP0000000000000013 /* LibraryHomeSearchTests.swift */,
 				L1BH0VFL0000000000000003 /* LibraryHomeVideoFlowTests.swift */,
+				L1BH0VDT0000000000000001 /* VideoDetailModelTests.swift */,
 				L1BH0MAP0000000000000023 /* MemoDetailMapperTests.swift */,
 				L1BH0MDM0000000000000005 /* MemoDetailModelTests.swift */,
 				L1BH0RSE0000000000000005 /* RecorderSessionTests.swift */,
@@ -4352,6 +4367,7 @@
 				L1BH0MAP0000000000000004 /* LibraryHomeMapperTests.swift in Sources */,
 				L1BH0MAP0000000000000014 /* LibraryHomeSearchTests.swift in Sources */,
 				L1BH0VFL0000000000000004 /* LibraryHomeVideoFlowTests.swift in Sources */,
+				L1BH0VDT0000000000000002 /* VideoDetailModelTests.swift in Sources */,
 				L1BH0MAP0000000000000024 /* MemoDetailMapperTests.swift in Sources */,
 				L1BH0MDM0000000000000006 /* MemoDetailModelTests.swift in Sources */,
 				L1BH0RSE0000000000000006 /* RecorderSessionTests.swift in Sources */,
@@ -4729,6 +4745,9 @@
 				L1BH0MAP0000000000000002 /* LibraryHomeMapper.swift in Sources */,
 				L1BH0MAP0000000000000012 /* LibraryHomeSearch.swift in Sources */,
 				L1BH0VFL0000000000000002 /* LibraryHomeVideoFlow.swift in Sources */,
+				L1BH0VDM0000000000000002 /* VideoDetailModel.swift in Sources */,
+				L1BH0VDC0000000000000002 /* VideoDetailContainer.swift in Sources */,
+				L1BH0VDP0000000000000002 /* VideoDetailPlayer.swift in Sources */,
 				L1BH0MAP0000000000000022 /* MemoDetailMapper.swift in Sources */,
 				L1BH0MDM0000000000000002 /* MemoDetailModel.swift in Sources */,
 				L1BH0MDM0000000000000004 /* MemoDetailContainer.swift in Sources */,
@@ -5489,6 +5508,9 @@
 				CA65AB6BEA194E78A2D68274 /* VideoTranscriber.swift in Sources */,
 				D7C3FA33DC3638234346EED8 /* VideoUploadController.swift in Sources */,
 				0C8F01B0C7566085375E4E52 /* VideoStreamTransport.swift in Sources */,
+				DA1199537CBB2F89DDEA3268 /* VideoDetailModel.swift in Sources */,
+				19866B2BA8839DBDF6744F44 /* VideoDetailContainer.swift in Sources */,
+				5FDC49988CD0155EC426D921 /* VideoDetailPlayer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

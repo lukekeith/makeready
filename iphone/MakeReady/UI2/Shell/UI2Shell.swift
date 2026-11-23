@@ -293,6 +293,7 @@ struct UI2Shell: View {
         case let .newNote(flowId): NoteEditorContainer(noteId: nil).id(flowId)
         case let .noteEditor(noteId): NoteEditorContainer(noteId: noteId).id(noteId)
         case let .memoDetail(memoId): MemoDetailContainer(memoId: memoId).id(memoId)  // memo-screens D4
+        case let .videoDetail(id): VideoDetailContainer(videoId: id).id(id)  // video-recorder D16
         }
     }
 

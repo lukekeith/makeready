@@ -89,6 +89,9 @@ struct LibraryHomeContainer: View {
                 Task { await deleteNote(id: noteIds[row]) }
             },
             onDeleteMemo: { id in Task { await deleteMemo(id: id) } },
+            onOpenVideo: { id in
+                if let destination = Self.destination(forVideoId: id) { navigator.push(destination) }
+            },
             onDeleteVideo: { id in Task { await deleteVideo(id: id) } }
         )
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
@@ -248,6 +251,11 @@ struct LibraryHomeContainer: View {
 
     /// memo-screens D4, D17: a memo row opens its page; a queued memo's id is already `local:<localId>`.
     static func destination(forMemoId id: String) -> UI2Destination { .memoDetail(memoId: id) }
+
+    /// video-recorder D15, D16: a stored video row opens its page; a queued (`local:`) row does not open.
+    static func destination(forVideoId id: String) -> UI2Destination? {
+        id.hasPrefix(localMemoPrefix) ? nil : .videoDetail(id: id)
+    }
 
     /// A superseded request surfaces as `URLError(.cancelled)` from `APIClient`; it counts as a cancellation,
     /// not a failed load.

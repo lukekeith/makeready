@@ -95,6 +95,9 @@ enum UI2Destination: Hashable {
     /// memo-screens D4/D17: one voice memo. `memoId` is the server id, or `local:<localId>` for a memo still
     /// in the upload queue. The TabBar stays, like the notes list.
     case memoDetail(memoId: String)
+    /// video-recorder D15, D16: one stored Library video (a queued `local:` row does not open). The TabBar
+    /// stays, like the memo page.
+    case videoDetail(id: String)
 }
 
 extension UI2Destination {
