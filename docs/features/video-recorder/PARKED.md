@@ -98,3 +98,4 @@ Why this and not the alternatives:
 - 2026-11-23 parked — new Video Recorder and Video Detail screens are missing in d2m, and the owner must approve all d2m screens before iPhone code (P2)
 - 2026-11-23 unparked by the fleet — automatic retry 1 of 2
 - 2026-11-23 parked — root cause found: d2m requests cannot create screens (its chain tool takes one quoted string; the create skill needs two and exits 0 when it stops); owner creates both in the app, then approves (P2)
+- 2026-11-23 unparked by a person — named to /builder:agent or /builder:fleet
