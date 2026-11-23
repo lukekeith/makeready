@@ -253,7 +253,7 @@ final class VideoUploadController {
         let task = Task { await runFlush() }
         flushTask = task
         await task.value
-        flushTask = nil
+        if flushTask == task { flushTask = nil }
         if pending().isEmpty { stopPathMonitoring() }
     }
 
@@ -421,7 +421,8 @@ final class VideoUploadController {
     /// Creates or replaces the activity. A refusal (the version was published or deleted) keeps the
     /// video in the Library and surfaces the banner; any other failure retries.
     private func attach(_ item: inout VideoQueueItem) async throws {
-        guard let attach = item.attach, let serverId = item.serverId else { return }
+        guard let attach = item.attach else { return }
+        guard let serverId = item.serverId else { return try restartAtCreate(&item) }
         do {
             try await api.attach(attach, videoId: serverId)
         } catch where Self.isRefusal(error) {
@@ -434,7 +435,7 @@ final class VideoUploadController {
     /// One `refresh` poll (D23). Ready, errored or out of tries, the item is finished: the Library
     /// shows the server's state from here, and the server job is the backstop.
     private func poll(_ item: inout VideoQueueItem) async throws {
-        guard let serverId = item.serverId else { return }
+        guard let serverId = item.serverId else { return try restartAtCreate(&item) }
         item.polls += 1
         let status: VideoStatus
         do {
@@ -451,6 +452,14 @@ final class VideoUploadController {
             item.nextAttemptAt = now().addingTimeInterval(Self.pollInterval)
             try update(item)
         }
+    }
+
+    /// A manifest past `creating` with no `serverId` is damaged: step back so the create runs again
+    /// (a duplicate uid answers 200 with the same row, D22). The stage changes, so the flush moves on.
+    private func restartAtCreate(_ item: inout VideoQueueItem) throws {
+        item.stage = .uploading
+        item.nextAttemptAt = nil
+        try update(item)
     }
 
     private func advance(_ item: inout VideoQueueItem, to stage: VideoUploadStage) throws {
@@ -472,7 +481,7 @@ final class VideoUploadController {
         }
         guard item.failures == Self.surfaceAfterFailures else { return }
         banner.surface(error, context: "VideoUploadController.run",
-                       message: item.stage == .creating ? "Couldn't add your video to the lesson" : "Couldn't upload your video",
+                       message: item.attach != nil ? "Couldn't add your video to the lesson" : "Couldn't upload your video",
                        retry: { [weak self] in Task { await self?.retryNow() } })
     }
 
@@ -629,6 +638,9 @@ struct LiveVideoUploadAPI: VideoUploadAPI {
                                         document: Self.videoDocument(videoId: videoId, title: attach.title))
             return
         }
+        // Always the server's current document, never a cached one: the cache may be cold after a
+        // relaunch, or stale. A version or activity that is gone is a refusal (D18).
+        try await activities.loadVersionKeepingStatus(id: attach.versionId)
         guard let existing = await state.activities[activityId] else { throw ActivityActionsError.gone }
         let document = existing.document.updating { $0[path: ["content", "videoId"]] = .string(videoId) }
         try await activities.save(activityId: activityId, title: nil, document: document)

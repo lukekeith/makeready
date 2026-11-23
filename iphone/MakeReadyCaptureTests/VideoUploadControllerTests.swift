@@ -294,4 +294,132 @@ final class VideoUploadControllerTests: XCTestCase {
         XCTAssertEqual(split.segments.last?.endMs, 3_000)
         XCTAssertEqual(split.segments.map(\.text).joined(), long)
     }
+
+    // MARK: - Live seams: replace job, create body, activity document
+
+    private func liveAPI(_ stub: StubAPIClient, state: AppState) -> LiveVideoUploadAPI {
+        LiveVideoUploadAPI(videos: VideoActions(api: stub, state: state),
+                           activities: ActivityActions(api: stub, state: state), state: state)
+    }
+
+    private static let versionJSON = #"{"id":"ver1","lessonId":"l1","enrollmentId":null,"number":1,"status":"DRAFT","title":"Day one","estimatedSeconds":null,"publishedAt":null}"#
+    private static let textDocument = ##"{"schemaVersion":1,"kind":"video","background":{"color":"#000000"},"content":{"type":"video","videoId":"old"},"actions":[]}"##
+    private static let activityJSON = #"{"id":"act9","lessonVersionId":"ver1","activityKey":"k","position":0,"kind":"video","title":"Video","document":\#(textDocument),"estimatedSeconds":null}"#
+
+    func testAReplaceJobWithAColdCacheFetchesTheVersionAndSavesTheNewVideoId() async throws {
+        let stub = StubAPIClient()
+        let state = AppState()
+        stub.stub("GET", "/api/lesson-versions/ver1", json: #"{"version":\#(Self.versionJSON),"activities":[\#(Self.activityJSON)],"media":{}}"#)
+        stub.stub("PUT", "/api/content-activities/act9", json: #"{"activity":\#(Self.activityJSON),"media":{}}"#)
+        XCTAssertNil(state.activities["act9"])
+        try await liveAPI(stub, state: state).attach(VideoAttach(versionId: "ver1", activityId: "act9", title: "V"), videoId: "vid-1")
+        let put = try XCTUnwrap(stub.recordedStatusCalls.first { $0.method == "PUT" })
+        let document = try XCTUnwrap(put.body?["document"] as? [String: Any])
+        let content = try XCTUnwrap(document["content"] as? [String: Any])
+        XCTAssertEqual(content["videoId"] as? String, "vid-1")
+        XCTAssertEqual(content["type"] as? String, "video")
+    }
+
+    func testAReplaceJobWhoseVersionIsGone404IsARefusalNotAnOutage() async throws {
+        let stub = StubAPIClient()
+        stub.errorFor = { endpoint, _ in endpoint == "/api/lesson-versions/ver1" ? APIHTTPError(status: 404, message: nil) : nil }
+        do {
+            try await liveAPI(stub, state: AppState()).attach(VideoAttach(versionId: "ver1", activityId: "act9", title: "V"), videoId: "vid-1")
+            XCTFail("expected a throw")
+        } catch let error as APIHTTPError {
+            XCTAssertEqual(error.status, 404)
+        }
+    }
+
+    func testTheCreateBodyCarriesTheSourceTheTranscriptAndTheSegments() async throws {
+        let stub = StubAPIClient()
+        let state = AppState()
+        stub.stub("POST", "/api/videos", json: #"{"success":true,"data":{"id":"vid-1","title":"T","cloudflareUid":"uid-1","playbackUrl":"x","status":"pending","userId":"u","createdAt":"2026-11-22T10:00:00.000Z","updatedAt":"2026-11-22T10:00:00.000Z"}}"#)
+        let transcript = VideoTranscript(text: "hello there", segments: [VideoTranscriptSegment(text: "hello there", startMs: 0, endMs: 900)])
+        let id = try await liveAPI(stub, state: state).createVideo(
+            VideoCreateRequest(uid: "uid-1", title: "T", source: .imported, transcript: transcript))
+        XCTAssertEqual(id, "vid-1")
+        let body = try XCTUnwrap(stub.recordedCalls(method: "POST").first { $0.endpoint == "/api/videos" }?.body)
+        XCTAssertEqual(body["cloudflareUid"] as? String, "uid-1")
+        XCTAssertEqual(body["title"] as? String, "T")
+        XCTAssertEqual(body["source"] as? String, "import")
+        XCTAssertEqual(body["transcript"] as? String, "hello there")
+        let segments = try XCTUnwrap(body["transcriptSegments"] as? [[String: Any]])
+        XCTAssertEqual(segments.count, 1)
+        XCTAssertEqual(segments[0]["text"] as? String, "hello there")
+        XCTAssertEqual(segments[0]["startMs"] as? Int, 0)
+        XCTAssertEqual(segments[0]["endMs"] as? Int, 900)
+    }
+
+    func testACreateWithoutATranscriptSendsNeitherTranscriptKey() async throws {
+        let stub = StubAPIClient()
+        stub.stub("POST", "/api/videos", json: #"{"success":true,"data":{"id":"vid-1","cloudflareUid":"uid-1","playbackUrl":"x","status":"pending","userId":"u","createdAt":"2026-11-22T10:00:00.000Z","updatedAt":"2026-11-22T10:00:00.000Z"}}"#)
+        _ = try await liveAPI(stub, state: AppState()).createVideo(
+            VideoCreateRequest(uid: "uid-1", title: "T", source: .recording, transcript: nil))
+        let body = try XCTUnwrap(stub.recordedCalls(method: "POST").first?.body)
+        XCTAssertEqual(body["source"] as? String, "recording")
+        XCTAssertNil(body["transcript"])
+        XCTAssertNil(body["transcriptSegments"])
+    }
+
+    /// Pins the document against server/src/services/activity-document.ts: the `envelope` zod object
+    /// (schemaVersion 1; kind in ACTIVITY_KINDS and equal to the route's kind; background.color a
+    /// `#RRGGBB` hex; actions optional with at most one pinned; chrome.topAction share|menu|none;
+    /// fallback {title, body} strings) and `CONTENT_BY_KIND.video` (type "video", videoId string).
+    /// `estimatedSeconds` is not a document field: the server fills it at save, null for video
+    /// (`estimateDocumentSeconds`), so the client must not send one.
+    func testTheCreatedVideoDocumentSatisfiesTheServersVideoSchema() throws {
+        let document = LiveVideoUploadAPI.videoDocument(videoId: "vid-1", title: "Video 1")
+        let raw = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(document)) as? [String: Any])
+        XCTAssertEqual(Set(raw.keys), ["schemaVersion", "kind", "background", "content", "actions", "chrome", "fallback"])
+        XCTAssertEqual(raw["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(raw["kind"] as? String, "video")
+        let color = try XCTUnwrap((raw["background"] as? [String: Any])?["color"] as? String)
+        XCTAssertNotNil(color.range(of: "^#[0-9A-Fa-f]{6}$", options: .regularExpression))
+        let content = try XCTUnwrap(raw["content"] as? [String: Any])
+        XCTAssertEqual(content["type"] as? String, "video")
+        XCTAssertEqual(content["videoId"] as? String, "vid-1")
+        XCTAssertEqual(Set(content.keys), ["type", "videoId"])
+        XCTAssertEqual((raw["actions"] as? [Any])?.count, 0)
+        XCTAssertTrue(["share", "menu", "none"].contains((raw["chrome"] as? [String: Any])?["topAction"] as? String ?? ""))
+        let fallback = try XCTUnwrap(raw["fallback"] as? [String: Any])
+        XCTAssertEqual(fallback["title"] as? String, "Video 1")
+        XCTAssertTrue(fallback["body"] is String)
+        XCTAssertNil(raw["estimatedSeconds"])
+    }
+
+    // MARK: - Damaged manifest, banner copy
+
+    func testAnItemPastCreatingWithNoServerIdStepsBackInsteadOfSpinning() async throws {
+        let api = FakeVideoAPI()
+        let c = makeController(api: api)
+        let item = try c.enqueue(exported(), attach: VideoAttach(versionId: "ver1", activityId: nil, title: "V"))
+        _ = await c.processNext()
+        _ = await c.processNext()
+        let manifest = dir.appendingPathComponent("\(item.localId).json")
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: manifest)) as? [String: Any])
+        json["stage"] = "creating"
+        json.removeValue(forKey: "serverId")
+        try JSONSerialization.data(withJSONObject: json).write(to: manifest)
+        let before = api.createCalls
+        let step = await c.processNext()
+        XCTAssertEqual(step, .advanced)
+        XCTAssertEqual(c.pending().first?.stage, .uploading)
+        await drain(c)
+        XCTAssertEqual(api.createCalls, before + 1)
+        XCTAssertEqual(api.activityCreates.count, 1)
+        XCTAssertTrue(c.pending().isEmpty)
+    }
+
+    func testTheBannerNamesTheLessonOnlyForAnAttachJob() async throws {
+        for (attach, expected) in [(VideoAttach(versionId: "v", activityId: nil, title: "V") as VideoAttach?, "Couldn't add your video to the lesson"),
+                                   (nil, "Couldn't upload your video")] {
+            let banner = BannerSpy()
+            let c = makeController(api: FakeVideoAPI(failUploads: 3), banner: banner,
+                                   root: root.appendingPathComponent("q-\(expected.count)"))
+            _ = try c.enqueue(exported(), attach: attach)
+            for _ in 0..<3 { _ = await c.processNext() }
+            XCTAssertEqual(banner.shown.first?.message, expected)
+        }
+    }
 }

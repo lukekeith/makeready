@@ -60,6 +60,14 @@ struct ActivityActions {
         apply(payload)
     }
 
+    /// As `loadVersion`, but a non-2xx throws `APIHTTPError` with its status, so a caller can tell a
+    /// version that is gone (404) from an outage (the upload controller's replace job).
+    @MainActor
+    func loadVersionKeepingStatus(id: String) async throws {
+        let data = try await send("/api/lesson-versions/\(id)", method: "GET", body: nil)
+        apply(try JSONDecoder.apiDecoder.decode(LessonVersionPayload.self, from: data))
+    }
+
     /// `GET /api/lessons/:id/draft`, then the reloaded draft's activities. The newest program draft
     /// is read by `number`: a draft another leader published stays in the store until it is reloaded.
     @MainActor
