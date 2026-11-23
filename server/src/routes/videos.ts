@@ -4,14 +4,21 @@ import { prisma } from '../lib/prisma.js'
 import { requireAuth } from '../middleware/auth.js'
 import {
   createDirectUploadUrl,
-  getVideo as getCloudflareVideo,
   deleteVideo as deleteCloudflareVideo,
 } from '../services/cloudflare.js'
 import { trackActivity } from '../services/activity.js'
-import { captureToLibrary, getUserOrgId, syncVideoStatus } from '../services/media-library.js'
-import { deriveVideoMetadata } from '../services/media-metadata.js'
+import {
+  createVideo,
+  createVideoBody,
+  isVideoId,
+  lessonUseCount,
+  listLibraryVideos,
+  refreshFromStream,
+  removeFromLibrary,
+  VideoServiceError,
+} from '../services/videos.service.js'
 import { canManageOrgContent } from '../services/permission.js'
-import { isUsedByActivity } from '../services/content-media.service.js'
+import { videoActivityUseCount } from '../services/content-media.service.js'
 import { MEDIA_IN_USE_ERROR } from '../services/content.js'
 
 /**
@@ -269,6 +276,12 @@ router.post('/upload-url', requireAuth, async (req, res) => {
  *
  *       The endpoint will verify the video exists in Cloudflare and populate status,
  *       playback URL, thumbnail URL, and duration from Cloudflare's response.
+ *
+ *       Idempotent: a repeat call with the same `cloudflareUid` by the same user answers 200
+ *       with the existing row. The org Media row exists when this returns (an activity can name
+ *       the new video at once). Unknown body keys are rejected with 400, never stripped.
+ *       `transcriptStatus` is `ready` when a transcript is sent, `pending` when only `source`
+ *       is sent, `none` otherwise.
  *     security:
  *       - userSession: []
  *     requestBody:
@@ -292,7 +305,37 @@ router.post('/upload-url', requireAuth, async (req, res) => {
  *                 type: string
  *                 description: Video description
  *                 example: "A detailed walkthrough of the training process"
+ *               transcript:
+ *                 type: string
+ *                 maxLength: 20000
+ *                 description: On-device transcript
+ *               transcriptSegments:
+ *                 type: array
+ *                 maxItems: 2000
+ *                 items:
+ *                   type: object
+ *                   required: [text, startMs, endMs]
+ *                   properties:
+ *                     text: { type: string, maxLength: 1000 }
+ *                     startMs: { type: integer, minimum: 0 }
+ *                     endMs: { type: integer, minimum: 0, description: "At least startMs" }
+ *               source:
+ *                 type: string
+ *                 enum: [recording, import]
+ *                 description: Accepted, not persisted; sent without a transcript it marks the transcript pending
  *     responses:
+ *       200:
+ *         description: A video with this cloudflareUid already exists for the caller; the existing row
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   $ref: '#/components/schemas/Video'
  *       201:
  *         description: Video record created successfully
  *         content:
@@ -331,8 +374,10 @@ router.post('/upload-url', requireAuth, async (req, res) => {
  *                 error:
  *                   type: string
  *                   example: "User not authenticated"
+ *       403:
+ *         description: Cloudflare Stream says the upload was minted for another user
  *       409:
- *         description: Video already exists
+ *         description: Video already exists and belongs to another user
  *         content:
  *           application/json:
  *             schema:
@@ -358,12 +403,6 @@ router.post('/upload-url', requireAuth, async (req, res) => {
  *                   type: string
  *                   example: "Internal server error"
  */
-const createVideoSchema = z.object({
-  cloudflareUid: z.string().min(1, 'Cloudflare UID is required'),
-  title: z.string().optional(),
-  description: z.string().optional(),
-})
-
 router.post('/', requireAuth, async (req, res) => {
   try {
     const userId = (req.user as any)?.id
@@ -374,8 +413,7 @@ router.post('/', requireAuth, async (req, res) => {
       })
     }
 
-    // Validate request body
-    const validation = createVideoSchema.safeParse(req.body)
+    const validation = createVideoBody.safeParse(req.body)
     if (!validation.success) {
       return res.status(400).json({
         success: false,
@@ -383,96 +421,14 @@ router.post('/', requireAuth, async (req, res) => {
       })
     }
 
-    const { cloudflareUid, title, description } = validation.data
-
-    // Check if video already exists
-    const existingVideo = await prisma.video.findUnique({
-      where: { cloudflareUid },
-    })
-
-    if (existingVideo) {
-      return res.status(409).json({
-        success: false,
-        error: 'Video already exists',
-      })
-    }
-
-    // Get video details from Cloudflare to verify it exists and get status
-    const cloudflareResult = await getCloudflareVideo(cloudflareUid)
-
-    // Determine status and URLs
-    let status = 'pending'
-    let playbackUrl = '' // Will be populated when video is ready
-    let thumbnailUrl: string | null = null
-    let duration: number | null = null
-
-    if (cloudflareResult.success && cloudflareResult.video) {
-      const cfVideo = cloudflareResult.video
-
-      // Map Cloudflare status to our status
-      if (cfVideo.status.state === 'ready') {
-        status = 'ready'
-        duration = cfVideo.duration ? Math.round(cfVideo.duration) : null
-        // Use Cloudflare's actual URLs (includes correct customer subdomain)
-        thumbnailUrl = cfVideo.thumbnail || null
-        playbackUrl = cfVideo.playback?.hls || ''
-      } else if (cfVideo.status.state === 'error') {
-        status = 'error'
-      } else {
-        status = 'pending'
-      }
-    }
-
-    // Create video record
-    const video = await prisma.video.create({
-      data: {
-        cloudflareUid,
-        title,
-        description,
-        playbackUrl,
-        thumbnailUrl,
-        duration,
-        status,
-        userId,
-      },
-    })
-
-    trackActivity({
-      actorId: userId,
-      action: 'CREATED',
-      resourceType: 'VIDEO',
-      resourceId: video.id,
-      resourceName: video.title || 'Untitled video',
-    })
-
-    // Auto-capture to media library with video metadata
-    const orgId = await getUserOrgId(userId)
-    if (orgId) {
-      const cfInput = cloudflareResult.video?.input
-      const videoMeta = deriveVideoMetadata({ width: cfInput?.width, height: cfInput?.height })
-      captureToLibrary({
-        title: video.title || 'Untitled video',
-        url: video.playbackUrl || '',
-        type: 'video',
-        mimeType: 'video/mp4',
-        thumbnailUrl: video.thumbnailUrl ?? undefined,
-        organizationId: orgId,
-        uploadedBy: userId,
-        videoId: video.id,
-        source: 'auto_capture',
-        uploadStatus: video.status === 'ready' ? 'ready' : 'pending',
-        duration: video.duration ?? undefined,
-        ...videoMeta,
-      })
-    }
-
-    res.status(201).json({
-      success: true,
-      data: video,
-    })
+    const { status, video } = await createVideo(userId, validation.data)
+    return res.status(status).json({ success: true, data: video })
   } catch (error) {
+    if (error instanceof VideoServiceError) {
+      return res.status(error.status).json({ success: false, error: error.message })
+    }
     console.error('Error creating video:', error)
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Internal server error',
     })
@@ -486,7 +442,7 @@ router.post('/', requireAuth, async (req, res) => {
  *     tags: [Videos]
  *     summary: Get all videos for the authenticated user
  *     description: |
- *       Returns all active videos uploaded by the authenticated user.
+ *       Returns all active videos uploaded by the authenticated user, except those removed from the Library.
  *       Results are ordered by creation date (newest first).
  *     security:
  *       - userSession: []
@@ -560,6 +516,7 @@ router.get('/me', requireAuth, async (req, res) => {
       where: {
         userId,
         isActive: true,
+        libraryRemovedAt: null,
       },
       orderBy: {
         createdAt: 'desc',
@@ -582,13 +539,95 @@ router.get('/me', requireAuth, async (req, res) => {
 
 /**
  * @openapi
+ * /api/videos/library:
+ *   get:
+ *     tags: [Videos]
+ *     summary: List the authenticated user's Library videos
+ *     description: |
+ *       Keyset-paged list of the caller's active videos that were not removed from the Library, ordered
+ *       `createdAt desc, id desc`. `q` is a case-insensitive substring of title or transcript.
+ *       `transcriptPreview` is the first 160 characters of the transcript; the full transcript is never returned.
+ *     security:
+ *       - userSession: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+ *       - in: query
+ *         name: cursor
+ *         schema: { type: string }
+ *         description: Opaque cursor from a previous page's `nextCursor`
+ *       - in: query
+ *         name: q
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: One page of Library videos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id: { type: string }
+ *                       title: { type: string, nullable: true }
+ *                       thumbnailUrl: { type: string, nullable: true }
+ *                       playbackUrl: { type: string }
+ *                       duration: { type: integer, nullable: true }
+ *                       status: { type: string }
+ *                       transcriptStatus: { type: string, enum: [none, pending, ready, failed] }
+ *                       transcriptPreview: { type: string, nullable: true, maxLength: 160 }
+ *                       createdAt: { type: string, format: date-time }
+ *                 nextCursor: { type: string, nullable: true }
+ *                 hasMore: { type: boolean }
+ *       400:
+ *         description: Invalid limit or cursor
+ *       401:
+ *         description: User not authenticated
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/library', requireAuth, async (req, res) => {
+  try {
+    const userId = (req.user as any)?.id
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'User not authenticated' })
+    }
+
+    const { limit: rawLimit, cursor, q } = req.query
+    const limitText = rawLimit === undefined ? '50' : rawLimit
+    if (typeof limitText !== 'string' || !/^\d+$/.test(limitText)) {
+      return res.status(400).json({ success: false, error: 'limit must be an integer from 1 to 100' })
+    }
+    if ((cursor !== undefined && typeof cursor !== 'string') || (q !== undefined && typeof q !== 'string')) {
+      return res.status(400).json({ success: false, error: 'cursor and q must be strings' })
+    }
+
+    const page = await listLibraryVideos(userId, { limit: Number(limitText), cursor, q })
+    return res.json({ success: true, ...page })
+  } catch (error) {
+    if (error instanceof VideoServiceError) {
+      return res.status(error.status).json({ success: false, error: error.message })
+    }
+    console.error('Error listing Library videos:', error)
+    return res.status(500).json({ success: false, error: 'Internal server error' })
+  }
+})
+
+/**
+ * @openapi
  * /api/videos/{videoId}:
  *   get:
  *     tags: [Videos]
  *     summary: Get a specific video by ID
  *     description: |
- *       Returns details for a specific video.
- *       Only the video owner can view their videos.
+ *       Returns details for a specific video, plus `lessonUseCount` (the distinct lesson activities that use it).
+ *       Only the video owner, or someone who can manage the owning org's content, can view it.
  *     security:
  *       - userSession: []
  *     parameters:
@@ -670,9 +709,7 @@ router.get('/:videoId', requireAuth, async (req, res) => {
     const userId = (req.user as any)?.id
     const { videoId } = req.params
 
-    const video = await prisma.video.findUnique({
-      where: { id: videoId },
-    })
+    const video = isVideoId(videoId) ? await prisma.video.findUnique({ where: { id: videoId } }) : null
 
     if (!video) {
       return res.status(404).json({
@@ -696,7 +733,7 @@ router.get('/:videoId', requireAuth, async (req, res) => {
 
     res.json({
       success: true,
-      data: video,
+      data: { ...video, lessonUseCount: await lessonUseCount(video.id) },
     })
   } catch (error) {
     console.error('Error fetching video:', error)
@@ -1018,60 +1055,77 @@ router.post('/:videoId/refresh', requireAuth, async (req, res) => {
       }
     }
 
-    // Get latest status from Cloudflare
-    const cloudflareResult = await getCloudflareVideo(video.cloudflareUid)
-
-    if (!cloudflareResult.success) {
-      return res.status(500).json({
-        success: false,
-        error: cloudflareResult.error || 'Failed to get video status',
-      })
-    }
-
-    const cfVideo = cloudflareResult.video!
-
-    // Update status and URLs based on Cloudflare response
-    let status = video.status
-    let playbackUrl = video.playbackUrl
-    let thumbnailUrl = video.thumbnailUrl
-    let duration = video.duration
-
-    if (cfVideo.status.state === 'ready') {
-      status = 'ready'
-      duration = cfVideo.duration ? Math.round(cfVideo.duration) : null
-      // Use Cloudflare's actual URLs (includes correct customer subdomain)
-      thumbnailUrl = cfVideo.thumbnail || null
-      playbackUrl = cfVideo.playback?.hls || video.playbackUrl
-    } else if (cfVideo.status.state === 'error') {
-      status = 'error'
-    }
-
-    const updatedVideo = await prisma.video.update({
-      where: { id: videoId },
-      data: {
-        status,
-        playbackUrl,
-        thumbnailUrl,
-        duration,
-      },
-    })
-
-    // Sync status change to media library
-    if (status !== video.status) {
-      const videoMeta = deriveVideoMetadata({ width: cfVideo.input?.width, height: cfVideo.input?.height })
-      syncVideoStatus(videoId, status, playbackUrl, thumbnailUrl ?? undefined, duration ?? undefined, videoMeta)
-    }
+    const updatedVideo = await refreshFromStream(video)
 
     res.json({
       success: true,
       data: updatedVideo,
     })
   } catch (error) {
+    if (error instanceof VideoServiceError) {
+      return res.status(error.status).json({ success: false, error: error.message })
+    }
     console.error('Error refreshing video status:', error)
     res.status(500).json({
       success: false,
       error: 'Internal server error',
     })
+  }
+})
+
+/**
+ * @openapi
+ * /api/videos/{videoId}/remove-from-library:
+ *   post:
+ *     tags: [Videos]
+ *     summary: Remove a video from the Library
+ *     description: |
+ *       Sets `libraryRemovedAt` so the video leaves the owner's Library while lessons keep playing it.
+ *       Owner only. Idempotent: a second call returns the same timestamp.
+ *     security:
+ *       - userSession: []
+ *     parameters:
+ *       - in: path
+ *         name: videoId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: The video's id and the time it left the Library
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id: { type: string }
+ *                     libraryRemovedAt: { type: string, format: date-time }
+ *       401:
+ *         description: User not authenticated
+ *       403:
+ *         description: Not the video's owner
+ *       404:
+ *         description: Video not found
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/:videoId/remove-from-library', requireAuth, async (req, res) => {
+  try {
+    const userId = (req.user as any)?.id
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'User not authenticated' })
+    }
+    const data = await removeFromLibrary(userId, req.params.videoId)
+    return res.json({ success: true, data })
+  } catch (error) {
+    if (error instanceof VideoServiceError) {
+      return res.status(error.status).json({ success: false, error: error.message })
+    }
+    console.error('Error removing video from Library:', error)
+    return res.status(500).json({ success: false, error: 'Internal server error' })
   }
 })
 
@@ -1192,8 +1246,7 @@ router.delete('/:videoId', requireAuth, async (req, res) => {
     }
 
     // text-activity D34: refuse while an activity document names the video's media.
-    const linkedMedia = await prisma.media.findMany({ where: { videoId: video.id }, select: { id: true } })
-    if (await isUsedByActivity(prisma, linkedMedia.map((m) => m.id))) {
+    if ((await videoActivityUseCount(prisma, video.id)) > 0) {
       return res.status(409).json({ success: false, error: MEDIA_IN_USE_ERROR, code: 'IN_USE' })
     }
 

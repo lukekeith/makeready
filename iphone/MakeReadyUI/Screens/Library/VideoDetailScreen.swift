@@ -93,6 +93,9 @@ struct VideoDetailScreen: View {
     var onDraggingChange: (Bool) -> Void = { _ in }
     /// §3 interaction 8: seek to the paragraph's start and play.
     var onSeekParagraph: (Int) -> Void = { _ in }
+    /// d2m fast ticket cmwti3kkl0003v05v9tvr2hwc: an optional live player layer (an `AVPlayerLayer`),
+    /// hosted aspect-fit over the poster inside the 16:9 surface. No side effects; nil renders as before.
+    var playerLayer: CALayer? = nil
 
     // §3 interaction 3: "Return or blur commits … empty reverts".
     @SwiftUI.State private var renaming: Bool
@@ -119,7 +122,8 @@ struct VideoDetailScreen: View {
         onSkipForward: @escaping () -> Void = {},
         onSeek: @escaping (TimeInterval) -> Void = { _ in },
         onDraggingChange: @escaping (Bool) -> Void = { _ in },
-        onSeekParagraph: @escaping (Int) -> Void = { _ in }
+        onSeekParagraph: @escaping (Int) -> Void = { _ in },
+        playerLayer: CALayer? = nil
     ) {
         self.state = state
         self.onBack = onBack
@@ -132,6 +136,7 @@ struct VideoDetailScreen: View {
         self.onSeek = onSeek
         self.onDraggingChange = onDraggingChange
         self.onSeekParagraph = onSeekParagraph
+        self.playerLayer = playerLayer
         _renaming = SwiftUI.State(initialValue: state.renaming)
         _titleText = SwiftUI.State(initialValue: state.title)
         _menuPresented = SwiftUI.State(initialValue: state.menuPresented)
@@ -327,6 +332,9 @@ struct VideoDetailScreen: View {
             .overlay {
                 ZStack {
                     poster
+                    if let playerLayer {
+                        PlayerLayerHost(layer: playerLayer).allowsHitTesting(false)
+                    }
                     if state.status == .uploading {
                         // §3 uploading: "poster … dimmed under C-076".
                         Token.scrim
@@ -488,7 +496,9 @@ struct VideoDetailScreen: View {
 
     /// SPEC D17: the N > 0 confirmation copy.
     private static func removeTitle(_ count: Int) -> String {
-        "This video is used in \(count) \(count == 1 ? "lesson" : "lessons"). It will stay in those lessons and leave your Library."
+        count == 1
+            ? "This video is used in 1 lesson activity. It will stay in it and leave your Library."
+            : "This video is used in \(count) lesson activities. It will stay in them and leave your Library."
     }
 
     private func chooseMenuAction(_ action: ActionMenuOverlay.ActionItem) {
@@ -625,4 +635,34 @@ private extension VideoDetailScreen.State {
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)
+}
+
+/// Hosts a caller-owned `CALayer` (the video player's) filling its bounds. The layer is added once and
+/// re-framed on every layout pass; nothing else about it is touched.
+private struct PlayerLayerHost: UIViewRepresentable {
+    let layer: CALayer
+
+    func makeUIView(context: Context) -> LayerView { LayerView(layer: layer) }
+    func updateUIView(_ uiView: LayerView, context: Context) {}
+
+    final class LayerView: UIView {
+        private let hosted: CALayer
+
+        init(layer: CALayer) {
+            hosted = layer
+            super.init(frame: .zero)
+            isUserInteractionEnabled = false
+            self.layer.addSublayer(layer)
+        }
+
+        @available(*, unavailable) required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            hosted.frame = bounds
+            CATransaction.commit()
+        }
+    }
 }

@@ -19,12 +19,33 @@ enum LibraryHomeMapper {
         let preview: MemoListRow.Preview
     }
 
-    /// library-home §2 item 4: the one flat list's rows, both kinds, each already newest first
+    /// One video as Library shows it: a stored summary or a queued upload (D15, D27).
+    struct VideoSource: Equatable {
+        /// What decides the row's second line.
+        enum State: Equatable {
+            /// In the queue, not yet created on the server.
+            case queued
+            /// In the queue, created on the server but not yet in the Library window.
+            case created
+            case stored(VideoSummary)
+        }
+
+        let id: String
+        let title: String
+        let durationMs: Int?
+        let recordedAt: Date
+        let state: State
+    }
+
+    /// library-home §2 item 4: the one flat list's rows, all three kinds, each already newest first
     /// (the screen interleaves them by date). No date sections.
     struct LibraryRows: Equatable {
         let notes: [StudyNote]
         let memos: [MemoSource]
-        var isEmpty: Bool { notes.isEmpty && memos.isEmpty }
+        var videos: [VideoSource] = []
+        var isEmpty: Bool { notes.isEmpty && memos.isEmpty && videos.isEmpty }
+        /// Every row's id, notes first, then memos, then videos.
+        var ids: [String] { notes.map(\.id) + memos.map(\.id) + videos.map(\.id) }
     }
 
     static func memoSource(summary: VoiceMemoSummary) -> MemoSource {
@@ -67,10 +88,71 @@ enum LibraryHomeMapper {
         return stored.map { memoSource(summary: $0) } + waiting.map { memoSource(queued: $0) }
     }
 
-    /// D3, D5, library-home §2 item 4: notes and memos for the one flat list. `searchIds` is the
+    /// A stored video as a row source.
+    static func videoSource(summary: VideoSummary) -> VideoSource {
+        VideoSource(id: summary.id, title: summary.title ?? "", durationMs: summary.duration.map { $0 * 1000 },
+                    recordedAt: summary.createdAt, state: .stored(summary))
+    }
+
+    /// A queued video has no listed server row yet, so its id is `local:` + `localId` (D27).
+    static func videoSource(queued: VideoQueueItem) -> VideoSource {
+        VideoSource(id: LibraryVideoDeletion.localPrefix + queued.localId, title: queued.title, durationMs: Int(queued.durationSeconds * 1000),
+                    recordedAt: queued.createdAt, state: queued.isOnServer ? .created : .queued)
+    }
+
+    /// D12: a video still being saved is the queued row it becomes.
+    static func videoSource(saving item: VideoSavingItem) -> VideoSource {
+        VideoSource(id: LibraryVideoDeletion.localPrefix + item.localId, title: item.title,
+                    durationMs: Int(item.durationSeconds * 1000), recordedAt: item.savedAt, state: .queued)
+    }
+
+    /// D27: the stored window plus the queue, minus a queued item whose `serverId` the store already lists;
+    /// plus the videos being saved, until the queue holds them (D12).
+    static func visibleVideos(stored: [VideoSummary], queued: [VideoQueueItem], saving: [VideoSavingItem] = []) -> [VideoSource] {
+        let storedIds = Set(stored.map(\.id))
+        let waiting = queued.filter { item in item.serverId.map { !storedIds.contains($0) } ?? true }
+        let queuedIds = Set(queued.map(\.localId))
+        return stored.map { videoSource(summary: $0) } + waiting.map { videoSource(queued: $0) }
+            + saving.filter { !queuedIds.contains($0.localId) }.map { videoSource(saving: $0) }
+    }
+
+    /// D15: the second line, in this order: not yet created, still processing, transcribing, the
+    /// transcript's first line, else nothing. A video that failed shows its transcript's line, else so.
+    static func videoLine2(_ state: VideoSource.State) -> String {
+        guard case .stored(let video) = state else { return state == .queued ? "Uploading…" : "Processing…" }
+        if video.videoStatus == .pending { return "Processing…" }
+        if video.videoStatus == .ready, video.transcriptStatus == .pending { return "Transcribing…" }
+        if video.transcriptStatus == .ready,
+           let line = video.transcriptPreview?.split(whereSeparator: \.isNewline).first {
+            return String(line)
+        }
+        return video.videoStatus == .error ? "Couldn't be processed" : ""
+    }
+
+    /// The screen's preview slot for a video's second line.
+    private static func videoPreview(_ state: VideoSource.State) -> LibraryHomeScreen.State.VideoRowInput.Preview {
+        switch state {
+        case .queued: return .uploading
+        case .created: return .processing
+        case .stored(let video):
+            if video.videoStatus == .pending { return .processing }
+            if video.videoStatus == .ready, video.transcriptStatus == .pending { return .transcribing }
+            return .transcript(videoLine2(state))
+        }
+    }
+
+    /// D15: the kinds the Type menu's checks show: nothing or all three checked is every kind.
+    static func kinds(checked: Set<LibraryItemType>) -> [LibraryItemType] {
+        LibraryItemType.menuOptions.filter { LibraryItemType.shows($0, in: checked) }
+    }
+
+    /// D3, D5, library-home §2 item 4: notes, memos and videos for the one flat list. `searchIds` is the
     /// server's note match list for the current `q` (D8): nil shows every note, else only those ids
-    /// (no client-side corpus search). Notes sort by `updatedAt`, memos by `recordedAt`, newest first.
-    static func rows(notes: [StudyNote], searchIds: [String]?, memos: [MemoSource]) -> LibraryRows {
+    /// (no client-side corpus search). Notes sort by `updatedAt`, memos and videos by `recordedAt`, newest first.
+    /// D20: while `videosHaveMore`, notes and memos older than the oldest loaded video are held back, so
+    /// rows never jump when the next page of videos lands.
+    static func rows(notes: [StudyNote], searchIds: [String]?, memos: [MemoSource],
+                     videos: [VideoSource] = [], videosHaveMore: Bool = false) -> LibraryRows {
         let shownNotes: [StudyNote]
         if let searchIds {
             let wanted = Set(searchIds)
@@ -78,10 +160,18 @@ enum LibraryHomeMapper {
         } else {
             shownNotes = notes
         }
-        let sortedMemos = memos.sorted { lhs, rhs in
+        var sortedMemos = memos.sorted { lhs, rhs in
             lhs.recordedAt != rhs.recordedAt ? lhs.recordedAt > rhs.recordedAt : lhs.id > rhs.id
         }
-        return LibraryRows(notes: NotesSectioning.newestFirst(shownNotes), memos: sortedMemos)
+        let sortedVideos = videos.sorted { lhs, rhs in
+            lhs.recordedAt != rhs.recordedAt ? lhs.recordedAt > rhs.recordedAt : lhs.id > rhs.id
+        }
+        var sortedNotes = NotesSectioning.newestFirst(shownNotes)
+        if videosHaveMore, let oldest = sortedVideos.last?.recordedAt {
+            sortedNotes = sortedNotes.filter { ($0.updatedDate ?? .distantPast) >= oldest }
+            sortedMemos = sortedMemos.filter { $0.recordedAt >= oldest }
+        }
+        return LibraryRows(notes: sortedNotes, memos: sortedMemos, videos: sortedVideos)
     }
 
     /// D20: rows (notes or memos) win over every other state (a failed refresh keeps the cached list);
@@ -111,6 +201,11 @@ enum LibraryHomeMapper {
             .init(id: memo.id, title: memo.title, durationLabel: durationLabel(ms: memo.durationMs),
                   dateLabel: NotesSectioning.dateLabel(memo.recordedAt, now: now, calendar: calendar),
                   recordedAt: memo.recordedAt, preview: memo.preview)
+        }
+        state.videos = rows.videos.map { video in
+            .init(id: video.id, title: video.title, durationLabel: durationLabel(ms: video.durationMs),
+                  dateLabel: NotesSectioning.dateLabel(video.recordedAt, now: now, calendar: calendar),
+                  recordedAt: video.recordedAt, preview: videoPreview(video.state))
         }
         return state
     }

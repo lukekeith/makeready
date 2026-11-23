@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const download = vi.hoisted(() => vi.fn(async (_key: string) => Buffer.alloc(5)))
@@ -6,8 +7,12 @@ vi.mock('../storage.js', async (importOriginal) => ({
   downloadObject: download,
 }))
 
+vi.hoisted(() => { process.env.CLOUDFLARE_ACCOUNT_ID = 'acct'; process.env.CLOUDFLARE_API_TOKEN = 'tok' })
+
 const { prisma } = await import('../../lib/prisma.js')
-const { transcribeMemo, createGroqClient } = await import('../transcription.service.js')
+const { transcribeMemo, transcribeVideo, createGroqClient } = await import('../transcription.service.js')
+const { videoIdsDueForTranscript } = await import('../videos.service.js')
+const { createDownload, getDownload, deleteDownload } = await import('../cloudflare.js')
 
 describe('transcription.service', () => {
   const stamp = Date.now()
@@ -79,6 +84,84 @@ describe('transcription.service', () => {
     const f = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('{"text":"hi","segments":[{"text":"hi","start":1.25,"end":2.5}]}'))
     expect((await createGroqClient('k').transcribe(Buffer.from('x'), 'm.m4a')).segments).toEqual([{ text: 'hi', startMs: 1250, endMs: 2500 }])
     expect(f.mock.calls[0][0]).toBe('https://api.groq.com/openai/v1/audio/transcriptions')
+    f.mockRestore()
+  })
+})
+
+describe('transcribeVideo', () => {
+  const stamp = Date.now()
+  let userId: string
+
+  const seedVideo = async (owner: string, patch: Record<string, unknown> = {}) => {
+    const id = randomUUID()
+    await prisma.video.create({ data: { id, userId: owner, cloudflareUid: `uid-${id}`, playbackUrl: '', status: 'ready', transcriptStatus: 'pending', ...patch } })
+    return id
+  }
+  const fakeGroq = (text: string, segments: { text: string; startMs: number; endMs: number }[]) => ({ transcribe: vi.fn(async () => ({ text, segments })) })
+  const readyStream = () => ({
+    getDownload: vi.fn().mockResolvedValue({ status: 'ready', url: 'https://dl/x.mp4' }), createDownload: vi.fn(), deleteDownload: vi.fn(),
+  })
+
+  beforeAll(async () => {
+    userId = (await prisma.user.create({ data: { googleId: `gid-tvideo-${stamp}`, email: `tvideo-${stamp}@cl.test`, name: 'Video Transcribe' } })).id
+  })
+  afterAll(async () => {
+    await prisma.video.deleteMany({ where: { userId } })
+    await prisma.user.deleteMany({ where: { id: userId } })
+  })
+  beforeEach(async () => { await prisma.video.deleteMany({ where: { userId } }) })
+
+  it('transcribes from the Stream download', async () => {
+    const id = await seedVideo(userId, { status: 'ready', transcriptStatus: 'pending' })
+    const stream = { getDownload: vi.fn().mockResolvedValue({ status: 'ready', url: 'https://dl/x.mp4' }), createDownload: vi.fn(), deleteDownload: vi.fn() }
+    const out = await transcribeVideo(id, { env: { GROQ_API_KEY: 'k' }, stream, download: async () => Buffer.from('mp4'), extractAudio: async () => Buffer.from('m4a'), groq: fakeGroq('hello', [{ text: 'hello', startMs: 0, endMs: 500 }]) })
+    expect(out).toBe('ready')
+    expect(await prisma.video.findUnique({ where: { id } })).toMatchObject({ transcript: 'hello', transcriptStatus: 'ready', transcriptSource: 'server', transcriptClaimedAt: null })
+    expect(stream.deleteDownload).toHaveBeenCalled()
+  })
+
+  it('waits for an in-progress download', async () => {
+    const id = await seedVideo(userId, { status: 'ready', transcriptStatus: 'pending' })
+    const stream = { getDownload: vi.fn().mockResolvedValue(null), createDownload: vi.fn().mockResolvedValue({ status: 'inprogress' }), deleteDownload: vi.fn() }
+    expect(await transcribeVideo(id, { env: { GROQ_API_KEY: 'k' }, stream })).toBe('in-progress')
+    expect(await prisma.video.findUnique({ where: { id } })).toMatchObject({ transcriptAttempts: 0, transcriptClaimedAt: null, transcriptStatus: 'pending' })
+  })
+
+  it('gives up after 3 attempts', async () => {
+    const id = await seedVideo(userId, { status: 'ready', transcriptStatus: 'pending' })
+    const deps = { env: { GROQ_API_KEY: 'k' }, stream: readyStream(), download: async () => { throw new Error('boom') } }
+    for (let i = 0; i < 3; i++) expect(await transcribeVideo(id, deps)).toBe('failed')
+    expect(await transcribeVideo(id, deps)).toBe('not-claimed')
+    expect(await prisma.video.findUnique({ where: { id } })).toMatchObject({ transcriptAttempts: 3, transcriptStatus: 'failed' })
+  })
+
+  it('claims only ready videos, removed ones included', async () => {
+    const pendingStream = await seedVideo(userId, { status: 'pending', transcriptStatus: 'pending' })
+    const removed = await seedVideo(userId, { status: 'ready', transcriptStatus: 'pending', libraryRemovedAt: new Date() })
+    const due = await videoIdsDueForTranscript()
+    expect(due).toContain(removed)
+    expect(due).not.toContain(pendingStream)
+    expect(await transcribeVideo(pendingStream, { env: { GROQ_API_KEY: 'k' }, stream: readyStream() })).toBe('not-claimed')
+  })
+
+  it('a download that is not ready after create waits, and with no key does nothing', async () => {
+    const id = await seedVideo(userId)
+    const stream = readyStream()
+    expect(await transcribeVideo(id, { env: { GROQ_API_KEY: '' }, stream })).toBe('no-key')
+    expect(stream.getDownload).not.toHaveBeenCalled()
+  })
+
+  it('the Stream downloads client calls the downloads endpoint and reads result.default', async () => {
+    const f = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ success: true, result: { default: { status: 'ready', url: 'https://dl/a.mp4' } } })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ success: true, result: {} })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ success: true, result: 'ok' })))
+    expect(await getDownload('u1')).toEqual({ status: 'ready', url: 'https://dl/a.mp4' })
+    expect(await getDownload('u1')).toBeNull()
+    await deleteDownload('u1')
+    expect(String(f.mock.calls[0][0])).toMatch(/\/stream\/u1\/downloads$/)
+    expect((f.mock.calls[2][1] as RequestInit).method).toBe('DELETE')
+    expect(typeof createDownload).toBe('function')
     f.mockRestore()
   })
 })

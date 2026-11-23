@@ -84,6 +84,12 @@ final class AppState {
     /// Videos in user's library
     let videos = EntityStore<Video>()
 
+    /// The Library's video rows (D27). Which ones show, and in what order, is `videoLibraryWindow`.
+    let libraryVideos = EntityStore<VideoSummary>()
+
+    /// The ordered ids of the loaded Library video pages and the cursor of the next (D20).
+    var videoLibraryWindow = VideoLibraryWindow()
+
     /// Group posts
     let posts = EntityStore<GroupPost>()
 
@@ -151,6 +157,13 @@ final class AppState {
     /// sign-in; `clearInMemory()` cancels and releases it on sign-out and environment switch,
     /// and the files stay.
     var memoUploads: MemoUploadController?
+
+    /// The video upload queue (video-recorder D12): built on sign-in like `memoUploads`, and its
+    /// pending items merge into the Library as local rows.
+    var videoUploads: VideoUploadController?
+
+    /// Saves from the video recorder until `videoUploads` has them; built and released with it.
+    var videoSaves: VideoSaver?
 
     /// `GET /api/members/:id/groups`, by member id.
     var memberGroupsById: [String: [MemberGroupItem]] = [:]
@@ -821,7 +834,62 @@ final class AppState {
     /// `Memo n` for a new recording: cached memos plus unsent queue items (D11, D43).
     func nextMemoTitle() -> String {
         let titles = voiceMemos.all.map(\.title) + (memoUploads?.pending().map(\.title) ?? [])
-        return MemoActions.nextDefaultTitle(existingTitles: titles)
+        return MemoActions.nextDefaultTitle(prefix: "Memo", existingTitles: titles)
+    }
+
+    /// `Video n` for a new recording: the Library's videos plus the unsent queue's and those being saved (D14).
+    func nextVideoTitle() -> String {
+        let titles = libraryVideos.all.compactMap(\.title) + (videoUploads?.pending().map(\.title) ?? [])
+            + (videoSaves?.saving.map(\.title) ?? [])
+        return MemoActions.nextDefaultTitle(prefix: "Video", existingTitles: titles)
+    }
+
+    /// Builds the video queue for `userId` if there is none. Nil when the folder cannot be made.
+    @discardableResult
+    func startVideoUploads(userId: String) -> VideoUploadController? {
+        if let videoUploads { return videoUploads }
+        do {
+            let folder = try VideoUploadController.folder(environment: Self.memoEnvironmentName, userId: userId)
+            let api = LiveVideoUploadAPI(videos: VideoActions(state: self), activities: ActivityActions(state: self), state: self)
+            let controller = VideoUploadController(
+                api: api, transport: URLSessionVideoStreamTransport(), banner: AppStateVideoUploadBanner(state: self),
+                directory: folder, ownerUserId: userId, environment: Self.memoEnvironmentName,
+                defaultTitle: { [weak self] in self?.nextVideoTitle() ?? "Video 1" }, flushesOnEnqueue: true)
+            videoUploads = controller
+            return controller
+        } catch {
+            // Console-only: the queue is not a user action; Save reports a missing queue itself.
+            Log.media.error("video folder unavailable: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+    }
+
+    /// Builds the recorder's saves for `userId` if there are none. Throws when a folder cannot be made.
+    @discardableResult
+    func startVideoSaves(userId: String) throws -> VideoSaver {
+        if let videoSaves { return videoSaves }
+        guard let queue = startVideoUploads(userId: userId) else { throw CocoaError(.fileWriteUnknown) }
+        let drafts = VideoDraftStore(root: try VideoDraftStore.folder(environment: Self.memoEnvironmentName, userId: userId))
+        let saver = VideoSaver(
+            drafts: drafts, queue: queue, nextTitle: { [weak self] in self?.nextVideoTitle() ?? "Video 1" },
+            report: { [weak self] error, message, retry in
+                self?.recordError(error, context: "VideoSaver", surface: true, friendlyMessage: message, retry: retry)
+            })
+        videoSaves = saver
+        return saver
+    }
+
+    /// Launch work for a signed-in user: flush what a kill or a lost network left in the video queue.
+    func launchVideoUploads(userId: String) async {
+        guard let controller = startVideoUploads(userId: userId) else { return }
+        do {
+            try startVideoSaves(userId: userId).resume()
+        } catch {
+            // Console-only: the leader has asked for nothing yet; opening the recorder reports it.
+            Log.media.error("video saves unavailable: \(error.localizedDescription, privacy: .public)")
+        }
+        controller.startPathMonitoring()
+        await controller.resumeAfterSignIn()
     }
 
     /// Builds the queue for `userId` if there is none (D37). Nil when the folder cannot be made.
@@ -872,6 +940,9 @@ final class AppState {
         groups.replaceAll(persisted.groups)
         enrollments.replaceAll(persisted.enrollments)
         videos.replaceAll(persisted.videos)
+        libraryVideos.replaceAll(persisted.libraryVideos)
+        // A search window is not the Library; only the whole-Library window survives a relaunch (D20).
+        if let window = persisted.videoLibraryWindow, window.query == nil { videoLibraryWindow = window }
 
         // Restore posts and members by group
         var allPosts: [GroupPost] = []
@@ -994,10 +1065,16 @@ final class AppState {
     private func clearInMemory() {
         memoUploads?.cancel()
         memoUploads = nil
+        videoSaves?.cancel()
+        videoSaves = nil
+        videoUploads?.cancel()
+        videoUploads = nil
         programs.clear()
         groups.clear()
         enrollments.clear()
         videos.clear()
+        libraryVideos.clear()
+        videoLibraryWindow = VideoLibraryWindow()
         posts.clear()
         members.clear()
         lessons.clear()

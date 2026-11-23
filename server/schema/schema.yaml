@@ -1327,6 +1327,29 @@ models:
         description: "pending, ready, error"
       userId:
         type: string
+      transcript:
+        type: text
+        nullable: true
+      transcriptSegments:
+        type: json
+        nullable: true
+      transcriptStatus:
+        type: string
+        default: "none"
+        description: "none, pending, ready, failed"
+      transcriptSource:
+        type: string
+        nullable: true
+        description: "on_device, server"
+      transcriptAttempts:
+        type: int
+        default: 0
+      transcriptClaimedAt:
+        type: datetime
+        nullable: true
+      libraryRemovedAt:
+        type: datetime
+        nullable: true
       isActive:
         type: boolean
         default: true
@@ -1351,6 +1374,8 @@ models:
       - fields: [userId]
       - fields: [status]
       - fields: [isActive]
+      - fields: [userId, createdAt, id]
+      - fields: [status, createdAt]
 
   # ===========================================================================
   # Bible Models

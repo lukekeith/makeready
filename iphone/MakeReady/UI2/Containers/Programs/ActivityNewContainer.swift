@@ -47,6 +47,7 @@ struct ActivityNewContainer: View {
                 switch type {
                 case .text: Task { await model.selectText() }
                 case .bibleVerse: model.selectBible()
+                case .video: Task { await model.selectVideo() }
                 default: return
                 }
             },
@@ -187,6 +188,7 @@ struct ActivityNewContainer: View {
 
         private(set) var isCreating = false
         private var isCreatingBible = false
+        private var isOpeningVideo = false
         /// The open picker's flow id, until its pick arrives (D2).
         private(set) var pendingFlowId: UUID?
         /// D37: the activity the new one follows (the editor's grid sets it); nil = last, the New Activity page's
@@ -201,6 +203,7 @@ struct ActivityNewContainer: View {
         /// C-086 `pendingType`: the tile whose request is in flight; "" = interactive.
         var pendingType: String {
             if isCreatingBible { return ActivityTypeGrid.ActivityType.bibleVerse.rawValue }
+            if isOpeningVideo { return ActivityTypeGrid.ActivityType.video.rawValue }
             return isCreating ? ActivityTypeGrid.ActivityType.text.rawValue : ""
         }
 
@@ -236,6 +239,23 @@ struct ActivityNewContainer: View {
                 } else {
                     navigator?.replace(with: .activitiesEditor(activityId: id))
                 }
+            } catch {
+                if UI2ImageLoader.isCancellation(error) { return }
+                report(error)
+            }
+        }
+
+        // MARK: Video tile (video-recorder D18)
+
+        /// Swaps to the editor on the inline recorder, over the lesson's draft. Nothing is created here: the
+        /// upload controller creates the activity once the video exists.
+        func selectVideo() async {
+            guard !isOpeningVideo, !isCreating, !isCreatingBible else { return }
+            isOpeningVideo = true
+            defer { isOpeningVideo = false }
+            do {
+                let versionId = try await actions.draftVersionId(lessonId)
+                navigator?.replace(with: .lessonVideo(lessonId: lessonId, versionId: versionId))
             } catch {
                 if UI2ImageLoader.isCancellation(error) { return }
                 report(error)

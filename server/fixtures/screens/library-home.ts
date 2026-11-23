@@ -3,6 +3,8 @@
  * yesterday, Previous 7 Days, Previous 30 Days, an earlier month, an earlier year — newest first,
  * the today note linked to base group 1 for the context line. Also (memo-screens D19) 5 voice memos,
  * one per Library preview state: ready (1 h), pending (1 d), failed (4 d), none (15 d), ready (45 d).
+ * Also (video-recorder) 4 videos, ids 2001-2004: ready with a transcript (3 h), pending (2 d), failed transcript (6 d)
+ * and ready used in a lesson activity (20 d, with its org Media row and ACTIVITY MediaUsage).
  * `empty` is base only (this layer
  * exports none). Creates no org, user or group; never touches ctx.rand; dates only from ctx.
  */
@@ -10,7 +12,7 @@ import type { FixtureContext } from '../context.js'
 import { deriveTitlePreview } from '../../src/services/note-title.js'
 import { memoKey } from '../../src/services/memos.service.js'
 import { TRANSCRIPT_MAX_ATTEMPTS } from '../../src/services/transcription.service.js'
-import { FIXTURE_GROUP_IDS, FIXTURE_USER_ID, fixtureId } from '../ids.js'
+import { FIXTURE_GROUP_IDS, FIXTURE_ORG_ID, FIXTURE_USER_ID, fixtureId } from '../ids.js'
 
 const NOTES: ReadonlyArray<{ age: number | 'hour'; content: string }> = [
   { age: 'hour', content: '# Sunday sermon\nGrace is a gift, not a wage.' },
@@ -96,9 +98,98 @@ export function libraryHomeMemos(now: Date, daysAgo: (n: number) => Date) {
   })
 }
 
+type VideoSpec = {
+  at: (now: Date, daysAgo: (n: number) => Date) => Date
+  title: string
+  status: 'ready' | 'pending'
+  duration: number | null
+  transcriptStatus: 'ready' | 'pending' | 'failed'
+  transcript: string | null
+}
+
+// pending/failed carry TRANSCRIPT_MAX_ATTEMPTS so the fallback runner never claims them.
+const VIDEOS: ReadonlyArray<VideoSpec> = [
+  {
+    at: (now) => new Date(now.getTime() - 3 * 3_600_000),
+    title: 'Welcome to the group',
+    status: 'ready',
+    duration: 45,
+    transcriptStatus: 'ready',
+    transcript: 'Welcome everyone. This week we begin a study of Romans together, so bring your Bible and a friend.',
+  },
+  { at: (_, d) => d(2), title: 'Video 2', status: 'pending', duration: null, transcriptStatus: 'pending', transcript: null },
+  { at: (_, d) => d(6), title: 'Week three recap', status: 'ready', duration: 72, transcriptStatus: 'failed', transcript: null },
+  {
+    at: (_, d) => d(20),
+    title: 'Opening prayer',
+    status: 'ready',
+    duration: 30,
+    transcriptStatus: 'ready',
+    transcript: 'Father, thank you for this time together. Open our hearts to your word.',
+  },
+]
+
+/** The Library's videos, one per state, plus the Media row and ACTIVITY usage that put the last one in a lesson. */
+export function libraryHomeVideos(now: Date, daysAgo: (n: number) => Date) {
+  const videos = VIDEOS.map((spec, i) => {
+    const n = 2001 + i
+    const at = spec.at(now, daysAgo)
+    const pending = spec.status === 'pending'
+    return {
+      id: fixtureId('video', n),
+      userId: FIXTURE_USER_ID,
+      title: spec.title,
+      cloudflareUid: `fixture-video-${n}`,
+      playbackUrl: pending ? '' : `https://videodelivery.net/fixture-video-${n}/manifest/video.m3u8`,
+      thumbnailUrl: pending ? null : `https://picsum.photos/seed/makeready-fixture-video-${n}/640/360`,
+      duration: spec.duration,
+      status: spec.status,
+      transcript: spec.transcript,
+      transcriptStatus: spec.transcriptStatus,
+      transcriptSource: spec.transcriptStatus === 'ready' ? 'on_device' : null,
+      transcriptAttempts: spec.transcriptStatus === 'ready' ? 0 : TRANSCRIPT_MAX_ATTEMPTS,
+      isActive: true,
+      createdAt: at,
+      updatedAt: at,
+    }
+  })
+  const used = videos[3]
+  const media = [
+    {
+      id: fixtureId('media', 2201),
+      title: used.title,
+      url: used.playbackUrl,
+      type: 'video',
+      organizationId: FIXTURE_ORG_ID,
+      uploadedBy: FIXTURE_USER_ID,
+      videoId: used.id,
+      thumbnailUrl: used.thumbnailUrl,
+      duration: used.duration,
+      source: 'auto_capture',
+      createdAt: used.createdAt,
+      updatedAt: used.createdAt,
+    },
+  ]
+  const usages = [
+    {
+      id: fixtureId('mediaUsage', 2201),
+      mediaId: media[0].id,
+      usageType: 'ACTIVITY',
+      resourceId: fixtureId('contentActivity', 2201),
+      resourceName: 'Opening prayer',
+      createdAt: used.createdAt,
+    },
+  ]
+  return { videos, media, usages }
+}
+
 export async function full(ctx: FixtureContext): Promise<void> {
   const { notes, links } = libraryHomeRows(ctx.now, (n) => ctx.daysAgo(n))
   await ctx.prisma.studyNote.createMany({ data: notes })
   await ctx.prisma.noteLink.createMany({ data: links })
   await ctx.prisma.voiceMemo.createMany({ data: libraryHomeMemos(ctx.now, (n) => ctx.daysAgo(n)) })
+  const { videos, media, usages } = libraryHomeVideos(ctx.now, (n) => ctx.daysAgo(n))
+  await ctx.prisma.video.createMany({ data: videos })
+  await ctx.prisma.media.createMany({ data: media })
+  await ctx.prisma.mediaUsage.createMany({ data: usages })
 }

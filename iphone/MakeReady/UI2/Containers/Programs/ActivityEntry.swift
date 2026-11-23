@@ -1,7 +1,8 @@
 import Foundation
 
 /// text-activity D14/D39: the one rule for "open this activity". A canvas kind (`text`, and the imported
-/// `bible`) opens the Text editor; every other kind plays in the viewer but cannot be edited yet.
+/// `bible`) opens the Text editor; a `video` opens the same editor on its read-only page, for Replace video
+/// (video-recorder D18); every other kind plays in the viewer but cannot be edited yet.
 enum ActivityEntry {
     enum Result: Equatable {
         case open(UI2Destination)
@@ -10,11 +11,11 @@ enum ActivityEntry {
 
     static let cannotEditMessage = "This activity can't be edited yet."
 
-    /// The kinds the Text editor opens.
+    /// The kinds whose canvas the Text editor edits.
     static let canvasKinds = ["text", "bible"]
 
     /// activity-slide-type-icon (owner 2026-11-09): only a kind the editor opens is tappable on a rail.
-    static func isOpenable(_ kind: String) -> Bool { canvasKinds.contains(kind) }
+    static func isOpenable(_ kind: String) -> Bool { canvasKinds.contains(kind) || kind == "video" }
 
     /// activity-slide-type-icon: the glyph a picture-less slide shows — C-086 ActivityTypeGrid's glyph for the
     /// kind (`bible` is the grid's Bible verse), as a GlyphName raw value; "" for a kind the grid has no tile for.
@@ -24,7 +25,7 @@ enum ActivityEntry {
     }
 
     static func destination(for kind: String, activityId: String) -> Result {
-        canvasKinds.contains(kind) ? .open(.activitiesEditor(activityId: activityId)) : .cannotEdit(message: cannotEditMessage)
+        isOpenable(kind) ? .open(.activitiesEditor(activityId: activityId)) : .cannotEdit(message: cannotEditMessage)
     }
 
     /// Applies the rule to one tap: pushes the editor, or hands the message to `report` (the banner).

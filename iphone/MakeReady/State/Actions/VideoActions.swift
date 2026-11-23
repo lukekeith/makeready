@@ -66,10 +66,35 @@ private let api: APIClientProtocol
             throw APIError.serverError(response.error ?? "Failed to fetch videos")
         }
 
-        state.videos.replaceAll(videos)
+        state.videos.replaceAll(videos.map(countingKnownUses))
         state.persist()
 
         NSLog("🎬 VideoActions: Loaded \(videos.count) videos")
+    }
+
+    /// Every full `Video` answer lands here: the detail store and, when the Library lists it, its row (D27).
+    @MainActor
+    private func store(_ video: Video) {
+        state.videos.upsert(countingKnownUses(video))
+        _ = state.libraryVideos.update(video.id) { row in
+            row.title = video.title
+            row.thumbnailUrl = video.thumbnailUrl
+            row.playbackUrl = video.playbackUrl
+            row.duration = video.duration
+            row.status = video.status
+            if let status = video.transcriptStatus { row.transcriptStatus = status }
+            if let transcript = video.transcript { row.transcriptPreview = String(transcript.prefix(Self.previewLength)) }
+        }
+        state.persist()
+    }
+
+    /// Only `GET /api/videos/:id` carries `lessonUseCount`: any other answer keeps the count already known.
+    @MainActor
+    private func countingKnownUses(_ video: Video) -> Video {
+        guard video.lessonUseCount == nil else { return video }
+        var counted = video
+        counted.lessonUseCount = state.videos[video.id]?.lessonUseCount
+        return counted
     }
 
     // MARK: - Get Single Video
@@ -83,8 +108,7 @@ private let api: APIClientProtocol
             throw APIError.serverError(response.error ?? "Failed to get video")
         }
 
-        state.videos.upsert(video)
-        state.persist()
+        store(video)
 
         return video
     }
@@ -113,8 +137,18 @@ private let api: APIClientProtocol
 
     /// Create video record in database after upload
     @MainActor
-    func createVideoRecord(cloudflareUid: String, title: String? = nil, description: String? = nil) async throws -> Video {
+    func createVideoRecord(cloudflareUid: String, title: String? = nil, description: String? = nil,
+                           source: VideoSource? = nil, transcript: VideoTranscript? = nil) async throws -> Video {
         var body: [String: Any] = ["cloudflareUid": cloudflareUid]
+        if let source {
+            body["source"] = source.rawValue
+        }
+        if let transcript {
+            // D24: trimmed to the server's limits, never refused.
+            let fit = VideoTranscriptLimits.fit(transcript)
+            body["transcript"] = fit.text
+            body["transcriptSegments"] = fit.segments.map { ["text": $0.text, "startMs": $0.startMs, "endMs": $0.endMs] as [String: Any] }
+        }
         if let title = title {
             body["title"] = title
         }
@@ -128,10 +162,110 @@ private let api: APIClientProtocol
             throw APIError.serverError(response.error ?? "Failed to create video record")
         }
 
-        state.videos.upsert(video)
-        state.persist()
+        store(video)
 
         return video
+    }
+
+    // MARK: - Library window (D20, D27)
+
+    /// `GET /api/videos/library`. No cursor replaces the window (page 1), so videos removed or deleted
+    /// elsewhere drop out; a cursor appends. Both upsert `libraryVideos`.
+    @MainActor
+    func loadLibrary(cursor: String?, q: String?) async throws {
+        var endpoint = "/api/videos/library?limit=\(Self.libraryPageSize)"
+        if let cursor { endpoint += "&cursor=\(Self.encoded(cursor))" }
+        if let q, !q.isEmpty { endpoint += "&q=\(Self.encoded(q))" }
+
+        let response: VideoLibraryResponse = try await api.get(endpoint, responseType: VideoLibraryResponse.self)
+        guard response.success, let rows = response.data else {
+            throw APIError.serverError(response.error ?? "Failed to load the video library")
+        }
+
+        let query = (q?.isEmpty ?? true) ? nil : q
+        // A cursor page answers the query it was asked with: if the window has moved to another query
+        // while it was in flight, its rows belong to nothing the window shows (D20).
+        if cursor != nil, query != state.videoLibraryWindow.query { return }
+
+        state.libraryVideos.upsertMany(rows)
+        let page = VideoLibraryWindow.Page(ids: rows.map(\.id), nextCursor: response.nextCursor, hasMore: response.hasMore ?? false)
+        if cursor == nil {
+            state.videoLibraryWindow = VideoLibraryWindow(query: query).replacing(with: page)
+        } else {
+            state.videoLibraryWindow = state.videoLibraryWindow.appending(page: page)
+        }
+        state.persist()
+    }
+
+    /// The next page of the window the Library shows. A window with no cursor (a restored, capped one)
+    /// has no page to append to, so it loads page 1; a window with no more pages loads nothing.
+    @MainActor
+    func loadNextLibraryPage() async throws {
+        let window = state.videoLibraryWindow
+        guard window.hasMore else { return }
+        try await loadLibrary(cursor: window.nextCursor, q: window.query)
+    }
+
+    // MARK: - Detail, rename, delete or remove
+
+    /// `GET /api/videos/:id` into `videos`: the transcript, segments and `lessonUseCount`.
+    @MainActor
+    func loadDetail(id: String) async throws {
+        _ = try await getVideo(id: id)
+    }
+
+    /// `PATCH /api/videos/:id` with the title; the Library row follows in the same call (D27).
+    @MainActor
+    func rename(id: String, title: String) async throws {
+        _ = try await updateVideo(id: id, title: title)
+    }
+
+    /// `POST /api/videos/:id/remove-from-library`: the video leaves the Library but stays in lessons (D17).
+    @MainActor
+    func removeFromLibrary(id: String) async throws {
+        let response: RemoveFromLibraryResponse = try await api.post(
+            "/api/videos/\(id)/remove-from-library",
+            responseType: RemoveFromLibraryResponse.self
+        )
+        guard response.success else {
+            throw APIError.serverError(response.error ?? "Failed to remove the video from your Library")
+        }
+        dropFromLibrary(id: id)
+    }
+
+    /// Which confirm a delete shows (D17): from `lessonUseCount` on `GET /api/videos/:id`.
+    /// A failed read, or an answer without the count, throws for the caller's error banner.
+    @MainActor
+    func deleteDecision(id: String) async throws -> VideoDeleteDecision {
+        let video = try await getVideo(id: id)
+        guard let count = video.lessonUseCount else { throw APIError.invalidResponse }
+        return count > 0 ? .removeFromLibrary(lessonCount: count) : .delete
+    }
+
+    /// Runs the call the decision names; the id leaves both stores and the window in the same Action (D27).
+    @MainActor
+    func deleteOrRemove(id: String, decision: VideoDeleteDecision) async throws {
+        switch decision {
+        case .delete: try await deleteVideo(id: id)
+        case .removeFromLibrary: try await removeFromLibrary(id: id)
+        }
+        dropFromLibrary(id: id)
+    }
+
+    @MainActor
+    private func dropFromLibrary(id: String) {
+        _ = state.videos.remove(id)
+        _ = state.libraryVideos.remove(id)
+        state.videoLibraryWindow.ids.removeAll { $0 == id }
+        state.persist()
+    }
+
+    private static let libraryPageSize = 50
+    /// The server's `transcriptPreview` length.
+    private static let previewLength = 160
+
+    private static func encoded(_ value: String) -> String {
+        value.addingPercentEncoding(withAllowedCharacters: .urlQueryValueAllowed) ?? value
     }
 
     // MARK: - Update Video
@@ -153,8 +287,7 @@ private let api: APIClientProtocol
             throw APIError.serverError(response.error ?? "Failed to update video")
         }
 
-        state.videos.upsert(video)
-        state.persist()
+        store(video)
 
         return video
     }
@@ -171,8 +304,7 @@ private let api: APIClientProtocol
             throw APIError.serverError(response.error ?? "Failed to refresh video status")
         }
 
-        state.videos.upsert(video)
-        state.persist()
+        store(video)
 
         return video
     }
@@ -208,7 +340,7 @@ private let api: APIClientProtocol
 
         NSLog("🎬 VideoActions: Waiting for video processing...")
 
-        for attempt in 1...maxAttempts {
+        for attempt in 1...maxAttempts where !Task.isCancelled {
             do {
                 try await Task.sleep(nanoseconds: UInt64(delaySeconds * 1_000_000_000))
 
@@ -407,6 +539,46 @@ private let api: APIClientProtocol
             }
         }
     }
+}
+
+// MARK: - Library types
+
+/// What deleting a Library video does (D17): delete it, or take it out of the Library when lessons use it.
+enum VideoDeleteDecision: Equatable {
+    case delete
+    case removeFromLibrary(lessonCount: Int)
+
+    /// The confirm's title, word for word from the spec.
+    var confirmTitle: String {
+        switch self {
+        case .delete:
+            return "Delete this video?"
+        case .removeFromLibrary(1):
+            return "This video is used in 1 lesson activity. It will stay in it and leave your Library."
+        case .removeFromLibrary(let n):
+            return "This video is used in \(n) lesson activities. It will stay in them and leave your Library."
+        }
+    }
+}
+
+/// `GET /api/videos/library`.
+struct VideoLibraryResponse: Decodable {
+    let success: Bool
+    let data: [VideoSummary]?
+    let nextCursor: String?
+    let hasMore: Bool?
+    let error: String?
+}
+
+/// `POST /api/videos/:id/remove-from-library`.
+struct RemoveFromLibraryResponse: Decodable {
+    let success: Bool
+    let error: String?
+}
+
+private extension CharacterSet {
+    /// Query-value characters left as they are; `&`, `=`, `+`, `#` and spaces are escaped.
+    static let urlQueryValueAllowed: CharacterSet = CharacterSet.urlQueryAllowed.subtracting(CharacterSet(charactersIn: "&=+#"))
 }
 
 // MARK: - Upload Delegate

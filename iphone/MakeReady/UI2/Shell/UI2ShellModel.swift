@@ -73,8 +73,11 @@ enum UI2Destination: Hashable {
     /// page's "+" card or lesson menu. Reached only from there — no deep link or notification target.
     case activityNew(programId: String, lessonId: String)
     /// text-activity D39: the Text editor, over one activity. Reached from the Text tile (swapped in place)
-    /// and from a canvas-kind slide tap; the Background and Actions sheets are drawn in-screen.
+    /// and from a canvas or video slide tap; the Background and Actions sheets are drawn in-screen.
     case activitiesEditor(activityId: String)
+    /// video-recorder D18: the editor, opened on the inline recorder for a lesson's new video activity (the
+    /// activity does not exist until the upload attaches it). Reached only from the Video tile.
+    case lessonVideo(lessonId: String, versionId: String)
     /// text-activity D39/D22: the full-screen viewer on one activity of a lesson version.
     case activityViewer(lessonVersionId: String, activityId: String)
     /// text-activity D40: the Media grid in pick mode, above the editor; a pick goes back to it by
@@ -95,6 +98,9 @@ enum UI2Destination: Hashable {
     /// memo-screens D4/D17: one voice memo. `memoId` is the server id, or `local:<localId>` for a memo still
     /// in the upload queue. The TabBar stays, like the notes list.
     case memoDetail(memoId: String)
+    /// video-recorder D15, D16: one stored Library video (a queued `local:` row does not open). The TabBar
+    /// stays, like the memo page.
+    case videoDetail(id: String)
 }
 
 extension UI2Destination {
@@ -114,7 +120,7 @@ extension UI2Destination {
         // text-activity D39: the viewer takes the whole screen, and the background pick is a full-screen
         // picker. Owner 2026-11-08: the editor is full screen too — its own bars are drawn in-screen,
         // so no TabBar sits under it.
-        case .activitiesEditor, .activityViewer, .chooseActivityBackground: return true
+        case .activitiesEditor, .lessonVideo, .activityViewer, .chooseActivityBackground: return true
         // bible-verse-picker D2: the picker's pages carry their own header and Select, so no TabBar.
         case .bibleBooks, .bibleChapters, .bibleVerses, .bibleReader: return true
         // notes D17: the editor draws its own chrome, so no TabBar.
@@ -150,6 +156,32 @@ struct UI2ShellModel {
     var paths: [TabBar.Tab: [UI2Destination]] = [:]
     /// Changes synchronously with each path mutation, even coalesced pop/push of equal routes.
     private var pathRevisions: [TabBar.Tab: UUID] = [:]
+    /// video-recorder D25: the recorder is up, over the whole shell.
+    var hostedOverlay: HostedOverlay?
+
+    enum HostedOverlay: String, Identifiable {
+        case videoRecorder = "video-recorder"
+
+        var id: String { rawValue }
+    }
+
+    /// The Add menu's rows whose destination this model presents.
+    enum AddMenuChoice {
+        case recordVideo
+    }
+
+    mutating func onSelect(_ choice: AddMenuChoice) {
+        switch choice {
+        case .recordVideo: hostedOverlay = .videoRecorder
+        }
+    }
+
+    /// video-recorder D9: a video saved from the + menu lands here.
+    mutating func showLibrary() {
+        setPath([], for: .home)
+        tab = .home
+        section = .library
+    }
 
     func navigationOwnership(for tab: TabBar.Tab) -> UUID? { pathRevisions[tab] }
 

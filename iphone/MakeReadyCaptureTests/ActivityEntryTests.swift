@@ -6,7 +6,12 @@ import XCTest
 final class ActivityEntryTests: XCTestCase {
     func testCanvasKindsOpenTheEditorOthersCannotEdit() {
         XCTAssertEqual(ActivityEntry.destination(for: "bible", activityId: "a"), .open(.activitiesEditor(activityId: "a")))
-        XCTAssertEqual(ActivityEntry.destination(for: "video", activityId: "a"), .cannotEdit(message: "This activity can't be edited yet."))
+        XCTAssertEqual(ActivityEntry.destination(for: "poll", activityId: "a"), .cannotEdit(message: "This activity can't be edited yet."))
+    }
+
+    /// video-recorder D18: a video opens the editor too, for its Replace video menu.
+    func testVideoOpensTheEditor() {
+        XCTAssertEqual(ActivityEntry.destination(for: "video", activityId: "v"), .open(.activitiesEditor(activityId: "v")))
     }
 
     func testTextOpensTheEditorAndEveryOtherKindCannotEdit() {
@@ -28,14 +33,14 @@ final class ActivityEntryTests: XCTestCase {
         var pushed: [UI2Destination] = []
         var reported: [String] = []
         ActivityEntry.open(kind: "text", activityId: "a", push: { pushed.append($0) }, report: { reported.append($0) })
-        ActivityEntry.open(kind: "video", activityId: "b", push: { pushed.append($0) }, report: { reported.append($0) })
+        ActivityEntry.open(kind: "youtube", activityId: "b", push: { pushed.append($0) }, report: { reported.append($0) })
         XCTAssertEqual(pushed, [.activitiesEditor(activityId: "a")])
         XCTAssertEqual(reported, ["This activity can't be edited yet."])
     }
 
     /// activity-slide-type-icon (owner 2026-11-09): a slide shows its kind's C-086 glyph, and only a
     /// kind the editor opens is tappable.
-    func testSlideGlyphIsTheTypeGridGlyphAndOnlyCanvasKindsAreOpenable() {
+    func testSlideGlyphIsTheTypeGridGlyphAndOnlyKindsTheEditorOpensAreOpenable() {
         XCTAssertEqual(ActivityEntry.slideGlyph(for: "text"), "text-content")
         XCTAssertEqual(ActivityEntry.slideGlyph(for: "bible"), "cross")
         XCTAssertEqual(ActivityEntry.slideGlyph(for: "video"), "video-record")
@@ -45,7 +50,8 @@ final class ActivityEntryTests: XCTestCase {
         XCTAssertEqual(ActivityEntry.slideGlyph(for: "someFutureKind"), "")
         XCTAssertTrue(ActivityEntry.isOpenable("text"))
         XCTAssertTrue(ActivityEntry.isOpenable("bible"))
-        for kind in ["video", "youtube", "write", "poll", "someFutureKind"] {
+        XCTAssertTrue(ActivityEntry.isOpenable("video"))
+        for kind in ["youtube", "write", "poll", "someFutureKind"] {
             XCTAssertFalse(ActivityEntry.isOpenable(kind), kind)
         }
     }

@@ -1,4 +1,4 @@
-h1:rhmdp6Sj1W25u6nzCGVY7+o2SL30vNNh0aFp4Hyib/0=
+h1:WdTxeWhDQNKzAdUeufu1C9Fev9ARl921WHZ/5zFa5A4=
 20260129053731.sql h1:1voeZOgN+wZ08ea/ueAr/rs3ph6pyzXrp8m07aKzmYA=
 20260203052425.sql h1:hrlKcHs/bGvb+eu45uxABeJ9ci0+Vx2YREwba5HVoaQ=
 20260203052525.sql h1:J9XoYZEMUZPsk2ObTITwZhTR7W3mKkZ1x66gTNh+WSs=
@@ -83,3 +83,4 @@ h1:rhmdp6Sj1W25u6nzCGVY7+o2SL30vNNh0aFp4Hyib/0=
 20261107224949_text_activity_analytics_view.sql h1:NnZSL2K/HKJ65hGfdVLZ6F8ynsn93WupFyHl2daD6ho=
 20261120020900_voice_memos.sql h1:bXArD83SNVojxS+4Ua+LIj5IirwDc0CR+CfK8/0MP2Q=
 20261121000000_note_title_preview.sql h1:o9IeUIalaKc8BvaHnXt2VC+lpGDpZsceQVcvuPDPA8w=
+20261122200800_video_transcript_library.sql h1:rvsfSoCPi4divNlg7+nLiXu2jDfr/iecepdyF0MLTW4=

@@ -531,7 +531,7 @@ private final class CapturePipeline: @unchecked Sendable {
 
 /// Holds block observers and removes them when it goes away, so the engine needs no `deinit`
 /// access to main-actor state. Handlers run on the main actor whatever thread posts.
-private final class ObserverBag: @unchecked Sendable {
+final class ObserverBag: @unchecked Sendable {
     private var tokens: [(NotificationCenter, NSObjectProtocol)] = []
 
     @MainActor

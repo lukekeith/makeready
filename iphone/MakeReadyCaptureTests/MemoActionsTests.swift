@@ -123,7 +123,13 @@ final class MemoActionsTests: XCTestCase {
     }
 
     func testNextDefaultTitle() {
-        XCTAssertEqual(MemoActions.nextDefaultTitle(existingTitles: []), "Memo 1")
-        XCTAssertEqual(MemoActions.nextDefaultTitle(existingTitles: ["Memo 2", "Memo 10", "Memo 3b", "Sermon"]), "Memo 11")
+        XCTAssertEqual(MemoActions.nextDefaultTitle(prefix: "Memo", existingTitles: []), "Memo 1")
+        XCTAssertEqual(MemoActions.nextDefaultTitle(prefix: "Memo", existingTitles: ["Memo 2", "Memo 10", "Memo 3b", "Sermon"]), "Memo 11")
+    }
+
+    func testNextVideoTitle() {
+        XCTAssertEqual(MemoActions.nextDefaultTitle(prefix: "Video", existingTitles: ["Video 2", "Memo 9", "Video x"]), "Video 3")
+        XCTAssertEqual(MemoActions.nextDefaultTitle(prefix: "Video", existingTitles: []), "Video 1")
+        XCTAssertEqual(MemoActions.nextDefaultTitle(prefix: "Memo", existingTitles: ["Memo 4"]), "Memo 5")
     }
 }

@@ -14,6 +14,25 @@ final class UI2ShellModelTests: XCTestCase {
         let m = UI2ShellModel()
         XCTAssertEqual(m.tab, .home); XCTAssertEqual(m.section, .home); XCTAssertTrue(m.showsTopNav)
     }
+    /// video-recorder D25: + → Record a video presents the hosted overlay.
+    func testPlusMenuRecordsVideo() {
+        var shell = UI2ShellModel()
+        shell.onSelect(.recordVideo)
+        XCTAssertEqual(shell.hostedOverlay?.id, "video-recorder")
+    }
+    /// video-recorder D9: Save from the + menu lands on the Library, whatever was open.
+    func testASavedVideoLandsOnTheLibrary() {
+        var shell = UI2ShellModel()
+        shell.push(.createGroup, on: .home)
+        shell.tab = .profile
+        shell.showLibrary()
+        XCTAssertEqual(shell.tab, .home)
+        XCTAssertEqual(shell.section, .library)
+        XCTAssertTrue(shell.path(for: .home).isEmpty)
+    }
+    func testPlusMenuRecordVideoRowIsInTheMenu() {
+        XCTAssertTrue(UI2Shell.addMenuActions.map(\.label).contains(VideoRecorderEntry.rowLabel))
+    }
     func testSectionsMatchTopNavContract() {
         XCTAssertEqual(UI2Section.allCases.map(\.rawValue), TopNav.designedTabs)
     }

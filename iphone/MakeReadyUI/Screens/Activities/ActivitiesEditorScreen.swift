@@ -157,6 +157,9 @@ struct ActivitiesEditorScreen: View {
         /// §35.3: a preview seed — the attached video's Replace video menu drawn open. Live, the
         /// menu is the screen's own (a tap on the page opens it).
         var replaceVideoMenuOpen: Bool = false
+        /// §35.1 `videoRecorder` (video-recorder P3): the header and the chips fade out while the
+        /// inline recorder records; the layout keeps its place.
+        var videoRecorderHidesChrome: Bool = false
         /// §15.2 (D30): C-093 drawn docked at the screen's left edge when the edit opens (the
         /// slider-docked preview). The live view docks it itself after 2 s untouched.
         var sliderDocked: Bool = false
@@ -611,6 +614,11 @@ struct ActivitiesEditorScreen: View {
         !["typeGrid", "readOnly", "videoRecorder", "videoPending"].contains(state.canvasContent)
     }
 
+    /// §35.1 (P3): the inline recorder is recording.
+    private var recorderHidesChrome: Bool {
+        state.canvasContent == "videoRecorder" && state.videoRecorderHidesChrome
+    }
+
     /// §35: the attached video page — tappable, and no "can't be edited yet" note.
     private var isAttachedVideo: Bool { state.canvasContent == "readOnly" && state.readOnlyKind == "video" }
 
@@ -1005,6 +1013,22 @@ struct ActivitiesEditorScreen: View {
         .ui2Element("C-040 PageHeader")
         // §3 Manipulating: chrome hidden (fades out); the layout keeps its place.
         .opacity(mode == .manipulating ? 0 : 1)
+        .modifier(recorderChromeFade)
+    }
+
+    /// P3: hidden in place, so the recorder's preview never moves.
+    private var recorderChromeFade: RecorderChromeFade { RecorderChromeFade(hidden: recorderHidesChrome) }
+
+    private struct RecorderChromeFade: ViewModifier {
+        let hidden: Bool
+
+        func body(content: Content) -> some View {
+            content
+                .opacity(hidden ? 0 : 1)
+                .animation(hidden ? Token.Motion.menuFadeOut : Token.Motion.menuFadeIn, value: hidden)
+                .allowsHitTesting(!hidden)
+                .accessibilityHidden(hidden)
+        }
     }
 
     // MARK: - §2 item 3: the canvas
@@ -1814,9 +1838,13 @@ struct ActivitiesEditorScreen: View {
         .fixedSize(horizontal: false, vertical: true)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { containerHeight = $0 }
         .offset(y: -keyboardOverlap)
+        .modifier(recorderChromeFade)
     }
 
-    private var keyboardOverlap: CGFloat { max(containerBottom - keyboardTop, 0) }
+    /// §35.1: the chips stay under the keyboard while the recorder's own Teleprompter sheet types.
+    private var keyboardOverlap: CGFloat {
+        state.canvasContent == "videoRecorder" ? 0 : max(containerBottom - keyboardTop, 0)
+    }
 
     /// §10.1 middle rail — the open tool's choices.
     @ViewBuilder private var middleRail: some View {

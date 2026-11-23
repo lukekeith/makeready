@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { prisma } from '../lib/prisma.js'
+import { createDownload, deleteDownload, getDownload, type StreamDownload } from './cloudflare.js'
 import { downloadObject } from './storage.js'
 
 export const TRANSCRIPT_MAX_ATTEMPTS = 3
@@ -17,6 +18,7 @@ export interface GroqResult { text: string; segments: TranscriptSegment[] }
 export interface GroqClient { transcribe(audio: Buffer, filename: string): Promise<GroqResult> }
 export type SplitAudio = (audio: Buffer, maxBytes: number) => Promise<{ audio: Buffer; offsetMs: number }[]>
 export type TranscribeOutcome = 'ready' | 'failed' | 'no-key' | 'not-claimed'
+export type VideoTranscribeOutcome = TranscribeOutcome | 'in-progress'
 
 export function createGroqClient(apiKey: string): GroqClient {
   return {
@@ -87,7 +89,37 @@ export const ffmpegSplitAudio: SplitAudio = async (audio, maxBytes) => {
   }
 }
 
-interface TranscribeDeps { groq?: GroqClient; splitAudio?: SplitAudio; env?: NodeJS.ProcessEnv }
+export interface StreamDownloads {
+  createDownload(uid: string): Promise<StreamDownload>
+  getDownload(uid: string): Promise<StreamDownload | null>
+  deleteDownload(uid: string): Promise<void>
+}
+
+interface TranscribeDeps {
+  groq?: GroqClient
+  splitAudio?: SplitAudio
+  env?: NodeJS.ProcessEnv
+  download?: (url: string) => Promise<Buffer>
+  extractAudio?: (mp4: Buffer) => Promise<Buffer>
+  stream?: StreamDownloads
+}
+
+/** The row-agnostic core: chunks audio under Groq's upload cap, transcribes each chunk and offsets its segments. */
+export async function transcribeAudio(audio: Buffer, deps: TranscribeDeps = {}): Promise<GroqResult> {
+  const env = deps.env ?? process.env
+  const groq = deps.groq ?? createGroqClient(env.GROQ_API_KEY ?? '')
+  const maxBytes = Number(env.GROQ_MAX_UPLOAD_BYTES) || DEFAULT_MAX_UPLOAD_BYTES
+  const chunks = audio.length <= maxBytes ? [{ audio, offsetMs: 0 }] : await (deps.splitAudio ?? ffmpegSplitAudio)(audio, maxBytes)
+
+  const texts: string[] = []
+  const segments: TranscriptSegment[] = []
+  for (const [i, chunk] of chunks.entries()) {
+    const result = await groq.transcribe(chunk.audio, `audio-${i}.m4a`)
+    texts.push(result.text.trim())
+    for (const s of result.segments) segments.push({ text: s.text, startMs: s.startMs + chunk.offsetMs, endMs: s.endMs + chunk.offsetMs })
+  }
+  return { text: texts.join(' '), segments }
+}
 
 /** Transcribes one memo through Groq; claims the row first (D32) and never throws (D33). */
 export async function transcribeMemo(memoId: string, deps: TranscribeDeps = {}): Promise<TranscribeOutcome> {
@@ -112,22 +144,11 @@ export async function transcribeMemo(memoId: string, deps: TranscribeDeps = {}):
 
   try {
     const memo = await prisma.voiceMemo.findUniqueOrThrow({ where: { id: memoId }, select: { key: true } })
-    const groq = deps.groq ?? createGroqClient(apiKey)
-    const maxBytes = Number(env.GROQ_MAX_UPLOAD_BYTES) || DEFAULT_MAX_UPLOAD_BYTES
-    const audio = await downloadObject(memo.key)
-    const chunks = audio.length <= maxBytes ? [{ audio, offsetMs: 0 }] : await (deps.splitAudio ?? ffmpegSplitAudio)(audio, maxBytes)
-
-    const texts: string[] = []
-    const segments: TranscriptSegment[] = []
-    for (const [i, chunk] of chunks.entries()) {
-      const result = await groq.transcribe(chunk.audio, `memo-${i}.m4a`)
-      texts.push(result.text.trim())
-      for (const s of result.segments) segments.push({ text: s.text, startMs: s.startMs + chunk.offsetMs, endMs: s.endMs + chunk.offsetMs })
-    }
+    const { text, segments } = await transcribeAudio(await downloadObject(memo.key), { ...deps, groq: deps.groq ?? createGroqClient(apiKey) })
 
     await prisma.voiceMemo.update({
       where: { id: memoId },
-      data: { transcript: texts.join(' '), transcriptSegments: segments, transcriptStatus: 'ready', transcriptSource: 'server', transcriptClaimedAt: null },
+      data: { transcript: text, transcriptSegments: segments, transcriptStatus: 'ready', transcriptSource: 'server', transcriptClaimedAt: null },
     })
     return 'ready'
   } catch (err) {
@@ -139,6 +160,87 @@ export async function transcribeMemo(memoId: string, deps: TranscribeDeps = {}):
       })
     } catch (writeErr) {
       console.error(`[transcription] memo ${memoId}: could not record the failure:`, writeErr)
+    }
+    return 'failed'
+  }
+}
+
+async function fetchMp4(url: string): Promise<Buffer> {
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`Stream download fetch failed: ${res.status}`)
+  return Buffer.from(await res.arrayBuffer())
+}
+
+/** Copies the audio track out of an MP4 into an `.m4a` (`-vn -c:a copy`). */
+async function ffmpegExtractAudio(mp4: Buffer): Promise<Buffer> {
+  const dir = await mkdtemp(path.join(tmpdir(), 'video-audio-'))
+  try {
+    const input = path.join(dir, 'in.mp4')
+    const output = path.join(dir, 'out.m4a')
+    await writeFile(input, mp4)
+    await run('ffmpeg', ['-i', input, '-vn', '-c:a', 'copy', output])
+    return await readFile(output)
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
+}
+
+/**
+ * Transcribes one ready video from its Stream MP4 download (D11); claims the row like a memo's and never throws.
+ * A download still being built releases the claim without spending an attempt.
+ */
+export async function transcribeVideo(videoId: string, deps: TranscribeDeps = {}): Promise<VideoTranscribeOutcome> {
+  const env = deps.env ?? process.env
+  const apiKey = env.GROQ_API_KEY
+  if (!apiKey) return 'no-key'
+
+  const claim = await prisma.video.updateMany({
+    where: {
+      id: videoId, isActive: true, status: 'ready', transcriptStatus: { in: ['pending', 'failed'] },
+      transcriptAttempts: { lt: TRANSCRIPT_MAX_ATTEMPTS },
+      OR: [{ transcriptClaimedAt: null }, { transcriptClaimedAt: { lt: new Date(Date.now() - CLAIM_STALE_MS) } }],
+    },
+    data: { transcriptClaimedAt: new Date() },
+  })
+  if (claim.count === 0) return 'not-claimed'
+
+  try {
+    const { cloudflareUid } = await prisma.video.findUniqueOrThrow({ where: { id: videoId }, select: { cloudflareUid: true } })
+    const stream = deps.stream ?? { createDownload, getDownload, deleteDownload }
+    const existing = await stream.getDownload(cloudflareUid)
+    const download = existing ?? (await stream.createDownload(cloudflareUid))
+
+    if (download.status === 'inprogress') {
+      await prisma.video.update({ where: { id: videoId }, data: { transcriptClaimedAt: null } })
+      return 'in-progress'
+    }
+
+    try {
+      if (download.status !== 'ready' || !download.url) throw new Error(`Stream download is ${download.status}`)
+      const mp4 = await (deps.download ?? fetchMp4)(download.url)
+      const m4a = await (deps.extractAudio ?? ffmpegExtractAudio)(mp4)
+      const { text, segments } = await transcribeAudio(m4a, { ...deps, groq: deps.groq ?? createGroqClient(apiKey) })
+      await prisma.video.update({
+        where: { id: videoId },
+        data: { transcript: text, transcriptSegments: segments, transcriptStatus: 'ready', transcriptSource: 'server', transcriptClaimedAt: null },
+      })
+      return 'ready'
+    } finally {
+      try {
+        await stream.deleteDownload(cloudflareUid)
+      } catch (deleteErr) {
+        console.error(`[transcription] video ${videoId}: could not delete the Stream download:`, deleteErr)
+      }
+    }
+  } catch (err) {
+    console.error(`[transcription] video ${videoId} failed:`, err)
+    try {
+      await prisma.video.update({
+        where: { id: videoId },
+        data: { transcriptAttempts: { increment: 1 }, transcriptStatus: 'failed', transcriptClaimedAt: null },
+      })
+    } catch (writeErr) {
+      console.error(`[transcription] video ${videoId}: could not record the failure:`, writeErr)
     }
     return 'failed'
   }

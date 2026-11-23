@@ -96,7 +96,7 @@
 		<string>_makeready-client._tcp</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>MakeReady needs camera access to record videos for your content.</string>
+	<string>MakeReady uses the camera to record videos for your Library and lessons.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>MakeReady needs access to your contacts to invite them to your groups.</string>
 	<key>NSLocalNetworkUsageDescription</key>
