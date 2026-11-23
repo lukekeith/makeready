@@ -155,16 +155,16 @@ Program rulings P1–P10 bind this child (`../video-recording/PROGRAM.md` §Shar
 
 | # | ADD/EDIT/RENAME/REMOVE | Model.field | Wire | Reason | Status |
 |---|---|---|---|---|---|
-| SC1 | ADD | Video.transcript (text, nullable) | `transcript` | the on-device or server transcript (P6) | planned |
-| SC2 | ADD | Video.transcriptSegments (json, nullable) | `transcriptSegments` | timed segments, for child 2's captions | planned |
-| SC3 | ADD | Video.transcriptStatus (string, default `none`) | `transcriptStatus` | `none`/`pending`/`ready`/`failed`, mirroring VoiceMemo | planned |
-| SC4 | ADD | Video.transcriptSource (string, nullable) | `transcriptSource` | `on_device`/`server` | planned |
-| SC5 | ADD | Video.transcriptAttempts (int, default 0), Video.transcriptClaimedAt (datetime, nullable) | — (server only) | the fallback runner's lock and retry, as memos have (D11) | planned |
-| SC6 | ADD | Video.libraryRemovedAt (datetime, nullable) | `libraryRemovedAt` | remove-from-Library that keeps lessons playing (D17) | planned |
-| SC7 | ADD | index Video(userId, createdAt, id) | — | keyset paging for `GET /api/videos/library` | planned |
-| SC8 | ADD | `GET /api/videos/library`, `POST /api/videos/:id/remove-from-library` | see §Contract | D15–D17, D20 | planned |
-| SC9 | EDIT | `POST /api/videos`, `GET /api/videos/:id`, `GET /api/videos/me` | see §Contract | additive fields, the removed-video filter, idempotent create (D22) | planned |
-| SC10 | ADD | index Video(status, createdAt) | — | the stream-sync and fallback-transcription claims (D11, D23), as VoiceMemo indexes `(uploadStatus, createdAt)` | planned |
+| SC1 | ADD | Video.transcript (text, nullable) | `transcript` | the on-device or server transcript (P6) | landed — 20261122200800_video_transcript_library |
+| SC2 | ADD | Video.transcriptSegments (json, nullable) | `transcriptSegments` | timed segments, for child 2's captions | landed — 20261122200800_video_transcript_library |
+| SC3 | ADD | Video.transcriptStatus (string, default `none`) | `transcriptStatus` | `none`/`pending`/`ready`/`failed`, mirroring VoiceMemo | landed — 20261122200800_video_transcript_library |
+| SC4 | ADD | Video.transcriptSource (string, nullable) | `transcriptSource` | `on_device`/`server` | landed — 20261122200800_video_transcript_library |
+| SC5 | ADD | Video.transcriptAttempts (int, default 0), Video.transcriptClaimedAt (datetime, nullable) | — (server only) | the fallback runner's lock and retry, as memos have (D11) | landed — 20261122200800_video_transcript_library |
+| SC6 | ADD | Video.libraryRemovedAt (datetime, nullable) | `libraryRemovedAt` | remove-from-Library that keeps lessons playing (D17) | landed — 20261122200800_video_transcript_library |
+| SC7 | ADD | index Video(userId, createdAt, id) | — | keyset paging for `GET /api/videos/library` | landed — 20261122200800_video_transcript_library |
+| SC8 | ADD | `GET /api/videos/library`, `POST /api/videos/:id/remove-from-library` | see §Contract | D15–D17, D20 | landed — 970c6171, 64fe5f59 (no migration) |
+| SC9 | EDIT | `POST /api/videos`, `GET /api/videos/:id`, `GET /api/videos/me` | see §Contract | additive fields, the removed-video filter, idempotent create (D22) | landed — 970c6171, 64fe5f59 (no migration) |
+| SC10 | ADD | index Video(status, createdAt) | — | the stream-sync and fallback-transcription claims (D11, D23), as VoiceMemo indexes `(uploadStatus, createdAt)` | landed — 20261122200800_video_transcript_library |
 
 **Data plan:** every addition is nullable or defaulted, so no backfill is needed. Existing videos get
 `transcriptStatus: none` and are never queued for the fallback, because only a create without a
