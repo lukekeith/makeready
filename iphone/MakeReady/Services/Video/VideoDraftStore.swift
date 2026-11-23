@@ -86,6 +86,17 @@ struct VideoDraftStore {
         return self.draft(id: draft.id, folder: draft.folder, manifest: manifest)
     }
 
+    /// Drops the last finished segment from the manifest, then its file (D5). Returns the draft as it
+    /// now is on disk.
+    @discardableResult
+    func dropLastSegment(in draft: VideoDraft) throws -> VideoDraft {
+        var manifest = try readManifest(in: draft.folder)
+        guard let dropped = manifest.segments.popLast() else { return self.draft(id: draft.id, folder: draft.folder, manifest: manifest) }
+        try write(manifest, to: draft.folder)
+        delete(draft.folder.appendingPathComponent(dropped.fileName))
+        return self.draft(id: draft.id, folder: draft.folder, manifest: manifest)
+    }
+
     @discardableResult
     func save(settings: VideoDraftSettings, in draft: VideoDraft) throws -> VideoDraft {
         var manifest = try readManifest(in: draft.folder)

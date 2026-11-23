@@ -147,6 +147,40 @@ final class VideoCaptureEngine {
         session.flip()
     }
 
+    // MARK: Draft
+
+    /// Continues a salvaged draft. Call it before `prepare`.
+    func restore(_ draft: VideoDraft) {
+        guard state == .idle else { return }
+        self.draft = draft
+    }
+
+    /// Removes the last finished segment (D5). Ignored while a segment is recording or closing.
+    func deleteLastSegment() throws {
+        guard let draft, state != .recording, unfinishedSegment == nil else { return }
+        self.draft = try drafts.dropLastSegment(in: draft)
+        if state == .paused, !hasSegments { state = .ready }
+    }
+
+    /// Deletes the draft and its files (D9). Ignored while a segment is recording or closing.
+    func discardDraft() {
+        guard let draft, state != .recording, unfinishedSegment == nil else { return }
+        drafts.discard(draft)
+        self.draft = nil
+        if state == .paused { state = .ready }
+    }
+
+    /// Keeps the recorder's choices with the draft; does nothing before the first segment.
+    func save(settings: VideoDraftSettings) {
+        guard let draft else { return }
+        do {
+            self.draft = try drafts.save(settings: settings, in: draft)
+        } catch {
+            // Recovered: only a crash would miss them, and the recording itself is safe.
+            Log.media.error("video draft settings not saved: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
     // MARK: Interruptions (D26)
 
     /// Ends the segment when an interruption begins; its end changes nothing.

@@ -193,6 +193,7 @@
 		254BCD8783D4C6449FF1DE6E /* ActivityBackgroundPick.swift in Sources */ = {isa = PBXBuildFile; fileRef = C32EC22B6BBA4C0664B9C656 /* ActivityBackgroundPick.swift */; };
 		255974AB80BE5B16AFA9CDCC /* EnrollmentsHomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A140CA4833A6C31E514213 /* EnrollmentsHomeScreen.swift */; };
 		2560286E73C08B3E071D7706 /* EnrollmentSelectInviteTimeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75733538DFA580C9A87172B7 /* EnrollmentSelectInviteTimeScreen.swift */; };
+		259A9F4370775798D5F1A0A7 /* VideoRecorderModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BF450DEDB43571F5474EA21 /* VideoRecorderModel.swift */; };
 		25A816F9ED89D4E5A946B385 /* Tokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCB9A932A6B3836809A12CCD /* Tokens.swift */; };
 		25C476CF90BCF0078BA89AC0 /* MembersHomeContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E8421A055A4822DFACE79DD /* MembersHomeContainer.swift */; };
 		25CF0B00575AEE024293709F /* RadialDayClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A7C876FC729061EAA119738 /* RadialDayClock.swift */; };
@@ -232,6 +233,7 @@
 		2C43784A0AF6F2A6068916B5 /* ViewRegistryKeysTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3DDACB6F789C9E6425207CC /* ViewRegistryKeysTests.swift */; };
 		2CC5B816604E68F8ED6D1892 /* CreateStudyProgramScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B7AE6FA42230DE749E279D8 /* CreateStudyProgramScreen.swift */; };
 		2D293F3462A8C7E7438FFE23 /* VideoStreamTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D0ECF2A1DDC14B1655EB6C7 /* VideoStreamTransport.swift */; };
+		2D3DB7FF077FCA5ECC483EBC /* VideoRecorderContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D37DEBBCC33388999D5634B9 /* VideoRecorderContainer.swift */; };
 		2D4BF01B4E9BFD4832E8283E /* InviteDetailContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19520ED4CB021C36CDC140EA /* InviteDetailContainer.swift */; };
 		2D9E05227AF4D7A4E0D12906 /* GroupsHomeMapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF91998459107B43365D9BCA /* GroupsHomeMapperTests.swift */; };
 		2DA290F7358ED0BDF0F10A1A /* RecorderCompactView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1ED1EDA1950B5A9AE6170B9 /* RecorderCompactView.swift */; };
@@ -810,6 +812,7 @@
 		A55CF3DD6546FC606AA4C9F5 /* RailTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7E93F580C92683100EC5EF7 /* RailTool.swift */; };
 		A56395A03AE87DFBB2C6A85F /* MemoTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = A46C913F3CC4A3D7BB8683E8 /* MemoTranscriber.swift */; };
 		A5F04DBD9FEDE34EFE69B03A /* EnrollDraftSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9053BF544B945E293801B2FD /* EnrollDraftSync.swift */; };
+		A5F8DE1612D23CEC1EDAE248 /* CountdownBeeper.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAD4F17466C8C519D0D4A94F /* CountdownBeeper.swift */; };
 		A603F54937918442DB067069 /* AuthCallbackParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793BF9462EB0C66EF0EAF8AD /* AuthCallbackParser.swift */; };
 		A607CD89E2C6D7FD61BBC4F3 /* EnrollmentSelectAccessScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 274A2D7DED7E16B6480EA173 /* EnrollmentSelectAccessScreen.swift */; };
 		A6353185D3E2EDA1671F6882 /* ViewerEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3730106FBA39C500EA51D0CC /* ViewerEngineTests.swift */; };
@@ -1035,6 +1038,7 @@
 		C95EC6D5D0CCDE65C3E457B2 /* InvitationDetailActionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1772EB13A48844C5DA612FBD /* InvitationDetailActionsTests.swift */; };
 		C9759C44984D0C311D1EB57A /* SearchHomeMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 180FFAA3DF567F5062535F5F /* SearchHomeMapper.swift */; };
 		C9D7A391F10F78F97AC79BA9 /* NoteSaveQueueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 740ADE21BCEA7CDF0395D75B /* NoteSaveQueueTests.swift */; };
+		C9E2BDC3C8D8855FA86F96CA /* VideoRecorderModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BF450DEDB43571F5474EA21 /* VideoRecorderModel.swift */; };
 		C9ECBA77A9C5D1E4D1B11272 /* SearchFilterHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = E33610C52A228DFF75C6E7FA /* SearchFilterHeader.swift */; };
 		CA3C7DE97C886FA21AD67FEC /* EnrollmentSyncDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0759483163640D5634662EE1 /* EnrollmentSyncDecodingTests.swift */; };
 		CA65AB6BEA194E78A2D68274 /* VideoTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = B873F56A5DBB55FC0A53DFD8 /* VideoTranscriber.swift */; };
@@ -1100,6 +1104,7 @@
 		D5A48E2D17623E3E4F20B5B1 /* GroupsHomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3DB6F6BAE6F56CDAC0B1501 /* GroupsHomeScreen.swift */; };
 		D5FF14B41EE72723156AAAB8 /* ViewerEndPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B498AB6B626A973DB04A29D6 /* ViewerEndPage.swift */; };
 		D60B5A78ABEF0BE66AADF29A /* MakeReadyUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 46323A5C4F61C690433E30F0 /* MakeReadyUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		D6484E3F52272FB982D14A77 /* VideoRecorderModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3FB192778B09BC9ACECDAEC /* VideoRecorderModelTests.swift */; };
 		D6BF00672874B8F2F14F9D7C /* EditOptionFieldScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2B5B608DD2AE5F9A3BF38D6 /* EditOptionFieldScreen.swift */; };
 		D6CFB37FDC92B7C2434F0455 /* RequestDetailScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 751BD3257EA47FB32252DCAD /* RequestDetailScreen.swift */; };
 		D6F9CD6A3D552952F6135238 /* InviteStatusRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BB3DD123A2CA9DACCA9924C /* InviteStatusRow.swift */; };
@@ -1162,6 +1167,7 @@
 		E1F2A3B4C5D60718293A4B01 /* InviteEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F2A3B4C5D60718293A4B02 /* InviteEntry.swift */; };
 		E1F2A3B4C5D60718293A4B04 /* InviteEntryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F2A3B4C5D60718293A4B05 /* InviteEntryTests.swift */; };
 		E24AB0A453EF54D42DE3F6C3 /* KeyboardScrollManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28CD1027B7DCE42A21993C96 /* KeyboardScrollManager.swift */; };
+		E25A5A45367E9FA12B31B382 /* VideoRecorderContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D37DEBBCC33388999D5634B9 /* VideoRecorderContainer.swift */; };
 		E2679289AEC063B7D3D7F296 /* CourierPrime-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A6293FB5C463D16A82FCB891 /* CourierPrime-Regular.ttf */; };
 		E26D816429141F4BB24833C7 /* CoverViewerOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4202E6AAA3D1D4C9BB6A6CB /* CoverViewerOverlay.swift */; };
 		E2B809150238A40E642F581C /* EnrollmentSelectScheduleScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDE2917CCA2C5196A802AAF6 /* EnrollmentSelectScheduleScreen.swift */; };
@@ -1285,6 +1291,7 @@
 		F9242B185936FE2B2D6905F8 /* EnrollmentSelectGroupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220523F7ADBDCDCF76092469 /* EnrollmentSelectGroupScreen.swift */; };
 		F96E7FF59BBA319DEA6B5D5B /* EnrollPickerWarningsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1CD07EE41F783B35574FFFF /* EnrollPickerWarningsTests.swift */; };
 		F98A4F27328E05B178E390F8 /* MemoAudioExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCDD0CA9731496AD274EE5F0 /* MemoAudioExporter.swift */; };
+		F9CD6A90AA568524BC291B6D /* CountdownBeeper.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAD4F17466C8C519D0D4A94F /* CountdownBeeper.swift */; };
 		F9E54A073769111671232C47 /* EnrollmentProgressHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = E914735F357B49E183769E8C /* EnrollmentProgressHeader.swift */; };
 		F9F1A4FC3A16A678816CC4CD /* DateBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1EB4FEB9DAE2C0BA10EDFD4 /* DateBlock.swift */; };
 		F9FA1799E578B341B468B243 /* ListResultRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5738326FD46C04DAFBC4E57D /* ListResultRow.swift */; };
@@ -1543,6 +1550,7 @@
 		2BB3B6A000E676056325CB1C /* FollowedProgramHeader.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FollowedProgramHeader.swift; sourceTree = "<group>"; };
 		2BB3DD123A2CA9DACCA9924C /* InviteStatusRow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = InviteStatusRow.swift; sourceTree = "<group>"; };
 		2BE4B0534B18909AF556D0FE /* GroupsHomeContainer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GroupsHomeContainer.swift; path = Containers/Groups/GroupsHomeContainer.swift; sourceTree = "<group>"; };
+		2BF450DEDB43571F5474EA21 /* VideoRecorderModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = VideoRecorderModel.swift; path = Containers/Video/VideoRecorderModel.swift; sourceTree = "<group>"; };
 		2C255ED2E1B2AF33F0FBCD21 /* MembersHomeScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MembersHomeScreen.swift; path = Screens/Members/MembersHomeScreen.swift; sourceTree = "<group>"; };
 		2CB3D5D7AAA0FA933280A9DD /* InvitesHomeMapper.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = InvitesHomeMapper.swift; sourceTree = "<group>"; };
 		2CC9158A6A58A4861557AD41 /* ActivityTypeCard.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ActivityTypeCard.swift; sourceTree = "<group>"; };
@@ -1897,6 +1905,7 @@
 		B1F52CAB7E77C6543AA664A8 /* MembersHomeMapperTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MembersHomeMapperTests.swift; sourceTree = "<group>"; };
 		B2B5B608DD2AE5F9A3BF38D6 /* EditOptionFieldScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EditOptionFieldScreen.swift; path = Screens/Fields/EditOptionFieldScreen.swift; sourceTree = "<group>"; };
 		B3C0455E19B5966ACC8B82B6 /* RecordingTimeline.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RecordingTimeline.swift; sourceTree = "<group>"; };
+		B3FB192778B09BC9ACECDAEC /* VideoRecorderModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VideoRecorderModelTests.swift; sourceTree = "<group>"; };
 		B48ED78C47738F74C6C13A3C /* EnrollmentStatusRow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnrollmentStatusRow.swift; sourceTree = "<group>"; };
 		B498AB6B626A973DB04A29D6 /* ViewerEndPage.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ViewerEndPage.swift; sourceTree = "<group>"; };
 		B509C2E8C2E6245A6CB76ADD /* EnrollmentCreateModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnrollmentCreateModelTests.swift; sourceTree = "<group>"; };
@@ -2039,6 +2048,7 @@
 		D3382966B20F5A42BA06A01B /* InvitationModelsTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = InvitationModelsTests.swift; sourceTree = "<group>"; };
 		D3558B3DA7CB229771AFC92B /* FullScreenImageViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullScreenImageViewer.swift; sourceTree = "<group>"; };
 		D358475CD79007BABE01638D /* MemoRecorderEngineTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MemoRecorderEngineTests.swift; sourceTree = "<group>"; };
+		D37DEBBCC33388999D5634B9 /* VideoRecorderContainer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = VideoRecorderContainer.swift; path = Containers/Video/VideoRecorderContainer.swift; sourceTree = "<group>"; };
 		D3CF281ABF36D716D82FFEF9 /* GroupDetailContainer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GroupDetailContainer.swift; path = Containers/Groups/GroupDetailContainer.swift; sourceTree = "<group>"; };
 		D4C6E955DCAF91D8673260F5 /* GroupFieldEditorTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupFieldEditorTests.swift; sourceTree = "<group>"; };
 		D4DDECB9367F32B214ADEBB6 /* SwipeState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeState.swift; sourceTree = "<group>"; };
@@ -2099,6 +2109,7 @@
 		E9F83C09E34A9A68A7758BF1 /* InlineDropdown.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = InlineDropdown.swift; sourceTree = "<group>"; };
 		EA6FD5D239C675D47EC97DD9 /* ViewerVideoHost.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ViewerVideoHost.swift; sourceTree = "<group>"; };
 		EAB0D7D882383511F27A0C9E /* MemberSaveAvatarTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MemberSaveAvatarTests.swift; sourceTree = "<group>"; };
+		EAD4F17466C8C519D0D4A94F /* CountdownBeeper.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CountdownBeeper.swift; sourceTree = "<group>"; };
 		EB02409820064BFEBAA66B1E /* CardEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardEvent.swift; sourceTree = "<group>"; };
 		EBB160A55BF61CDE175F32BA /* MediaBrowser.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MediaBrowser.swift; sourceTree = "<group>"; };
 		EC8C4B11C668BCCF2F63D17F /* TopNavDragTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TopNavDragTests.swift; sourceTree = "<group>"; };
@@ -2510,6 +2521,8 @@
 				180FFAA3DF567F5062535F5F /* SearchHomeMapper.swift */,
 				D72F85D9E491F9268EF16561 /* SearchHomeContainer.swift */,
 				2A92627CFB5F9E2C3BFAF274 /* Viewer */,
+				2BF450DEDB43571F5474EA21 /* VideoRecorderModel.swift */,
+				D37DEBBCC33388999D5634B9 /* VideoRecorderContainer.swift */,
 			);
 			path = UI2;
 			sourceTree = "<group>";
@@ -2684,6 +2697,7 @@
 				B873F56A5DBB55FC0A53DFD8 /* VideoTranscriber.swift */,
 				C8C5376F4800E925F1349AD9 /* VideoUploadController.swift */,
 				8D0ECF2A1DDC14B1655EB6C7 /* VideoStreamTransport.swift */,
+				EAD4F17466C8C519D0D4A94F /* CountdownBeeper.swift */,
 			);
 			name = Video;
 			path = Video;
@@ -2994,6 +3008,7 @@
 				43DB92F8306957BF08C9D81C /* VideoTranscriberTests.swift */,
 				852B54AD719F68BFEF490131 /* VideoUploadControllerTests.swift */,
 				15C6A3D040794762471E320C /* VideoStreamTransportTests.swift */,
+				B3FB192778B09BC9ACECDAEC /* VideoRecorderModelTests.swift */,
 			);
 			path = MakeReadyCaptureTests;
 			sourceTree = SOURCE_ROOT;
@@ -4398,6 +4413,7 @@
 				C79DAFCC2781FF8018345D27 /* VideoTranscriberTests.swift in Sources */,
 				3B20CA8AD164D01D0C9397D9 /* VideoUploadControllerTests.swift in Sources */,
 				B3270DEB9970E389C15CD8ED /* VideoStreamTransportTests.swift in Sources */,
+				D6484E3F52272FB982D14A77 /* VideoRecorderModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -4853,6 +4869,9 @@
 				521FE53642DC28C44B00C2B9 /* VideoTranscriber.swift in Sources */,
 				D8B29790241B03F75B064971 /* VideoUploadController.swift in Sources */,
 				2D293F3462A8C7E7438FFE23 /* VideoStreamTransport.swift in Sources */,
+				C9E2BDC3C8D8855FA86F96CA /* VideoRecorderModel.swift in Sources */,
+				2D3DB7FF077FCA5ECC483EBC /* VideoRecorderContainer.swift in Sources */,
+				A5F8DE1612D23CEC1EDAE248 /* CountdownBeeper.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -5511,6 +5530,9 @@
 				DA1199537CBB2F89DDEA3268 /* VideoDetailModel.swift in Sources */,
 				19866B2BA8839DBDF6744F44 /* VideoDetailContainer.swift in Sources */,
 				5FDC49988CD0155EC426D921 /* VideoDetailPlayer.swift in Sources */,
+				259A9F4370775798D5F1A0A7 /* VideoRecorderModel.swift in Sources */,
+				E25A5A45367E9FA12B31B382 /* VideoRecorderContainer.swift in Sources */,
+				F9CD6A90AA568524BC291B6D /* CountdownBeeper.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

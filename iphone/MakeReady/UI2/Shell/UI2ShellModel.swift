@@ -153,6 +153,25 @@ struct UI2ShellModel {
     var paths: [TabBar.Tab: [UI2Destination]] = [:]
     /// Changes synchronously with each path mutation, even coalesced pop/push of equal routes.
     private var pathRevisions: [TabBar.Tab: UUID] = [:]
+    /// video-recorder D25: the recorder is up, over the whole shell.
+    var hostedOverlay: HostedOverlay?
+
+    enum HostedOverlay: String, Identifiable {
+        case videoRecorder = "video-recorder"
+
+        var id: String { rawValue }
+    }
+
+    /// The Add menu's rows whose destination this model presents.
+    enum AddMenuChoice {
+        case recordVideo
+    }
+
+    mutating func onSelect(_ choice: AddMenuChoice) {
+        switch choice {
+        case .recordVideo: hostedOverlay = .videoRecorder
+        }
+    }
 
     func navigationOwnership(for tab: TabBar.Tab) -> UUID? { pathRevisions[tab] }
 

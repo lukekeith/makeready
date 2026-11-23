@@ -96,6 +96,51 @@ final class VideoCaptureEngineTests: XCTestCase {
         XCTAssertEqual(engine.draft?.segments.count, 1)
     }
 
+    // MARK: deleting the last segment, discarding and restoring (D5, D9, D26)
+
+    func testDeleteLastSegmentReturnsToReadyWhenNoneIsLeft() async throws {
+        let engine = makeEngine()
+        try await engine.start()
+        await engine.stopSegment()
+        try engine.deleteLastSegment()
+        XCTAssertEqual(engine.draft?.segments, [])
+        XCTAssertEqual(engine.state, .ready)
+        XCTAssertEqual(store.recoverable(), [])
+    }
+
+    func testDiscardDraftLeavesNothingOnDisk() async throws {
+        let engine = makeEngine()
+        try await engine.start()
+        await engine.stopSegment()
+        engine.discardDraft()
+        XCTAssertNil(engine.draft)
+        XCTAssertEqual(engine.state, .ready)
+        XCTAssertEqual(store.recoverable(), [])
+    }
+
+    func testRestoredDraftTakesTheNextSegment() async throws {
+        let first = makeEngine()
+        try await first.start()
+        await first.close()
+        let engine = makeEngine()
+        engine.restore(try XCTUnwrap(store.recoverable().first))
+        try await engine.prepare()
+        XCTAssertEqual(engine.state, .paused)
+        try await engine.start()
+        await engine.stopSegment()
+        XCTAssertEqual(store.recoverable().first?.segments.count, 2)
+    }
+
+    func testSettingsAreSavedInTheDraft() async throws {
+        let engine = makeEngine()
+        engine.save(settings: VideoDraftSettings(lengthSeconds: 30))
+        XCTAssertEqual(store.recoverable(), [])
+        try await engine.start()
+        engine.save(settings: VideoDraftSettings(lengthSeconds: 30))
+        await engine.stopSegment()
+        XCTAssertEqual(store.recoverable().first?.settings.lengthSeconds, 30)
+    }
+
     // MARK: under 500 MB free, recording refuses to start (D26)
 
     func testLowDiskSpaceRefusesToStart() async throws {

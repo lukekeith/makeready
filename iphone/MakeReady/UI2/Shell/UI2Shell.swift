@@ -26,13 +26,15 @@ struct UI2Shell: View {
     @State private var recorder: RecorderSession?
     /// Voice memo was chosen: the recorder starts once the add menu's slide-out has ended.
     @State private var voiceMemoRequested = false
+    /// video-recorder D25: the recorder `model.hostedOverlay` presents; nil otherwise.
+    @State private var videoRecorder: VideoRecorderModel?
 
     /// action-menu-overlay B3: the Add menu's actions, as frame 4717:52460 draws them. B5: none of
     /// their destinations existed in the 2.0 shell at the time. "Invite a member" now opens the invite
     /// flow (invite-member D2), "Write a note" the note editor (notes D17), "Voice memo" the recorder
-    /// (memo-screens D2); "Record a video" still only closes the menu.
+    /// (memo-screens D2), "Record a video" the video recorder (video-recorder D25).
     static let addMenuActions: [ActionMenuOverlay.ActionItem] = [
-        .init(glyph: "c066-record", label: "Record a video"),
+        .init(glyph: "c066-record", label: VideoRecorderEntry.rowLabel),
         .init(glyph: "c066-microphone", label: "Voice memo"),
         .init(glyph: "c066-note", label: "Write a note"),
         .init(glyph: "c066-send-alt", label: "Invite a member"),
@@ -107,7 +109,8 @@ struct UI2Shell: View {
                                 case NoteEntry.rowLabel: NoteEntry.open(on: model.tab, model: $model)  // notes D17
                                 case MemoEntry.rowLabel:  // memo-screens D2, D14
                                     voiceMemoRequested = MemoEntry.shouldStart(recorderPresented: recorder != nil)
-                                default: break  // the other rows land with their screens
+                                case VideoRecorderEntry.rowLabel: openVideoRecorder()  // video-recorder D25
+                                default: break
                                 }
                             },
                             showsDone: false,
@@ -128,6 +131,11 @@ struct UI2Shell: View {
             UI2HostedOverlay(view: AnyView(RecorderSheetContainer(session: session, onEnd: recorderEnded)),
                              transition: .identity)
         })
+        // video-recorder D25: the recorder covers the whole shell; it shows once the add menu has slid out.
+        .hostedOverlay(model.hostedOverlay == .videoRecorder ? videoRecorder.map { recorder in
+            UI2HostedOverlay(view: AnyView(VideoRecorderOverlay(model: recorder, onEnd: videoRecorderEnded)),
+                             transition: .identity)
+        } : nil)
         .ignoresSafeArea(.container, edges: .bottom)
         // filter-menu-fullscreen: full-screen menus (C-036) draw here, above TopNav and TabBar.
         .ui2OverlayHost()
@@ -173,6 +181,18 @@ struct UI2Shell: View {
         // C-016 slides itself in on appear and out before `onEnd` (a hosted overlay gets no
         // presenting transaction — ActionMenuLayer's rule), so no animation here.
         recorder = MemoEntry.makeSession(userId: userId)
+    }
+
+    /// video-recorder D25: the host keeps the add menu until it has slid out, then shows the recorder.
+    private func openVideoRecorder() {
+        guard videoRecorder == nil, recorder == nil, let userId = authManager.currentUser?.id else { return }
+        videoRecorder = VideoRecorderModel.live(entry: .plusMenu, userId: userId)
+        if videoRecorder != nil { model.onSelect(.recordVideo) }
+    }
+
+    private func videoRecorderEnded() {
+        model.hostedOverlay = nil
+        videoRecorder = nil
     }
 
     /// memo-screens D7, D11: a saved memo opens its page at once, where the leader names it (owner

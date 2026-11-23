@@ -95,6 +95,20 @@ final class VideoDraftStoreTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: draft.folder.path))
     }
 
+    // MARK: delete last segment (D5)
+
+    func testDropLastSegmentRemovesOnlyTheLastOneAndItsFile() throws {
+        let store = VideoDraftStore(root: dir)
+        let draft = store.begin()
+        try store.finalize(segment: try write("s1.mov"), duration: 4, in: draft)
+        let two = try store.finalize(segment: try write("s2.mov"), duration: 2, in: draft)
+        let one = try store.dropLastSegment(in: two)
+        XCTAssertEqual(one.segments.map(\.duration), [4])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: two.segments[1].url.path))
+        XCTAssertEqual(store.recoverable().first?.segments, one.segments)
+        XCTAssertEqual(try store.dropLastSegment(in: one).segments, [])
+    }
+
     func testDiscardDeletesTheDraft() throws {
         let store = VideoDraftStore(root: dir)
         let draft = store.begin()
