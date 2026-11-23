@@ -1,59 +1,51 @@
 # video-recorder — parked
-parked: 2026-11-22 365d4dc0 · by build phase 1 (d2m handover), after server phases 2–3 closed
-kind: human-step
-blocked: "the new Video Recorder and Video Detail screens don't exist in d2m yet, and the owner has to approve every d2m screen before iPhone code starts (P2) — next: create both screens in d2m, approve the six d2m changes, then /builder:agent --path docs/features/video-recorder"
+parked: 2026-11-23 3562a388 · by the fleet (the run that parked it wrote no record)
+kind: stuck
+blocked: "new Video Recorder and Video Detail screens are missing in d2m, and the owner must approve all d2m screens before iPhone code (P2) — next: create both in d2m, approve the d2m changes, then /builder:agent --path docs/features/video-recorder"
 
 ## What is stuck
-Phase 1 is the d2m handover (P2). Under P2 and SPEC §iphone ("no app code until the owner approves
-the screens"), the owner approves each screen before any iPhone app code starts. Two things block that:
-
-1. **The two new screens can't be requested.** `request_project_change` refuses `video-recorder` and
-   `video-detail` as unknown subjects. Two requests asked d2m to create them. Both answered "done —
-   Ran: Create screen …", but `list_screens` / `get_screen` still return NOT_FOUND for both, so their
-   spec and build were never filed.
-2. **The owner's approval.** The six changes that were filed (below) were still building at park time.
-   d2m writes its edits **uncommitted into the main checkout** (`/Users/lukekeith/www/makeready`, on
-   `main`), not onto this branch. Its main checkout already showed uncommitted d2m edits to
-   `iphone/MakeReady/Info.plist`, `ActivityNewContainer.swift` and `ActivityNewContainerTests.swift`.
-   The build doesn't commit on `main` and doesn't merge unapproved d2m views into a feature branch
-   (owner rule, 2026-11-20).
-
-What is done: phases 2–3 (server, Tasks 2–7) are built, reviewed and green
-(verify phase `mwspcw6o-2c4ff1` at 7952fbf1), and **the contract is frozen** (2026-11-22). Phases 4–5
-(iPhone, Tasks 8–18) haven't started.
+new Video Recorder and Video Detail screens are missing in d2m, and the owner must approve all d2m screens before iPhone code (P2)
 
 ## What was tried
-- d2m requests filed 2026-11-23 01:51 UTC on branch `builder/video-recorder`, with the SPEC and the program's 01–03 docs as references:
-  - library-home `cmwsm0v3h0001v0tzy3pfybs0` (video rows, Videos type, D15/D17/D20)
-  - activity-new `cmwsm0x14000gv0tz8csbish2` (Video tile enabled, D18). Its capture failed once and was retried.
-  - activities-editor `cmwsm0ywy000vv0tzmwz9e7w0` (inline recorder, pending activity, Replace video, D18)
-  - C-132 `cmwsm10sp001av0tz4lpxhpbd` (EmptyState action, D19)
-  - C-142 `cmwsm1347001pv0tz7kkupdgr` (`removesRow: false`, D17)
-  - C-013 `cmwsm155r0024v0tzsp65n3nj` (RecordButton 80 pt video size). d2m asked 7 questions, all answered on the owner's delegation (see Evidence).
-- Screen creation: `cmwsm1ny5002pv0tzqbh2f3rn` (on memo-detail) and `cmwsp258b004kv0tz9jna6yz7` (on library-home). Both reported done, but neither screen exists.
+- 3 fleet run(s) in all — `git log --oneline -- docs/features/video-recorder` lists what each changed
 
 ## Evidence
-- C-013 answers I gave (the owner should review them):
-  - OQ-001: build from the 03 doc text, measuring Figma symbols 3322:31523/31531/31557 if they can be read. Any unknown value gets a token-bound default, recorded as a deviation.
-  - OQ-002: the memo size stays C-017's 58/46/24 pt.
-  - OQ-003: pressed = 0.6 dim at both sizes.
-  - OQ-004: drop `isEnabled`.
-  - OQ-005: video size morphs disc→square over a new `motion-record-morph` token of about 200 ms; memo swaps instantly.
-  - OQ-006/007: the PNGs are committed at `docs/features/video-recording/assets/`.
-- `list_screens search:"video"` → "No screen matched" after both create requests reported done.
+- the run that parked it: /Users/lukekeith/www/makeready/.builder/fleet/logs/video-recorder-03.log — its last lines:
+
+```
+- **Missing screens:** d2m twice reported creating `video-recorder` and `video-detail`, but neither exists. Their spec and build requests have never been filed.
+- **Changes in flight:** six other d2m changes are still building: library-home, activity-new, activities-editor, C-132, C-142 and C-013. d2m writes its output uncommitted into your main checkout on `main`, not onto this branch, and the build doesn't commit there.
+
+**Your steps:**
+1. Create the two screens in d2m. The intents to file for them are in PLAN.md Task 1 and in d2m change `cmwsm1ny5002pv0tzqbh2f3rn`.
+2. Review and approve all eight subjects.
+3. Bring d2m's commits onto `builder/video-recorder`.
+
+`docs/features/video-recorder/PARKED.md` has the change ids, what was tried and where to dig.
+
+**Rulings I made:**
+- **Server phases ran while d2m worked on phase 1.** Nothing on the server reads d2m output.
+- **I started phase 3 before phase 2's verifier run finished.** If wrong, phase 3 would have needed rework; phase 2 then came back with one red, which was fixed.
+- **I asked d2m to create the screens through other subjects**, because it refused them as unknown. If d2m can't do that, it's your step in the app, which is where this ended up.
+- **No fix round for Task 6's Stream download code**, because it matches Cloudflare's docs. If the live API differs, the fallback transcripts fail on staging.
+- **I parked instead of starting the iPhone state and services work.** The cost is the iPhone phases' time until you act.
+- **I answered d2m's 7 questions on C-013 for you.** Please review them, listed in PARKED.md:
+  - the memo button stays at its current size;
+  - pressed is a 0.6 dim;
+  - there is no disabled state;
+  - the video button morphs from disc to square over about 200 ms.
+
+Deferred minor findings are in the ledger for the final review. The one worth knowing: the Library query casts the user id column, which probably stops its index from being used. The cast should go on the parameter instead.
+
+📍 video-recorder: building — parked (human-step): the two new d2m screens are missing and no screen is approved yet — next: create both screens in d2m and approve the d2m changes, then `/builder:agent --path docs/features/video-recorder`
+```
 
 ## Where to dig
-- Why d2m's "Create screen" step reports done without a record: the d2m chat run for cmwsp258b004kv0tz9jna6yz7.
-- Not yet ruled out: the screen record exists only in the main checkout's uncommitted files, and d2m indexes screens from committed state.
+- start from the run's last lines above and the evidence it names; nothing has been ruled out yet
 
 ## Recommended next step
-In d2m, create the `video-recorder` and `video-detail` screens in the Library namespace (or commit
-d2m's uncommitted screen records). Then file their spec+build: the intents are in the Task 1 block of
-PLAN.md, and change cmwsm1ny5002pv0tzqbh2f3rn's intent has both texts. Review and approve all eight
-subjects in d2m, and bring d2m's commits onto `builder/video-recorder`. Then `/builder:agent --path
-docs/features/video-recorder` resumes at Task 1's step 4 (record `d2m-api.md`), then phase 4.
-Starting the iPhone state/services work (phase 4) now was rejected: SPEC §iphone and the owner's rule
-both hold all iPhone app code until the screens are approved.
+create both in d2m, approve the d2m changes, then /builder:agent --path docs/features/video-recorder
 
 ## History
 - 2026-11-22 parked — d2m screens missing and not yet owner-approved (P2)
+- 2026-11-23 parked — new Video Recorder and Video Detail screens are missing in d2m, and the owner must approve all d2m screens before iPhone code (P2)
