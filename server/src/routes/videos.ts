@@ -8,7 +8,8 @@ import {
   deleteVideo as deleteCloudflareVideo,
 } from '../services/cloudflare.js'
 import { trackActivity } from '../services/activity.js'
-import { captureToLibrary, getUserOrgId, syncVideoStatus } from '../services/media-library.js'
+import { syncVideoStatus } from '../services/media-library.js'
+import { createVideo, createVideoBody, VideoServiceError } from '../services/videos.service.js'
 import { deriveVideoMetadata } from '../services/media-metadata.js'
 import { canManageOrgContent } from '../services/permission.js'
 import { isUsedByActivity } from '../services/content-media.service.js'
@@ -269,6 +270,12 @@ router.post('/upload-url', requireAuth, async (req, res) => {
  *
  *       The endpoint will verify the video exists in Cloudflare and populate status,
  *       playback URL, thumbnail URL, and duration from Cloudflare's response.
+ *
+ *       Idempotent: a repeat call with the same `cloudflareUid` by the same user answers 200
+ *       with the existing row. The org Media row exists when this returns (an activity can name
+ *       the new video at once). Unknown body keys are rejected with 400, never stripped.
+ *       `transcriptStatus` is `ready` when a transcript is sent, `pending` when only `source`
+ *       is sent, `none` otherwise.
  *     security:
  *       - userSession: []
  *     requestBody:
@@ -292,7 +299,37 @@ router.post('/upload-url', requireAuth, async (req, res) => {
  *                 type: string
  *                 description: Video description
  *                 example: "A detailed walkthrough of the training process"
+ *               transcript:
+ *                 type: string
+ *                 maxLength: 20000
+ *                 description: On-device transcript
+ *               transcriptSegments:
+ *                 type: array
+ *                 maxItems: 2000
+ *                 items:
+ *                   type: object
+ *                   required: [text, startMs, endMs]
+ *                   properties:
+ *                     text: { type: string, maxLength: 1000 }
+ *                     startMs: { type: integer, minimum: 0 }
+ *                     endMs: { type: integer, minimum: 0, description: "At least startMs" }
+ *               source:
+ *                 type: string
+ *                 enum: [recording, import]
+ *                 description: Accepted, not persisted; sent without a transcript it marks the transcript pending
  *     responses:
+ *       200:
+ *         description: A video with this cloudflareUid already exists for the caller; the existing row
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   $ref: '#/components/schemas/Video'
  *       201:
  *         description: Video record created successfully
  *         content:
@@ -331,8 +368,10 @@ router.post('/upload-url', requireAuth, async (req, res) => {
  *                 error:
  *                   type: string
  *                   example: "User not authenticated"
+ *       403:
+ *         description: Cloudflare Stream says the upload was minted for another user
  *       409:
- *         description: Video already exists
+ *         description: Video already exists and belongs to another user
  *         content:
  *           application/json:
  *             schema:
@@ -358,12 +397,6 @@ router.post('/upload-url', requireAuth, async (req, res) => {
  *                   type: string
  *                   example: "Internal server error"
  */
-const createVideoSchema = z.object({
-  cloudflareUid: z.string().min(1, 'Cloudflare UID is required'),
-  title: z.string().optional(),
-  description: z.string().optional(),
-})
-
 router.post('/', requireAuth, async (req, res) => {
   try {
     const userId = (req.user as any)?.id
@@ -374,8 +407,7 @@ router.post('/', requireAuth, async (req, res) => {
       })
     }
 
-    // Validate request body
-    const validation = createVideoSchema.safeParse(req.body)
+    const validation = createVideoBody.safeParse(req.body)
     if (!validation.success) {
       return res.status(400).json({
         success: false,
@@ -383,96 +415,14 @@ router.post('/', requireAuth, async (req, res) => {
       })
     }
 
-    const { cloudflareUid, title, description } = validation.data
-
-    // Check if video already exists
-    const existingVideo = await prisma.video.findUnique({
-      where: { cloudflareUid },
-    })
-
-    if (existingVideo) {
-      return res.status(409).json({
-        success: false,
-        error: 'Video already exists',
-      })
-    }
-
-    // Get video details from Cloudflare to verify it exists and get status
-    const cloudflareResult = await getCloudflareVideo(cloudflareUid)
-
-    // Determine status and URLs
-    let status = 'pending'
-    let playbackUrl = '' // Will be populated when video is ready
-    let thumbnailUrl: string | null = null
-    let duration: number | null = null
-
-    if (cloudflareResult.success && cloudflareResult.video) {
-      const cfVideo = cloudflareResult.video
-
-      // Map Cloudflare status to our status
-      if (cfVideo.status.state === 'ready') {
-        status = 'ready'
-        duration = cfVideo.duration ? Math.round(cfVideo.duration) : null
-        // Use Cloudflare's actual URLs (includes correct customer subdomain)
-        thumbnailUrl = cfVideo.thumbnail || null
-        playbackUrl = cfVideo.playback?.hls || ''
-      } else if (cfVideo.status.state === 'error') {
-        status = 'error'
-      } else {
-        status = 'pending'
-      }
-    }
-
-    // Create video record
-    const video = await prisma.video.create({
-      data: {
-        cloudflareUid,
-        title,
-        description,
-        playbackUrl,
-        thumbnailUrl,
-        duration,
-        status,
-        userId,
-      },
-    })
-
-    trackActivity({
-      actorId: userId,
-      action: 'CREATED',
-      resourceType: 'VIDEO',
-      resourceId: video.id,
-      resourceName: video.title || 'Untitled video',
-    })
-
-    // Auto-capture to media library with video metadata
-    const orgId = await getUserOrgId(userId)
-    if (orgId) {
-      const cfInput = cloudflareResult.video?.input
-      const videoMeta = deriveVideoMetadata({ width: cfInput?.width, height: cfInput?.height })
-      captureToLibrary({
-        title: video.title || 'Untitled video',
-        url: video.playbackUrl || '',
-        type: 'video',
-        mimeType: 'video/mp4',
-        thumbnailUrl: video.thumbnailUrl ?? undefined,
-        organizationId: orgId,
-        uploadedBy: userId,
-        videoId: video.id,
-        source: 'auto_capture',
-        uploadStatus: video.status === 'ready' ? 'ready' : 'pending',
-        duration: video.duration ?? undefined,
-        ...videoMeta,
-      })
-    }
-
-    res.status(201).json({
-      success: true,
-      data: video,
-    })
+    const { status, video } = await createVideo(userId, validation.data)
+    return res.status(status).json({ success: true, data: video })
   } catch (error) {
+    if (error instanceof VideoServiceError) {
+      return res.status(error.status).json({ success: false, error: error.message })
+    }
     console.error('Error creating video:', error)
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Internal server error',
     })
