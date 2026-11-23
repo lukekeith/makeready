@@ -3,15 +3,16 @@
 //  MakeReadyUI — the UI 2.0 module
 //
 //  Built from screen library-home in d2m (§2 layout, §3 states, §4 components).
-//  §5 endpoints, cited only — this view calls none: GET /api/notes and the memo feature's memo
-//  list (wire contracts owned by the builder `notes` and `memo` feature specs).
+//  §5 endpoints, cited only — this view calls none: GET /api/notes, the memo feature's memo
+//  list and the video-recorder feature's video list (wire contracts owned by the builder `notes`,
+//  `memo` and `video-recorder` feature specs).
 //  PREVIEW ONLY: referenced by no app screen, route, tab, flag or navigation case.
 //
 
 import SwiftUI
 
-/// Library — the Home tab's Library section root (§6, D51/D64): the leader's notes (C-005) and
-/// voice memos (C-006) in one flat list with no date-section headers, interleaved newest first
+/// Library — the Home tab's Library section root (§6, D51/D64): the leader's notes (C-005),
+/// voice memos (C-006) and videos in one flat list with no date-section headers, interleaved newest first
 /// (§2 item 4), under the pinned C-131 search and `Type` filter header (§2 item 2). No TopNav, no
 /// TabBar: the shell's `HomeSectionLayout` owns both (§1 deviation 1). The rows sit in a
 /// `LazyVStack` so the list can hold tens of thousands of rows (§2 "Virtualized", §3 Performance
@@ -37,7 +38,7 @@ struct LibraryHomeScreen: View {
             case populated
             /// §3 `loading` — first fetch in flight, nothing cached.
             case loading
-            /// §3 `empty` — the fetch succeeded with zero notes and zero memos.
+            /// §3 `empty` — the fetch succeeded with zero notes, zero memos and zero videos.
             case empty
             /// §3 `coming-soon` — the former placeholder, preview/capture only.
             case comingSoon = "coming-soon"
@@ -70,9 +71,12 @@ struct LibraryHomeScreen: View {
         var rowUpdatedAt: [Date] = []
         /// §3 input `memos` — the voice memos, interleaved with the note rows by date (§2 item 4).
         var memos: [MemoRowInput] = []
+        /// §3 input `videos` — "the videos, passed next to the notes and memos", interleaved by
+        /// date (§2 item 4).
+        var videos: [VideoRowInput] = []
         /// §3 `row-open`: "one row, swiped half way, rests open with its trailing `Delete` circle
         /// showing" — the preview's seed for the open row (R-31: ephemeral screen state, seeded
-        /// here): `note:<row index>` or `memo:<memo id>`; nil = every row closed.
+        /// here): `note:<row index>`, `memo:<memo id>` or `video:<video id>`; nil = every row closed.
         var openRow: String?
         /// §3 `delete-confirm`: "the `row-open` row, with the delete confirmation card presented
         /// over the dimmed page … Seeded like `row-open`" — the card is up for `openRow`'s row.
@@ -95,6 +99,29 @@ struct LibraryHomeScreen: View {
             var preview: MemoListRow.Preview
         }
 
+        /// §3 `VideoRowInput` — one video: "Each carries `id`, `title`, `duration`, `recordedAt`
+        /// and its state (a transcript first line, `transcribing`, `uploading` or `processing`)."
+        /// Duration and date arrive formatted (D6), as the memo rows do.
+        struct VideoRowInput: Identifiable {
+            /// §2 line 2: "the first line of the video's transcript, or the state text
+            /// `Transcribing…`, `Uploading…` or `Processing…`".
+            enum Preview {
+                case transcript(String)
+                case transcribing
+                case uploading
+                case processing
+            }
+
+            var id: String
+            var title: String
+            /// §2 line 1: "the date label followed by the duration (`9:38 PM · 0:45`, the memo rule)".
+            var durationLabel: String
+            var dateLabel: String
+            /// §2: "`recordedAt` for a memo and for a video" — the interleave key.
+            var recordedAt: Date
+            var preview: Preview
+        }
+
         /// §3 `coming-soon`. Kept because the app's `LibraryHomeContainer` (UI2/Containers) still
         /// renders it; the notes feature rewires that container to `populated` (§7).
         static let comingSoon = State(phase: .comingSoon)
@@ -105,6 +132,8 @@ struct LibraryHomeScreen: View {
     var onOpenNote: (Int) -> Void = { _ in }
     /// §3 "Tap a memo row: pushes `memo-detail` for that memo" — the memo's `id`.
     var onOpenMemo: (String) -> Void = { _ in }
+    /// §3 "Tap a video row: pushes **Video detail** for that video, through `onOpenVideo`" — by id.
+    var onOpenVideo: (String) -> Void = { _ in }
     /// The search text after every change, and "" when the field is cleared — for a caller that
     /// searches elsewhere (R-01 change callback; the local query below still updates).
     var onSearchChange: (String) -> Void = { _ in }
@@ -116,7 +145,7 @@ struct LibraryHomeScreen: View {
     /// the shell's TopNav morph reads it, since this screen owns its scroll (Library `ownsScroll`).
     var onScrollChange: (CGFloat, Bool) -> Void = { _, _ in }
     /// §3 "Tap `Save` in the `Type` menu: the screen applies the checked set and reports it through
-    /// `onSaveTypes`" — an empty set or both types means everything.
+    /// `onSaveTypes`" — "An empty set, or all three kinds, means everything".
     var onSaveTypes: (Set<LibraryItemType>) -> Void = { _ in }
     /// §3 "Pull to refresh: the shared `PullToRefresh` calls `onRefresh`" — media-home's shape
     /// (`() -> Void`, its page's own loading state shows the wait).
@@ -126,8 +155,11 @@ struct LibraryHomeScreen: View {
     var onDeleteNote: (Int) -> Void = { _ in }
     /// §3 "Swipe a memo row to Delete: the screen calls `onDeleteMemo(id)`" — the memo's `id`.
     var onDeleteMemo: (String) -> Void = { _ in }
+    /// §3 `onDeleteVideo` — "a video, by id, was asked to be deleted. The row stays until the call
+    /// succeeds" (`removesRow: false`): the screen never removes a video row itself.
+    var onDeleteVideo: (String) -> Void = { _ in }
 
-    // §3 search-active: "The list filters live across both kinds" — UI-only, seeded from `state`
+    // §3 search-active: "The list filters live across all three kinds" — UI-only, seeded from `state`
     // (R-31: search text and the presented menu are ephemeral screen state).
     @SwiftUI.State private var query: String
     @SwiftUI.State private var selectedTypes: Set<LibraryItemType>
@@ -155,7 +187,9 @@ struct LibraryHomeScreen: View {
         onSaveTypes: @escaping (Set<LibraryItemType>) -> Void = { _ in },
         onRefresh: @escaping () -> Void = {},
         onDeleteNote: @escaping (Int) -> Void = { _ in },
-        onDeleteMemo: @escaping (String) -> Void = { _ in }
+        onDeleteMemo: @escaping (String) -> Void = { _ in },
+        onOpenVideo: @escaping (String) -> Void = { _ in },
+        onDeleteVideo: @escaping (String) -> Void = { _ in }
     ) {
         self.state = state
         self.onOpenNote = onOpenNote
@@ -167,6 +201,8 @@ struct LibraryHomeScreen: View {
         self.onRefresh = onRefresh
         self.onDeleteNote = onDeleteNote
         self.onDeleteMemo = onDeleteMemo
+        self.onOpenVideo = onOpenVideo
+        self.onDeleteVideo = onDeleteVideo
         _openItem = SwiftUI.State(initialValue: Self.seededItem(state.openRow, in: state))
         _confirmingItem = SwiftUI.State(
             initialValue: state.deleteConfirmPresented ? Self.seededItem(state.openRow, in: state) : nil
@@ -266,8 +302,8 @@ struct LibraryHomeScreen: View {
     /// §3 loading / empty: "The header's search field is disabled".
     private var searchEnabled: Bool { state.phase == .populated }
 
-    /// §3 The `Type` chip: "C-036 FilterMenuOverlay in its multi-select form, with `Notes` and
-    /// `Voice memos` as checkable rows and **Save**. The menu has no "All types" row (D3)." As
+    /// §3 The `Type` chip: "C-036 FilterMenuOverlay in its multi-select form, with `Notes`,
+    /// `Voice memos` and `Videos` as checkable rows, in that order, and **Save**. The menu has no "All types" row (D3)." As
     /// members-home: picks are a draft, Save applies and closes, ✕ closes with no change.
     private var typeMenu: some View {
         FilterMenuOverlay(
@@ -296,7 +332,7 @@ struct LibraryHomeScreen: View {
 
     // MARK: - §2 content area
 
-    /// The notes-and-memos list is drawn (top-aligned); every other state is a centred C-132 or blank.
+    /// The Library list is drawn (top-aligned); every other state is a centred C-132 or blank.
     private func showsList(_ list: VisibleList) -> Bool { state.phase == .populated && !list.rows.isEmpty }
 
     @ViewBuilder
@@ -347,13 +383,14 @@ struct LibraryHomeScreen: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
-    // MARK: - §2 item 4 — the Library list (notes and memos, one flat list)
+    // MARK: - §2 item 4 — the Library list (notes, voice memos and videos, one flat list)
 
     /// One row of the merged list, keyed by its model's stable id: a note (`state.noteIDs`, or its
-    /// row index when the caller passed none — previews only) or a memo (its `id`).
+    /// row index when the caller passed none — previews only), a memo or a video (its `id`).
     private enum Item: Hashable {
         case note(String)
         case memo(String)
+        case video(String)
     }
 
     /// A note row's stable key: its model id, else (previews only) its row index.
@@ -369,9 +406,11 @@ struct LibraryHomeScreen: View {
     /// The caller's rows, for resetting `deletedItems` when they change.
     private var rowsIdentity: [String] {
         state.rowTitles.indices.map { Self.noteKey($0, in: state) } + state.memos.map(\.id)
+            + state.videos.map(\.id)
     }
 
-    /// §3 `row-open`'s seed: `note:<row index>` → that note row, `memo:<id>` → that memo row.
+    /// §3 `row-open`'s seed: `note:<row index>` → that note row, `memo:<id>` → that memo row,
+    /// `video:<id>` → that video row.
     private static func seededItem(_ key: String?, in state: State) -> Item? {
         guard let key, let colon = key.firstIndex(of: ":") else { return nil }
         let value = String(key[key.index(after: colon)...])
@@ -379,20 +418,21 @@ struct LibraryHomeScreen: View {
         case "note":
             return Int(value).flatMap { state.rowTitles.indices.contains($0) ? Item.note(noteKey($0, in: state)) : nil }
         case "memo": return state.memos.contains { $0.id == value } ? Item.memo(value) : nil
+        case "video": return state.videos.contains { $0.id == value } ? Item.video(value) : nil
         default: return nil
         }
     }
 
     /// One visible row: what it is, where its data sits, and its D11 annotation ordinals — all
     /// resolved once, so per-row work is O(1) (§3 Performance contract: "an id-to-index map once
-    /// per render, instead of scanning the note titles or the memos for every row").
+    /// per render, instead of scanning the notes, memos or videos for every row").
     private struct VisibleRow: Identifiable {
-        enum Source { case note(row: Int), memo(index: Int) }
+        enum Source { case note(row: Int), memo(index: Int), video(index: Int) }
         let item: Item
         let source: Source
         /// Position among every visible row (C-142 suffix; the C-088 above it is `position - 1`).
         let position: Int
-        /// Position among the visible rows of its own kind (C-005 / C-006 suffix).
+        /// Position among the visible rows of its own kind (C-005 / C-006 / video row suffix).
         let kindPosition: Int
         var id: Item { item }
     }
@@ -407,10 +447,12 @@ struct LibraryHomeScreen: View {
     private var visibleList: VisibleList {
         let needle = query.trimmingCharacters(in: .whitespaces)
         let filtering = filtersLocally && !needle.isEmpty
-        // §3: "The filter combines with search … Nothing checked, or both checked, shows every row";
+        // §3: "The filter combines with search … Nothing checked, or all three checked, shows every
+        // row; one or two checked shows only those kinds";
         // caller-owned filtering applies neither.
         let showsNotes = !filtersLocally || LibraryItemType.shows(.note, in: selectedTypes)
         let showsMemos = !filtersLocally || LibraryItemType.shows(.memo, in: selectedTypes)
+        let showsVideos = !filtersLocally || LibraryItemType.shows(.video, in: selectedTypes)
         let notes = showsNotes ? state.rowTitles.indices.filter { row in
             guard !deletedItems.contains(.note(Self.noteKey(row, in: state))) else { return false }
             guard filtering else { return true }
@@ -427,38 +469,58 @@ struct LibraryHomeScreen: View {
             return memo.title.localizedCaseInsensitiveContains(needle)
                 || (Self.transcript(memo) ?? "").localizedCaseInsensitiveContains(needle)
         } : []
-        return VisibleList(rows: merged(notes: notes, memos: memos))
+        let videos = showsVideos ? state.videos.indices.filter { index in
+            let video = state.videos[index]
+            guard filtering else { return true }
+            // §3: "a memo or a video by title and transcript text".
+            return video.title.localizedCaseInsensitiveContains(needle)
+                || (Self.transcript(video) ?? "").localizedCaseInsensitiveContains(needle)
+        } : []
+        return VisibleList(rows: merged(notes: notes, memos: memos, videos: videos))
     }
 
     /// §2 item 4: "interleaved in a single list, newest first by each item's own date: `updatedAt`
-    /// for a note and `recordedAt` for a memo". A stable merge: the notes keep their passed order,
-    /// and a note with no `rowUpdatedAt` stays ahead of every memo.
-    private func merged(notes: [Int], memos: [Int]) -> [VisibleRow] {
+    /// for a note, `recordedAt` for a memo and for a video". A stable merge: the notes keep their
+    /// passed order, and a note with no `rowUpdatedAt` stays ahead of every memo and video; on equal
+    /// dates a note comes first, then a memo, then a video. O(n log n) once per render.
+    private func merged(notes: [Int], memos: [Int], videos: [Int]) -> [VisibleRow] {
         var result: [VisibleRow] = []
-        result.reserveCapacity(notes.count + memos.count)
-        var noteCursor = notes.startIndex
-        var memoCursor = memos.startIndex
+        result.reserveCapacity(notes.count + memos.count + videos.count)
         let sortedMemos = memos.sorted { state.memos[$0].recordedAt > state.memos[$1].recordedAt }
-        var notePosition = 0
-        var memoPosition = 0
-        func appendNote() {
+        let sortedVideos = videos.sorted { state.videos[$0].recordedAt > state.videos[$1].recordedAt }
+        var noteCursor = notes.startIndex, memoCursor = 0, videoCursor = 0
+        var notePosition = 0, memoPosition = 0, videoPosition = 0
+        func noteDate() -> Date? {
+            guard noteCursor < notes.endIndex else { return nil }
             let row = notes[noteCursor]
-            result.append(VisibleRow(item: .note(Self.noteKey(row, in: state)), source: .note(row: row),
-                                     position: result.count, kindPosition: notePosition))
-            notePosition += 1; noteCursor += 1
+            return state.rowUpdatedAt.indices.contains(row) ? state.rowUpdatedAt[row] : .distantFuture
         }
-        func appendMemo() {
-            let index = sortedMemos[memoCursor]
-            result.append(VisibleRow(item: .memo(state.memos[index].id), source: .memo(index: index),
-                                     position: result.count, kindPosition: memoPosition))
-            memoPosition += 1; memoCursor += 1
+        func memoDate() -> Date? {
+            memoCursor < sortedMemos.count ? state.memos[sortedMemos[memoCursor]].recordedAt : nil
         }
-        while noteCursor < notes.endIndex || memoCursor < sortedMemos.endIndex {
-            guard memoCursor < sortedMemos.endIndex else { appendNote(); continue }
-            guard noteCursor < notes.endIndex else { appendMemo(); continue }
-            let noteDate = state.rowUpdatedAt.indices.contains(notes[noteCursor])
-                ? state.rowUpdatedAt[notes[noteCursor]] : .distantFuture
-            if noteDate >= state.memos[sortedMemos[memoCursor]].recordedAt { appendNote() } else { appendMemo() }
+        func videoDate() -> Date? {
+            videoCursor < sortedVideos.count ? state.videos[sortedVideos[videoCursor]].recordedAt : nil
+        }
+        while true {
+            let nextNote = noteDate(), nextMemo = memoDate(), nextVideo = videoDate()
+            if let note = nextNote, note >= (nextMemo ?? .distantPast), note >= (nextVideo ?? .distantPast) {
+                let row = notes[noteCursor]
+                result.append(VisibleRow(item: .note(Self.noteKey(row, in: state)), source: .note(row: row),
+                                         position: result.count, kindPosition: notePosition))
+                notePosition += 1; noteCursor += 1
+            } else if let memo = nextMemo, memo >= (nextVideo ?? .distantPast) {
+                let index = sortedMemos[memoCursor]
+                result.append(VisibleRow(item: .memo(state.memos[index].id), source: .memo(index: index),
+                                         position: result.count, kindPosition: memoPosition))
+                memoPosition += 1; memoCursor += 1
+            } else if nextVideo != nil {
+                let index = sortedVideos[videoCursor]
+                result.append(VisibleRow(item: .video(state.videos[index].id), source: .video(index: index),
+                                         position: result.count, kindPosition: videoPosition))
+                videoPosition += 1; videoCursor += 1
+            } else {
+                break
+            }
         }
         return result
     }
@@ -466,6 +528,12 @@ struct LibraryHomeScreen: View {
     /// The transcript text a memo row holds — `.transcript(String)`'s text, else none.
     private static func transcript(_ memo: State.MemoRowInput) -> String? {
         if case .transcript(let text) = memo.preview { return text }
+        return nil
+    }
+
+    /// The transcript line a video row holds — `.transcript(String)`'s text, else none.
+    private static func transcript(_ video: State.VideoRowInput) -> String? {
+        if case .transcript(let text) = video.preview { return text }
         return nil
     }
 
@@ -503,6 +571,12 @@ struct LibraryHomeScreen: View {
                             onTap: { onOpenMemo(memo.id) }
                         )
                         .ui2Element(Self.annotation("C-006 MemoListRow", row.kindPosition))
+                    case .video(let index):
+                        // §2: "A video row has the same shape as a memo row, with the video glyph
+                        // on the avatar" (§4: composed by the screen, no registry row yet).
+                        let video = state.videos[index]
+                        LibraryVideoRow(video: video, onTap: { onOpenVideo(video.id) })
+                            .ui2Element(Self.annotation("Video row", row.kindPosition))
                     }
                 }
                 .ui2Element(Self.annotation("C-142 SwipeActions", row.position))
@@ -518,7 +592,7 @@ struct LibraryHomeScreen: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// §3 Swipe actions: "every note row and every memo row is wrapped in the global SwipeActions
+    /// §3 Swipe actions: "every note, memo and video row is wrapped in the global SwipeActions
     /// component, with one trailing `Delete` action: a `trash` glyph on a solid `color-error`
     /// circle, with full-swipe on … Only one row is open at a time in the list: the screen holds
     /// that state."
@@ -532,6 +606,9 @@ struct LibraryHomeScreen: View {
                     glyph: .trash2,
                     tint: Token.error,
                     fullSwipe: true,
+                    // §3: "A video row uses `removesRow: false`: the row stays in place until the
+                    // delete call succeeds, and it springs back closed".
+                    removesRow: Self.removesRow(item),
                     onAction: { delete(item, animated: false) },
                     onTap: { confirmingItem = item }
                 ),
@@ -552,20 +629,31 @@ struct LibraryHomeScreen: View {
     /// after C-142's own height collapse, so the row is removed instantly with no transition of the
     /// screen's own (C-142 deviation 3). The confirmation's Delete, whose row has not collapsed,
     /// still moves the rows below on `motion-swipe-settle`, with no fade (`.transition(.identity)`).
+    /// A video row (`removesRow: false`) is never removed here: it closes and stays until the
+    /// caller's delete succeeds and the row leaves `state.videos`.
     private func delete(_ item: Item, animated: Bool = true) {
         if openItem == item { openItem = nil }
-        withAnimation(animated ? Token.Motion.swipeSettle : nil) { _ = deletedItems.insert(item) }
+        if Self.removesRow(item) {
+            withAnimation(animated ? Token.Motion.swipeSettle : nil) { _ = deletedItems.insert(item) }
+        }
         switch item {
         case .note(let key): if let row = noteRow(key) { onDeleteNote(row) }
         case .memo(let id): onDeleteMemo(id)
+        case .video(let id): onDeleteVideo(id)
         }
+    }
+
+    /// §3: notes and memos "collapse the row as soon as Delete runs"; a video row does not.
+    private static func removesRow(_ item: Item) -> Bool {
+        if case .video = item { return false }
+        return true
     }
 
     // MARK: - §3 Delete confirmation
 
     private static let deleteAction = ActionMenuOverlay.ActionItem(glyph: "trash-2", label: "Delete", tone: .destructive)
 
-    /// §3: "The title is `Delete this note?` or `Delete this memo?`, with the actions **Delete**
+    /// §3: "The title is `Delete this note?`, `Delete this memo?` or `Delete this video?`, with the actions **Delete**
     /// (destructive) and **Cancel**."
     private var deleteConfirmCard: some View {
         ActionMenuOverlay(
@@ -582,10 +670,12 @@ struct LibraryHomeScreen: View {
         switch item {
         case .note: return "Delete this note?"
         case .memo: return "Delete this memo?"
+        case .video: return "Delete this video?"
         }
     }
 
-    /// §3: "**Delete** runs the delete: the row collapses and `onDeleteNote` or `onDeleteMemo` fires."
+    /// §3: "**Delete** runs the delete (a note or memo row collapses and `onDeleteNote` or
+    /// `onDeleteMemo` fires; a video row calls `onDeleteVideo` and stays until it succeeds)."
     private func confirmDelete() {
         guard let item = confirmingItem else { return }
         confirmingItem = nil
@@ -631,25 +721,126 @@ struct LibraryHomeScreen: View {
     }
 }
 
+// MARK: - §2 item 4 — the video row
+
+/// §2 "A **video row** has the same shape as a memo row, with the video glyph on the avatar";
+/// §4 "Video row ×N — drawn in the same house row look as C-006 (the screen composes it from the
+/// same row pattern; no separate registry row exists for it yet)". The C-006 band, line rhythm and
+/// type styles exactly, over a C-038 Avatar with its `video` fallback glyph. Stateless: the caller
+/// formats the date and duration (D6); a tap is reported through `onTap`.
+private struct LibraryVideoRow: View {
+    let video: LibraryHomeScreen.State.VideoRowInput
+    var onTap: () -> Void = {}
+
+    var body: some View {
+        SwiftUI.Button(action: onTap) {
+            // C-006's house list-row band: avatar, then the text column, 16 between, vertical inset
+            // 16, 8 between the lines (FLAGGED as C-006: `space-card-padding`, value-equal).
+            HStack(alignment: .center, spacing: Token.Space.cardPadding) {
+                Avatar(imageURL: nil, initials: nil, size: NoteListRow.avatarSize, fallbackGlyph: .video)
+                    .accessibilityHidden(true)
+                    .ui2Element("Leading")
+                VStack(alignment: .leading, spacing: Token.Space.elementGap) {
+                    titleLine
+                    previewLine
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.vertical, Token.Space.cardPadding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        // §3 Accessibility: "a memo or a video as title, duration, date, transcript state or preview".
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(["Video", video.title, video.durationLabel, video.dateLabel, previewText].joined(separator: ", "))
+        .accessibilityAddTraits(.isButton)
+        .ui2Element("VideoRow")
+    }
+
+    /// §2 Line 1: "the title on the left (one line, truncating) and, on the right, the date label
+    /// followed by the duration (`9:38 PM · 0:45`, the memo rule), the whole label in `color-accent`".
+    private var titleLine: some View {
+        HStack(spacing: Token.Space.elementGap) {
+            Text(video.title)
+                .designTextStyle(Token.TypeStyle.titleCard)
+                .foregroundStyle(Token.textPrimary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .ui2Element("Title")
+            Text("\(video.dateLabel) · \(video.durationLabel)")
+                .designTextStyle(Token.TypeStyle.bodySm)
+                .monospacedDigit()
+                .foregroundStyle(Token.accent)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .layoutPriority(1)
+                .ui2Element("Date")
+        }
+        .frame(height: Self.lineBox(Token.TypeStyle.titleCard))
+        .ui2Element("Title line")
+    }
+
+    /// §2 Line 2: "one line, truncating, with no date in front: the first line of the video's
+    /// transcript, or the state text `Transcribing…`, `Uploading…` or `Processing…`".
+    private var previewLine: some View {
+        Text(previewText)
+            .designTextStyle(Token.TypeStyle.bodySm)
+            // FLAGGED — as C-006 §2: italic on `type-body-sm` for `.transcribing`, no italic token.
+            .italic(isTranscribing)
+            .foregroundStyle(Token.textSecondary)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: Self.lineBox(Token.TypeStyle.bodySm))
+            .ui2Element(isTranscript ? "Preview" : "Status")
+    }
+
+    private var previewText: String {
+        switch video.preview {
+        case .transcript(let text): return text
+        case .transcribing: return "Transcribing…"
+        case .uploading: return "Uploading…"
+        case .processing: return "Processing…"
+        }
+    }
+
+    private var isTranscribing: Bool {
+        if case .transcribing = video.preview { return true }
+        return false
+    }
+
+    private var isTranscript: Bool {
+        if case .transcript = video.preview { return true }
+        return false
+    }
+
+    private static func lineBox(_ style: DesignTextStyle) -> CGFloat { style.lineHeight ?? style.size }
+}
+
 // MARK: - §3 The `Type` filter
 
-/// §3 inputs: "`LibraryItemType` is `note` or `memo`" — one checkable row of the `Type` menu.
+/// §3 inputs: "`LibraryItemType` is `note`, `memo` or `video` ("Videos"), in that order" — one
+/// checkable row of the `Type` menu.
 enum LibraryItemType: String {
     case note
     case memo
+    case video
 
-    /// §3 The `Type` menu's checkable rows, in order: "`Notes` and `Voice memos`".
-    static let menuOptions: [Self] = [.note, .memo]
+    /// §3 The `Type` menu's checkable rows, in order: "`Notes`, `Voice memos` and `Videos`".
+    static let menuOptions: [Self] = [.note, .memo, .video]
 
     /// The row's label in C-036 and on the chip.
     var label: String {
         switch self {
         case .note: return "Notes"
         case .memo: return "Voice memos"
+        case .video: return "Videos"
         }
     }
 
-    /// §3: "Nothing checked, or both checked, shows every row" — whether `type`'s rows show.
+    /// §3: "Nothing checked, or all three checked, shows every row" — whether `type`'s rows show.
     static func shows(_ type: Self, in selected: Set<Self>) -> Bool {
         selected.isEmpty || selected.contains(type)
     }
@@ -697,7 +888,7 @@ private extension LibraryHomeScreen.State {
     /// `filter-memos` is it with `Voice memos` checked in the `Type` menu.
     static func mixed(searchText: String = "", searchFocused: Bool = false, selectedTypes: Set<LibraryItemType> = [],
                       typeMenuOpen: Bool = false, openRow: String? = nil,
-                      deleteConfirmPresented: Bool = false) -> Self {
+                      deleteConfirmPresented: Bool = false, videos: [VideoRowInput] = []) -> Self {
         .init(
             phase: .populated,
             searchText: searchText,
@@ -724,9 +915,40 @@ private extension LibraryHomeScreen.State {
                     recordedAt: at("2026-11-17T08:00:00Z"), preview: .waitingToUpload
                 ),
             ],
+            videos: videos,
             openRow: openRow,
             deleteConfirmPresented: deleteConfirmPresented
         )
+    }
+
+    /// §3 `populated-mixed` / `search-mixed` / `type-menu-open`: "a video row" among the notes and
+    /// memos, whose transcript matches `search-mixed`'s "rest".
+    static let mixedVideos: [VideoRowInput] = [
+        VideoRowInput(
+            id: "video-welcome", title: "Sunday welcome", durationLabel: "0:45", dateLabel: "11:20 AM",
+            recordedAt: at("2026-11-21T11:20:00Z"),
+            preview: .transcript("Welcome back. This week we are talking about rest")
+        ),
+    ]
+
+    /// §3 `populated-videos`: "video rows in each of their line 2 states: a transcript first line,
+    /// `Transcribing…`, `Uploading…` and `Processing…`, among notes and memos". `filter-videos` is
+    /// it with `Videos` checked in the `Type` menu.
+    static func videos(selectedTypes: Set<LibraryItemType> = []) -> Self {
+        mixed(selectedTypes: selectedTypes, videos: mixedVideos + [
+            VideoRowInput(
+                id: "video-recap", title: "Lesson 4 recap", durationLabel: "2:00", dateLabel: "4:05 PM",
+                recordedAt: at("2026-11-21T16:05:00Z"), preview: .transcribing
+            ),
+            VideoRowInput(
+                id: "video-intro", title: "Small group intro", durationLabel: "1:12", dateLabel: "Thursday",
+                recordedAt: at("2026-11-19T18:00:00Z"), preview: .uploading
+            ),
+            VideoRowInput(
+                id: "video-prayer-walk", title: "Prayer walk invite", durationLabel: "1:58", dateLabel: "Monday",
+                recordedAt: at("2026-11-16T12:00:00Z"), preview: .processing
+            ),
+        ])
     }
 
     private static let isoFormatter = ISO8601DateFormatter()
@@ -776,14 +998,14 @@ private extension LibraryHomeScreen.State {
 }
 
 #Preview("populated-mixed") {
-    LibraryHomeScreen(state: .mixed())
+    LibraryHomeScreen(state: .mixed(videos: LibraryHomeScreen.State.mixedVideos))
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)
 }
 
 #Preview("search-mixed") {
-    LibraryHomeScreen(state: .mixed(searchText: "rest", searchFocused: true))
+    LibraryHomeScreen(state: .mixed(searchText: "rest", searchFocused: true, videos: LibraryHomeScreen.State.mixedVideos))
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)
@@ -797,7 +1019,7 @@ private extension LibraryHomeScreen.State {
 }
 
 #Preview("type-menu-open") {
-    LibraryHomeScreen(state: .mixed(typeMenuOpen: true))
+    LibraryHomeScreen(state: .mixed(typeMenuOpen: true, videos: LibraryHomeScreen.State.mixedVideos))
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)
@@ -812,6 +1034,20 @@ private extension LibraryHomeScreen.State {
 
 #Preview("delete-confirm") {
     LibraryHomeScreen(state: .mixed(openRow: "note:0", deleteConfirmPresented: true))
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
+
+#Preview("populated-videos") {
+    LibraryHomeScreen(state: .videos())
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
+
+#Preview("filter-videos") {
+    LibraryHomeScreen(state: .videos(selectedTypes: [.video]))
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)

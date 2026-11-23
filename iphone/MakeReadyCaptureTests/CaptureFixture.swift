@@ -1154,6 +1154,9 @@ struct CaptureComponent: Codable {
     let readOnlyKind: String?                  // video · youtube · write · poll
     let readOnlyTitle: String?                 // "" = the kind's C-086 title
     let readOnlyPosterURL: String?             // the read-only page's image; "" = none
+    // activities-editor §35 (video-recorder D18). Additive:
+    let videoPendingPosterURL: String?         // videoPending's poster frame; nil = neutral ground
+    let replaceVideoMenuOpen: Bool?            // the attached video's Replace video menu drawn open
     // activities-editor §15.2 (chat change 2026-11-09, D30). Additive:
     let sliderDocked: Bool?                    // C-093 drawn docked at the left edge
     let snapIndex: Int?                        // activities-editor §18.8 — the dragged object's index (−1 none)
@@ -1549,7 +1552,7 @@ struct CaptureComponent: Codable {
     let rowDates: [String]?
     let rowPreviews: [String]?
     let rowContexts: [String]?
-    let selectedTypes: [String]?               // library-home — each "note" | "memo"
+    let selectedTypes: [String]?               // library-home — each "note" | "memo" | "video"
     let typeMenuOpen: Bool?                    // library-home — §3 type-menu-open
     // ── preview props ──
     // C-009 EditorNavChrome — `editing` is reused (same name, same type).
@@ -1580,7 +1583,8 @@ struct CaptureComponent: Codable {
     // ── screen library-home (memos) ──
     let rowUpdatedAt: [String]?                // library-home — ISO8601, per note row
     let memos: [CaptureUI2LibraryMemo]?        // library-home — State.MemoRowInput
-    let openRow: String?                       // library-home — §3 row-open: "note:<row>" | "memo:<id>"; absent = closed
+    let openRow: String?                       // library-home — §3 row-open: "note:<row>" | "memo:<id>" | "video:<id>"; absent = closed
+    let videos: [CaptureUI2LibraryVideo]?      // library-home — State.VideoRowInput
     // ── preview props ──
     // C-018 RecorderExpandedView — `title`, `startTime`, `elapsed`, `samples` and `phase` are
     // reused (same names, same types); `menu` is its Menu case name.
@@ -1599,17 +1603,91 @@ struct CaptureComponent: Codable {
     let paragraphTexts: [String]?
     let renaming: Bool?
     let deleteConfirmPresented: Bool?          // memo-detail; library-home §3 delete-confirm (seeded with openRow)
+    // ── screen video-detail ──
+    // memo-detail's fields above are reused, and `status` (String?: ready | uploading |
+    // processing | error) is reused from the top of the struct.
+    let thumbnailURL: String?                  // video-detail — the poster (§5 `thumbnailUrl`)
+    let lessonUseCount: Int?                   // video-detail — 0 → Delete; N > 0 → Remove (SPEC D17)
+    let menuPresented: Bool?                   // video-detail §3 more-menu-open
     // ── preview props ──
     // C-142 SwipeActions — `trailing` is the retyped field above (`.swipeActions`).
     let leading: [CaptureSwipeAction]?         // C-142 — [SwipeActions.Action], edge-first
     let openSide: String?                      // C-142 — "leading" | "trailing"; absent = nil (closed)
     let posedOffset: CGFloat?                  // C-142 — signed pose override; absent = nil
     let posedCollapse: CGFloat?                // C-142 — height-collapse pose override (0–1); absent = nil
+    // ── preview props ──
+    // C-145 SegmentedProgressBar — all seconds (TimeInterval).
+    let length: Double?                        // C-145 — the chosen length = the full width
+    let segments: [Double]?                    // C-145 — finished segment durations, in order
+    let liveDuration: Double?                  // C-145 — seconds into the live segment; 0 = none
+    let lastSegmentMarked: Bool?               // C-145 — default false
+    // ── preview props ──
+    // C-147 RailTool — `value` (String?), `active` (Bool?) and `enabled` (Bool?) are reused above.
+    let tool: String?                          // C-147 — flip | countdown | length | filters | teleprompter
+    // ── preview props ──
+    // C-146 CameraRail — every field nil = §4's default (lengthValue is required).
+    let countdownValue: String?                // C-146 — "3s" | "10s"; absent = nil (Off, D2)
+    let lengthValue: String?                   // C-146 — m:ss, required ("1:00")
+    let lengthEnabled: Bool?                   // C-146 — nil = §4's default true
+    let filtersActive: Bool?                   // C-146 — nil = §4's default false
+    let teleprompterActive: Bool?              // C-146 — nil = §4's default false
+    // ── preview props ──
+    // C-150 FilterStrip — `selected` (`.stringValue`, a `Look` case) is reused above.
+    let strength: Int?                         // C-150 — 0…100, required
+    let thumbnails: [String: String]?          // C-150 — Look case → catalog image URL; {} = none
+    // ── preview props ──
+    // C-151 TeleprompterBand — `scrollOffset` (Double?, pt) is reused above.
+    let surface: String?                       // C-151 — "band" | "panel", required
+    let script: String?                        // C-151 — the script; "" = blank, required
+    let textSize: String?                      // C-151 — "small" | "medium" | "large", required
+    let speed: Int?                            // C-151 — 1…5, required
+    // ── preview props ──
+    // C-152 CameraPreview — `overlay` is a §4 @ViewBuilder slot: the fixture lists the parts the
+    // capture case places in it (video-recorder §2c); [] = an empty slot.
+    let feed: CaptureUI2CameraFeed?            // C-152 — {kind: layer|still|none, imageURL?}, required
+    let corners: String?                       // C-152 — "square" | "rounded", required
+    let overlay: [CaptureUI2CameraOverlayPart]? // C-152 — slot content; [] = empty, required
+    // ── screen video-recorder ──
+    // Reused above: `layout` (lessonInline | fullScreen), `phase`, `segments`, `liveDuration`,
+    // `length`, `countdownValue` ("" | "3s" | "10s"), `strength`, `script`, `speed`, `textSize`.
+    let countdownNumeral: Int?                 // video-recorder — the numeral n (preRoll / endCountdown)
+    let filterLook: String?                    // video-recorder — a C-150 look by name ("Normal" …)
+    let teleprompterOn: Bool?                  // video-recorder — §5 teleprompter.on
+    let sheet: String?                         // video-recorder — "" | length | filters | teleprompter
+    let cameraImageURL: String?                // video-recorder — the sample still (catalog URL); "" = none
+}
+
+/// C-152 §4 `CameraPreview.Feed` — `kind` is the case; `imageURL` the `.still` image (a catalog
+/// URL). `.layer` has no fixture form: a capture has no live display layer.
+struct CaptureUI2CameraFeed: Codable {
+    let kind: String
+    let imageURL: String?
+}
+
+/// C-152 §4 `overlay` slot content, one placed part each: `part` is the registry id (C-144 or
+/// C-013), with that part's own §4 props (`elapsed` for C-144; `kind` + `size` for C-013).
+struct CaptureUI2CameraOverlayPart: Codable {
+    let part: String
+    let elapsed: Double?
+    let kind: String?
+    let size: String?
 }
 
 /// library-home `State.MemoRowInput` — `preview` and `previewText` encode C-006's `preview` as
 /// the C-006 case does; `recordedAt` is ISO8601.
 struct CaptureUI2LibraryMemo: Codable {
+    let id: String
+    let title: String
+    let durationLabel: String
+    let dateLabel: String
+    let recordedAt: String
+    let preview: String
+    let previewText: String?
+}
+
+/// library-home `State.VideoRowInput` — `preview` is transcript | transcribing | uploading |
+/// processing, `previewText` the transcript line; `recordedAt` is ISO8601.
+struct CaptureUI2LibraryVideo: Codable {
     let id: String
     let title: String
     let durationLabel: String

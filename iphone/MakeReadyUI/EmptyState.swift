@@ -23,24 +23,42 @@ struct EmptyState: View {
     let title: String
     /// §4 `message` — "the supporting copy, verbatim and wrapping". Required (R-07).
     let message: String
+    /// §4 `actionLabel` — "the action button's label, verbatim … nil → no button". Optional,
+    /// default nil, so every existing host is unchanged.
+    var actionLabel: String? = nil
+    /// §4 `onAction` — "called when the button is tapped (R-03). nil → no button. The button
+    /// renders only when BOTH are non-nil."
+    var onAction: (() -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 0) {
-            disc
-            titleText
-                // §2: gap `space-section-gap` (32) below the disc.
-                .padding(.top, Token.Space.sectionGap)
-            messageText
-                // §2: gap `space-element-gap` (8) below the title.
-                .padding(.top, Token.Space.elementGap)
+            VStack(spacing: 0) {
+                disc
+                titleText
+                    // §2: gap `space-section-gap` (32) below the disc.
+                    .padding(.top, Token.Space.sectionGap)
+                messageText
+                    // §2: gap `space-element-gap` (8) below the title.
+                    .padding(.top, Token.Space.elementGap)
+            }
+            // §2 Accessibility (R-17): "The title and message read as one static element,
+            // "<title>. <message>". The glyph and disc are decorative".
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(title). \(message)")
+            if let actionLabel, let onAction {
+                // §2 Action button (with-action only): "one centred button below the message,
+                // labelled `actionLabel`, hugging its content, using the project's existing
+                // secondary/pill button look" — C-105 Button, used, not re-drawn
+                // (OQ-C-132-002 recommended). Gap `space-section-gap` (32) above it. A separate
+                // accessibility element, trait button (C-105's own).
+                Button(label: actionLabel, onTap: onAction)
+                    .padding(.top, Token.Space.sectionGap)
+                    .ui2Element("Action button")
+            }
         }
         // §2: "inset `space-section-gap` (32) on all four sides" — the component's own anatomy.
         .padding(Token.Space.sectionGap)
         .frame(maxWidth: .infinity)
-        // §2 Accessibility (R-17): "not interactive. The title and message read as one static
-        // element, "<title>. <message>". The glyph and disc are decorative".
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(title). \(message)")
         .ui2Element("EmptyState")                 // capture element map — UI2Element.swift
     }
 

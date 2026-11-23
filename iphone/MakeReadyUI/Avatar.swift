@@ -35,6 +35,9 @@ struct Avatar: View {
         case note
         /// library-home (owner 2026-11-21): a C-006 memo row's leading avatar — `microphone`.
         case microphone
+        /// library-home (owner 2026-11-23, video-recorder D15): a video row's leading avatar —
+        /// `video-record`, the house video glyph (ActivityTypeGrid's video type).
+        case video
     }
 
     /// C-038 §4 `shape` — the outline. Raw values are the contract's values verbatim.
@@ -182,6 +185,7 @@ struct Avatar: View {
                 case .image: imageGlyph
                 case .note: iconGlyph(.notebookPen)
                 case .microphone: iconGlyph(.microphone)
+                case .video: iconGlyph(.videoRecord)
                 }
             }
         }
@@ -236,7 +240,7 @@ struct Avatar: View {
             .ui2Element("Glyph")
     }
 
-    /// library-home (owner 2026-11-21) — the `note` / `microphone` fallback glyphs, drawn on the
+    /// library-home (owner 2026-11-21) — the `note` / `microphone` / `video` fallback glyphs, drawn on the
     /// same Initials ground with the same treatment as `imageGlyph`: 60% of the diameter,
     /// `color-white-50`, from the imageset at the ratio. Additive: the default stays `person`.
     private func iconGlyph(_ name: GlyphName) -> some View {
