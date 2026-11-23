@@ -108,7 +108,7 @@ struct ActivitiesEditorContainer: View {
         .onAppear {
             model.navigator = LiveNavigator(navigator: navigator, current: route)
             model.makeRecorder = { [authManager] entry in
-                authManager?.currentUser.flatMap { VideoRecorderModel.live(entry: entry, userId: $0.id) }
+                Self.liveRecorder(entry: entry, userId: authManager?.currentUser?.id)
             }
             model.openPendingRecorder()
             backSwipe?.blocksBackSwipe = { true }
@@ -177,6 +177,17 @@ struct ActivitiesEditorContainer: View {
             seeded = true
         }
         return seeded
+    }
+
+    /// The recorder for the signed-in user; nil, with a banner, when it cannot open.
+    @MainActor
+    static func liveRecorder(entry: VideoRecorderEntry, userId: String?, app: AppState? = nil) -> VideoRecorderModel? {
+        guard let userId else {
+            (app ?? .shared).recordError(NoSignedInUser(), context: "ActivitiesEditorContainer.liveRecorder", surface: true,
+                                         friendlyMessage: "Couldn't open the recorder")
+            return nil
+        }
+        return VideoRecorderModel.live(entry: entry, userId: userId)
     }
 
     /// D18: the new video activities this version waits for.
@@ -289,6 +300,7 @@ struct ActivitiesEditorContainer: View {
     }
 
     private struct LoadFailed: Error {}
+    private struct NoSignedInUser: Error {}
 
     /// The live seam: `UI2Navigator.replaceTop` needs the page being replaced.
     @MainActor
@@ -385,11 +397,19 @@ struct ActivitiesEditorContainer: View {
             let app = app ?? .shared
             if let activity = app.activities[activityId],
                let version = app.lessonVersions[activity.lessonVersionId], version.status == .draft,
-               ActivitiesEditorMapper.isEditable(activity.document) {
-                return Model(activityId: activity.id, activityKey: activity.activityKey, document: activity.document,
-                             lessonId: version.lessonId, lessonVersionId: version.id, kind: activity.kind)
+               let content = openingContent(of: activity.document) {
+                let model = Model(activityId: activity.id, activityKey: activity.activityKey, document: activity.document,
+                                  lessonId: version.lessonId, lessonVersionId: version.id, kind: activity.kind)
+                model.canvasContent = content
+                return model
             }
             return Model(activityId: activityId, activityKey: "", phase: .loading)
+        }
+
+        /// What the editor opens this document as: its canvas, a video read-only (D18), or nil for one it cannot open.
+        private static func openingContent(of document: ActivityDocument) -> CanvasContent? {
+            if ActivitiesEditorMapper.isEditable(document) { return .activity }
+            return ActivitiesEditorMapper.isVideo(document) ? .readOnly : nil
         }
 
         /// Console-only record of a failure this model shows itself (the alert) or that the leader
@@ -425,7 +445,7 @@ struct ActivitiesEditorContainer: View {
             do {
                 let rows = try await actions.reloadDraft(lessonId: lesson.id)
                 guard let row = rows.first(where: { $0.activityKey == lesson.key }),
-                      ActivitiesEditorMapper.isEditable(row.document) else { return fail() }
+                      let content = Self.openingContent(of: row.document) else { return fail() }
                 activityId = row.id
                 activityKey = row.activityKey
                 lessonId = lesson.id
@@ -433,6 +453,7 @@ struct ActivitiesEditorContainer: View {
                 kind = row.kind
                 document = row.document
                 savedDocument = row.document
+                canvasContent = content
                 phase = .ready
                 screenGeneration += 1
             } catch {

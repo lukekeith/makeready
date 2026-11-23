@@ -163,6 +163,12 @@ enum ActivitiesEditorMapper {
         return false
     }
 
+    /// video-recorder D18: whether the editor shows this document read-only, for Replace video.
+    static func isVideo(_ document: ActivityDocument) -> Bool {
+        if case .video = document.renderable { return true }
+        return false
+    }
+
     // MARK: - D16: untouched
 
 

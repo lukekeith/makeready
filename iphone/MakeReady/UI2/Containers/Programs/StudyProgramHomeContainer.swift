@@ -105,7 +105,7 @@ struct StudyProgramHomeContainer: View {
                             activeDay = day
                             withAnimation { proxy.scrollTo(StudyProgramHomeScreen.lessonScrollID(day), anchor: .top) }
                         },
-                        // text-activity D39: a canvas-kind slide opens the editor; any other kind says it can't be edited yet.
+                        // text-activity D39: a slide of a kind the editor opens pushes it; any other kind says it can't be edited yet.
                         onOpenActivity: { lessonIndex, slideIndex in
                             let lessons = AppState.shared.lessonsFor(programId: programId)
                             guard let lessonId = Self.lessonID(at: lessonIndex, in: lessons),

@@ -434,9 +434,6 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         XCTAssertTrue(reorders.isEmpty)
     }
 
-    // MARK: - One save at a time
-
-    /// Three saves started together run one after another: never two PUTs at once.
     // MARK: - video-recorder D18: the inline recorder, the pending row and Replace video
 
     private var recorderDir: URL!
@@ -736,6 +733,72 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         XCTAssertEqual(nav.pops, 1)
     }
 
+    /// A missing user is not silent: the page that pops says why.
+    func testARecorderWithNoSignedInUserShowsTheBanner() {
+        let app = AppState()
+        XCTAssertNil(ActivitiesEditorContainer.liveRecorder(entry: .lesson(versionId: "v1", activityId: nil), userId: nil, app: app))
+        XCTAssertEqual(app.activeSurfacedError?.message, "Couldn't open the recorder")
+    }
+
+    // MARK: - video-recorder D18: the editor opened on a video activity
+
+    private func videoActivity(_ id: String, key: String = "k", version: String, position: Int = 0) -> ContentActivity {
+        ContentActivity(id: id, lessonVersionId: version, activityKey: key, position: position, kind: "video", title: "Video",
+                        document: LiveVideoUploadAPI.videoDocument(videoId: "vid1", title: "Video"), estimatedSeconds: nil)
+    }
+
+    private func appWithDraft(_ activities: [ContentActivity]) -> AppState {
+        let app = AppState()
+        app.lessonVersions.upsert(LessonVersion(id: "ver1", lessonId: "l1", enrollmentId: nil, number: 1, status: .draft,
+                                                title: nil, estimatedSeconds: nil, publishedAt: nil))
+        activities.forEach { app.activities.upsert($0) }
+        return app
+    }
+
+    /// Replace video is reachable in a lesson whose only activity is a video.
+    private func assertReplaceVideoOpens(app: AppState, on id: String) {
+        let queue = QueueSpy()
+        let model = ActivitiesEditorContainer.Model.resolving(activityId: id, app: app)
+        model.makeRecorder = { self.makeRecorderModel(entry: $0, queue: queue) }
+        XCTAssertEqual(model.phase, .ready)
+        XCTAssertEqual(model.canvasContent, .readOnly)
+        XCTAssertEqual(ActivitiesEditorContainer.screenState(model, app: app).readOnlyKind, "video")
+        model.replaceVideo(app: app)
+        XCTAssertEqual(model.recorder?.entry, .lesson(versionId: "ver1", activityId: id))
+    }
+
+    func testAVideoOnlyLessonOpensOnItsVideoWithReplaceVideo() {
+        assertReplaceVideoOpens(app: appWithDraft([videoActivity("vi1", version: "ver1")]), on: "vi1")
+    }
+
+    func testAMixedLessonOpensOnItsVideoAndItsTextStaysEditable() async {
+        let text = ContentActivity(id: "a1", lessonVersionId: "ver1", activityKey: "k-a1", position: 0, kind: "text", title: "Text",
+                                   document: ActivityNewContainer.textDocument(title: "Text"), estimatedSeconds: nil)
+        let app = appWithDraft([text, videoActivity("vi1", version: "ver1", position: 1)])
+        assertReplaceVideoOpens(app: app, on: "vi1")
+        let model = ActivitiesEditorContainer.Model.resolving(activityId: "vi1", app: app)
+        XCTAssertEqual(ActivitiesEditorContainer.screenState(model, app: app).slideIDs, ["a1", "vi1"])
+        await model.selectSlide("a1", app: app)
+        XCTAssertEqual(model.canvasContent, .activity)
+        XCTAssertEqual(ActivitiesEditorContainer.Model.resolving(activityId: "a1", app: app).canvasContent, .activity)
+    }
+
+    /// The same, for a slide of a lesson whose draft is not loaded.
+    func testLoadOpensADraftsVideoReadOnly() async {
+        let app = appWithActivityOutsideADraft()
+        let row = videoActivity("a2", key: "k1", version: "ver2")
+        let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "", phase: .loading,
+                                                    actions: ScriptedActivityActions(draft: [row]), log: { _, _ in })
+        await model.load(app: app)
+        XCTAssertEqual(model.phase, .ready)
+        XCTAssertEqual(model.canvasContent, .readOnly)
+        XCTAssertEqual(model.kind, "video")
+        XCTAssertEqual(model.lessonVersionId, "ver2")
+    }
+
+    // MARK: - One save at a time
+
+    /// Three saves started together run one after another: never two PUTs at once.
     func testConcurrentSavesRunOneAtATime() async {
         let actions = ScriptedActivityActions(saveDelayNanoseconds: 20_000_000)
         let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "k1", actions: actions)

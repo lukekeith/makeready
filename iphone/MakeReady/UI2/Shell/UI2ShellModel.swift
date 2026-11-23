@@ -73,7 +73,7 @@ enum UI2Destination: Hashable {
     /// page's "+" card or lesson menu. Reached only from there — no deep link or notification target.
     case activityNew(programId: String, lessonId: String)
     /// text-activity D39: the Text editor, over one activity. Reached from the Text tile (swapped in place)
-    /// and from a canvas-kind slide tap; the Background and Actions sheets are drawn in-screen.
+    /// and from a canvas or video slide tap; the Background and Actions sheets are drawn in-screen.
     case activitiesEditor(activityId: String)
     /// video-recorder D18: the editor, opened on the inline recorder for a lesson's new video activity (the
     /// activity does not exist until the upload attaches it). Reached only from the Video tile.
