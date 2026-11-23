@@ -1,86 +1,85 @@
 # video-recorder — parked
-parked: 2026-11-23 f9ff51a3 · by build phase 1 (unpark retry after the owner created both screens)
+parked: 2026-11-23 23eba0bb · by build phase 1 (unpark retry after the owner added the two Figma refs)
 kind: human-step
-blocked: "the video recorder's nine new parts need two Figma links and a timer text style that only the owner can add in d2m, and the owner approves the screens before iPhone code (P2) — next: do the 3 steps in PARKED.md, then /builder:agent"
+blocked: "the video recorder and video detail screens are fully built in d2m and wait on the owner's approval before any iPhone code (P2) — next: review and commit the d2m output on main, approve the screens, then /builder:agent"
 
 ## What is stuck
-The cause of the last park is gone: the owner created both screens in d2m. Video Detail is now
-specced and built. Video Recorder's screen spec is written (all 43 questions closed), but its nine
-new parts (C-143 RecordButtonSet, C-144 TimerPill, C-145 SegmentedProgressBar, C-146 CameraRail,
-C-147 RailTool, C-148 CountdownNumerals, C-149 LengthSlider, C-150 FilterStrip, C-151
-TeleprompterBand) are minted but **neither specced nor built**, so the screen cannot build. d2m
-stopped the screen (run stop `cmwsxcl1i0005v0w8orswh600`) on manual steps that the request channel
-cannot do. They are app actions for the owner:
+Nothing in d2m now. The d2m phase (phase 1) is complete: every part of Video Recorder is specced
+and built, and the screen is built with 12 states captured. Video Detail was already built. What
+stands is the SPEC's own gate: "Phase 1 is d2m (P2): no app code until the owner approves the
+screens", plus the owner's 2026-11-20 rule. No agent can give that approval, so phase 4 (iPhone)
+cannot start.
 
-1. Add a Figma reference to **C-143 RecordButtonSet**: node `3322-31523` (variants `3322:31531`
-   Recording, `3322:31557` Pause).
-2. Add a Figma reference to **C-144 TimerPill**: node `3322-31629` (the Timecode symbol).
-3. On the **Typography tab**, add `type-timecode`: SF Pro Regular 18 / 25.2, tracking +0.72,
-   monospaced digits. This is the OQ-video-recorder-003 ruling, and type tokens are owned by that
-   tab, so no run can mint one.
-
-After that comes the owner's approval of every d2m screen in this feature before any iPhone code
-(SPEC §iphone: "Phase 1 is d2m (P2): no app code until the owner approves the screens"; also the
-owner's 2026-11-20 rule).
-
-The server half is done: phases 2–3 closed, verify phase GREEN at 7952fbf1, and the contract froze
-on 2026-11-22.
+The d2m output is also **uncommitted in the main checkout on `main`** (`/Users/lukekeith/www/makeready`),
+not on this branch. That covers the new views (CameraPreview, CameraRail, CountdownNumerals,
+FilterStrip, LengthSlider, RailTool, RecordButton, SegmentedProgressBar, TeleprompterBand,
+TimerPill, VideoRecorderScreen, VideoDetailScreen), Tokens.swift, and the earlier phase-1 edits
+(library-home, activity-new, activities-editor, C-132, C-142, CaptureFixture/ViewRegistry). It is
+the owner's working tree; this run did not commit it.
 
 ## What was tried
-- Earlier runs: the root cause of the missing screens was that d2m requests cannot create screens
-  (see History). The owner then created both in the app (video-recorder at 05:53 UTC with Figma
-  3567:34892 / 3567:34787; video-detail from the suggested requirements).
-- This run filed **video-detail** `cmwsuqyfn0001v0xuwomy9lv9`: it settled OQ-video-detail-001..003
-  with d2m's recommended options (SPEC D16 "built like memo-detail"; F9 lets the d2m phase settle its
-  states before approval). **Done**: `VideoDetailScreen.swift` built, 10 previews captured.
-- This run filed **video-recorder** `cmwsur3f5000gv0xuyph9rezu` (spec + build) and answered all 43
-  questions. 001–004 took the recommended options. 005–042 (reference images not uploaded) were
-  answered "ignore the link", because the channel carries markdown only; the images are committed at
-  `docs/features/video-recording/assets/`. 043 (no-Figma parts) was answered with the D71–D73
-  ruling: spec from SPEC.md and the analyses, then freeze the first accepted capture. The screen
-  spec landed. The chain reported "Ran: Spec/Build" for all nine parts, but `get_screen` rollcall
-  shows every one `specced: false, built: false` (the same false-done pattern as the last park). I
-  retried once after the stop; it holds on the three manual steps.
-- Retried **C-013** `cmwsm155r…`: it stopped "unexplained" again (run cmwsur60u…). It is left open.
-  C-143 RecordButtonSet covers the 80 pt video button, and memo hosts keep C-013 unchanged.
+- Last park's three owner steps: the owner added the C-143 ref (3322:31523) and the C-144 ref
+  (3322:31629) at 07:16 UTC. The video-recorder run stop cleared (`runStop: null`).
+- Retried cmwsur3f5… → no-op: that change already read `done`, so a retry reruns nothing. Filed new
+  requests instead.
+- cmwsxqfj3… → d2m found that C-143 duplicates C-013 RecordButton. Ruling: merged C-143 into C-013
+  (OQ-C-143-001, option 0). Why: the owner's C-143 description says "reconcile with C-013 (extend it
+  if it already covers this)", and SPEC §iphone says the same. Cost if wrong: C-143 is struck
+  (history kept), so splitting the video size out again would take a new row. Its leftover "Build
+  C-143" step then failed on the struck row (moot).
+- cmwsy3ioh… → answered OQ-C-013-008: keep the two-source merge (memo from C-017's build, video
+  from Figma), per the owner rule that memo hosts keep C-013 unchanged. C-013 re-specced and built,
+  clearing its old "unexplained" stop: its build had refused on an open question and stale
+  references. C-144 TimerPill specced and built. The "Spec/Build C-145" step reported done but did
+  nothing (false-done again).
+- **Root cause of the false-done:** C-145…C-152 carried no reference of any kind, so their spec
+  step refused on its hard requirement "Referenced or specced". The OQ-video-recorder-043 "no-Figma"
+  answer lives on the screen and never attached anything to the rows. Fix: request cmwsz3wvb…
+  attached SPEC.md and the 01/02/03 analyses as markdown references per row. The spec step went
+  `ready`, although that chat filed no card.
+- cmwsz4m2c… → spec+build of C-145, C-147, C-146, C-148, C-149, C-150, C-151, C-152, then the screen
+  build: **all done and verified on the rollcall** (every row `specced: true, built: true`).
+  Answered ~45 questions. Design questions took d2m's recommended option. Linked-but-not-uploaded
+  images were answered "ignore the link", because the channel carries markdown only.
+- Rulings that avoid owner-only Typography-tab steps: the countdown numeral (SF Pro Light 180/180)
+  and the teleprompter sizes (SF Pro Medium 20/28, 24/32, 30/40) ship as FLAGGED LITERALs
+  (OQ-C-148-001, OQ-C-151-002). Cost if wrong: the owner promotes them to type tokens later.
+- Ruling: the teleprompter rail glyph is `file-text` (OQ-C-147-004, D1 says d2m picks it and the
+  owner approves it). The owner approves or changes it at the screen approval.
 
 ## Evidence
-- `get_screen video-recorder` (part summary): `"questions":{"open":0,"closed":43}`; the rollcall has
-  C-143…C-151 all `"specced":false,"built":false`; runStop steps s3 "Add C-143's Figma reference",
-  s4 "Add C-144's Figma reference" and s5 "Add type-timecode on the Typography tab" are
-  `"met":false`. s2 (answer OQ-043) also reads unmet, although the question is closed: "report_stop
-  refused it as an `answer` step although get_screen lists it open".
-- Change cmwsur3f5… `next`: "d2m settled what it could and left 4 steps for you on video-recorder".
-- Change cmwsuqyfn… result: "Built video-detail for the first time at
-  iphone/MakeReadyUI/Screens/Library/VideoDetailScreen.swift … Created 10 previews and captured all
-  of them (10/10)".
-- Phase-1 output is all **uncommitted in the main checkout on `main`** (`/Users/lukekeith/www/makeready`):
-  library-home, activity-new, activities-editor, C-132, C-142, video-detail and the minted parts.
-  It is never on this branch.
+- `get_screen video-recorder` rollcall: C-152, C-013, C-144, C-145…C-151, C-132, C-040, C-081 all
+  `"specced":true,"built":true`. C-143 has left the roll-call (merged into C-013).
+- `get_screen video-recorder` frames: 12 states, each `"hasBuiltRender":true`: ready-to-record,
+  pre-roll, recording, paused, end-countdown, permission-denied, review, trim, length-sheet,
+  filters, teleprompter-panel, ready-full-screen. All 0 unresolved comments.
+- Change cmwsz4m2c… result: "Ran: Spec C-145 … Build C-152 CameraPreview, Build video-recorder
+  screen. d2m's edits and builds are in the project checkout (/Users/lukekeith/www/makeready),
+  uncommitted — check the diff there and commit."
+- `git status` in the main checkout: 11 modified, 13 new files under `iphone/MakeReadyUI/` and
+  `iphone/MakeReadyCaptureTests/`.
 
 ## Where to dig
-- d2m: a component's "Build" step reports done when the spec step was refused for lack of a
-  reference ("lifecycle: Referenced or specced unmet"). That is the same exit-0-after-a-stop defect
-  as `screen:create` in the last park. It is worth a d2m ticket.
-- d2m: the stop's s2 step cannot be met by `answer_project_change` once the question is closed (a
-  race between the chat's answer and `report_stop`). Closing the stop in the app should clear it.
-- Not yet ruled out: whether C-145…C-151 spec cleanly from SPEC.md once the stop closes, since
-  OQ-043 is answered no-Figma.
+- Nothing is left to dig in d2m for this feature. For d2m itself (worth tickets): (1) a component
+  step reports done when its spec step refused for lack of a reference; (2) a screen-level "no
+  Figma" ruling does not attach references to the parts it covers, so `references` must be passed
+  per row; (3) `retry_project_change` on a `done` change is a silent no-op.
+- Not yet ruled out: whether the flagged-literal type sizes and the 64 pt video record disc (d2m
+  measured it from Figma; SPEC said ~80 pt) read right on device. The owner sees both at approval.
 
 ## Recommended next step
-In the d2m app (Library namespace):
-1. Add Figma reference `3322-31523` to C-143 and `3322-31629` to C-144.
-2. Add `type-timecode` on the Typography tab (SF Pro Regular 18 / 25.2, +0.72, monospaced digits).
-3. Close video-recorder's stop and retry change `cmwsur3f5000gv0xuyph9rezu`, or let the next run do
-   it. Then review and commit the phase-1 output on `main` and approve the screens (video-recorder,
-   video-detail, library-home, activity-new, activities-editor).
-4. `/builder:agent --path docs/features/video-recorder`. The rerun waits on cmwsur3f5…, records
-   d2m's names in `d2m-api.md`, and builds phases 4–5.
+1. In `/Users/lukekeith/www/makeready` (on `main`): review the d2m diff and commit it (all files).
+2. In d2m, review and approve the screens: video-recorder (12 states), video-detail, library-home,
+   activity-new, activities-editor. Check the `file-text` teleprompter glyph and the flagged type
+   sizes.
+3. `/builder:agent --path docs/features/video-recorder`. Phase 4 (iPhone) wires VideoRecorderScreen
+   and VideoDetailScreen against the frozen contract.
 
 Why this and not the alternatives:
-- Retrying through the channel: d2m names these as owner steps. No channel tool adds a Figma ref or a
-  type token (`set_color_token` is colour only).
-- Starting phase 4 early: the SPEC forbids iPhone code before approval.
+- Starting phase 4 now: SPEC P2 forbids iPhone code before the owner's approval.
+- Committing the d2m output from this run: it sits in the owner's main checkout on `main`, outside
+  this worktree. Under --agent-walk that is a side effect outside the branch, and P2 puts the
+  owner's review first.
 
 ## History
 - 2026-11-22 parked — d2m screens missing and not yet owner-approved (P2)
@@ -90,3 +89,4 @@ Why this and not the alternatives:
 - 2026-11-23 unparked by a person — named to /builder:agent or /builder:fleet
 - 2026-11-23 parked — owner created both screens; video-detail built; video-recorder specced, but its nine new parts need two Figma refs and a type token only the owner can add, then screen approval (P2)
 - 2026-11-23 unparked by a person — named to /builder:agent or /builder:fleet
+- 2026-11-23 parked — d2m phase complete: C-143 merged into C-013, all parts + video-recorder screen built (root cause of the false-done: parts had no reference); waits on the owner's commit of the d2m output and screen approval (P2)
