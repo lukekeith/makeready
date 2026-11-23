@@ -1,7 +1,7 @@
 size: lg
-state: building
-next: /builder:resume --path docs/features/video-recorder
-head: f4b19534
+state: built
+next: /builder:agent-walk --path docs/features/video-recorder
+head: 0a253833
 ticket: none
 branch: builder/video-recorder
 pr: none
@@ -13,7 +13,7 @@ tests: walk=risk review=slice
 target: main
 walk: none
 verify: none
-ready: pending "dev env (fleet walk lane)"
+ready: yes 2026-11-23 0a253833
 ui2: none (phase 1 — d2m specs video-recorder, video-detail and the library-home change from doc source, P2)
 auto: on 2026-11-22
 blocked: none
