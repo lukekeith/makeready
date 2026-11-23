@@ -56,6 +56,12 @@ struct MakeReadyApp: App {
                 guard authManager.isAuthenticated, let userId = authManager.currentUser?.id else { return }
                 await AppState.shared.launchMemoUploads(userId: userId)
             }
+            .task(id: authManager.currentUser?.id) {
+                // Video queue: upload what a kill or a lost network left waiting. Its own task, so a
+                // long memo backoff never holds it up.
+                guard authManager.isAuthenticated, let userId = authManager.currentUser?.id else { return }
+                await AppState.shared.launchVideoUploads(userId: userId)
+            }
             .onChange(of: scenePhase) { _, newPhase in
                 if newPhase == .background {
                     // Flush any debounced state write before the OS suspends us

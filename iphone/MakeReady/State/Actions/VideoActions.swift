@@ -113,8 +113,18 @@ private let api: APIClientProtocol
 
     /// Create video record in database after upload
     @MainActor
-    func createVideoRecord(cloudflareUid: String, title: String? = nil, description: String? = nil) async throws -> Video {
+    func createVideoRecord(cloudflareUid: String, title: String? = nil, description: String? = nil,
+                           source: VideoSource? = nil, transcript: VideoTranscript? = nil) async throws -> Video {
         var body: [String: Any] = ["cloudflareUid": cloudflareUid]
+        if let source {
+            body["source"] = source.rawValue
+        }
+        if let transcript {
+            // D24: trimmed to the server's limits, never refused.
+            let fit = VideoTranscriptLimits.fit(transcript)
+            body["transcript"] = fit.text
+            body["transcriptSegments"] = fit.segments.map { ["text": $0.text, "startMs": $0.startMs, "endMs": $0.endMs] as [String: Any] }
+        }
         if let title = title {
             body["title"] = title
         }

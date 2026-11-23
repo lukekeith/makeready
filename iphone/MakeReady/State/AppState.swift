@@ -158,6 +158,10 @@ final class AppState {
     /// and the files stay.
     var memoUploads: MemoUploadController?
 
+    /// The video upload queue (video-recorder D12): built on sign-in like `memoUploads`, and its
+    /// pending items merge into the Library as local rows.
+    var videoUploads: VideoUploadController?
+
     /// `GET /api/members/:id/groups`, by member id.
     var memberGroupsById: [String: [MemberGroupItem]] = [:]
 
@@ -830,10 +834,37 @@ final class AppState {
         return MemoActions.nextDefaultTitle(prefix: "Memo", existingTitles: titles)
     }
 
-    /// `Video n` for a new recording: the Library's videos (D14). Queued, unsent videos join the
-    /// titles when the video upload queue lands.
+    /// `Video n` for a new recording: the Library's videos plus the unsent queue's (D14).
     func nextVideoTitle() -> String {
-        MemoActions.nextDefaultTitle(prefix: "Video", existingTitles: libraryVideos.all.compactMap(\.title))
+        let titles = libraryVideos.all.compactMap(\.title) + (videoUploads?.pending().map(\.title) ?? [])
+        return MemoActions.nextDefaultTitle(prefix: "Video", existingTitles: titles)
+    }
+
+    /// Builds the video queue for `userId` if there is none. Nil when the folder cannot be made.
+    @discardableResult
+    func startVideoUploads(userId: String) -> VideoUploadController? {
+        if let videoUploads { return videoUploads }
+        do {
+            let folder = try VideoUploadController.folder(environment: Self.memoEnvironmentName, userId: userId)
+            let api = LiveVideoUploadAPI(videos: VideoActions(state: self), activities: ActivityActions(state: self), state: self)
+            let controller = VideoUploadController(
+                api: api, transport: URLSessionVideoStreamTransport(), banner: AppStateVideoUploadBanner(state: self),
+                directory: folder, ownerUserId: userId, environment: Self.memoEnvironmentName,
+                defaultTitle: { [weak self] in self?.nextVideoTitle() ?? "Video 1" }, flushesOnEnqueue: true)
+            videoUploads = controller
+            return controller
+        } catch {
+            // Console-only: the queue is not a user action; Save reports a missing queue itself.
+            Log.media.error("video folder unavailable: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+    }
+
+    /// Launch work for a signed-in user: flush what a kill or a lost network left in the video queue.
+    func launchVideoUploads(userId: String) async {
+        guard let controller = startVideoUploads(userId: userId) else { return }
+        controller.startPathMonitoring()
+        await controller.resumeAfterSignIn()
     }
 
     /// Builds the queue for `userId` if there is none (D37). Nil when the folder cannot be made.
@@ -1009,6 +1040,8 @@ final class AppState {
     private func clearInMemory() {
         memoUploads?.cancel()
         memoUploads = nil
+        videoUploads?.cancel()
+        videoUploads = nil
         programs.clear()
         groups.clear()
         enrollments.clear()
