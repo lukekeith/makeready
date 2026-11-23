@@ -98,6 +98,28 @@ struct VideoRecorderScreen: View {
     var onSpeedChange: (Int) -> Void = { _ in }
     var onTextSizeChange: (String) -> Void = { _ in }
 
+    // Host inputs (every default renders as captured).
+    /// The live feed: the capture engine's display layer, or Review's player layer. nil = the
+    /// state's sample still (§1 deviation 4).
+    var feed: CameraPreview<AnyView>.Feed?
+    /// False when the lessonInline host draws its own header and activity nav (deviation 3).
+    var hostChrome: Bool
+    /// C-151 `scrollOffset`.
+    var teleprompterOffset: CGFloat
+    /// C-150 `thumbnails`.
+    var filterThumbnails: [FilterStrip.Look: Image]
+    /// True: the screen takes the height it is offered, so a sheet sits at the host's bottom edge
+    /// (the fullScreen preview is shorter than the screen).
+    var fillsHeight: Bool
+    /// Space under a sheet's content, inside its surface: the home indicator or the keyboard.
+    var sheetBottomInset: CGFloat
+    /// Laid over the preview in every phase (§2b close; §2d trim's window).
+    var previewSlot: () -> AnyView
+    /// Laid over the record row, bottom-aligned; hidden with it (§2c import, undo, ✓).
+    var recordRowSlot: () -> AnyView
+    /// The bottom row of `review` (beside Filters) and `trim` (§2d Retake, Save; Cancel, Next).
+    var reviewSlot: () -> AnyView
+
     // §3 UI-only rule: "Sheets (Length, Filters, Teleprompter) … are screen-local presentation
     // state" (R-31).
     @SwiftUI.State private var sheet: State.Sheet
@@ -115,7 +137,16 @@ struct VideoRecorderScreen: View {
         onScriptChange: @escaping (String) -> Void = { _ in },
         onUseNote: @escaping () -> Void = {},
         onSpeedChange: @escaping (Int) -> Void = { _ in },
-        onTextSizeChange: @escaping (String) -> Void = { _ in }
+        onTextSizeChange: @escaping (String) -> Void = { _ in },
+        feed: CameraPreview<AnyView>.Feed? = nil,
+        hostChrome: Bool = true,
+        teleprompterOffset: CGFloat = 0,
+        filterThumbnails: [FilterStrip.Look: Image] = [:],
+        fillsHeight: Bool = false,
+        sheetBottomInset: CGFloat = 0,
+        previewSlot: @escaping () -> AnyView = { AnyView(EmptyView()) },
+        recordRowSlot: @escaping () -> AnyView = { AnyView(EmptyView()) },
+        reviewSlot: @escaping () -> AnyView = { AnyView(EmptyView()) }
     ) {
         self.state = state
         self.onRecord = onRecord
@@ -130,6 +161,15 @@ struct VideoRecorderScreen: View {
         self.onUseNote = onUseNote
         self.onSpeedChange = onSpeedChange
         self.onTextSizeChange = onTextSizeChange
+        self.feed = feed
+        self.hostChrome = hostChrome
+        self.teleprompterOffset = teleprompterOffset
+        self.filterThumbnails = filterThumbnails
+        self.fillsHeight = fillsHeight
+        self.sheetBottomInset = sheetBottomInset
+        self.previewSlot = previewSlot
+        self.recordRowSlot = recordRowSlot
+        self.reviewSlot = reviewSlot
         _sheet = SwiftUI.State(initialValue: state.sheet)
     }
 
@@ -217,7 +257,7 @@ struct VideoRecorderScreen: View {
             case .fullScreen: fullScreenLayout
             }
         }
-        .frame(maxWidth: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: fillsHeight ? .infinity : nil, alignment: .top)
         .background(Token.layoutBackground)
         // §2d: the Length sheet and the Teleprompter panel — house overlay chrome over the page.
         .overlay(alignment: .bottom) { sheetContent }
@@ -230,18 +270,22 @@ struct VideoRecorderScreen: View {
     /// in place, not removed.
     private var inlineLayout: some View {
         VStack(spacing: 0) {
-            hostChrome(header, name: "C-040 PageHeader")
-            hostChrome(hairline, name: nil)
+            if hostChrome {
+                chromePart(header, name: "C-040 PageHeader")
+                chromePart(hairline, name: nil)
+            }
             preview(corners: .square)
-            hostChrome(hairline, name: nil)
-            hostChrome(navBar, name: "C-081 ActivityNavBar")
+            if hostChrome {
+                chromePart(hairline, name: nil)
+                chromePart(navBar, name: "C-081 ActivityNavBar")
+            }
         }
     }
 
     /// Deviation 3: drawn by the activities-editor host; here so the capture lines up with the
     /// Figma frame.
     @ViewBuilder
-    private func hostChrome(_ content: some View, name: String?) -> some View {
+    private func chromePart(_ content: some View, name: String?) -> some View {
         if hostChromeVisible {
             if let name {
                 content.ui2Element(name)
@@ -298,14 +342,14 @@ struct VideoRecorderScreen: View {
     // MARK: - The preview and §2c overlays
 
     private func preview(corners: CameraPreview<AnyView>.Corners) -> some View {
-        CameraPreview(feed: feed, corners: corners) {
+        CameraPreview(feed: feed ?? sampleFeed, corners: corners) {
             AnyView(overlays)
         }
         .ui2Element("C-152 CameraPreview")
     }
 
     /// §1 deviation 4: the capture renders a fixed sample still; the app passes the live layer.
-    private var feed: CameraPreview<AnyView>.Feed {
+    private var sampleFeed: CameraPreview<AnyView>.Feed {
         guard let url = URL(string: state.cameraImageURL), !state.cameraImageURL.isEmpty,
               let image = Ui2ImageCache.shared.image(for: url) else { return .none }
         return .still(Image(uiImage: image))
@@ -328,9 +372,12 @@ struct VideoRecorderScreen: View {
             } else {
                 cameraOverlays
             }
+            previewSlot()
             if sheet == .length {
                 // §2d Length: "the preview dims behind it" — house overlay chrome.
+                // A tap outside closes it: C-149 has no Done.
                 Token.scrim
+                    .onTapGesture { sheet = .none }
             }
         }
     }
@@ -366,7 +413,8 @@ struct VideoRecorderScreen: View {
                     surface: .band,
                     script: state.script,
                     textSize: teleprompterSize,
-                    speed: state.speed
+                    speed: state.speed,
+                    scrollOffset: teleprompterOffset
                 )
                 .ui2Element("C-151 TeleprompterBand")
                 .padding(.horizontal, Token.Space.pageMargin)
@@ -417,7 +465,7 @@ struct VideoRecorderScreen: View {
                 onSelect: { onFilterChange($0.name) },
                 strength: state.strength,
                 onStrengthChange: onStrengthChange,
-                thumbnails: [:],
+                thumbnails: filterThumbnails,
                 onDone: { sheet = .none }
             )
             .ui2Element("C-150 FilterStrip")
@@ -426,10 +474,15 @@ struct VideoRecorderScreen: View {
         } else if phase == .review {
             // §2d Review: "Filters (C-147 tool) … on the record row" (Retake / Save: C-105, not
             // in §4 — not drawn).
-            RailTool(tool: .filters, active: look != .normal, onTap: { openSheet(.filters, tool: .filters) })
-                .ui2Element("C-147 RailTool")
-                .padding(.trailing, Token.Space.pageMargin)
-                .padding(.bottom, Geometry.reviewToolBottom)
+            ZStack(alignment: .bottom) {
+                RailTool(tool: .filters, active: look != .normal, onTap: { openSheet(.filters, tool: .filters) })
+                    .ui2Element("C-147 RailTool")
+                    .padding(.trailing, Token.Space.pageMargin)
+                    .padding(.bottom, Geometry.reviewToolBottom)
+                reviewSlot()
+            }
+        } else if phase == .trim {
+            reviewSlot()
         }
     }
 
@@ -447,6 +500,7 @@ struct VideoRecorderScreen: View {
                     .padding(.bottom, Geometry.pauseBottom)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+            recordRowSlot()
         }
     }
 
@@ -489,6 +543,7 @@ struct VideoRecorderScreen: View {
     private func sheetSurface(@ViewBuilder _ content: () -> some View) -> some View {
         content()
             .padding(Token.Space.pageMargin)
+            .padding(.bottom, sheetBottomInset)
             .frame(maxWidth: .infinity)
             .background(
                 UnevenRoundedRectangle(
