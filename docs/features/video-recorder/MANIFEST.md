@@ -1,9 +1,9 @@
 size: lg
-state: spec
+state: audited
 next: /builder:resume --path docs/features/video-recorder
-head: 75b9f351
+head: 69699553
 ticket: none
-branch: main
+branch: builder/video-recorder
 pr: none
 apps: server+iphone
 contract: open
@@ -15,4 +15,5 @@ walk: none
 verify: none
 ready: none
 ui2: none (phase 1 — d2m specs video-recorder, video-detail and the library-home change from doc source, P2)
-auto: off
+auto: on 2026-11-22
+agent-walk: on 2026-11-22

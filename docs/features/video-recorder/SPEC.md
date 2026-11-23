@@ -61,27 +61,30 @@ flowchart LR
     can do it for free;
   - storing segments on the server, because Stream stores single files.
 
-¹ `iphone/MakeReady/UI2/Shell/UI2Shell.swift:30-39,110` · ² `iphone/MakeReady/Services/Audio/MemoTranscriber.swift` ·
+¹ `iphone/MakeReady/UI2/Shell/UI2Shell.swift:30-39,104` (`default: break`) · ² `iphone/MakeReady/Services/Audio/MemoTranscriber.swift` ·
 ³ `MemoUploadController.swift` · ⁴ `server/src/services/transcription.service.ts` · ⁵ `server/src/routes/videos.ts:210,367` ·
-⁶ `videos.ts:448-466` (`captureToLibrary`) · ⁷ `server/src/services/activity-document.ts:173,287` · ⁸ `videos.ts:1167-1197` (text-activity D34) ·
+⁶ `videos.ts:445-462` (`captureToLibrary`, fire-and-forget — D21 replaces it) · ⁷ `server/src/services/activity-document.ts:173,287` · ⁸ `videos.ts:1167-1197` (text-activity D34) ·
 ⁹ `iphone/MakeReady/Pages/Video/CustomVideoRecorder.swift`, `TeleprompterOverlay.swift` · ¹⁰ `iphone/.claude/VIDEO_RECORDING.md`
 
 ## Apps
 
 | App | In scope | What changes | Section |
 |---|---|---|---|
-| server | ✅ | The `Video` transcript fields and `libraryRemovedAt`. `POST /api/videos` accepts a transcript. A paged Library video list. Remove-from-Library. Server fallback transcription. `GET /api/videos/me` excludes removed videos | §server |
-| client | ⬜ | No code change. The web lesson player plays these videos as any Stream video, with no overlays to draw (P5). The web video picker's `GET /api/videos/me` simply stops listing videos the leader removed from their Library | — |
-| iphone | ✅ | The recorder (two layouts), rail tools, teleprompter, filters, import, review, export, transcription, upload queue, Library video rows and Type filter, Video detail, + menu and video-activity wiring. The d2m screens and components come first (P2) | §iphone |
+| server | ✅ | The `Video` transcript fields and `libraryRemovedAt`. `POST /api/videos` accepts a transcript, is idempotent for its owner and creates the org Media row before it returns. A paged Library video list. Remove-from-Library. A Stream status sync in the maintenance job. Server fallback transcription. `GET /api/videos/me` excludes removed videos | §server |
+| client | ⬜ | No code change (re-derived at audit: the only web video caller is `GET /admin/api/videos/me` in `leader-program.store.ts:672-686`, reading id, title, thumbnailUrl, playbackUrl, duration and status, none of which change; nothing on the web calls `/api/videos/:id` or POSTs a video). The web lesson player plays these videos through the MediaMap as any Stream video, with no overlays to draw (P5). The web video picker simply stops listing videos the leader removed from their Library | — |
+| iphone | ✅ | The recorder (two layouts), rail tools, teleprompter, filters, import, review, export, transcription, upload queue, Library video rows and Type filter, Video detail, + menu wiring, enabling the Video tile in New activity and the video-activity wiring. The d2m screens and components come first (P2) | §iphone |
 
 **Sequencing:** d2m specs and builds the screens and components, and the owner approves them
 (phase 1, P2). Then the server implements and verifies, and the contract freezes. Then the iPhone
 wiring builds against the frozen contract. Then the device walk.
 
 **Backward compatibility:** every server change is additive. A released iPhone build creates videos
-without a transcript (the server sets `transcriptStatus: none`) and never calls the new endpoints. It
-reads `GET /api/videos/me` and `GET /api/videos/:id` with the same fields plus new ones it ignores.
-Videos removed from the Library vanish from its legacy video picker, which is the intended meaning.
+only through the Media tab (`MediaActions.uploadVideo` → `VideoActions.createVideoRecord`, sending
+`cloudflareUid`/`title`/`description`), so the server sets `transcriptStatus: none`, and it never
+calls the new endpoints. Its `Video` Codable ignores unknown keys (`JSONDecoder.apiDecoder`), so the
+added fields and `lessonUseCount` decode safely. The `.strict()` create body (D22) rejects only keys
+no released caller sends. A same-owner duplicate create now answers 200 with the row instead of 409
+(D22), which the released build treats as success. No in-target iPhone code calls `GET /api/videos/me`.
 
 **Blast radius:** `Video` rows are read by `GET /api/videos/me` (web picker, iPhone legacy), the
 activity document validation (`content-media.service.ts:56-80`), the Media library rows linked by
@@ -118,26 +121,35 @@ Program rulings P1–P10 bind this child (`../video-recording/PROGRAM.md` §Shar
 | D8 | Import from Photos | A gallery button left of the record row (pre-record only) opens the system Photos picker for one video. A clip of 2:00 or less goes straight to Review. A longer clip opens a trim step to choose a window of 2:00 or less, then Review. An imported clip can be filtered and is transcribed like a recording. Rejected: refusing clips over 2:00 | Luke 2026-11-22 |
 | D9 | Review and save | Review plays the result in a loop, with the chosen filter. It offers **Filters** (as D6), **Retake** (discard everything after a C-066 confirm and return to the camera) and **Save**. Save exports and hands the video to the upload queue, then closes the recorder at once. From the + menu it lands on the Library. From a lesson it returns to Edit lesson with the activity showing the new video. Video-editor (child 2) adds **Edit** to this screen | Luke 2026-11-22 (flow) · controls (assumed at spec) 2026-11-22 |
 | D10 | On-device transcript | During export, the app runs `SpeechTranscriber` over the exported audio (the memo stack, P6), with the device locale. On success, `POST /api/videos` carries `transcript` and `transcriptSegments` (`{text, startMs, endMs}`, ms from the start of the exported file) and the server stores `transcriptStatus: ready, transcriptSource: on_device`. If the device cannot transcribe (unsupported locale, model unavailable, failure), the create omits them and the server sets `pending` for D11. Transcription never blocks Save: the queue waits up to the export's own duration for it, then uploads without it | (assumed at spec) 2026-11-22 |
-| D11 | Server fallback transcript | A video created with `transcriptStatus: pending` is transcribed by the server once Stream reports it ready. The job is the same lock-and-retry runner memos use (3 attempts, then `failed`), with the result stored as `transcriptSource: server`. Where the audio comes from (Stream's caption generation, or Stream's MP4 download fed to the existing Groq client) is a **build-time risk** the audit settles (F1) | (assumed at spec) 2026-11-22 |
-| D12 | Upload queue | Saved videos are written to the app's container and uploaded by a `VideoUploadController` built like `MemoUploadController`: background `URLSession` upload to the Stream direct-upload URL, then `POST /api/videos`, with retry on relaunch and on reconnect. Each pending video shows in the Library at once as a row with an "Uploading…" state, and moves to "Processing…" until Stream is ready. A failure after 3 attempts surfaces the error banner with Retry (`/ios-error-surface`, surface: true) | (assumed at spec) 2026-11-22 |
+| D11 | Server fallback transcript | **Superseded 2026-11-22 (audit, F1 settled):** a video with `transcriptStatus: pending` is transcribed by the server once `Video.status` is `ready` (moved by D23's sync). Audio source: Stream's MP4 download (`POST /stream/{uid}/downloads` via `cloudflare.ts`, skipped while it is in progress, deleted after use) → ffmpeg `-vn -c:a copy` to `.m4a` → the existing `GroqClient` / `ffmpegSplitAudio`, from a row-agnostic core extracted from `transcribeMemo`. The claim is `status = ready AND isActive AND transcriptStatus IN (pending, failed) AND transcriptAttempts < 3`, with `failed` after the third attempt, stored as `transcriptSource: server`; `libraryRemovedAt` rows are **not** skipped (child 2's captions need them). It runs as a step of `jobs/memo-maintenance.ts` under its advisory lock. Rejected: Stream caption generation (VTT only, a limited language list, a second transcript engine to parse) | (assumed at spec) 2026-11-22 · auto (recommended) 2026-11-22 (audit) |
+| D12 | Upload queue | **Superseded 2026-11-22 (audit):** saved videos are written to the app's container and uploaded by a `VideoUploadController` built like `MemoUploadController`: a manifest per item persisted before any network call, an ephemeral `URLSession` upload **streamed from the file** (never loaded into `Data`) inside `beginBackgroundTask`, then `POST /api/videos`, flushed on enqueue, on launch and on reconnect (`NWPathMonitor`), backing off 5 s · 30 s · 2 min · 10 min and never giving up. The item persists the Stream `uid` before the upload; a retry whose upload URL is spent mints a fresh URL and uid. Each pending video shows in the Library at once with "Uploading…", then "Processing…" until `status: ready`. After 3 consecutive failures of one item the error banner shows with Retry (`/ios-error-surface`, surface: true), and backoff continues. Rejected: a background `URLSession` (needs a multipart body file and an AppDelegate relaunch path; memos ship without one) | (assumed at spec) 2026-11-22 · auto (recommended) 2026-11-22 (audit) |
 | D13 | Export format | One `.mp4`, H.264/HEVC as `AVAssetExportSession` presets allow, 1080×1920 portrait (smaller if the source is), orientation applied per `VIDEO_RECORDING.md` (P10). Segments are concatenated in order. Audio is AAC | (assumed at spec) 2026-11-22 |
 | D14 | Titles | A new video is titled `Video n` (n = 1 + the highest existing `Video n`, as `MemoActions.nextDefaultTitle` does for memos). It is renamable on the Video detail screen through the existing `PATCH /api/videos/:id` title field | Luke 2026-11-22 |
 | D15 | Library rows | The Library shows videos as a third row kind, interleaved newest first by `createdAt`, with notes and memos. A video row has the C-038 avatar with a video glyph, the title, the date and duration on line 1 (`9:38 PM · 0:45`, the memo rule), and the transcript's first line, `Transcribing…`, `Uploading…` or `Processing…` on line 2. The Type menu gains **Videos** (`LibraryItemType.video`). Search matches title and transcript, server-side. Swipe-to-delete (C-142) and tap → Video detail work as memo rows do. The library-home screen change is a d2m handover in phase 1 | Luke 2026-11-22 (third kind) · row anatomy (assumed at spec) 2026-11-22 |
 | D16 | Video detail | Tapping a video row opens a Video detail screen built like memo-detail. It has the player (HLS `playbackUrl`, poster `thumbnailUrl`), the title (tap to rename), the date and duration, the transcript (or its state), and Delete in the overflow. d2m specs it from memo-detail (phase 1) | Luke 2026-11-22 |
-| D17 | Delete | Deleting from the Library (swipe or detail) reads `lessonUseCount` from `GET /api/videos/:id`. **0** → a C-066 confirm "Delete this video?", then `DELETE /api/videos/:id` (unchanged; deletes from Stream). **N > 0** → a confirm "This video is used in N lessons. It will stay in those lessons and leave your Library.", then `POST /api/videos/:id/remove-from-library`. The existing refusal of `DELETE` for an in-use video (text-activity D34) stays. Rejected: blocking the delete while in use (the leader must hunt down every lesson first); deleting everywhere (members find empty activities) | Luke 2026-11-22 |
-| D18 | Video activity wiring | In the activities editor, a video activity with no video (and **Replace video** in an existing one's menu) shows the inline recorder (P3). The leader records or imports and saves, and the activity document's `content.videoId` is set to the new `Video.id` once `POST /api/videos` returns. Until then the activity shows the pending row's poster and "Uploading…". The activity saves through the existing `ActivityActions` document update. Choosing an existing Library video for an activity is out of scope here | (assumed at spec) 2026-11-22 |
-| D19 | Permissions | Camera, microphone and speech-recognition permissions are asked in context on first use, with copy in `Info.plist`. A denied permission shows a C-132 EmptyState in the camera area with **Open Settings**. Recording works without speech permission (no transcript, so the server fallback runs) | (assumed at spec) 2026-11-22 |
-| D20 | Library paging | The Library's video list is fetched one page at a time (`limit` 50, cursor) from `GET /api/videos/library`, with more pages as the list nears its end. This is the first list on d2m rule R-28's window shape (an ordered id list plus a loaded window). Notes and memos are unchanged here (the large-lists program will move them) | (assumed at spec) 2026-11-22 |
+| D17 | Delete | **Superseded 2026-11-22 (audit):** deleting from the Library (swipe or detail) reads `lessonUseCount` from `GET /api/videos/:id`. **0** → a C-066 confirm "Delete this video?", then `DELETE /api/videos/:id` (unchanged; deletes from Stream). **N > 0** → a confirm "This video is used in N lesson activities. It will stay in them and leave your Library.", then `POST /api/videos/:id/remove-from-library`. The video row's C-142 swipe uses `removesRow: false`: the row stays until the call succeeds and springs back on cancel; a failed `GET` (offline) shows the error banner and leaves the row. The existing refusal of `DELETE` for an in-use video (text-activity D34) stays, and `lessonUseCount` uses the same predicate, so the 0 branch cannot meet a 409. Rejected: blocking the delete while in use (the leader must hunt down every lesson first); deleting everywhere (members find empty activities) | Luke 2026-11-22 · audit 2026-11-22 (copy: "lesson activities") |
+| D18 | Video activity wiring | **Superseded 2026-11-22 (audit):** New activity's **Video** tile is enabled (it is in `ActivityNewContainer.unavailableTypes` today). Choosing it, or **Replace video** in an existing video activity's menu, shows the inline recorder (P3). On Save the queue item carries `attach: {versionId, activityId?, title}`. Once `POST /api/videos` returns the `Video.id`, the upload controller — not the editor — creates the activity (`ActivityActions.create`, document `content.videoId`) or saves the replaced document (`ActivityActions.save`), so it completes after the editor closes or the app relaunches. Until then the editor lists a local pending video activity with the poster frame and "Uploading…". A failed attach (the version was published or deleted meanwhile) keeps the video in the Library and shows the error banner. Choosing an existing Library video for an activity is out of scope here. Rejected: creating the activity before the video exists (the server requires `content.videoId`); attaching from the editor (lost when it closes) | (assumed at spec) 2026-11-22 · auto (recommended) 2026-11-22 (audit) |
+| D19 | Permissions | **Superseded 2026-11-22 (audit):** camera and microphone permissions are asked in context on first use, with copy in `Info.plist`. `SpeechTranscriber` needs no speech-recognition authorization, so none is asked. A denied permission shows a C-132 EmptyState in the camera area with **Open Settings** (C-132 gains an action prop through d2m, phase 1). Recording works when the speech model is unavailable (no transcript, so the server fallback runs) | (assumed at spec) 2026-11-22 · auto (recommended) 2026-11-22 (audit) |
+| D20 | Library paging | **Superseded 2026-11-22 (audit):** the Library's video list is fetched one page at a time (`limit` 50, cursor) from `GET /api/videos/library`, with more pages as the list nears its end, on d2m rule R-28's window shape (an ordered id list plus a loaded window), following `InvitationFeedWindow` and the media cursor. A page-1 fetch replaces the window, so videos removed or deleted elsewhere drop out. While `hasMore` is true, notes and memos older than the oldest loaded video are held back, so rows never jump when a page lands. Notes and memos are otherwise unchanged (the large-lists program will move them) | (assumed at spec) 2026-11-22 · auto (recommended) 2026-11-22 (audit) |
+| D21 | Media row on create | `createVideo` **awaits** a `Media` row for the caller's org (`getUserOrgId`) keyed on `videoId` (the `media.ts:1384` pattern) inside the request, so the returned `Video.id` is immediately valid as an activity's `content.videoId`. It replaces the fire-and-forget `captureToLibrary` call for this route, whose `{url, organizationId}` dedupe matches any other pending (`url: ''`) video in the org and skips the row. A caller with no org gets the Video without a Media row (it can be in the Library, not in an activity). Rejected: keeping `captureToLibrary` and retrying the activity save, because the dedupe can skip the row forever, not just late | auto (recommended) 2026-11-22 (audit) |
+| D22 | Idempotent create | `POST /api/videos` with a `cloudflareUid` that already exists answers **200** `{success, data: <existing Video>}` when the row's `userId` is the caller, and 409 only for another user's uid. A concurrent duplicate's Prisma P2002 is caught and answered the same way. When Stream's `meta.userId` is present and is not the caller, 403. Rejected: 409 with no body (a retry after a lost response can never learn `Video.id`) | auto (recommended) 2026-11-22 (audit) |
+| D23 | Stream status sync | The `/refresh` body moves into `videos.service.refreshFromStream(video)`. A new step in `jobs/memo-maintenance.ts` refreshes every `status = pending` video created in the last 24 h, and marks those older than 24 h `status: error` (with `transcriptStatus: failed` when it was `pending`). The iPhone upload controller also polls `POST /api/videos/:id/refresh` after create (the existing `waitForVideoReady`, 15 × 2 s), so a foreground save turns ready in seconds and the job is the backstop. Rejected: a Stream webhook (needs a public endpoint and signature secret per environment) | auto (recommended) 2026-11-22 (audit) |
+| D24 | Body limits | `transcript` ≤ 20 000 characters, `transcriptSegments` ≤ 2 000 items, each segment `text` ≤ 1 000 characters, so a body always fits `express.json`'s 10 MB. `source` is accepted and not persisted. Rejected: the 200 000 / 20 000 limits written at spec (an unbounded segment text can exceed the body limit and return a non-`{success}` 413) | auto (recommended) 2026-11-22 (audit) |
+| D25 | Recorder presentation | The full-screen recorder is presented like the memo recorder, `.hostedOverlay(UI2HostedOverlay(…))` (`UI2Shell.swift:121-124`), so P10's `.fullScreenCover` exception is not used. Rejected: `.fullScreenCover` (house rule; the hosted overlay already gives the camera the full screen) | auto (recommended) 2026-11-22 (audit) |
+| D26 | Interruptions and space | A phone call, backgrounding or an `AVCaptureSession` interruption ends the current segment and leaves the recorder paused; it never resumes by itself. Recording refuses to start with less than 500 MB free (the error banner says so). `VideoDraftStore` finalizes each segment file and salvages only finished segments after a crash (the `MemoDraftStore` manifest pattern) | auto (recommended) 2026-11-22 (audit) |
+| D27 | iPhone stores | Library rows read `libraryVideos: EntityStore<VideoSummary>` (the window), and Video detail reads the existing `videos: EntityStore<Video>`, as memos keep `voiceMemos` + `voiceMemoDetails`. Rename, remove and delete upsert or drop both in the same Action. Every new `Video` property is Optional; the persisted snapshot decodes new keys with `decodeIfPresent` and drops `transcriptSegments` from disk. Pending queue items merge into the rows as `local:<localId>`, dropped once their `serverId` is in `libraryVideos` (the `visibleMemos` rule) | auto (recommended) 2026-11-22 (audit) |
+| D28 | What remove-from-Library leaves | Remove-from-Library leaves the org `Media` row in place, because lessons play through it; master search's VIDEO results (which route to Media) may still list it. Videos uploaded from the Media tab (`/media/upload`) stay separate: they are not Library videos and get no transcript | auto (recommended) 2026-11-22 (audit) |
 
 ## Contract
 
 | Contract | Producer | Consumers | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|---|
-| `POST /api/videos` (EDIT) | server | iphone | session; uploader | existing `{cloudflareUid, title?, description?}` plus optional `transcript` (string ≤ 200 000), `transcriptSegments` (`[{text, startMs, endMs}]` ≤ 20 000 items, each `0 ≤ startMs ≤ endMs`), `source` (`recording` \| `import`) | existing `{success, data: Video}`, where `data` adds `transcript`, `transcriptSegments`, `transcriptStatus` (`none`\|`pending`\|`ready`\|`failed`), `transcriptSource` (`on_device`\|`server`\|null), `libraryRemovedAt` (null) | 400 invalid body (zod `.strict()` on the new fields, never stripping), 401, 409 duplicate uid |
+| `POST /api/videos` (EDIT) | server | iphone | session; uploader | existing `{cloudflareUid, title?, description?}` plus optional `transcript` (string ≤ 20 000), `transcriptSegments` (`[{text ≤ 1 000, startMs, endMs}]` ≤ 2 000 items, each `0 ≤ startMs ≤ endMs`), `source` (`recording` \| `import`; accepted, not persisted) (D24) | **201** `{success, data: Video}` (existing), where `data` adds `transcript`, `transcriptSegments`, `transcriptStatus` (`none`\|`pending`\|`ready`\|`failed`), `transcriptSource` (`on_device`\|`server`\|null), `libraryRemovedAt` (null). The org Media row exists when it returns (D21). A same-owner duplicate uid → **200** with the existing row (D22) | 400 invalid body (`createVideoSchema.extend({…}).strict()` — never stripping), 401, 403 Stream `meta.userId` is another user, 409 uid owned by another user |
 | `GET /api/videos/library` (NEW) | server | iphone | session; own videos | `?limit=1..100 (default 50)&cursor=<opaque>&q=<text>` | `{success, data: VideoSummary[], nextCursor: string\|null, hasMore: boolean}`. `VideoSummary` = `id, title, thumbnailUrl, playbackUrl, duration, status, transcriptStatus, transcriptPreview (≤ 160 chars), createdAt`. Ordered `createdAt desc, id desc` (keyset). Only `isActive`, `libraryRemovedAt IS NULL`, `userId = caller`. `q` matches title or transcript (case-insensitive substring) | 400 bad cursor or limit, 401 |
-| `GET /api/videos/:videoId` (EDIT) | server | iphone | session; owner or org content manager (unchanged) | — | existing `{success, data: Video}`, where `data` adds the transcript fields, `libraryRemovedAt` and `lessonUseCount` (activities whose document names this video) | 401, 403, 404 |
+| `GET /api/videos/:videoId` (EDIT) | server | iphone | session; owner or org content manager (unchanged) | — | existing `{success, data: Video}`, where `data` adds the transcript fields, `libraryRemovedAt` and `lessonUseCount` — distinct `MediaUsage.resourceId` with `usageType: ACTIVITY` over the Media rows whose `videoId` is this video, the predicate `isUsedByActivity` uses (it counts activities, any version) | 401, 403, 404 |
 | `POST /api/videos/:videoId/remove-from-library` (NEW) | server | iphone | session; owner | — | `{success, data: {id, libraryRemovedAt}}`. Idempotent: a second call returns the same timestamp | 401, 403 not the owner, 404 |
-| `GET /api/videos/me` (EDIT) | server | client, iphone | session (unchanged) | unchanged | unchanged shape, now excluding rows with `libraryRemovedAt` set | unchanged |
+| `GET /api/videos/me` (EDIT) | server | client (iphone: no in-target caller; the released decoder ignores the change) | session (unchanged) | unchanged | unchanged shape, now excluding rows with `libraryRemovedAt` set | unchanged |
+| `POST /api/videos/:videoId/refresh` (EXISTING, body moved to `refreshFromStream`) | server | iphone (upload controller poll, D23) | session; owner or org content manager (unchanged) | — | unchanged `{success, data: Video}` with the added fields | unchanged |
 
 ## Schema & API changes
 
@@ -151,24 +163,26 @@ Program rulings P1–P10 bind this child (`../video-recording/PROGRAM.md` §Shar
 | SC6 | ADD | Video.libraryRemovedAt (datetime, nullable) | `libraryRemovedAt` | remove-from-Library that keeps lessons playing (D17) | planned |
 | SC7 | ADD | index Video(userId, createdAt, id) | — | keyset paging for `GET /api/videos/library` | planned |
 | SC8 | ADD | `GET /api/videos/library`, `POST /api/videos/:id/remove-from-library` | see §Contract | D15–D17, D20 | planned |
-| SC9 | EDIT | `POST /api/videos`, `GET /api/videos/:id`, `GET /api/videos/me` | see §Contract | additive fields and the removed-video filter | planned |
+| SC9 | EDIT | `POST /api/videos`, `GET /api/videos/:id`, `GET /api/videos/me` | see §Contract | additive fields, the removed-video filter, idempotent create (D22) | planned |
+| SC10 | ADD | index Video(status, createdAt) | — | the stream-sync and fallback-transcription claims (D11, D23), as VoiceMemo indexes `(uploadStatus, createdAt)` | planned |
 
 **Data plan:** every addition is nullable or defaulted, so no backfill is needed. Existing videos get
 `transcriptStatus: none` and are never queued for the fallback, because only a create without a
-transcript, from a client sending `source`, sets `pending`. One Atlas migration, generated from
+transcript, from a client sending `source`, sets `pending`. `transcriptStatus` and `transcriptSource` are plain strings, as VoiceMemo's are (no Prisma enum). One Atlas migration (SC1–SC7, SC10), generated from
 `server/schema/schema.yaml` with `npm run schema:diff`. It is undone by dropping the columns and the
 index.
 
 ## server
 
 - **Schema:** SC1–SC7 in `server/schema/schema.yaml` → `npm run schema:diff`. Never hand-edit the migration.
-- **Service:** move video list and create logic touched here into `server/src/services/videos.service.ts`, so routes stay thin.
-  - `createVideo` validates the new fields (zod `.strict()` object merged into `createVideoSchema`, no silent strip). It sets `transcriptStatus` to `ready` (with `transcriptSource: on_device`) when a transcript is sent, `pending` when `source` is sent without one, and `none` otherwise (legacy callers).
-  - `listLibraryVideos(userId, {limit, cursor, q})` does keyset paging on `(createdAt, id)` with an opaque base64url cursor, fetching `limit+1` for `hasMore`. Its shape matches media's keyset (`media-library.ts:430-443`). `transcriptPreview` is the first 160 characters of the transcript.
+- **Service:** create `server/src/services/videos.service.ts` (it does not exist; all video logic is inline in `routes/videos.ts` today) and move the create, list, refresh and new logic into it, so routes stay thin.
+  - `createVideo` validates with `createVideoSchema.extend({…}).strict()` (`.merge` would not carry the strict policy; the segment schema is `memos.service.ts:12`), applies D22's idempotence and D21's awaited Media row. It sets `transcriptStatus` to `ready` (with `transcriptSource: on_device`) when a transcript is sent, `pending` when `source` is sent without one, and `none` otherwise (legacy callers).
+  - `listLibraryVideos(userId, {limit, cursor, q})` does keyset paging on `(createdAt, id)` with an opaque base64url cursor, fetching `limit+1` for `hasMore`. Its shape matches media's keyset (`media-library.ts:395-444`, cursor codec `:78-94`). `transcriptPreview` is `left(transcript, 160)` in SQL — never the full transcript per row — with `q` ILIKE-escaped, copying `memos.service.ts:172-191`.
   - `removeFromLibrary(userId, id)` is owner only. It sets `libraryRemovedAt` if null and returns the row.
-  - `lessonUseCount(id)` counts activities whose document's `content.videoId` equals the id. It reuses `documentMediaRefs` over the activities linked through `MediaUsage` for the video's media (`content-media.service.ts:71-80`).
-- **Fallback transcription (D11):** add a `video` branch to the memo maintenance runner (or a sibling runner on the same lock). Its audio source is F1's choice. It skips videos not `ready` in Stream.
-- **Routes:** `GET /api/videos/library` must be registered **before** `GET /:videoId` in `routes/videos.ts`. Add `POST /:videoId/remove-from-library`. Add the `libraryRemovedAt: null` filter to `GET /me`. Add OpenAPI blocks for all of them.
+  - `lessonUseCount(id)` counts distinct `MediaUsage.resourceId` (`usageType: ACTIVITY`) over the Media rows with this `videoId` — the same predicate as `isUsedByActivity` (`content-media.service.ts:131-139`), extracted so both share it (F2).
+  - `refreshFromStream(video)` is the `/refresh` body (`videos.ts:995-1080`) moved here, called by the route and by D23's job step.
+- **Maintenance job (`jobs/memo-maintenance.ts`, same advisory lock):** add the stream-sync step (D23) and the video fallback-transcription step (D11). Add the Stream downloads calls (create, get, delete) to `services/cloudflare.ts`. Generalize `transcribeMemo` (`transcription.service.ts:93-145`) into a row-agnostic core.
+- **Routes:** `GET /api/videos/library` must be registered **before** `GET /:videoId` in `routes/videos.ts`. Add `POST /:videoId/remove-from-library`. Add the `libraryRemovedAt: null` filter to `GET /me`. Catch P2002 on create (D22). Add OpenAPI blocks for all of them.
 - **Authorization:** owner checks in the service. Remove-from-Library is the owner's only; `GET /:id` keeps its existing org check.
 - `docker restart makeready-server` after server edits (§Environment landmines).
 
@@ -183,39 +197,43 @@ branch):
   - the Length sheet, the Filters strip and the Teleprompter panel (with Use a note), the trim step;
   - Review;
   - new components: the record/stop/pause button set (reconcile with C-013 RecordButton), the timer pill, the segmented progress bar, the rail and rail tool, the countdown numerals, the length slider, the filter strip, and the teleprompter band.
-- **screen `video-detail`** (new, from memo-detail).
-- **library-home** (change): the video row kind (D15) and the **Videos** type option.
+- **screen `video-detail`** (new, from memo-detail — whose d2m screen is still a draft with no frozen snapshot, F9).
+- **library-home** (change): the video row kind (D15) with its `Uploading…`/`Processing…` local-row states, the **Videos** type option (`LibraryItemType` is d2m-owned, `LibraryHomeScreen.swift:637`; the "nothing or all checked = all" rule covers three kinds), and the screen's owner description, which still reads "Temporary placeholder… Library coming soon".
+- **activity-new** (change): the Video tile enabled (D18).
+- **activities-editor** (change): the inline recorder in the video canvas, the local pending video activity, and **Replace video** in a video activity's menu (D18).
+- **components** (change): C-132 EmptyState gains an action button (D19); C-142's video row uses `removesRow: false` (D17); C-013 RecordButton (an element inside `RecorderCompactView.swift:145`, 56 pt) reconciled with Figma's 80 pt disc.
 - **Token gaps** go through d2m: the recording red #ff022d and the timer type (`03` §tokens).
 
 **App code (phase 3, against the frozen contract):**
 - **State** (`MakeReady/State`):
-  - `libraryVideos: EntityStore<LibraryVideo>` plus an ordered id window and cursor (D20), cleared in `clearInMemory()`. Persisted capped at 100, like media.
-  - `VideoActions` gains `loadLibrary(cursor:q:)`, `loadDetail(id:)`, `rename`, `removeFromLibrary`, and `delete` (existing). Each refreshes the Library window it changes.
+  - `libraryVideos: EntityStore<VideoSummary>` plus an ordered id window and cursor (D20, D27), cleared in `clearInMemory()`. Persisted capped at 100, like media (`MediaActions.libraryPageSize`). New `Video` fields Optional; `videos` snapshot drops `transcriptSegments` (D27).
+  - `VideoActions` (exists: `loadVideos`, `getVideo`, `getUploadUrl`, `createVideoRecord`, `updateVideo`, `refreshVideoStatus`, `deleteVideo`, `waitForVideoReady`) gains `loadLibrary(cursor:q:)`, `loadDetail(id:)`, `rename` (over `updateVideo`), `removeFromLibrary`. Each upserts both stores and refreshes the Library window it changes. `MemoActions.nextDefaultTitle` gains a prefix parameter and counts queued items, as `AppState.nextMemoTitle` does (D14).
 - **Services** (`MakeReady/Services/Video/`):
   - `VideoCaptureEngine` (AVCaptureSession; segments to files; flip; live filter on the preview layer only);
   - `VideoExporter` (concatenate segments, apply the filter through `AVVideoComposition` with a Core Image handler, orientation per P10);
-  - `VideoTranscriber` (thin over `MemoTranscriber`'s analyzer, on the exported file's audio);
+  - `VideoTranscriber` (thin over `MemoTranscriber.transcribeFile`, fed an `.m4a` extracted with `MemoAudioExporter`'s passthrough export, since its `AVAudioFile` reader may refuse an `.mp4` with a video track);
   - `TeleprompterScroller`;
   - `VideoDraftStore` (segments and settings survive a crash until Save or Retake);
-  - `VideoUploadController` (D12, background `URLSession`).
+  - `VideoUploadController` (D12: ephemeral session streamed from the file, `beginBackgroundTask`; launched beside `AppState.launchMemoUploads`; owns D18's attach jobs and D23's refresh poll).
 - **Containers** (`MakeReady/UI2/Containers/Video/`):
   - `VideoRecorderContainer` (one model, two layout hosts);
   - `VideoDetailContainer`;
   - `LibraryHomeContainer` and mapper changes for the video rows and the Type option.
 - **Entry points:**
-  - UI2Shell's "Record a video" (`UI2Shell.swift:110`) presents the full-screen recorder. The camera surface is the house exception for hardware access (P10). Every sheet inside it (Length, Filters, Teleprompter, confirms) goes through `/present-overlay`.
-  - The activities editor's video activity hosts the inline recorder (D18).
+  - UI2Shell's "Record a video" (the `default: break` at `UI2Shell.swift:104`) presents the full-screen recorder as a hosted overlay (D25). Every sheet inside it (Length, Filters, Teleprompter, confirms) goes through `/present-overlay`.
+  - New activity's Video tile (remove `"video"` from `ActivityNewContainer.unavailableTypes`, `:26`) and the activities editor's video canvas (read-only today, `ActivitiesEditorContainer.swift:190-195,913-924`) host the inline recorder (D18).
 - **Recipe skills:** `/present-overlay`, `/push-page` (detail), `/ios-error-surface`, `/transition-review` on every diff with motion.
-- **Fixtures:** `server/fixtures/screens/video-recorder.ts` is not needed (no server data on the camera). Add `server/fixtures/screens/video-detail.ts` and extend the library-home layer with videos in every state: `ready` with a transcript, `pending`, `failed`, and one used in a lesson.
+- **Fixtures:** `server/fixtures/screens/video-recorder.ts` is not needed (no server data on the camera). Add `server/fixtures/screens/video-detail.ts` and extend the library-home layer (`server/fixtures/screens/library-home.ts`) with videos in every state: `ready` with a transcript, `pending`, `failed`, and one used in a lesson (a Media row with its `videoId` plus a MediaUsage). Use `fixtureId('video', n)` values distinct from `groups-detail.ts`'s.
 
 ## Testing
 
 - **server (vitest, the test DB):**
-  - `createVideo`: each `transcriptStatus` branch, and a `.strict()` rejection of an unknown field.
+  - `createVideo`: each `transcriptStatus` branch, a `.strict()` rejection of an unknown field, the D24 limits, D22 (same-owner duplicate → 200 with the row, another user's → 409, a concurrent P2002 → 200), and D21 (two pending videos in one org each get their own Media row, and an activity can name the second at once).
   - `listLibraryVideos`: keyset order, no duplicates or skips across pages with equal `createdAt`, the `q` match on title and transcript, removed and inactive rows excluded, and another user's rows never returned.
   - `removeFromLibrary`: owner only, idempotent, and `GET /me` excludes the row afterwards.
-  - `lessonUseCount`: 0 and N.
-  - The fallback runner: claims `pending`, sets `ready` or `failed` after 3 attempts, skips videos not ready in Stream (transport mocked).
+  - `lessonUseCount`: 0 and N, and it agrees with the DELETE guard.
+  - The stream-sync step (D23): pending → ready via a mocked `getVideo`, and > 24 h → `error`.
+  - The fallback runner (D11): claims `pending`, sets `ready` or `failed` after 3 attempts, skips videos not `status: ready`, handles a download still in progress (Stream and Groq mocked).
   - Request tests for each new or edited route, including the `/library`-before-`/:videoId` route order.
 - **iphone (XCTest, MakeReadyCaptureTests):**
   - mapper tests for video rows (every line-2 state) and the Type filter;
@@ -223,11 +241,13 @@ branch):
   - segment model (append, delete last, total);
   - `nextDefaultTitle` for videos;
   - the D17 branch (0 vs N);
-  - the upload controller state machine (queued → uploading → processing → ready, with retry);
+  - the upload controller state machine (queued → uploading → processing → ready, with retry, a 200 duplicate on retry, the banner after 3 failures, and the D18 attach job surviving a relaunch);
+  - the Library interleave hold-back while `hasMore` (D20) and the local-row merge (D27);
+  - the persisted snapshot decoding an old cache without the new keys (D27);
   - teleprompter scroll position across a pause.
   - d2m captures cover every screen state (phase 1).
 - **Cross-app E2E walk (one, on a real iPhone; the simulator has no camera):** + → Record a video → set 0:30 → countdown 3 s → record 2 segments with the teleprompter on a picked note → watch the end countdown and the auto-stop → filter → Save. The Library shows "Uploading…", then the transcript line. Open detail, rename, play. In a lesson, add a video activity and record 0:10; the activity plays it. Delete that video from the Library: the confirm names 1 lesson, the video leaves the Library, and the lesson still plays it on the web lesson page. Import a 3:00 clip, trim it to 2:00 and save.
-- **Human verification:** the walk above, plus airplane mode during Save (the upload resumes later), and denying speech permission (the transcript arrives later from the server).
+- **Human verification:** the walk above, plus airplane mode during Save (the upload resumes later), killing the app after Save from a lesson (the activity still gets its video on relaunch), and a device locale the speech model doesn't support (the transcript arrives later from the server).
 
 ## Out of scope
 
@@ -235,12 +255,24 @@ branch):
 - Choosing an existing Library video for an activity (only recording and importing a new one).
 - A videos section in the Media tab (it shows photos only, per media-page D21).
 - Moving notes and memos onto paged loading (large-lists).
+- Cleaning up removed-from-Library videos whose last lesson use later goes away (they stay in Stream): an automatic Stream delete is irreversible, and usage rarely drops because MediaUsage unions every lesson version (audit 2026-11-22, auto (recommended)).
+- A deep link or push target for a video (none exists today).
 
 ## Findings & risks
 
 | # | Finding | Resolution |
 |---|---|---|
-| F1 | Server fallback transcription needs the video's audio. Memos send their R2 file to Groq, but videos live in Cloudflare Stream | build-time risk — the audit picks Stream caption generation vs Stream MP4 download → Groq, and the server task settles it |
-| F2 | `lessonUseCount` assumes `MediaUsage` rows exist for a video activity's media (written by `content-media.service.ts` when an activity saves) | audit confirms on a real activity, or counts from activity documents directly |
+| F1 | Server fallback transcription needs the video's audio. Memos send their R2 file to Groq, but videos live in Cloudflare Stream; `cloudflare.ts` has no downloads or captions call | settled at audit: Stream MP4 download → ffmpeg → Groq (D11). The download API call shape is a build-time risk for the server fallback task |
+| F2 | `lessonUseCount` needs `MediaUsage` rows for a video activity's media. `syncActivityMediaUsage` writes them on save (`content-media.service.ts:67-96`), but only through a Media row with `videoId`, which `captureToLibrary`'s url dedupe can skip for a pending video (`media-library.ts:143-152`) | settled: D21 (awaited Media row keyed on `videoId`), count shared with `isUsedByActivity` |
 | F3 | The live filter on the preview, and the export composition, can only be proven on a device | build-time risk — the export task carries a device check before the iPhone phase closes |
 | F4 | `GET /api/videos/me` filtering removed videos changes what the web video picker lists | intended (P9); no web code change |
+| F5 | contract: nothing on the server moves a video out of `pending` — `/refresh` is the only sync (`videos.ts:995-1080`) and there is no webhook — so a suspended upload leaves `playbackUrl ''` and members' MediaMap has nothing to play (`content-media.service.ts:117-125`) | D23 |
+| F6 | contract: a lost create response retried gets 409 with no body (`videos.ts:396-406`), and a concurrent duplicate is a P2002 → 500 | D22 |
+| F7 | contract: the spec's transcript limits overflow `express.json({limit:'10mb'})` (`index.ts:226`) | D24 |
+| F8 | stale-spec: `MemoUploadController` has no background `URLSession` (`MemoPutTransport.swift:17-18`), never gives up, and `VideoActions.uploadVideo` loads the whole file into memory (`:256-334`); `SpeechTranscriber` needs no speech permission; the memo recorder is a hosted overlay, not `.fullScreenCover` (`UI2Shell.swift:121-124`); `videos.service.ts` does not exist; R-28 already has `InvitationFeedWindow` and the media cursor as precedents | corrected in D12, D19, D25, D20 and §server |
+| F9 | design: memo-detail's d2m screen is a draft with no frozen snapshot, so video-detail "from memo-detail" starts from unseen states; activity-new and activities-editor were missing from phase 1's d2m list | phase 1 list corrected; build-time risk — the d2m phase settles video-detail's states before owner approval |
+| F10 | design: D18 had no starting point — the Video tile is disabled (`ActivityNewContainer.swift:26`) and the server requires `content.videoId` (`activity-document.ts:173`) | D18 superseded (attach job owned by the upload controller) |
+| F11 | `checkedDocument` takes `estimatedSeconds` from `Media.duration`, null while pending (`lesson-version.service.ts:193-196`), so a just-attached video activity has no duration | build-time risk — the iPhone attach task passes the export's duration in the document, or accepts none; the server task confirms which the document schema allows |
+| F12 | the persisted `videos` decode is strict (`PersistedState.swift:289`); a non-optional new key would drop every cached store | D27; build-time risk on the iPhone state task (a decode test of an old snapshot) |
+| F13 | P8 holds only because members cannot sign in to the iPhone app (Google only, `UI2Root.swift:10`); the video endpoints are `requireAuth` only | accepted: unchanged by this feature (videos are owner-scoped) |
+| F14 | a spent Stream direct-upload URL on retry orphans its uid on Stream (`cloudflare.ts:117-123` mints without `expiry`) | accepted; D12 mints a fresh URL. Orphan uids are bounded by retries |
