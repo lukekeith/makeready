@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma.js'
 import { Prisma } from '../generated/prisma/index.js'
 import type { Video } from '../generated/prisma/index.js'
 import { getVideo as getCloudflareVideo } from './cloudflare.js'
-import { decodeLibraryCursor, encodeLibraryCursor, getUserOrgId } from './media-library.js'
+import { decodeLibraryCursor, encodeLibraryCursor, getUserOrgId, syncVideoStatus } from './media-library.js'
 import { videoActivityUseCount } from './content-media.service.js'
 import { deriveVideoMetadata } from './media-metadata.js'
 import { trackActivity } from './activity.js'
@@ -32,7 +32,7 @@ export const createVideoBody = z
 export type CreateVideoInput = z.infer<typeof createVideoBody>
 
 export class VideoServiceError extends Error {
-  constructor(public status: 400 | 403 | 404 | 409, message: string) {
+  constructor(public status: 400 | 403 | 404 | 409 | 500, message: string) {
     super(message)
     this.name = 'VideoServiceError'
   }
@@ -197,4 +197,68 @@ export async function removeFromLibrary(userId: string, id: string): Promise<{ i
 /** Distinct lesson activities that use this video, the count behind DELETE's 409 guard (F2, D17). */
 export function lessonUseCount(videoId: string): Promise<number> {
   return videoActivityUseCount(prisma, videoId)
+}
+
+/** Pulls the video's latest state from Stream into its row and the Media library (D23). Throws a 500 VideoServiceError when Stream cannot be read. */
+export async function refreshFromStream(video: Video): Promise<Video> {
+  const cloudflareResult = await getCloudflareVideo(video.cloudflareUid)
+  if (!cloudflareResult.success) {
+    throw new VideoServiceError(500, cloudflareResult.error || 'Failed to get video status')
+  }
+  const cfVideo = cloudflareResult.video!
+
+  let status = video.status
+  let playbackUrl = video.playbackUrl
+  let thumbnailUrl = video.thumbnailUrl
+  let duration = video.duration
+
+  if (cfVideo.status.state === 'ready') {
+    status = 'ready'
+    duration = cfVideo.duration ? Math.round(cfVideo.duration) : null
+    // Use Cloudflare's actual URLs (includes correct customer subdomain)
+    thumbnailUrl = cfVideo.thumbnail || null
+    playbackUrl = cfVideo.playback?.hls || video.playbackUrl
+  } else if (cfVideo.status.state === 'error') {
+    status = 'error'
+  }
+
+  const updatedVideo = await prisma.video.update({
+    where: { id: video.id },
+    data: { status, playbackUrl, thumbnailUrl, duration },
+  })
+
+  if (status !== video.status) {
+    const videoMeta = deriveVideoMetadata({ width: cfVideo.input?.width, height: cfVideo.input?.height })
+    syncVideoStatus(video.id, status, playbackUrl, thumbnailUrl ?? undefined, duration ?? undefined, videoMeta)
+  }
+  return updatedVideo
+}
+
+const PENDING_VIDEO_WINDOW_MS = 24 * 3_600_000
+
+/** The job's Stream sync (D23): refreshes pending videos from the last 24 h, errors the older ones. One failure never stops the rest. */
+export async function syncPendingVideos(now: Date): Promise<{ refreshed: number; expired: number }> {
+  const cutoff = new Date(now.getTime() - PENDING_VIDEO_WINDOW_MS)
+  let refreshed = 0
+
+  const recent = await prisma.video.findMany({ where: { status: 'pending', createdAt: { gte: cutoff } } })
+  for (const video of recent) {
+    try {
+      await refreshFromStream(video)
+      refreshed++
+    } catch (error) {
+      console.error(`[videos] Stream refresh failed for video ${video.id}:`, error)
+    }
+  }
+
+  // Two statements so a pending transcript fails with its video; each is guarded on the row still being pending.
+  await prisma.video.updateMany({
+    where: { status: 'pending', createdAt: { lt: cutoff }, transcriptStatus: 'pending' },
+    data: { transcriptStatus: 'failed' },
+  })
+  const { count: expired } = await prisma.video.updateMany({
+    where: { status: 'pending', createdAt: { lt: cutoff } },
+    data: { status: 'error' },
+  })
+  return { refreshed, expired }
 }

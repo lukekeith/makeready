@@ -2,7 +2,7 @@
  * Voice Memo Maintenance Job (D26)
  *
  * Every 15 minutes, in order: (1) expire stale pending uploads, (2) retry
- * transcription, (3) purge memos soft-deleted over 30 days ago. Each step
+ * transcription, (3) purge memos soft-deleted over 30 days ago, plus the Stream status sync of pending videos (D23). Each step
  * catches its own errors; a pass runs under an advisory lock (D32) so only
  * one server instance runs it.
  */
@@ -13,6 +13,7 @@ import {
   memoIdsDueForTranscriptRetry,
   purgeDeletedMemos,
 } from '../services/memos.service.js'
+import { syncPendingVideos } from '../services/videos.service.js'
 import { transcribeMemo } from '../services/transcription.service.js'
 
 export const MEMO_MAINTENANCE_INTERVAL_MS = 900_000
@@ -25,13 +26,13 @@ export interface MemoMaintenanceDeps {
   env?: NodeJS.ProcessEnv
 }
 
-export type MemoMaintenanceResult = { expired: number; retried: number; purged: number } | { skippedLockHeld: true }
+export type MemoMaintenanceResult = { expired: number; retried: number; purged: number; streamSynced: number } | { skippedLockHeld: true }
 
-async function runSteps(deps: MemoMaintenanceDeps): Promise<{ expired: number; retried: number; purged: number }> {
+async function runSteps(deps: MemoMaintenanceDeps): Promise<{ expired: number; retried: number; purged: number; streamSynced: number }> {
   const now = deps.now ?? (() => new Date())
   const transcribe = deps.transcribe ?? transcribeMemo
   const env = deps.env ?? process.env
-  const out = { expired: 0, retried: 0, purged: 0 }
+  const out = { expired: 0, retried: 0, purged: 0, streamSynced: 0 }
 
   try {
     out.expired = await expireStalePendingUploads(now())
@@ -53,6 +54,13 @@ async function runSteps(deps: MemoMaintenanceDeps): Promise<{ expired: number; r
     } catch (error) {
       console.error('[memo-maintenance] Error retrying transcripts:', error)
     }
+  }
+
+  // Pending videos move to ready or error from Stream (D23); the fallback transcription step (Task 6) follows this one.
+  try {
+    out.streamSynced = (await syncPendingVideos(now())).refreshed
+  } catch (error) {
+    console.error('[memo-maintenance] Error syncing Stream status:', error)
   }
 
   try {
@@ -78,12 +86,12 @@ export async function runMemoMaintenance(deps: MemoMaintenanceDeps = {}): Promis
 
     const result = await runSteps(deps)
     console.log(
-      `[memo-maintenance] expired ${result.expired}, retried ${result.retried}, purged ${result.purged}`
+      `[memo-maintenance] expired ${result.expired}, retried ${result.retried}, purged ${result.purged}, streamSynced ${result.streamSynced}`
     )
     return result
   } catch (error) {
     console.error('[memo-maintenance] Error during pass:', error)
-    return { expired: 0, retried: 0, purged: 0 }
+    return { expired: 0, retried: 0, purged: 0, streamSynced: 0 }
   } finally {
     if (client) {
       if (locked) {

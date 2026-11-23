@@ -94,6 +94,11 @@ describe('memo maintenance', () => {
     expect(transcribe.mock.calls.map((c) => c[0])).toHaveLength(1)
   })
 
+  it('reports streamSynced', async () => {
+    const out = await runMemoMaintenance({ transcribe: vi.fn(), env: { ...process.env, GROQ_API_KEY: '' } })
+    expect(out).toMatchObject({ streamSynced: expect.any(Number) })
+  })
+
   it('a failing step does not stop the next', async () => {
     const gone = await seed(userId, { isActive: false, deletedAt: daysAgo(31) })
     const transcribe = vi.fn(async () => { throw new Error('boom') })

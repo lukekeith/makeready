@@ -4,20 +4,18 @@ import { prisma } from '../lib/prisma.js'
 import { requireAuth } from '../middleware/auth.js'
 import {
   createDirectUploadUrl,
-  getVideo as getCloudflareVideo,
   deleteVideo as deleteCloudflareVideo,
 } from '../services/cloudflare.js'
 import { trackActivity } from '../services/activity.js'
-import { syncVideoStatus } from '../services/media-library.js'
 import {
   createVideo,
   createVideoBody,
   lessonUseCount,
   listLibraryVideos,
+  refreshFromStream,
   removeFromLibrary,
   VideoServiceError,
 } from '../services/videos.service.js'
-import { deriveVideoMetadata } from '../services/media-metadata.js'
 import { canManageOrgContent } from '../services/permission.js'
 import { videoActivityUseCount } from '../services/content-media.service.js'
 import { MEDIA_IN_USE_ERROR } from '../services/content.js'
@@ -1058,55 +1056,16 @@ router.post('/:videoId/refresh', requireAuth, async (req, res) => {
       }
     }
 
-    // Get latest status from Cloudflare
-    const cloudflareResult = await getCloudflareVideo(video.cloudflareUid)
-
-    if (!cloudflareResult.success) {
-      return res.status(500).json({
-        success: false,
-        error: cloudflareResult.error || 'Failed to get video status',
-      })
-    }
-
-    const cfVideo = cloudflareResult.video!
-
-    // Update status and URLs based on Cloudflare response
-    let status = video.status
-    let playbackUrl = video.playbackUrl
-    let thumbnailUrl = video.thumbnailUrl
-    let duration = video.duration
-
-    if (cfVideo.status.state === 'ready') {
-      status = 'ready'
-      duration = cfVideo.duration ? Math.round(cfVideo.duration) : null
-      // Use Cloudflare's actual URLs (includes correct customer subdomain)
-      thumbnailUrl = cfVideo.thumbnail || null
-      playbackUrl = cfVideo.playback?.hls || video.playbackUrl
-    } else if (cfVideo.status.state === 'error') {
-      status = 'error'
-    }
-
-    const updatedVideo = await prisma.video.update({
-      where: { id: videoId },
-      data: {
-        status,
-        playbackUrl,
-        thumbnailUrl,
-        duration,
-      },
-    })
-
-    // Sync status change to media library
-    if (status !== video.status) {
-      const videoMeta = deriveVideoMetadata({ width: cfVideo.input?.width, height: cfVideo.input?.height })
-      syncVideoStatus(videoId, status, playbackUrl, thumbnailUrl ?? undefined, duration ?? undefined, videoMeta)
-    }
+    const updatedVideo = await refreshFromStream(video)
 
     res.json({
       success: true,
       data: updatedVideo,
     })
   } catch (error) {
+    if (error instanceof VideoServiceError) {
+      return res.status(error.status).json({ success: false, error: error.message })
+    }
     console.error('Error refreshing video status:', error)
     res.status(500).json({
       success: false,
