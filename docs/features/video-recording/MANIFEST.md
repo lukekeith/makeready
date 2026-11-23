@@ -11,4 +11,4 @@ go-ahead: Luke 2026-11-22
 ui2: none (P2 — d2m specs the screens from doc source in each child's first phase)
 auto: off
 child: video-recorder — shipped
-child: video-editor — not started
+child: video-editor — spec
