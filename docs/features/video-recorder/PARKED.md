@@ -91,3 +91,5 @@ Why this and not the alternatives:
 - 2026-11-23 unparked by a person — named to /builder:agent or /builder:fleet
 - 2026-11-23 parked — d2m phase complete: C-143 merged into C-013, all parts + video-recorder screen built (root cause of the false-done: parts had no reference); waits on the owner's commit of the d2m output and screen approval (P2)
 - 2026-11-23 unparked by a person — named to /builder:agent or /builder:fleet
+
+- 2026-11-23 park resolved — D29 owner approval; phases 4–5 built
