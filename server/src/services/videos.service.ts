@@ -3,7 +3,8 @@ import { prisma } from '../lib/prisma.js'
 import { Prisma } from '../generated/prisma/index.js'
 import type { Video } from '../generated/prisma/index.js'
 import { getVideo as getCloudflareVideo } from './cloudflare.js'
-import { getUserOrgId } from './media-library.js'
+import { decodeLibraryCursor, encodeLibraryCursor, getUserOrgId } from './media-library.js'
+import { videoActivityUseCount } from './content-media.service.js'
 import { deriveVideoMetadata } from './media-metadata.js'
 import { trackActivity } from './activity.js'
 
@@ -31,7 +32,7 @@ export const createVideoBody = z
 export type CreateVideoInput = z.infer<typeof createVideoBody>
 
 export class VideoServiceError extends Error {
-  constructor(public status: 400 | 403 | 409, message: string) {
+  constructor(public status: 400 | 403 | 404 | 409, message: string) {
     super(message)
     this.name = 'VideoServiceError'
   }
@@ -131,4 +132,69 @@ export async function createVideo(userId: string, body: CreateVideoInput): Promi
   })
 
   return { status: 201, video }
+}
+
+const PREVIEW_CHARS = 160
+
+export interface VideoSummary {
+  id: string
+  title: string | null
+  thumbnailUrl: string | null
+  playbackUrl: string
+  duration: number | null
+  status: string
+  transcriptStatus: string
+  transcriptPreview: string | null
+  createdAt: Date
+}
+
+export interface ListLibraryVideosOptions { limit: number; cursor?: string; q?: string }
+
+/**
+ * The caller's live Library videos, newest first, keyset-paged on `(createdAt, id)` (D20). `q` is a literal,
+ * case-insensitive substring of title or transcript; the transcript itself is never returned, only its first 160 characters.
+ */
+export async function listLibraryVideos(userId: string, { limit, cursor, q }: ListLibraryVideosOptions) {
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new VideoServiceError(400, 'limit must be an integer from 1 to 100')
+  const decoded = cursor === undefined ? null : decodeLibraryCursor(cursor)
+  if (cursor !== undefined && !decoded) throw new VideoServiceError(400, 'Invalid cursor')
+
+  const pattern = q ? '%' + q.replace(/[\\%_]/g, '\\$&') + '%' : null
+  const search = pattern
+    ? Prisma.sql`AND (title ILIKE ${pattern} ESCAPE '\\' OR transcript ILIKE ${pattern} ESCAPE '\\')`
+    : Prisma.empty
+  const after = decoded
+    ? Prisma.sql`AND ("createdAt", id) < (${decoded.createdAt.toISOString()}::timestamp, ${decoded.id})`
+    : Prisma.empty
+
+  const rows = await prisma.$queryRaw<VideoSummary[]>`
+    SELECT id, title, "thumbnailUrl", "playbackUrl", duration, status, "transcriptStatus",
+           left(transcript, ${PREVIEW_CHARS}::int) AS "transcriptPreview", "createdAt"
+    FROM videos
+    WHERE "userId" = ${userId} AND "isActive" = true AND "libraryRemovedAt" IS NULL ${search} ${after}
+    ORDER BY "createdAt" DESC, id DESC
+    LIMIT ${limit + 1}::int`
+
+  const hasMore = rows.length > limit
+  const data = hasMore ? rows.slice(0, limit) : rows
+  const last = data[data.length - 1]
+  return { data, hasMore, nextCursor: hasMore && last ? encodeLibraryCursor(last.createdAt, last.id) : null }
+}
+
+/** Takes a video out of its owner's Library while lessons keep playing it (D17). Owner only; the first call's timestamp stays. */
+export async function removeFromLibrary(userId: string, id: string): Promise<{ id: string; libraryRemovedAt: Date }> {
+  const video = await prisma.video.findUnique({ where: { id }, select: { id: true, userId: true, libraryRemovedAt: true } })
+  if (!video) throw new VideoServiceError(404, 'Video not found')
+  if (video.userId !== userId) throw new VideoServiceError(403, 'Not authorized to remove this video')
+  if (video.libraryRemovedAt) return { id, libraryRemovedAt: video.libraryRemovedAt }
+
+  // A concurrent first call may win the null guard; re-read so both answer with the stored timestamp.
+  await prisma.video.updateMany({ where: { id, libraryRemovedAt: null }, data: { libraryRemovedAt: new Date() } })
+  const stored = await prisma.video.findUniqueOrThrow({ where: { id }, select: { libraryRemovedAt: true } })
+  return { id, libraryRemovedAt: stored.libraryRemovedAt! }
+}
+
+/** Distinct lesson activities that use this video, the count behind DELETE's 409 guard (F2, D17). */
+export function lessonUseCount(videoId: string): Promise<number> {
+  return videoActivityUseCount(prisma, videoId)
 }

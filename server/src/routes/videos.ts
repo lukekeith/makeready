@@ -9,10 +9,17 @@ import {
 } from '../services/cloudflare.js'
 import { trackActivity } from '../services/activity.js'
 import { syncVideoStatus } from '../services/media-library.js'
-import { createVideo, createVideoBody, VideoServiceError } from '../services/videos.service.js'
+import {
+  createVideo,
+  createVideoBody,
+  lessonUseCount,
+  listLibraryVideos,
+  removeFromLibrary,
+  VideoServiceError,
+} from '../services/videos.service.js'
 import { deriveVideoMetadata } from '../services/media-metadata.js'
 import { canManageOrgContent } from '../services/permission.js'
-import { isUsedByActivity } from '../services/content-media.service.js'
+import { videoActivityUseCount } from '../services/content-media.service.js'
 import { MEDIA_IN_USE_ERROR } from '../services/content.js'
 
 /**
@@ -436,7 +443,7 @@ router.post('/', requireAuth, async (req, res) => {
  *     tags: [Videos]
  *     summary: Get all videos for the authenticated user
  *     description: |
- *       Returns all active videos uploaded by the authenticated user.
+ *       Returns all active videos uploaded by the authenticated user, except those removed from the Library.
  *       Results are ordered by creation date (newest first).
  *     security:
  *       - userSession: []
@@ -510,6 +517,7 @@ router.get('/me', requireAuth, async (req, res) => {
       where: {
         userId,
         isActive: true,
+        libraryRemovedAt: null,
       },
       orderBy: {
         createdAt: 'desc',
@@ -532,13 +540,95 @@ router.get('/me', requireAuth, async (req, res) => {
 
 /**
  * @openapi
+ * /api/videos/library:
+ *   get:
+ *     tags: [Videos]
+ *     summary: List the authenticated user's Library videos
+ *     description: |
+ *       Keyset-paged list of the caller's active videos that were not removed from the Library, ordered
+ *       `createdAt desc, id desc`. `q` is a case-insensitive substring of title or transcript.
+ *       `transcriptPreview` is the first 160 characters of the transcript; the full transcript is never returned.
+ *     security:
+ *       - userSession: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+ *       - in: query
+ *         name: cursor
+ *         schema: { type: string }
+ *         description: Opaque cursor from a previous page's `nextCursor`
+ *       - in: query
+ *         name: q
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: One page of Library videos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id: { type: string }
+ *                       title: { type: string, nullable: true }
+ *                       thumbnailUrl: { type: string, nullable: true }
+ *                       playbackUrl: { type: string }
+ *                       duration: { type: integer, nullable: true }
+ *                       status: { type: string }
+ *                       transcriptStatus: { type: string, enum: [none, pending, ready, failed] }
+ *                       transcriptPreview: { type: string, nullable: true, maxLength: 160 }
+ *                       createdAt: { type: string, format: date-time }
+ *                 nextCursor: { type: string, nullable: true }
+ *                 hasMore: { type: boolean }
+ *       400:
+ *         description: Invalid limit or cursor
+ *       401:
+ *         description: User not authenticated
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/library', requireAuth, async (req, res) => {
+  try {
+    const userId = (req.user as any)?.id
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'User not authenticated' })
+    }
+
+    const { limit: rawLimit, cursor, q } = req.query
+    const limitText = rawLimit === undefined ? '50' : rawLimit
+    if (typeof limitText !== 'string' || !/^\d+$/.test(limitText)) {
+      return res.status(400).json({ success: false, error: 'limit must be an integer from 1 to 100' })
+    }
+    if ((cursor !== undefined && typeof cursor !== 'string') || (q !== undefined && typeof q !== 'string')) {
+      return res.status(400).json({ success: false, error: 'cursor and q must be strings' })
+    }
+
+    const page = await listLibraryVideos(userId, { limit: Number(limitText), cursor, q })
+    return res.json({ success: true, ...page })
+  } catch (error) {
+    if (error instanceof VideoServiceError) {
+      return res.status(error.status).json({ success: false, error: error.message })
+    }
+    console.error('Error listing Library videos:', error)
+    return res.status(500).json({ success: false, error: 'Internal server error' })
+  }
+})
+
+/**
+ * @openapi
  * /api/videos/{videoId}:
  *   get:
  *     tags: [Videos]
  *     summary: Get a specific video by ID
  *     description: |
- *       Returns details for a specific video.
- *       Only the video owner can view their videos.
+ *       Returns details for a specific video, plus `lessonUseCount` (the distinct lesson activities that use it).
+ *       Only the video owner, or someone who can manage the owning org's content, can view it.
  *     security:
  *       - userSession: []
  *     parameters:
@@ -646,7 +736,7 @@ router.get('/:videoId', requireAuth, async (req, res) => {
 
     res.json({
       success: true,
-      data: video,
+      data: { ...video, lessonUseCount: await lessonUseCount(video.id) },
     })
   } catch (error) {
     console.error('Error fetching video:', error)
@@ -1027,6 +1117,62 @@ router.post('/:videoId/refresh', requireAuth, async (req, res) => {
 
 /**
  * @openapi
+ * /api/videos/{videoId}/remove-from-library:
+ *   post:
+ *     tags: [Videos]
+ *     summary: Remove a video from the Library
+ *     description: |
+ *       Sets `libraryRemovedAt` so the video leaves the owner's Library while lessons keep playing it.
+ *       Owner only. Idempotent: a second call returns the same timestamp.
+ *     security:
+ *       - userSession: []
+ *     parameters:
+ *       - in: path
+ *         name: videoId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: The video's id and the time it left the Library
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id: { type: string }
+ *                     libraryRemovedAt: { type: string, format: date-time }
+ *       401:
+ *         description: User not authenticated
+ *       403:
+ *         description: Not the video's owner
+ *       404:
+ *         description: Video not found
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/:videoId/remove-from-library', requireAuth, async (req, res) => {
+  try {
+    const userId = (req.user as any)?.id
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'User not authenticated' })
+    }
+    const data = await removeFromLibrary(userId, req.params.videoId)
+    return res.json({ success: true, data })
+  } catch (error) {
+    if (error instanceof VideoServiceError) {
+      return res.status(error.status).json({ success: false, error: error.message })
+    }
+    console.error('Error removing video from Library:', error)
+    return res.status(500).json({ success: false, error: 'Internal server error' })
+  }
+})
+
+/**
+ * @openapi
  * /api/videos/{videoId}:
  *   delete:
  *     tags: [Videos]
@@ -1142,8 +1288,7 @@ router.delete('/:videoId', requireAuth, async (req, res) => {
     }
 
     // text-activity D34: refuse while an activity document names the video's media.
-    const linkedMedia = await prisma.media.findMany({ where: { videoId: video.id }, select: { id: true } })
-    if (await isUsedByActivity(prisma, linkedMedia.map((m) => m.id))) {
+    if ((await videoActivityUseCount(prisma, video.id)) > 0) {
       return res.status(409).json({ success: false, error: MEDIA_IN_USE_ERROR, code: 'IN_USE' })
     }
 

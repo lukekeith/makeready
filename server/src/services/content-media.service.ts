@@ -128,12 +128,23 @@ export async function buildMediaMap(tx: Tx, documents: unknown[]): Promise<Media
   return map
 }
 
+/** Distinct activities (`MediaUsage.resourceId`, any version) whose documents name a Media row matching `media`. */
+async function activityUseCount(db: Pick<Tx, 'mediaUsage'>, media: Prisma.MediaWhereInput): Promise<number> {
+  const rows = await db.mediaUsage.findMany({
+    where: { usageType: ACTIVITY_USAGE_TYPE, media },
+    distinct: ['resourceId'],
+    select: { resourceId: true },
+  })
+  return rows.length
+}
+
+/** The activities that name a Video through its Media rows: the one predicate behind `lessonUseCount` and DELETE's 409 guard (F2). */
+export function videoActivityUseCount(db: Pick<Tx, 'mediaUsage'>, videoId: string): Promise<number> {
+  return activityUseCount(db, { videoId })
+}
+
 /** Whether an `ACTIVITY` usage row names any of `mediaIds` (D34's delete guard). */
 export async function isUsedByActivity(db: Pick<Tx, 'mediaUsage'>, mediaIds: string[]): Promise<boolean> {
   if (!mediaIds.length) return false
-  const row = await db.mediaUsage.findFirst({
-    where: { usageType: ACTIVITY_USAGE_TYPE, mediaId: { in: mediaIds } },
-    select: { id: true },
-  })
-  return row !== null
+  return (await activityUseCount(db, { id: { in: mediaIds } })) > 0
 }
