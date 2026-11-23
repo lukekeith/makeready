@@ -11,15 +11,15 @@
 import SwiftUI
 
 /// Library — the Home tab's Library section root (§6, D51/D64): the leader's notes (C-005) and
-/// voice memos (C-006) in one list, interleaved newest first, in date sections (§2 item 4), under
-/// the pinned C-131 search and `Type` filter header (§2 item 2). No TopNav, no TabBar: the shell's
-/// `HomeSectionLayout` owns both (§1 deviation 1). The content model is an ordered list of
-/// sections so memo and video sections can be appended later without restructuring (§2).
+/// voice memos (C-006) in one flat list with no date-section headers, interleaved newest first
+/// (§2 item 4), under the pinned C-131 search and `Type` filter header (§2 item 2). No TopNav, no
+/// TabBar: the shell's `HomeSectionLayout` owns both (§1 deviation 1). The rows sit in a
+/// `LazyVStack` so the list can hold tens of thousands of rows (§2 "Virtualized", §3 Performance
+/// contract).
 ///
-/// Presentational (D6): the caller passes already-bucketed sections and already-formatted date
-/// labels (§5: "Date-section grouping, row date formatting … computed on the client from
-/// `updatedAt`" — by the app container, not this preview, so a capture does not depend on the
-/// day it runs). The live search filter (§3 `search-active`) is a UI-only rule and is real local
+/// Presentational (D6): the caller passes already-formatted date labels (§5: "row date formatting
+/// … computed on the client from `updatedAt` / `recordedAt`" — by the app container, not this
+/// preview, so a capture does not depend on the day it runs). The live search filter (§3 `search-active`) is a UI-only rule and is real local
 /// state here.
 ///
 /// §3 `loading` names skeleton bars that no §4 component draws, so `loading` renders the header
@@ -28,8 +28,7 @@ import SwiftUI
 struct LibraryHomeScreen: View {
 
     /// One §3 state's inputs. Every §3 state is reachable by these alone. Parallel arrays — one
-    /// entry per date section, and one per note row with `rowSections` naming its section —
-    /// because the preview's props are JSON and the §4 views take flat parameters (R-05).
+    /// entry per note row — because the preview's props are JSON and the §4 views take flat parameters (R-05).
     struct State {
         /// §3 states that are not derived from the search text.
         enum Phase: String {
@@ -55,10 +54,6 @@ struct LibraryHomeScreen: View {
         /// §3 `type-menu-open`: "the `Type` chip's C-036 multi-select menu is open" — the preview's
         /// seed for the presented menu (R-31: ephemeral screen state, seeded here).
         var typeMenuOpen: Bool = false
-        /// C-020 `title` per section, newest first (§2 item 4: Today … years).
-        var sectionTitles: [String] = []
-        /// Per row: the index into `sectionTitles` it sits under.
-        var rowSections: [Int] = []
         /// C-005 `title` per row.
         var rowTitles: [String] = []
         /// C-005 `dateLabel` per row (§2: time today, weekday this week, short date older).
@@ -70,9 +65,8 @@ struct LibraryHomeScreen: View {
         /// Per note row: the note's model id — the row's stable identity, so an open or deleted row
         /// stays that note when the rows shift. Empty (previews only) = keyed by row index.
         var noteIDs: [String] = []
-        /// Per note row: its `updatedAt`, the key §2 interleaves memos against ("rows of both kinds
-        /// are ordered by that date descending"). A note with none keeps its passed order, ahead
-        /// of the section's memos.
+        /// Per note row: its `updatedAt`, the key §2 interleaves memos against ("newest first by
+        /// each item's own date"). A note with none keeps its passed order, ahead of the memos.
         var rowUpdatedAt: [Date] = []
         /// §3 input `memos` — the voice memos, interleaved with the note rows by date (§2 item 4).
         var memos: [MemoRowInput] = []
@@ -85,8 +79,8 @@ struct LibraryHomeScreen: View {
         var deleteConfirmPresented: Bool = false
 
         /// §3 `MemoRowInput` — one voice memo: "`id`, `title`, `duration`, `recordedAt`, the
-        /// transcript state and its preview". Duration and date arrive formatted (D6), with the
-        /// date section already chosen, as the note rows do.
+        /// transcript state and its preview". Duration and date arrive formatted (D6), as the note
+        /// rows do.
         struct MemoRowInput: Identifiable {
             var id: String
             /// C-006 `title`.
@@ -95,8 +89,6 @@ struct LibraryHomeScreen: View {
             var durationLabel: String
             /// C-006 `dateLabel` (the notes rule, §2).
             var dateLabel: String
-            /// The index into `sectionTitles` it sits under.
-            var section: Int
             /// §2: "`recordedAt` for a memo" — the interleave key.
             var recordedAt: Date
             /// C-006 `preview` — the transcript state and its preview.
@@ -195,14 +187,16 @@ struct LibraryHomeScreen: View {
         // §2 items 2–3: the C-131 header is pinned under the TopNav (the shell starts an
         // `ownsScroll` section below its row) and stays put while the screen's own ScrollView
         // scrolls beneath it.
+        // §3 Performance contract: "The filtered and merged row list is computed once per render".
+        let list = visibleList
         VStack(spacing: 0) {
             header
             GeometryReader { viewport in
                 ScrollView(.vertical) {
-                    content
+                    content(list)
                         // A short state (empty, no results) still centres in the visible area.
                         .frame(maxWidth: .infinity, minHeight: viewport.size.height,
-                               alignment: showsList ? .top : .center)
+                               alignment: showsList(list) ? .top : .center)
                 }
                 .scrollIndicators(.hidden)
                 .scrollBounceBehavior(.always, axes: .vertical)
@@ -303,13 +297,13 @@ struct LibraryHomeScreen: View {
     // MARK: - §2 content area
 
     /// The notes-and-memos list is drawn (top-aligned); every other state is a centred C-132 or blank.
-    private var showsList: Bool { state.phase == .populated && !visibleSections.isEmpty }
+    private func showsList(_ list: VisibleList) -> Bool { state.phase == .populated && !list.rows.isEmpty }
 
     @ViewBuilder
-    private var content: some View {
+    private func content(_ list: VisibleList) -> some View {
         switch state.phase {
         case .populated:
-            if visibleSections.isEmpty {
+            if list.rows.isEmpty {
                 // §3 search-no-results: "search glyph, title `No results`, message
                 // `Nothing in your Library matches “<text>”.`, or `Nothing in your Library matches
                 // this filter.` when the text is empty".
@@ -321,11 +315,11 @@ struct LibraryHomeScreen: View {
                         : "Nothing in your Library matches \u{201C}\(query)\u{201D}."
                 )
             } else {
-                notesSection
+                libraryList(list)
             }
         case .loading:
-            // GAP — library-home §3 loading: skeleton rows and a placeholder header name no §4
-            // component; the content area is left empty (see the type's doc comment).
+            // GAP — library-home §3 loading: skeleton rows name no §4 component (and there is no
+            // section header); the content area is left empty (see the type's doc comment).
             Color.clear.frame(maxWidth: .infinity)
         case .empty:
             // §3 empty: "note glyph, title "Nothing in your Library yet", message "You have no
@@ -353,7 +347,7 @@ struct LibraryHomeScreen: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
-    // MARK: - §2 item 4 — the Library list (notes and memos, one list)
+    // MARK: - §2 item 4 — the Library list (notes and memos, one flat list)
 
     /// One row of the merged list, keyed by its model's stable id: a note (`state.noteIDs`, or its
     /// row index when the caller passed none — previews only) or a memo (its `id`).
@@ -367,14 +361,9 @@ struct LibraryHomeScreen: View {
         state.noteIDs.indices.contains(row) ? state.noteIDs[row] : "row:\(row)"
     }
 
-    /// The note row a key names now, in `state.rowTitles`.
+    /// The note row a key names now, in `state.rowTitles` — a one-off scan, for a delete only.
     private func noteRow(_ key: String) -> Int? {
         state.rowTitles.indices.first { Self.noteKey($0, in: state) == key }
-    }
-
-    /// The memo a key names now, in `state.memos`.
-    private func memoIndex(_ id: String) -> Int? {
-        state.memos.firstIndex { $0.id == id }
     }
 
     /// The caller's rows, for resetting `deletedItems` when they change.
@@ -394,70 +383,82 @@ struct LibraryHomeScreen: View {
         }
     }
 
-
-    /// One date section after the live filter (§3: "sections and their order are preserved and
-    /// empty sections are dropped").
-    private struct VisibleSection: Identifiable {
-        let id: Int
-        let title: String
-        let rows: [Item]
+    /// One visible row: what it is, where its data sits, and its D11 annotation ordinals — all
+    /// resolved once, so per-row work is O(1) (§3 Performance contract: "an id-to-index map once
+    /// per render, instead of scanning the note titles or the memos for every row").
+    private struct VisibleRow: Identifiable {
+        enum Source { case note(row: Int), memo(index: Int) }
+        let item: Item
+        let source: Source
+        /// Position among every visible row (C-142 suffix; the C-088 above it is `position - 1`).
+        let position: Int
+        /// Position among the visible rows of its own kind (C-005 / C-006 suffix).
+        let kindPosition: Int
+        var id: Item { item }
     }
 
-    private var visibleSections: [VisibleSection] {
+    /// §2 item 4's list after the live filter and the deleted rows: newest first, no sections.
+    private struct VisibleList {
+        let rows: [VisibleRow]
+    }
+
+    /// §3 Performance contract: "The filtered and merged row list is computed once per render …
+    /// so search and type filtering stay O(n)."
+    private var visibleList: VisibleList {
         let needle = query.trimmingCharacters(in: .whitespaces)
         let filtering = filtersLocally && !needle.isEmpty
         // §3: "The filter combines with search … Nothing checked, or both checked, shows every row";
         // caller-owned filtering applies neither.
         let showsNotes = !filtersLocally || LibraryItemType.shows(.note, in: selectedTypes)
         let showsMemos = !filtersLocally || LibraryItemType.shows(.memo, in: selectedTypes)
-        return state.sectionTitles.indices.compactMap { section in
-            let notes = state.rowTitles.indices.filter { row in
-                guard showsNotes, state.rowSections.indices.contains(row), state.rowSections[row] == section else {
-                    return false
-                }
-                guard filtering else { return true }
-                // §3: "a note by title and body text" — the preview line is the body text this
-                // screen holds (§5).
-                return state.rowTitles[row].localizedCaseInsensitiveContains(needle)
-                    || (preview(row) ?? "").localizedCaseInsensitiveContains(needle)
-            }
-            let memos = state.memos.indices.filter { index in
-                let memo = state.memos[index]
-                guard showsMemos, memo.section == section else { return false }
-                guard filtering else { return true }
-                // §3: "a memo by title and transcript text".
-                return memo.title.localizedCaseInsensitiveContains(needle)
-                    || (Self.transcript(memo) ?? "").localizedCaseInsensitiveContains(needle)
-            }
-            let rows = merged(notes: notes, memos: memos).filter { !deletedItems.contains($0) }
-            return rows.isEmpty ? nil : VisibleSection(id: section, title: state.sectionTitles[section], rows: rows)
-        }
+        let notes = showsNotes ? state.rowTitles.indices.filter { row in
+            guard !deletedItems.contains(.note(Self.noteKey(row, in: state))) else { return false }
+            guard filtering else { return true }
+            // §3: "a note by title and body text" — the preview line is the body text this
+            // screen holds (§5).
+            return state.rowTitles[row].localizedCaseInsensitiveContains(needle)
+                || (preview(row) ?? "").localizedCaseInsensitiveContains(needle)
+        } : []
+        let memos = showsMemos ? state.memos.indices.filter { index in
+            let memo = state.memos[index]
+            guard !deletedItems.contains(.memo(memo.id)) else { return false }
+            guard filtering else { return true }
+            // §3: "a memo by title and transcript text".
+            return memo.title.localizedCaseInsensitiveContains(needle)
+                || (Self.transcript(memo) ?? "").localizedCaseInsensitiveContains(needle)
+        } : []
+        return VisibleList(rows: merged(notes: notes, memos: memos))
     }
 
-    /// §2 item 4: "Within a section, rows of both kinds are ordered by that date descending" —
-    /// `updatedAt` for a note, `recordedAt` for a memo. A stable merge: the notes keep their passed
-    /// order, and a note with no `rowUpdatedAt` stays ahead of every memo.
-    private func merged(notes: [Int], memos: [Int]) -> [Item] {
-        var result: [Item] = []
+    /// §2 item 4: "interleaved in a single list, newest first by each item's own date: `updatedAt`
+    /// for a note and `recordedAt` for a memo". A stable merge: the notes keep their passed order,
+    /// and a note with no `rowUpdatedAt` stays ahead of every memo.
+    private func merged(notes: [Int], memos: [Int]) -> [VisibleRow] {
+        var result: [VisibleRow] = []
+        result.reserveCapacity(notes.count + memos.count)
         var noteCursor = notes.startIndex
         var memoCursor = memos.startIndex
         let sortedMemos = memos.sorted { state.memos[$0].recordedAt > state.memos[$1].recordedAt }
-        let note = { (row: Int) in Item.note(Self.noteKey(row, in: state)) }
-        let memo = { (index: Int) in Item.memo(state.memos[index].id) }
+        var notePosition = 0
+        var memoPosition = 0
+        func appendNote() {
+            let row = notes[noteCursor]
+            result.append(VisibleRow(item: .note(Self.noteKey(row, in: state)), source: .note(row: row),
+                                     position: result.count, kindPosition: notePosition))
+            notePosition += 1; noteCursor += 1
+        }
+        func appendMemo() {
+            let index = sortedMemos[memoCursor]
+            result.append(VisibleRow(item: .memo(state.memos[index].id), source: .memo(index: index),
+                                     position: result.count, kindPosition: memoPosition))
+            memoPosition += 1; memoCursor += 1
+        }
         while noteCursor < notes.endIndex || memoCursor < sortedMemos.endIndex {
-            guard memoCursor < sortedMemos.endIndex else {
-                result.append(note(notes[noteCursor])); noteCursor += 1; continue
-            }
-            guard noteCursor < notes.endIndex else {
-                result.append(memo(sortedMemos[memoCursor])); memoCursor += 1; continue
-            }
+            guard memoCursor < sortedMemos.endIndex else { appendNote(); continue }
+            guard noteCursor < notes.endIndex else { appendMemo(); continue }
             let noteDate = state.rowUpdatedAt.indices.contains(notes[noteCursor])
                 ? state.rowUpdatedAt[notes[noteCursor]] : .distantFuture
-            if noteDate >= state.memos[sortedMemos[memoCursor]].recordedAt {
-                result.append(note(notes[noteCursor])); noteCursor += 1
-            } else {
-                result.append(memo(sortedMemos[memoCursor])); memoCursor += 1
-            }
+            if noteDate >= state.memos[sortedMemos[memoCursor]].recordedAt { appendNote() } else { appendMemo() }
         }
         return result
     }
@@ -468,53 +469,31 @@ struct LibraryHomeScreen: View {
         return nil
     }
 
-    /// §2 item 4: date sections, each a C-020 SectionHeader over flat house rows.
-    private var notesSection: some View {
-        VStack(alignment: .leading, spacing: Token.Space.sectionGap) {
-            ForEach(Array(visibleSections.enumerated()), id: \.element.id) { position, section in
-                VStack(alignment: .leading, spacing: Token.Space.elementGap) {
-                    // §2: "Section headers are C-020 SectionHeader … carrying the date label with
-                    // no trailing accessory."
-                    SectionHeader(title: section.title, style: .section, accessory: .none)
-                        .ui2Element(Self.annotation("C-020 SectionHeader", position))
-                    sectionRows(section)
-                }
-            }
-        }
-        // §2: rows and headers at the page margin, as on members-home.
-        .padding(.horizontal, Token.Space.pageMargin)
-        // §2 item 3: "The list ends with the page's normal bottom inset for the TabBar."
-        .padding(.bottom, Token.Space.sectionGap)
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    /// §2: "Rows are flat house list rows, not inset cards … the C-088 hairline rule between rows."
-    private func sectionRows(_ section: VisibleSection) -> some View {
-        VStack(spacing: 0) {
-            ForEach(Array(section.rows.enumerated()), id: \.element) { position, item in
-                if position > 0 {
-                    // §2: "The hairline rule starts where the text column starts" — past the 32 pt
-                    // avatar and the row's 16 band gap.
+    /// §2 item 4: one flat list of house rows — "no date-section headers" — in a `LazyVStack`
+    /// ("only the rows near the viewport are built"). Rows keep their natural heights.
+    private func libraryList(_ list: VisibleList) -> some View {
+        LazyVStack(alignment: .leading, spacing: 0) {
+            ForEach(list.rows) { row in
+                if row.position > 0 {
+                    // §2: "The C-088 hairline rule sits between every row … It starts where the
+                    // text column starts" — past the 32 pt avatar and the row's 16 band gap.
                     SectionDivider()
                         .padding(.leading, NoteListRow.avatarSize + Token.Space.cardPadding)
-                        .ui2Element(Self.annotation("C-088 SectionDivider", dividerOrdinal(item)))
+                        .ui2Element(Self.annotation("C-088 SectionDivider", row.position - 1))
                 }
-                swipeRow(item) {
-                    switch item {
-                    case .note(let key):
-                        if let row = noteRow(key) {
+                swipeRow(row.item) {
+                    switch row.source {
+                    case .note(let index):
                         NoteListRow(
-                            title: state.rowTitles[row],
-                            preview: preview(row),
-                            dateLabel: state.rowDates.indices.contains(row) ? state.rowDates[row] : "",
-                            contextLabel: context(row),
-                            onTap: { onOpenNote(row) }
+                            title: state.rowTitles[index],
+                            preview: preview(index),
+                            dateLabel: state.rowDates.indices.contains(index) ? state.rowDates[index] : "",
+                            contextLabel: context(index),
+                            onTap: { onOpenNote(index) }
                         )
-                        .ui2Element(Self.annotation("C-005 NoteListRow", rowOrdinal(item)))
-                        }
-                    case .memo(let id):
-                        // §2: "A memo row is a C-006 MemoListRow in the same house row look".
-                        if let index = memoIndex(id) {
+                        .ui2Element(Self.annotation("C-005 NoteListRow", row.kindPosition))
+                    case .memo(let index):
+                        // §2: "A memo row is a C-006 MemoListRow" in the same house row look.
                         let memo = state.memos[index]
                         MemoListRow(
                             title: memo.title,
@@ -523,16 +502,20 @@ struct LibraryHomeScreen: View {
                             preview: memo.preview,
                             onTap: { onOpenMemo(memo.id) }
                         )
-                        .ui2Element(Self.annotation("C-006 MemoListRow", rowOrdinal(item)))
-                        }
+                        .ui2Element(Self.annotation("C-006 MemoListRow", row.kindPosition))
                     }
                 }
-                .ui2Element(Self.annotation("C-142 SwipeActions", swipeOrdinal(item)))
+                .ui2Element(Self.annotation("C-142 SwipeActions", row.position))
                 // §3 Delete: "no fade/removal transition of its own" — C-142 collapses the row's
                 // height; the screen's removal draws nothing.
                 .transition(.identity)
             }
         }
+        // §2: rows at the page margin, as on members-home.
+        .padding(.horizontal, Token.Space.pageMargin)
+        // §2 item 3: "The list ends with the page's normal bottom inset for the TabBar."
+        .padding(.bottom, Token.Space.sectionGap)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// §3 Swipe actions: "every note row and every memo row is wrapped in the global SwipeActions
@@ -565,8 +548,7 @@ struct LibraryHomeScreen: View {
         )
     }
 
-    /// §3 "The screen removes the row at once (it collapses), and the caller owns the effect" —
-    /// "the date section drops with its last row". An armed release (`animated: false`) arrives
+    /// §3 "The screen removes the row at once (it collapses), and the caller owns the effect". An armed release (`animated: false`) arrives
     /// after C-142's own height collapse, so the row is removed instantly with no transition of the
     /// screen's own (C-142 deviation 3). The confirmation's Delete, whose row has not collapsed,
     /// still moves the rows below on `motion-swipe-settle`, with no fade (`.transition(.identity)`).
@@ -643,30 +625,6 @@ struct LibraryHomeScreen: View {
         return state.rowContexts[row]
     }
 
-    /// The row's position among the visible rows of its own kind, for the D11 annotation suffix.
-    private func rowOrdinal(_ item: Item) -> Int {
-        let rows = visibleSections.flatMap(\.rows)
-        let sameKind = rows.filter {
-            switch ($0, item) {
-            case (.note, .note), (.memo, .memo): return true
-            default: return false
-            }
-        }
-        return sameKind.firstIndex(of: item) ?? 0
-    }
-
-    /// The row's position among every visible row, for the D11 annotation suffix.
-    private func swipeOrdinal(_ item: Item) -> Int {
-        visibleSections.flatMap(\.rows).firstIndex(of: item) ?? 0
-    }
-
-    /// The divider above `item`'s position among every divider drawn (one per row that is not
-    /// first in its section), for the D11 annotation suffix.
-    private func dividerOrdinal(_ item: Item) -> Int {
-        let above = visibleSections.flatMap { $0.rows.dropFirst() }
-        return above.firstIndex(of: item) ?? 0
-    }
-
     /// D11: "a component placed twice gets " 2" on the second".
     private static func annotation(_ name: String, _ position: Int) -> String {
         position == 0 ? name : "\(name) \(position + 1)"
@@ -705,8 +663,6 @@ private extension LibraryHomeScreen.State {
             phase: phase,
             searchText: searchText,
             searchFocused: searchFocused,
-            sectionTitles: ["Today", "Previous 7 Days", "Previous 30 Days"],
-            rowSections: [0, 0, 1, 1, 2, 2],
             rowTitles: [
                 "Sermon prep: Romans 8",
                 "Note",
@@ -735,8 +691,8 @@ private extension LibraryHomeScreen.State {
         )
     }
 
-    /// §3 `populated-mixed`: "notes and memos interleaved in the Today and Previous 7 Days
-    /// sections, including one memo `transcribing` and one memo `waiting-to-upload`".
+    /// §3 `populated-mixed`: "notes and memos interleaved in one flat list, including one memo
+    /// `transcribing` and one memo `waiting-to-upload`, with rows dated today and within the past week".
     /// §3 `search-mixed` is this list with search text matching one note and one memo, and
     /// `filter-memos` is it with `Voice memos` checked in the `Type` menu.
     static func mixed(searchText: String = "", searchFocused: Bool = false, selectedTypes: Set<LibraryItemType> = [],
@@ -748,8 +704,6 @@ private extension LibraryHomeScreen.State {
             searchFocused: searchFocused,
             selectedTypes: selectedTypes,
             typeMenuOpen: typeMenuOpen,
-            sectionTitles: ["Today", "Previous 7 Days"],
-            rowSections: [0, 1, 1],
             rowTitles: ["Sermon prep: Romans 8", "Small group questions", "Grocery list"],
             rowDates: ["2:16 PM", "Wednesday", "Monday"],
             rowPreviews: ["Start with verse 28 and work backwards to the context", "What does rest look like this week?", ""],
@@ -757,16 +711,16 @@ private extension LibraryHomeScreen.State {
             rowUpdatedAt: [at("2026-11-21T14:16:00Z"), at("2026-11-18T19:00:00Z"), at("2026-11-16T10:00:00Z")],
             memos: [
                 MemoRowInput(
-                    id: "memo-3", title: "Memo 3", durationLabel: "4:12", dateLabel: "3:40 PM", section: 0,
+                    id: "memo-3", title: "Memo 3", durationLabel: "4:12", dateLabel: "3:40 PM",
                     recordedAt: at("2026-11-21T15:40:00Z"),
                     preview: .transcript("So the main thing I want to say this Sunday is about rest")
                 ),
                 MemoRowInput(
                     id: "memo-prayer", title: "Prayer list for Thursday", durationLabel: "1:08", dateLabel: "9:05 AM",
-                    section: 0, recordedAt: at("2026-11-21T09:05:00Z"), preview: .transcribing
+                    recordedAt: at("2026-11-21T09:05:00Z"), preview: .transcribing
                 ),
                 MemoRowInput(
-                    id: "memo-2", title: "Memo 2", durationLabel: "0:42", dateLabel: "Tuesday", section: 1,
+                    id: "memo-2", title: "Memo 2", durationLabel: "0:42", dateLabel: "Tuesday",
                     recordedAt: at("2026-11-17T08:00:00Z"), preview: .waitingToUpload
                 ),
             ],

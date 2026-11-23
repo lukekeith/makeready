@@ -19,11 +19,12 @@ enum LibraryHomeMapper {
         let preview: MemoListRow.Preview
     }
 
-    /// One date section holding both kinds, each already newest first.
-    struct LibrarySection: Equatable {
-        let title: String
+    /// library-home §2 item 4: the one flat list's rows, both kinds, each already newest first
+    /// (the screen interleaves them by date). No date sections.
+    struct LibraryRows: Equatable {
         let notes: [StudyNote]
         let memos: [MemoSource]
+        var isEmpty: Bool { notes.isEmpty && memos.isEmpty }
     }
 
     static func memoSource(summary: VoiceMemoSummary) -> MemoSource {
@@ -66,11 +67,10 @@ enum LibraryHomeMapper {
         return stored.map { memoSource(summary: $0) } + waiting.map { memoSource(queued: $0) }
     }
 
-    /// D3, D5: notes and memos in one set of date sections. `searchIds` is the server's note match list
-    /// for the current `q` (D8): nil shows every note, else only those ids (no client-side corpus
-    /// search). Notes sort by `updatedAt`, memos by `recordedAt`, newest first; empty sections are left out.
-    static func rows(notes: [StudyNote], searchIds: [String]?, memos: [MemoSource], now: Date, calendar: Calendar)
-        -> [LibrarySection] {
+    /// D3, D5, library-home §2 item 4: notes and memos for the one flat list. `searchIds` is the
+    /// server's note match list for the current `q` (D8): nil shows every note, else only those ids
+    /// (no client-side corpus search). Notes sort by `updatedAt`, memos by `recordedAt`, newest first.
+    static func rows(notes: [StudyNote], searchIds: [String]?, memos: [MemoSource]) -> LibraryRows {
         let shownNotes: [StudyNote]
         if let searchIds {
             let wanted = Set(searchIds)
@@ -78,65 +78,46 @@ enum LibraryHomeMapper {
         } else {
             shownNotes = notes
         }
-        let sortedNotes = NotesSectioning.newestFirst(shownNotes)
         let sortedMemos = memos.sorted { lhs, rhs in
             lhs.recordedAt != rhs.recordedAt ? lhs.recordedAt > rhs.recordedAt : lhs.id > rhs.id
         }
-        func title(_ date: Date) -> String { NotesSectioning.sectionTitle(for: date, now: now, calendar: calendar) }
-        let noteTitles = sortedNotes.map { (date: $0.updatedDate ?? .distantPast, title: title($0.updatedDate ?? .distantPast)) }
-        let memoTitles = sortedMemos.map { (date: $0.recordedAt, title: title($0.recordedAt)) }
-        // Newest first and titles only ever step older, so first appearance in date order is section order.
-        var order: [String] = []
-        for entry in (noteTitles + memoTitles).sorted(by: { $0.date > $1.date }) where !order.contains(entry.title) {
-            order.append(entry.title)
-        }
-        return order.map { sectionTitle in
-            LibrarySection(
-                title: sectionTitle,
-                notes: zip(sortedNotes, noteTitles).filter { $0.1.title == sectionTitle }.map(\.0),
-                memos: zip(sortedMemos, memoTitles).filter { $0.1.title == sectionTitle }.map(\.0))
-        }
+        return LibraryRows(notes: NotesSectioning.newestFirst(shownNotes), memos: sortedMemos)
     }
 
     /// D20: rows (notes or memos) win over every other state (a failed refresh keeps the cached list);
     /// with no rows, a fetch in flight is loading, a failure is an error, a query is no-results, else empty.
-    static func phase(isLoading: Bool, loadFailed: Bool, sections: [LibrarySection], query: String) -> Phase {
-        if !sections.isEmpty { return .list }
+    static func phase(isLoading: Bool, loadFailed: Bool, rows: LibraryRows, query: String) -> Phase {
+        if !rows.isEmpty { return .list }
         if loadFailed { return .error }
         if isLoading { return .loading }
         return query.trimmingCharacters(in: .whitespaces).isEmpty ? .empty : .noResults
     }
 
-    /// The screen's props for the sections (parallel arrays; `onOpenNote` gives a row index into
+    /// The screen's props for the rows (parallel arrays; `onOpenNote` gives a row index into
     /// `rowTitles`, which `noteIds(in:)` maps back to a note id; memo rows carry their own id).
-    static func state(sections: [LibrarySection], phase: Phase, query: String, now: Date, calendar: Calendar)
+    static func state(rows: LibraryRows, phase: Phase, query: String, now: Date, calendar: Calendar)
         -> LibraryHomeScreen.State {
         var state = LibraryHomeScreen.State(phase: screenPhase(phase), searchText: query)
-        for (index, section) in sections.enumerated() {
-            state.sectionTitles.append(section.title)
-            for note in section.notes {
-                state.rowSections.append(index)
-                state.rowTitles.append(note.displayTitle)
-                state.rowDates.append(note.updatedDate.map {
-                    NotesSectioning.dateLabel($0, now: now, calendar: calendar)
-                } ?? "")
-                state.rowPreviews.append(note.preview ?? "")
-                state.rowContexts.append(note.contextLabel ?? "")
-                state.rowUpdatedAt.append(note.updatedDate ?? .distantPast)
-            }
-            for memo in section.memos {
-                state.memos.append(.init(
-                    id: memo.id, title: memo.title, durationLabel: durationLabel(ms: memo.durationMs),
-                    dateLabel: NotesSectioning.dateLabel(memo.recordedAt, now: now, calendar: calendar),
-                    section: index, recordedAt: memo.recordedAt, preview: memo.preview))
-            }
+        for note in rows.notes {
+            state.rowTitles.append(note.displayTitle)
+            state.rowDates.append(note.updatedDate.map {
+                NotesSectioning.dateLabel($0, now: now, calendar: calendar)
+            } ?? "")
+            state.rowPreviews.append(note.preview ?? "")
+            state.rowContexts.append(note.contextLabel ?? "")
+            state.rowUpdatedAt.append(note.updatedDate ?? .distantPast)
+        }
+        state.memos = rows.memos.map { memo in
+            .init(id: memo.id, title: memo.title, durationLabel: durationLabel(ms: memo.durationMs),
+                  dateLabel: NotesSectioning.dateLabel(memo.recordedAt, now: now, calendar: calendar),
+                  recordedAt: memo.recordedAt, preview: memo.preview)
         }
         return state
     }
 
-    /// Row order of `state(sections:…)`: the note ids, one per note row.
-    static func noteIds(in sections: [LibrarySection]) -> [String] {
-        sections.flatMap { $0.notes.map(\.id) }
+    /// Row order of `state(rows:…)`: the note ids, one per note row.
+    static func noteIds(in rows: LibraryRows) -> [String] {
+        rows.notes.map(\.id)
     }
 
     /// `.noResults` is the screen's populated phase with no rows and a query.

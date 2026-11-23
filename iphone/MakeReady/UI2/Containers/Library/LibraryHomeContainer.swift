@@ -36,15 +36,14 @@ struct LibraryHomeContainer: View {
                                                    searchMatches: searchMatches)
             .filter { !deletingMemoIds.contains($0.id) }
         let notes = AppState.shared.studyNotes.all.filter { !deletingNoteIds.contains($0.id) }
-        let sections = LibraryHomeMapper.rows(notes: LibraryItemType.shows(.note, in: selectedTypes) ? notes : [],
-                                              searchIds: searchIds, memos: LibraryItemType.shows(.memo, in: selectedTypes) ? memos : [],
-                                              now: now, calendar: calendar)
+        let rows = LibraryHomeMapper.rows(notes: LibraryItemType.shows(.note, in: selectedTypes) ? notes : [],
+                                          searchIds: searchIds, memos: LibraryItemType.shows(.memo, in: selectedTypes) ? memos : [])
         let phase = Self.filteredPhase(
-            LibraryHomeMapper.phase(isLoading: isLoading, loadFailed: loadFailed, sections: sections, query: query),
+            LibraryHomeMapper.phase(isLoading: isLoading, loadFailed: loadFailed, rows: rows, query: query),
             selectedTypes: selectedTypes)
-        let noteIds = LibraryHomeMapper.noteIds(in: sections)
+        let noteIds = LibraryHomeMapper.noteIds(in: rows)
         let state: LibraryHomeScreen.State = {
-            var state = LibraryHomeMapper.state(sections: sections, phase: phase, query: query, now: now, calendar: calendar)
+            var state = LibraryHomeMapper.state(rows: rows, phase: phase, query: query, now: now, calendar: calendar)
             state.selectedTypes = selectedTypes
             state.noteIDs = noteIds
             return state

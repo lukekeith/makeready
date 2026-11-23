@@ -3355,7 +3355,7 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
                 throw ViewRegistryError.unknownView("screen.2.0.library-home: memos[].preview \"\(memo.preview)\" must be transcript | transcribing | audioOnly | waitingToUpload")
             }
             return .init(id: memo.id, title: memo.title, durationLabel: memo.durationLabel, dateLabel: memo.dateLabel,
-                         section: memo.section, recordedAt: recordedAt, preview: preview)
+                         recordedAt: recordedAt, preview: preview)
         }
         return AnyView(MakeReadyUI.LibraryHomeScreen(
             state: .init(
@@ -3364,8 +3364,6 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
                 searchFocused: c.searchFocused ?? false,
                 selectedTypes: librarySelectedTypes,
                 typeMenuOpen: c.typeMenuOpen ?? false,
-                sectionTitles: c.sectionTitles ?? [],
-                rowSections: c.rowSections ?? [],
                 rowTitles: c.rowTitles ?? [],
                 rowDates: c.rowDates ?? [],
                 rowPreviews: c.rowPreviews ?? [],

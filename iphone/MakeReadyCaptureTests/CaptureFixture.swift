@@ -1545,8 +1545,6 @@ struct CaptureComponent: Codable {
     let composeEmphasis: String?
     // ── screen library-home ──
     // `phase`, `searchText` and `searchFocused` are reused (same names, same types).
-    let sectionTitles: [String]?
-    let rowSections: [Int]?
     let rowTitles: [String]?
     let rowDates: [String]?
     let rowPreviews: [String]?
@@ -1616,7 +1614,6 @@ struct CaptureUI2LibraryMemo: Codable {
     let title: String
     let durationLabel: String
     let dateLabel: String
-    let section: Int
     let recordedAt: String
     let preview: String
     let previewText: String?
