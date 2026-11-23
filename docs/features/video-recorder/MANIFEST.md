@@ -1,7 +1,7 @@
 size: lg
-state: audited
+state: planned
 next: /builder:resume --path docs/features/video-recorder
-head: 69699553
+head: f81a332b
 ticket: none
 branch: builder/video-recorder
 pr: none

@@ -276,3 +276,26 @@ branch):
 | F12 | the persisted `videos` decode is strict (`PersistedState.swift:289`); a non-optional new key would drop every cached store | D27; build-time risk on the iPhone state task (a decode test of an old snapshot) |
 | F13 | P8 holds only because members cannot sign in to the iPhone app (Google only, `UI2Root.swift:10`); the video endpoints are `requireAuth` only | accepted: unchanged by this feature (videos are owner-scoped) |
 | F14 | a spent Stream direct-upload URL on retry orphans its uid on Stream (`cloudflare.ts:117-123` mints without `expiry`) | accepted; D12 mints a fresh URL. Orphan uids are bounded by retries |
+
+## Plan
+
+The plan, task by task: `docs/features/video-recorder/PLAN.md` (§PLAN.md).
+
+- Phase 1 · Task 1 · File the d2m handover requests and wait for the builds
+- Phase 2 · Task 2 · `Video` transcript and Library columns
+- Phase 2 · Task 3 · `videos.service.createVideo` — strict, idempotent, Media row awaited
+- Phase 2 · Task 4 · Library list, remove-from-Library, `lessonUseCount`, `/me` filter
+- Phase 3 · Task 5 · `refreshFromStream` and the Stream status sync step
+- Phase 3 · Task 6 · Server fallback transcription from Stream downloads
+- Phase 3 · Task 7 · Fixtures for Library videos and Video detail, and the contract freeze
+- Phase 4 · Task 8 · `Video` fields, `VideoSummary` and the `libraryVideos` window
+- Phase 4 · Task 9 · `VideoActions` for the Library, detail and delete-or-remove
+- Phase 4 · Task 10 · The recorder timeline — length, segments, countdowns, teleprompter scroll
+- Phase 4 · Task 11 · `VideoCaptureEngine` and `VideoDraftStore`
+- Phase 4 · Task 12 · `VideoExporter` and `VideoTranscriber`
+- Phase 4 · Task 13 · `VideoUploadController` — queue, attach jobs, refresh poll
+- Phase 5 · Task 14 · Library video rows, Type filter, paging hold-back and delete
+- Phase 5 · Task 15 · Video detail
+- Phase 5 · Task 16 · The recorder model and the full-screen recorder from +
+- Phase 5 · Task 17 · Review, import, trim and Save
+- Phase 5 · Task 18 · The lesson video activity — tile, inline recorder, Replace video
