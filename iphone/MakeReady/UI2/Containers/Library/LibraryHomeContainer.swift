@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// notes D3/D8/D17/D20: the Home tab's Library section root — the leader's notes list. Reads
+/// notes D3/D8/D17/D20: the Home tab's Library section root — the leader's notes, memos and videos list. Reads
 /// `AppState.studyNotes` (cache-first), refreshes through `NoteActions`, and sends the search
 /// capsule's text to the server as `q` 300 ms after the last keystroke (no client-side corpus
 /// search). A row tap pushes the editor through `UI2Navigator`; new notes come from the TabBar +
@@ -24,6 +24,17 @@ struct LibraryHomeContainer: View {
     /// once, restored when the delete fails.
     @State private var deletingNoteIds: Set<String> = []
     @State private var deletingMemoIds: Set<String> = []
+    /// video-recorder D17: a video row stays until the server call succeeds (`removesRow: false`), so this
+    /// is only the second confirm for a video that lessons use.
+    @State private var pendingRemoval: PendingVideoRemoval?
+    /// D20: the last scroll offset and whether a next page is already loading, so paging fires once.
+    @State private var scrollOffset: CGFloat = 0
+    @State private var isPagingVideos = false
+
+    private struct PendingVideoRemoval: Equatable {
+        let id: String
+        let decision: VideoDeleteDecision
+    }
 
     /// D8: the pause after the last keystroke before `q` is sent.
     static let searchDebounce: Duration = .milliseconds(300)
@@ -36,8 +47,18 @@ struct LibraryHomeContainer: View {
                                                    searchMatches: searchMatches)
             .filter { !deletingMemoIds.contains($0.id) }
         let notes = AppState.shared.studyNotes.all.filter { !deletingNoteIds.contains($0.id) }
-        let rows = LibraryHomeMapper.rows(notes: LibraryItemType.shows(.note, in: selectedTypes) ? notes : [],
-                                          searchIds: searchIds, memos: LibraryItemType.shows(.memo, in: selectedTypes) ? memos : [])
+        let window = AppState.shared.videoLibraryWindow
+        let trimmed = Self.trimmedQuery(query)
+        // The window answers one query: while another is in flight, its rows are not this list's.
+        let windowMatches = window.query == trimmed
+        let videos = LibraryHomeMapper.visibleVideos(
+            stored: windowMatches ? window.ids.compactMap { AppState.shared.libraryVideos[$0] } : [],
+            queued: trimmed == nil ? AppState.shared.videoUploads?.pendingItems ?? [] : [])
+        let kinds = LibraryHomeMapper.kinds(checked: selectedTypes)
+        let rows = LibraryHomeMapper.rows(notes: kinds.contains(.note) ? notes : [],
+                                          searchIds: searchIds, memos: kinds.contains(.memo) ? memos : [],
+                                          videos: kinds.contains(.video) ? videos : [],
+                                          videosHaveMore: kinds.contains(.video) && windowMatches && window.hasMore)
         let phase = Self.filteredPhase(
             LibraryHomeMapper.phase(isLoading: isLoading, loadFailed: loadFailed, rows: rows, query: query),
             selectedTypes: selectedTypes)
@@ -57,16 +78,31 @@ struct LibraryHomeContainer: View {
             onOpenMemo: { id in navigator.push(Self.destination(forMemoId: id)) },
             onSearchChange: search,
             filtersLocally: false,
-            onScrollChange: { offset, interacting in scrollReport.report(offset, interacting) },
+            onScrollChange: { offset, interacting in
+                scrollReport.report(offset, interacting)
+                scrollOffset = offset
+                loadMoreVideosIfNearEnd(rowCount: rows.ids.count)
+            },
             onSaveTypes: { selectedTypes = $0 },
             onRefresh: { Task { await fetch(q: Self.trimmedQuery(query)) } },
             onDeleteNote: { row in
                 guard noteIds.indices.contains(row) else { return }
                 Task { await deleteNote(id: noteIds[row]) }
             },
-            onDeleteMemo: { id in Task { await deleteMemo(id: id) } }
+            onDeleteMemo: { id in Task { await deleteMemo(id: id) } },
+            onDeleteVideo: { id in Task { await deleteVideo(id: id) } }
         )
+        .actionMenuPresentation(isPresented: pendingRemoval != nil, onDismiss: { pendingRemoval = nil }) {
+            removalConfirmation
+        }
         .task { await fetch(q: nil) }
+        // A queued video that finished leaves the queue before the window lists it: reload page 1.
+        .onChange(of: AppState.shared.videoUploads?.pendingItems.count) { old, new in
+            guard let old, let new, new < old, trimmed == nil else { return }
+            Task { await fetch(q: nil) }
+        }
+        // A short list (older rows held back) cannot scroll, so it asks for the next page itself.
+        .onChange(of: rows.ids.count) { _, count in loadMoreVideosIfNearEnd(rowCount: count) }
         .onDisappear { searchTask?.cancel() }
     }
 
@@ -105,6 +141,77 @@ struct LibraryHomeContainer: View {
         }
     }
 
+    /// video-recorder D17: the screen already asked "Delete this video?". A video no lesson uses is deleted
+    /// at once; one lessons use asks a second time, with the count, then leaves the Library. A failed read
+    /// or call goes to the error banner and the row stays. A queued video (`local:`) has no server row,
+    /// and the upload queue offers no removal, so its row stays until it lands.
+    private func deleteVideo(id: String) async {
+        guard !id.hasPrefix(Self.localMemoPrefix) else { return }
+        let actions = VideoActions()
+        do {
+            let decision = try await actions.deleteDecision(id: id)
+            switch decision {
+            case .delete: try await actions.deleteOrRemove(id: id, decision: decision)
+            case .removeFromLibrary: pendingRemoval = PendingVideoRemoval(id: id, decision: decision)
+            }
+        } catch {
+            AppState.shared.recordError(error, context: "LibraryHomeContainer.deleteVideo", surface: true,
+                                        friendlyMessage: "Couldn't delete this video",
+                                        retry: { Task { await deleteVideo(id: id) } })
+        }
+    }
+
+    private func confirmRemoval() async {
+        guard let removal = pendingRemoval else { return }
+        pendingRemoval = nil
+        do {
+            try await VideoActions().deleteOrRemove(id: removal.id, decision: removal.decision)
+        } catch {
+            AppState.shared.recordError(error, context: "LibraryHomeContainer.confirmRemoval", surface: true,
+                                        friendlyMessage: "Couldn't remove this video from your Library",
+                                        retry: { pendingRemoval = removal; Task { await confirmRemoval() } })
+        }
+    }
+
+    /// The second C-066 confirm: the decision's own title, one destructive action, Cancel.
+    private var removalConfirmation: some View {
+        let title = pendingRemoval?.decision.confirmTitle ?? ""
+        return ActionMenuOverlay(
+            title: title,
+            message: nil,
+            actions: [.init(glyph: "", label: "Remove from Library", tone: .destructive)],
+            doneLabel: "Cancel",
+            onSelect: { _ in Task { await confirmRemoval() } },
+            onDone: { pendingRemoval = nil }
+        )
+    }
+
+    /// D20: the next page loads when the viewport (an estimated height) is within a few rows of the end of the
+    /// rows the list holds. Row heights are the memo row's, near enough for a look-ahead.
+    static func isNearEnd(offset: CGFloat, rowCount: Int) -> Bool {
+        offset + estimatedViewport + lookAheadRows * estimatedRowHeight >= CGFloat(rowCount) * estimatedRowHeight
+    }
+
+    private static let estimatedRowHeight: CGFloat = 76
+    private static let estimatedViewport: CGFloat = 800
+    private static let lookAheadRows: CGFloat = 8
+
+    private func loadMoreVideosIfNearEnd(rowCount: Int) {
+        let window = AppState.shared.videoLibraryWindow
+        guard !isPagingVideos, window.hasMore, window.query == Self.trimmedQuery(query),
+              LibraryItemType.shows(.video, in: selectedTypes),
+              Self.isNearEnd(offset: scrollOffset, rowCount: rowCount) else { return }
+        isPagingVideos = true
+        Task {
+            defer { isPagingVideos = false }
+            do {
+                try await VideoActions().loadNextLibraryPage()
+            } catch {
+                // Silent: a failed page is retried by the next scroll; the loaded rows stay.
+            }
+        }
+    }
+
     /// memo-screens D17: a queued memo's row id prefix (`LibraryHomeMapper`).
     private static let localMemoPrefix = "local:"
 
@@ -115,6 +222,8 @@ struct LibraryHomeContainer: View {
         guard !trimmed.isEmpty else {
             searchIds = nil
             searchMatches = nil
+            // The videos window still answers the old query: load the whole Library again.
+            if AppState.shared.videoLibraryWindow.query != nil { searchTask = Task { await fetch(q: nil) } }
             return
         }
         searchTask = Task {
@@ -160,7 +269,8 @@ struct LibraryHomeContainer: View {
                 let result = try await LibraryHomeSearch.run(
                     q: q,
                     loadNotes: { try await Self.cancellable { try await NoteActions().load(q: q) } },
-                    loadMemos: { try await Self.cancellable { try await MemoActions().loadMemos(q: q) } })
+                    loadMemos: { try await Self.cancellable { try await MemoActions().loadMemos(q: q) } },
+                    loadVideos: { try await Self.cancellable { try await VideoActions().loadLibrary(cursor: nil, q: q) } })
                 try Task.checkCancellation()
                 searchIds = result.noteIds
                 searchMatches = result.memos
@@ -168,9 +278,11 @@ struct LibraryHomeContainer: View {
             } else {
                 async let notes: Void = Self.cancellable { _ = try await NoteActions().load(q: nil) }
                 async let memos: Void = Self.cancellable { _ = try await MemoActions().loadMemos(q: nil) }
+                async let videos: Void = Self.cancellable { try await VideoActions().loadLibrary(cursor: nil, q: nil) }
                 var anyFailed = false
                 do { try await notes } catch is CancellationError { throw CancellationError() } catch { anyFailed = true }
                 do { try await memos } catch is CancellationError { throw CancellationError() } catch { anyFailed = true }
+                do { try await videos } catch is CancellationError { throw CancellationError() } catch { anyFailed = true }
                 failed = anyFailed
             }
             loadFailed = failed

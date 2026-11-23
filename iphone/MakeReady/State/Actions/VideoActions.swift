@@ -159,9 +159,13 @@ private let api: APIClientProtocol
             throw APIError.serverError(response.error ?? "Failed to load the video library")
         }
 
+        let query = (q?.isEmpty ?? true) ? nil : q
+        // A cursor page answers the query it was asked with: if the window has moved to another query
+        // while it was in flight, its rows belong to nothing the window shows (D20).
+        if cursor != nil, query != state.videoLibraryWindow.query { return }
+
         state.libraryVideos.upsertMany(rows)
         let page = VideoLibraryWindow.Page(ids: rows.map(\.id), nextCursor: response.nextCursor, hasMore: response.hasMore ?? false)
-        let query = (q?.isEmpty ?? true) ? nil : q
         if cursor == nil {
             state.videoLibraryWindow = VideoLibraryWindow(query: query).replacing(with: page)
         } else {

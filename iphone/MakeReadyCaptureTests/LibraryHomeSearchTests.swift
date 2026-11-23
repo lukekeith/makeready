@@ -28,4 +28,23 @@ final class LibraryHomeSearchTests: XCTestCase {
             XCTFail("expected CancellationError, got \(error)")
         }
     }
+
+    func testAFailedVideoSearchStillShowsNotesAndMemos() async throws {
+        let result = try await LibraryHomeSearch.run(
+            q: "grace", loadNotes: { ["n1"] }, loadMemos: { [self.summary("m1")] }, loadVideos: { throw URLError(.timedOut) })
+        XCTAssertEqual(result.noteIds, ["n1"]); XCTAssertEqual(result.memos.map(\.id), ["m1"]); XCTAssertTrue(result.failed)
+    }
+
+    func testTheVideoSearchRunsWithTheOthers() async throws {
+        let ran = VideoRan()
+        let result = try await LibraryHomeSearch.run(
+            q: "grace", loadNotes: { [] }, loadMemos: { [] }, loadVideos: { await ran.mark() })
+        let didRun = await ran.value
+        XCTAssertTrue(didRun); XCTAssertFalse(result.failed)
+    }
+
+    private actor VideoRan {
+        var value = false
+        func mark() { value = true }
+    }
 }

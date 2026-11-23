@@ -119,6 +119,15 @@ final class VideoActionsLibraryTests: XCTestCase {
         XCTAssertEqual(state.videoLibraryWindow.query, "grace alone")
     }
 
+    func testACursorPageForAnOlderQueryIsDropped() async throws {
+        // The window moved on to "grace" while a page of the whole Library was in flight.
+        state.videoLibraryWindow = VideoLibraryWindow(ids: ["g1"], nextCursor: "cg", hasMore: true, query: "grace")
+        api.stub("GET", "/api/videos/library?limit=50&cursor=c1", json: page(["late"], next: nil))
+        try await actions.loadLibrary(cursor: "c1", q: nil)
+        XCTAssertEqual(state.videoLibraryWindow, VideoLibraryWindow(ids: ["g1"], nextCursor: "cg", hasMore: true, query: "grace"))
+        XCTAssertNil(state.libraryVideos["late"])
+    }
+
     func testARestoredWindowWithNoCursorLoadsPageOne() async throws {
         // Disk keeps the first 100 ids with hasMore true and no cursor (capped).
         state.videoLibraryWindow = VideoLibraryWindow(ids: ["a"], nextCursor: nil, hasMore: true, query: nil)
