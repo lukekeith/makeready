@@ -26,6 +26,12 @@ struct PersistedState: Codable {
     /// Videos
     var videos: [Video]
 
+    /// The Library's video rows, the window's first 100 (video-recorder D27)
+    var libraryVideos: [VideoSummary]
+
+    /// Which of them the Library lists, in order
+    var videoLibraryWindow: VideoLibraryWindow?
+
     /// Group posts (keyed by groupId for efficient lookup)
     var postsByGroup: [String: [GroupPost]]
 
@@ -129,6 +135,8 @@ struct PersistedState: Codable {
         self.groups = []
         self.enrollments = []
         self.videos = []
+        self.libraryVideos = []
+        self.videoLibraryWindow = nil
         self.postsByGroup = [:]
         self.membersByGroup = [:]
         self.lessonsByProgram = [:]
@@ -165,6 +173,9 @@ struct PersistedState: Codable {
         self.groups = appState.groups.all
         self.enrollments = appState.enrollments.all
         self.videos = appState.videos.all
+        let window = appState.videoLibraryWindow.capped(to: MediaActions.libraryPageSize)
+        self.libraryVideos = window.ids.compactMap { appState.libraryVideos[$0] }
+        self.videoLibraryWindow = window
 
         // Posts and members are stored per-group
         var posts: [String: [GroupPost]] = [:]
@@ -250,6 +261,8 @@ struct PersistedState: Codable {
         case groups
         case enrollments
         case videos
+        case libraryVideos
+        case videoLibraryWindow
         case postsByGroup
         case membersByGroup
         case lessonsByProgram
@@ -277,6 +290,46 @@ struct PersistedState: Codable {
         case schemaVersion
     }
 
+    // MARK: - Custom Encoding
+
+    /// Spelled out so the `videos` snapshot can drop `transcriptSegments`; a key added to
+    /// `CodingKeys` must be added here too, or it is never written.
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(programs, forKey: .programs)
+        try container.encode(groups, forKey: .groups)
+        try container.encode(enrollments, forKey: .enrollments)
+        // D27: the transcript's timed segments are heavy and re-fetch with the detail, so disk never keeps them.
+        try container.encode(videos.map { video -> Video in var slim = video; slim.transcriptSegments = nil; return slim }, forKey: .videos)
+        try container.encode(libraryVideos, forKey: .libraryVideos)
+        try container.encodeIfPresent(videoLibraryWindow, forKey: .videoLibraryWindow)
+        try container.encode(postsByGroup, forKey: .postsByGroup)
+        try container.encode(membersByGroup, forKey: .membersByGroup)
+        try container.encode(lessonsByProgram, forKey: .lessonsByProgram)
+        try container.encode(activities, forKey: .activities)
+        try container.encode(lessonVersions, forKey: .lessonVersions)
+        try container.encode(mediaMap, forKey: .mediaMap)
+        try container.encode(scheduledLessons, forKey: .scheduledLessons)
+        try container.encode(programEnrollmentsByProgram, forKey: .programEnrollmentsByProgram)
+        try container.encode(templates, forKey: .templates)
+        try container.encode(mediaLibrary, forKey: .mediaLibrary)
+        try container.encode(voiceMemos, forKey: .voiceMemos)
+        try container.encodeIfPresent(organizationId, forKey: .organizationId)
+        try container.encode(dashboard, forKey: .dashboard)
+        try container.encode(programEnrollmentIndex, forKey: .programEnrollmentIndex)
+        try container.encode(groupEnrollmentIndex, forKey: .groupEnrollmentIndex)
+        try container.encode(programLessonIndex, forKey: .programLessonIndex)
+        try container.encode(programProgramEnrollmentIndex, forKey: .programProgramEnrollmentIndex)
+        try container.encode(homeHeatmapData, forKey: .homeHeatmapData)
+        try container.encode(homeWeeklyActivity, forKey: .homeWeeklyActivity)
+        try container.encode(homeTotalMembers, forKey: .homeTotalMembers)
+        try container.encode(homeTotalGroups, forKey: .homeTotalGroups)
+        try container.encode(calendarEvents, forKey: .calendarEvents)
+        try container.encode(studyNotes, forKey: .studyNotes)
+        try container.encode(persistedAt, forKey: .persistedAt)
+        try container.encode(schemaVersion, forKey: .schemaVersion)
+    }
+
     // MARK: - Custom Decoding (for backwards compatibility)
 
     init(from decoder: Decoder) throws {
@@ -297,6 +350,8 @@ struct PersistedState: Codable {
         self.schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
 
         // Optional fields (for backwards compatibility with older persisted states)
+        self.libraryVideos = try container.decodeIfPresent([VideoSummary].self, forKey: .libraryVideos) ?? []
+        self.videoLibraryWindow = try container.decodeIfPresent(VideoLibraryWindow.self, forKey: .videoLibraryWindow)
         self.activities = try container.decodeIfPresent([ContentActivity].self, forKey: .activities) ?? []
         self.lessonVersions = try container.decodeIfPresent([LessonVersion].self, forKey: .lessonVersions) ?? []
         self.mediaMap = try container.decodeIfPresent([String: MediaMapEntry].self, forKey: .mediaMap) ?? [:]

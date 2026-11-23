@@ -84,6 +84,12 @@ final class AppState {
     /// Videos in user's library
     let videos = EntityStore<Video>()
 
+    /// The Library's video rows (D27). Which ones show, and in what order, is `videoLibraryWindow`.
+    let libraryVideos = EntityStore<VideoSummary>()
+
+    /// The ordered ids of the loaded Library video pages and the cursor of the next (D20).
+    var videoLibraryWindow = VideoLibraryWindow()
+
     /// Group posts
     let posts = EntityStore<GroupPost>()
 
@@ -872,6 +878,8 @@ final class AppState {
         groups.replaceAll(persisted.groups)
         enrollments.replaceAll(persisted.enrollments)
         videos.replaceAll(persisted.videos)
+        libraryVideos.replaceAll(persisted.libraryVideos)
+        if let window = persisted.videoLibraryWindow { videoLibraryWindow = window }
 
         // Restore posts and members by group
         var allPosts: [GroupPost] = []
@@ -998,6 +1006,8 @@ final class AppState {
         groups.clear()
         enrollments.clear()
         videos.clear()
+        libraryVideos.clear()
+        videoLibraryWindow = VideoLibraryWindow()
         posts.clear()
         members.clear()
         lessons.clear()
