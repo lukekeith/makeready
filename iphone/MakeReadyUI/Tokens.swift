@@ -110,6 +110,7 @@ enum Token {
     static let transparent = Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 0)
     static let warning = Color(red: 1.0, green: 0.7294, blue: 0.0, opacity: 1)
     static let avatarFallback = Color(red: 0.1176, green: 0.1608, blue: 0.2235, opacity: 1)
+    static let record = Color(red: 1.0, green: 0.0078, blue: 0.1765, opacity: 1)
     static let red50 = Color(red: 0.9961, green: 0.949, blue: 0.949, opacity: 1)
     static let red100 = Color(red: 1.0, green: 0.8863, blue: 0.8863, opacity: 1)
     static let red200 = Color(red: 1.0, green: 0.7882, blue: 0.7882, opacity: 1)
@@ -426,6 +427,7 @@ enum Token {
         static let valueHero = DesignTextStyle(weight: .regular, size: 24, lineHeight: 32, tracking: 0)
         static let navLabel = DesignTextStyle(weight: .bold, size: 14, lineHeight: 16, tracking: 0)
         static let sectionOverline = DesignTextStyle(weight: .bold, size: 10, lineHeight: 24, tracking: 1)
+        static let timecode = DesignTextStyle(weight: .regular, size: 18, lineHeight: 25.2, tracking: 0.72)
     }
 
     enum Space {
@@ -481,10 +483,13 @@ enum Token {
         static let sheetSnap = Animation.spring(duration: 0.35, bounce: 0)  // ≈350ms spring, no overshoot
         static let swipeSettle = Animation.spring(duration: 0.35, bounce: 0)  // ≈350ms spring, critically damped (no overshoot)
         static let sheetPresent = Animation.easeOut(duration: 0.3)  // ≈300ms, ease-out slide up from the bottom edge; the reverse to dismiss
+        static let recordMorph = Animation.easeInOut(duration: 0.2)  // ≈200ms, ease-in-out
+        static let countdownNumeralIn = Animation.easeOut(duration: 0.2)  // ≈200ms, ease-out fade-in, no scale
     }
 
     enum Elevation {
         static let thumb = DesignShadow(color: Color(red: 0.0, green: 0.0, blue: 0.0, opacity: 0.25), x: 0, y: 4, blur: 4)
         static let thumbnail = DesignShadow(color: Color(red: 0.0, green: 0.0, blue: 0.0, opacity: 0.2), x: 0, y: 4, blur: 4)
+        static let countdownNumeral = DesignShadow(color: Color(red: 0.0, green: 0.0, blue: 0.0, opacity: 0.4), x: 0, y: 2, blur: 12)
     }
 }

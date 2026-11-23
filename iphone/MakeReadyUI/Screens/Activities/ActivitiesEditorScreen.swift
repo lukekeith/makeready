@@ -137,6 +137,8 @@ struct ActivitiesEditorScreen: View {
         /// §14.1 (owner ruling 2026-11-09, D26–D28): what the area between the header and the
         /// chips rail shows — `activity` (the editable canvas) · `typeGrid` (C-086 in place of the
         /// canvas) · `readOnly` (a kind the editor can't edit, drawn as a member sees it).
+        /// §35.1 (video-recorder D18): `videoRecorder` (the container's inline recorder in the
+        /// `videoRecorder` slot) · `videoPending` (the local poster frame, "Uploading…").
         var canvasContent: String = "activity"
         /// §14.3 `typeGrid`: C-086 `unavailableTypes` as raw case names — the dimmed, inert tiles.
         var unavailableTypes: [String] = []
@@ -149,6 +151,12 @@ struct ActivitiesEditorScreen: View {
         var readOnlyTitle: String = ""
         /// §14.3 `readOnly`: the poster drawn as the page's image; "" = none.
         var readOnlyPosterURL: String = ""
+        /// §35.2 `videoPending`: the pending video's poster frame (a local file URL the container
+        /// seeds into `Ui2ImageCache`); nil = a neutral ground.
+        var videoPendingPosterURL: URL? = nil
+        /// §35.3: a preview seed — the attached video's Replace video menu drawn open. Live, the
+        /// menu is the screen's own (a tap on the page opens it).
+        var replaceVideoMenuOpen: Bool = false
         /// §15.2 (D30): C-093 drawn docked at the screen's left edge when the edit opens (the
         /// slider-docked preview). The live view docks it itself after 2 s untouched.
         var sliderDocked: Bool = false
@@ -401,6 +409,18 @@ struct ActivitiesEditorScreen: View {
     /// §31.4 (D48): a movable object was dropped on the delete target — its index into
     /// `State.objects`. The container removes it and re-supplies `State.objects`.
     var onDeleteObject: (Int) -> Void = { _ in }
+    /// §35.3: "Replace video" chosen on the attached video's C-066 menu. The container sets
+    /// `canvasContent = .videoRecorder`; the screen reports nothing further.
+    var onReplaceVideo: () -> Void = {}
+    /// §35.1 `videoRecorder`: the inline recorder the container supplies (the `video-recorder`
+    /// screen, `.lessonInline`) — this screen never draws it.
+    private let videoRecorder: AnyView
+
+    // §35.3: the Replace video menu is up, seeded from `State.replaceVideoMenuOpen`.
+    @SwiftUI.State private var replaceVideoMenuPresented: Bool
+    // §35.3: C-066's presentation slides in after the first frame, so beneath the capture element
+    // map the screen draws it at rest (the MemoDetailScreen stand-in).
+    @Environment(\.ui2ElementCollecting) private var captureStandIn
 
     // §21.3: the Bible font panel's values as shown — each change applies here at once (a slider
     // per frame) and is reported through `onBibleStyleChange`; a new `State` re-seeds them.
@@ -511,7 +531,7 @@ struct ActivitiesEditorScreen: View {
     // §15.2: Reduce Motion cuts between docked and full.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    init(
+    init<Recorder: View>(
         state: State,
         onBack: @escaping () -> Void = {},
         onCancel: @escaping () -> Void = {},
@@ -539,7 +559,9 @@ struct ActivitiesEditorScreen: View {
         onHighlightRange: @escaping (_ objectIndex: Int, _ start: Int, _ end: Int) -> Void = { _, _, _ in },
         onEndHighlighting: @escaping () -> Void = {},
         onBibleStyleChange: @escaping (BibleStyleChange) -> Void = { _ in },
-        onDeleteObject: @escaping (Int) -> Void = { _ in }
+        onDeleteObject: @escaping (Int) -> Void = { _ in },
+        onReplaceVideo: @escaping () -> Void = {},
+        @ViewBuilder videoRecorder: () -> Recorder = { EmptyView() }
     ) {
         self.state = state
         self.onBack = onBack
@@ -569,6 +591,9 @@ struct ActivitiesEditorScreen: View {
         self.onEndHighlighting = onEndHighlighting
         self.onBibleStyleChange = onBibleStyleChange
         self.onDeleteObject = onDeleteObject
+        self.onReplaceVideo = onReplaceVideo
+        self.videoRecorder = AnyView(videoRecorder())
+        _replaceVideoMenuPresented = SwiftUI.State(initialValue: state.replaceVideoMenuOpen)
         _bibleStyle = SwiftUI.State(initialValue: BibleStyle(state))
         _shownObjects = SwiftUI.State(initialValue: Self.committedObjects(state))
         let actions = Self.pageActions(state)
@@ -581,8 +606,13 @@ struct ActivitiesEditorScreen: View {
     }
 
     /// §14.1: the editable canvas shows — `typeGrid` and `readOnly` have no edit mode and no
-    /// tool stack.
-    private var showsActivity: Bool { state.canvasContent != "typeGrid" && state.canvasContent != "readOnly" }
+    /// tool stack; nor have §35.1's `videoRecorder` and `videoPending`.
+    private var showsActivity: Bool {
+        !["typeGrid", "readOnly", "videoRecorder", "videoPending"].contains(state.canvasContent)
+    }
+
+    /// §35: the attached video page — tappable, and no "can't be edited yet" note.
+    private var isAttachedVideo: Bool { state.canvasContent == "readOnly" && state.readOnlyKind == "video" }
 
     private var mode: ActivityCanvas<AnyView>.Mode {
         // §14.1: no edit mode outside the editable canvas — the Idle header and the chips rail.
@@ -667,6 +697,9 @@ struct ActivitiesEditorScreen: View {
                 } else if state.canvasContent == "readOnly" {
                     readOnlyPage
                         .ignoresSafeArea(.container)
+                } else if state.canvasContent == "videoPending" {
+                    videoPendingPage
+                        .ignoresSafeArea(.container)
                 }
                 if showsActivity && isImageRailOpen {
                     focalDragLayer
@@ -714,6 +747,16 @@ struct ActivitiesEditorScreen: View {
         }
         // §10.3: once the document follows the rail's pick, the derived option rules again.
         .onChange(of: state.backgroundOption) { _, _ in pickedBackgroundOption = nil }
+        // §35.3: the attached video's menu — one row, Replace video, plus C-066's own Done.
+        .actionMenuPresentation(isPresented: replaceVideoMenuPresented && isAttachedVideo && !captureStandIn,
+                                onDismiss: { replaceVideoMenuPresented = false }) {
+            replaceVideoMenu
+        }
+        .overlay {
+            if captureStandIn && replaceVideoMenuPresented && isAttachedVideo {
+                captureReplaceVideoMenu
+            }
+        }
     }
 
     /// §10.3: while Image is open, a drag on the canvas moves the focal point and the canvas does
@@ -754,6 +797,12 @@ struct ActivitiesEditorScreen: View {
             header
             if state.canvasContent == "typeGrid" {
                 typeGrid
+            } else if state.canvasContent == "videoRecorder" {
+                // §35.1: the container's inline recorder fills the page area between the header
+                // and the rails; the chips stay visible.
+                videoRecorder
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .ui2Element("Video recorder")
             } else {
                 Spacer(minLength: 0)
             }
@@ -837,10 +886,13 @@ struct ActivitiesEditorScreen: View {
                         CanvasTextObject(text: title, mode: .viewer, font: .sans, weight: .bold,
                                          size: Self.readOnlyTitleSize, alignment: .center, editing: false)
                             .ui2Element("C-092 CanvasTextObject")
-                        // FLAGGED LITERAL — activities-player §2 fallback page: body 400, 16.
-                        CanvasTextObject(text: Self.readOnlyNote, mode: .viewer, font: .sans, weight: .regular,
-                                         size: Self.readOnlyNoteSize, alignment: .center, editing: false)
-                            .ui2Element("C-092 CanvasTextObject 2")
+                        // §35 supersession: a video page no longer shows the note.
+                        if !isAttachedVideo {
+                            // FLAGGED LITERAL — activities-player §2 fallback page: body 400, 16.
+                            CanvasTextObject(text: Self.readOnlyNote, mode: .viewer, font: .sans, weight: .regular,
+                                             size: Self.readOnlyNoteSize, alignment: .center, editing: false)
+                                .ui2Element("C-092 CanvasTextObject 2")
+                        }
                     }
                     .frame(width: Self.editSlotWidth)
                     .position(x: Self.referenceWidth / 2, y: Self.referenceHeight / 2)
@@ -850,6 +902,75 @@ struct ActivitiesEditorScreen: View {
         )
         .ui2Element("C-091 ActivityCanvas")
         .allowsHitTesting(false)
+        // §35.3: the attached video is tappable — a tap opens the Replace video menu.
+        .overlay {
+            if isAttachedVideo {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture { replaceVideoMenuPresented = true }
+                    .accessibilityElement()
+                    .accessibilityLabel(Self.replaceVideoLabel)
+                    .accessibilityAddTraits(.isButton)
+            }
+        }
+    }
+
+    /// §35.1 `videoPending`: the local poster frame full-bleed under §14's page rules, with
+    /// "Uploading…" and a C-076 ActivitySpinner centred over it. Not interactive.
+    private var videoPendingPage: some View {
+        var page = ActivityCanvas<AnyView>.Background(color: pageColor)
+        if let url = state.videoPendingPosterURL {
+            page.image = .init(imageURL: url, focal: CGPoint(x: 0.5, y: 0.5))
+        }
+        return ActivityCanvas<AnyView>(
+            background: page,
+            mode: .viewer,
+            content: { AnyView(EmptyView()) },
+            verticalAnchor: .center
+        )
+        .ui2Element("C-091 ActivityCanvas")
+        .overlay {
+            HStack(spacing: Token.Space.elementGap) {
+                ActivitySpinner(size: Self.uploadingSpinnerSize, color: Token.white100)
+                    .ui2Element("C-076 ActivitySpinner")
+                SwiftUI.Text(verbatim: Self.uploadingLabel)
+                    .designTextStyle(Token.TypeStyle.calloutBold)
+                    .foregroundStyle(Token.white100)
+                    .ui2Element("Uploading label")
+            }
+            // FLAGGED — §35.1: the "Uploading…" pill is undrawn; white on `color-black` 50%.
+            .padding(.horizontal, Token.Space.cardPadding)
+            .padding(.vertical, Token.Space.elementGap)
+            .background(Token.black50, in: Capsule())
+            .ui2Element("Uploading pill")
+        }
+        .allowsHitTesting(false)
+    }
+
+    /// §35.3: C-066 with one row, Replace video, and the menu's own Done.
+    private var replaceVideoMenu: some View {
+        ActionMenuOverlay(
+            actions: [Self.replaceVideoAction],
+            onSelect: { _ in
+                replaceVideoMenuPresented = false
+                onReplaceVideo()
+            },
+            onDone: { replaceVideoMenuPresented = false }
+        )
+        .ui2Element("C-066 ActionMenuOverlay")
+    }
+
+    /// The capture stand-in: the presented layer at rest, as `actionMenuPresentation` lays it out.
+    private var captureReplaceVideoMenu: some View {
+        ZStack(alignment: .bottom) {
+            Token.black80
+                .ignoresSafeArea()
+                .ui2Element("Dim")
+            replaceVideoMenu
+                .padding(.horizontal, ActionMenuMotion.edgeInset)
+                .padding(.bottom, ActionMenuMotion.edgeInset)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
     }
 
     // MARK: - §2 item 2: the header
@@ -3125,6 +3246,14 @@ struct ActivitiesEditorScreen: View {
     private static let readOnlyTitleSize: CGFloat = 24
     private static let readOnlyNoteSize: CGFloat = 16
     private static let readOnlyGap: CGFloat = 16
+    /// §35.1 / §35.3 copy.
+    private static let uploadingLabel = "Uploading…"
+    private static let replaceVideoLabel = "Replace video"
+    /// C-076's own default size.
+    private static let uploadingSpinnerSize: CGFloat = 24
+    /// §35.3: FLAGGED — the row's glyph is undrawn; `film` until the container's d2m request picks one.
+    private static let replaceVideoAction = ActionMenuOverlay.ActionItem(
+        glyph: GlyphName.film.rawValue, label: replaceVideoLabel)
     private static let shuffleLabel = "Shuffle"
     private static let moreImagesLabel = "More…"
     // §9.4 Load-failed copy and the banner's 2 s before the pop.

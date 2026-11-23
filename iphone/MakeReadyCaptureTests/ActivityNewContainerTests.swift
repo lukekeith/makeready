@@ -16,7 +16,12 @@ final class ActivityNewContainerTests: XCTestCase {
     private struct Boom: Error {}
 
     func testOtherTilesAreUnavailable() {
-        XCTAssertEqual(Set(ActivityNewContainer.unavailableTypes), Set(["video", "youtube", "write", "poll"]))
+        XCTAssertEqual(Set(ActivityNewContainer.unavailableTypes), Set(["youtube", "write", "poll"]))
+    }
+
+    /// video-recorder D18: the Video tile draws enabled.
+    func testTheVideoTileIsAvailable() {
+        XCTAssertFalse(ActivityNewContainer.unavailableTypes.contains(ActivityTypeGrid.ActivityType.video.rawValue))
     }
 
     func testTheBibleTileIsAvailable() {

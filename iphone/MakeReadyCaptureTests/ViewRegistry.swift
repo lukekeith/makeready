@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import CoreImage
 @testable import MakeReady
 // UI 2.0 preview views are their own module (docs/ui2/preview-build.md §2), so their
 // types carry no prefix — and six of them share a name with a 1.0 type in MakeReady.
@@ -3284,7 +3285,16 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
             throw ViewRegistryError.unknownView("component.ui2.C-132: props.message is required")
         }
         return declareCase(
-            MakeReadyUI.EmptyState(glyph: ui2C132Glyph, title: ui2C132Title, message: ui2C132Message),
+            // C-132 §4: `actionLabel` / `onAction` are optional (nil default). A fixture
+            // `actionLabel` (the C-141 field, reused) draws the with-action button; `onAction`
+            // has no render effect, so it is a no-op here.
+            MakeReadyUI.EmptyState(
+                glyph: ui2C132Glyph,
+                title: ui2C132Title,
+                message: ui2C132Message,
+                actionLabel: c.actionLabel,
+                onAction: c.actionLabel == nil ? nil : {}
+            ),
             // C-132 §2: "At the designed 408pt width" — the frozen snapshot's width.
             PreviewFrame(width: 408)
         )
@@ -3329,7 +3339,7 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
         }
         let librarySelectedTypes = try Set((c.selectedTypes ?? []).map { raw -> MakeReadyUI.LibraryItemType in
             guard let type = MakeReadyUI.LibraryItemType(rawValue: raw) else {
-                throw ViewRegistryError.unknownView("screen.2.0.library-home: props.selectedTypes[] \"\(raw)\" must be note | memo")
+                throw ViewRegistryError.unknownView("screen.2.0.library-home: props.selectedTypes[] \"\(raw)\" must be note | memo | video")
             }
             return type
         })
@@ -3357,6 +3367,22 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
             return .init(id: memo.id, title: memo.title, durationLabel: memo.durationLabel, dateLabel: memo.dateLabel,
                          recordedAt: recordedAt, preview: preview)
         }
+        let libraryVideos = try (c.videos ?? []).map { video -> MakeReadyUI.LibraryHomeScreen.State.VideoRowInput in
+            guard let recordedAt = libraryISO.date(from: video.recordedAt) else {
+                throw ViewRegistryError.unknownView("screen.2.0.library-home: videos[].recordedAt \"\(video.recordedAt)\" is not ISO8601")
+            }
+            let preview: MakeReadyUI.LibraryHomeScreen.State.VideoRowInput.Preview
+            switch video.preview {
+            case "transcript": preview = .transcript(video.previewText ?? "")
+            case "transcribing": preview = .transcribing
+            case "uploading": preview = .uploading
+            case "processing": preview = .processing
+            default:
+                throw ViewRegistryError.unknownView("screen.2.0.library-home: videos[].preview \"\(video.preview)\" must be transcript | transcribing | uploading | processing")
+            }
+            return .init(id: video.id, title: video.title, durationLabel: video.durationLabel, dateLabel: video.dateLabel,
+                         recordedAt: recordedAt, preview: preview)
+        }
         return AnyView(MakeReadyUI.LibraryHomeScreen(
             state: .init(
                 phase: libraryPhase,
@@ -3370,6 +3396,7 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
                 rowContexts: c.rowContexts ?? [],
                 rowUpdatedAt: libraryUpdatedAt,
                 memos: libraryMemos,
+                videos: libraryVideos,
                 openRow: c.openRow,
                 deleteConfirmPresented: c.deleteConfirmPresented ?? false
             )
@@ -3421,6 +3448,87 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
                 paragraphStarts: c.paragraphStarts ?? [],
                 paragraphTexts: c.paragraphTexts ?? [],
                 renaming: c.renaming ?? false,
+                deleteConfirmPresented: c.deleteConfirmPresented ?? false
+            )
+        ))
+    case "screen.2.0.video-recorder":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("screen.2.0.video-recorder: missing state.component")
+        }
+        // §3 phase / §5 layout / the screen-local sheet; a missing field takes the `ready-to-record`
+        // sample (the screen's State defaults). The canvas is the harness's (CaptureRunner's
+        // `screen.*` branch) — the bare screen here.
+        guard let recorderLayout = MakeReadyUI.VideoRecorderScreen.State.Layout(rawValue: c.layout ?? "lessonInline") else {
+            throw ViewRegistryError.unknownView("screen.2.0.video-recorder: props.layout must be lessonInline | fullScreen")
+        }
+        guard let recorderPhase = MakeReadyUI.VideoRecorderScreen.State.Phase(rawValue: c.phase ?? "ready") else {
+            throw ViewRegistryError.unknownView("screen.2.0.video-recorder: props.phase must be ready | preRoll | recording | paused | endCountdown | permissionDenied | review | trim")
+        }
+        guard let recorderSheet = MakeReadyUI.VideoRecorderScreen.State.Sheet(rawValue: c.sheet ?? "") else {
+            throw ViewRegistryError.unknownView("screen.2.0.video-recorder: props.sheet must be \"\" | length | filters | teleprompter")
+        }
+        // §1 deviation 4: the sample still, resolved into the preview module's cache (the
+        // video-detail seam) — the view itself performs no network.
+        if let raw = c.cameraImageURL, let url = URL(string: raw), url.scheme?.hasPrefix("http") == true,
+           MakeReadyUI.Ui2ImageCache.shared.image(for: url) == nil,
+           let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
+            MakeReadyUI.Ui2ImageCache.shared.seed(image, for: url)
+        }
+        let recorderDefaults = MakeReadyUI.VideoRecorderScreen.State()
+        return AnyView(MakeReadyUI.VideoRecorderScreen(
+            state: .init(
+                layout: recorderLayout,
+                phase: recorderPhase,
+                countdownNumeral: c.countdownNumeral ?? recorderDefaults.countdownNumeral,
+                segments: c.segments ?? recorderDefaults.segments,
+                liveDuration: c.liveDuration ?? recorderDefaults.liveDuration,
+                length: c.length ?? recorderDefaults.length,
+                countdownValue: c.countdownValue ?? recorderDefaults.countdownValue,
+                filterLook: c.filterLook ?? recorderDefaults.filterLook,
+                strength: c.strength ?? recorderDefaults.strength,
+                teleprompterOn: c.teleprompterOn ?? recorderDefaults.teleprompterOn,
+                script: c.script ?? recorderDefaults.script,
+                speed: c.speed ?? recorderDefaults.speed,
+                textSize: c.textSize ?? recorderDefaults.textSize,
+                sheet: recorderSheet,
+                cameraImageURL: c.cameraImageURL ?? recorderDefaults.cameraImageURL
+            )
+        ))
+    case "screen.2.0.video-detail":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("screen.2.0.video-detail: missing state.component")
+        }
+        // §3 shared fixture defaults; a missing `status` is `ready`, a missing `transcript` is
+        // `paragraphs`. The canvas is the harness's (CaptureRunner's `screen.*` branch).
+        guard let videoStatus = MakeReadyUI.VideoDetailScreen.State.Status(rawValue: c.status ?? "ready") else {
+            throw ViewRegistryError.unknownView("screen.2.0.video-detail: props.status must be ready | uploading | processing | error")
+        }
+        guard let videoTranscript = MakeReadyUI.VideoDetailScreen.State.Transcript(rawValue: c.transcript ?? "paragraphs") else {
+            throw ViewRegistryError.unknownView("screen.2.0.video-detail: props.transcript must be paragraphs | transcribing | unavailable")
+        }
+        // The poster: the fixture names it by URL and the harness resolves the bytes into the
+        // preview module's cache (the home-dashboard seam) — the view itself performs no network.
+        if let raw = c.thumbnailURL, let url = URL(string: raw), url.scheme?.hasPrefix("http") == true,
+           MakeReadyUI.Ui2ImageCache.shared.image(for: url) == nil,
+           let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
+            MakeReadyUI.Ui2ImageCache.shared.seed(image, for: url)
+        }
+        return AnyView(MakeReadyUI.VideoDetailScreen(
+            state: .init(
+                title: c.title ?? "Video 3",
+                dateLabel: c.dateLabel ?? "Today 7:43 PM",
+                duration: c.duration?.doubleValue ?? 45,
+                thumbnailURL: c.thumbnailURL ?? "",
+                status: videoStatus,
+                elapsed: c.elapsed ?? 0,
+                playing: c.playing ?? false,
+                playerReady: c.playerReady ?? true,
+                transcript: videoTranscript,
+                paragraphStarts: c.paragraphStarts ?? [],
+                paragraphTexts: c.paragraphTexts ?? [],
+                lessonUseCount: c.lessonUseCount ?? 0,
+                renaming: c.renaming ?? false,
+                menuPresented: c.menuPresented ?? false,
                 deleteConfirmPresented: c.deleteConfirmPresented ?? false
             )
         ))
@@ -4097,8 +4205,341 @@ private func buildCaptureViewPart12(_ fixture: CaptureFixture, authManager: Auth
             // 2 × space-page-margin)".
             PreviewFrame(width: 408)
         )
+    case "component.ui2.C-013":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-013: missing state.component")
+        }
+        // C-013 §4 (R-07): `kind` and `size` are required, so a nil is a fixture bug; `onTap` is
+        // the view's no-op default. §3 `pressed` is ephemeral (R-02, OQ-C-013-003) and has no
+        // prop to set, so `video-record-pressed` renders the button at rest.
+        let ui2C013Kind: MakeReadyUI.RecordButton.Kind
+        switch c.kind {
+        case "record": ui2C013Kind = .record
+        case "stop": ui2C013Kind = .stop
+        case "pause": ui2C013Kind = .pause
+        default:
+            throw ViewRegistryError.unknownView("component.ui2.C-013: props.kind is required (\(c.kind ?? "nil"))")
+        }
+        let ui2C013Size: MakeReadyUI.RecordButton.Size
+        switch c.size?.stringValue {
+        case "memo": ui2C013Size = .memo
+        case "video": ui2C013Size = .video
+        default:
+            throw ViewRegistryError.unknownView("component.ui2.C-013: props.size is required (memo|video)")
+        }
+        // C-013 §2: a fixed-size circular control with no master width — it hugs its frame.
+        return declareCase(
+            MakeReadyUI.RecordButton(kind: ui2C013Kind, size: ui2C013Size),
+            PreviewFrame(alignment: .leading, intrinsic: true)
+        )
+    case "component.ui2.C-144":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-144: missing state.component")
+        }
+        // C-144 §4 (R-07): `elapsed` is required, so a nil is a fixture bug. Reuses the existing
+        // `elapsed: Double?` field (TimeInterval, seconds — same name, same type).
+        guard let ui2C144Elapsed = c.elapsed else {
+            throw ViewRegistryError.unknownView("component.ui2.C-144: props.elapsed is required")
+        }
+        // C-144 §2 Sizing: intrinsic both ways — the pill hugs its text; no master width.
+        return declareCase(
+            MakeReadyUI.TimerPill(elapsed: ui2C144Elapsed),
+            PreviewFrame(alignment: .leading, intrinsic: true)
+        )
+    case "component.ui2.C-145":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-145: missing state.component")
+        }
+        // C-145 §4 (R-07): `length`, `segments` and `liveDuration` are required, so a nil is a
+        // fixture bug; `lastSegmentMarked` defaults to false (the base look is unmarked).
+        guard let ui2C145Length = c.length else {
+            throw ViewRegistryError.unknownView("component.ui2.C-145: props.length is required")
+        }
+        guard let ui2C145Segments = c.segments else {
+            throw ViewRegistryError.unknownView("component.ui2.C-145: props.segments is required")
+        }
+        guard let ui2C145Live = c.liveDuration else {
+            throw ViewRegistryError.unknownView("component.ui2.C-145: props.liveDuration is required")
+        }
+        return declareCase(
+            MakeReadyUI.SegmentedProgressBar(
+                length: ui2C145Length,
+                segments: ui2C145Segments,
+                liveDuration: ui2C145Live,
+                lastSegmentMarked: c.lastSegmentMarked ?? false
+            ),
+            // C-145 §2: the screen gives it the preview width − 2 × space-page-margin
+            // (440 − 32 on the capture device).
+            PreviewFrame(width: 408)
+        )
+    case "component.ui2.C-147":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-147: missing state.component")
+        }
+        // C-147 §4 (R-07): `tool` is required, so a nil is a fixture bug; `value` defaults to nil,
+        // `active` to false, `enabled` to true; `onTap` is the view's no-op default.
+        let ui2C147Tool: MakeReadyUI.RailTool.Tool
+        switch c.tool {
+        case "flip": ui2C147Tool = .flip
+        case "countdown": ui2C147Tool = .countdown
+        case "length": ui2C147Tool = .length
+        case "filters": ui2C147Tool = .filters
+        case "teleprompter": ui2C147Tool = .teleprompter
+        default:
+            throw ViewRegistryError.unknownView("component.ui2.C-147: props.tool is required (\(c.tool ?? "nil"))")
+        }
+        return declareCase(
+            MakeReadyUI.RailTool(
+                tool: ui2C147Tool,
+                value: c.value,
+                active: c.active ?? false,
+                enabled: c.enabled ?? true
+            ),
+            // C-147 §2: width-driven, content trailing — the master width is C-146's slot column
+            // plus the longest label; previewed at the rail's 160 pt so "Teleprompter" fits.
+            PreviewFrame(width: 160)
+        )
+    case "component.ui2.C-146":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-146: missing state.component")
+        }
+        // C-146 §4 (R-07): `lengthValue` is required, so a nil is a fixture bug; `countdownValue`
+        // defaults to nil (Off, D2), `lengthEnabled` to true, `filtersActive` and
+        // `teleprompterActive` to false; the five closures are the view's no-op defaults.
+        guard let ui2C146Length = c.lengthValue else {
+            throw ViewRegistryError.unknownView("component.ui2.C-146: props.lengthValue is required")
+        }
+        return declareCase(
+            MakeReadyUI.CameraRail(
+                countdownValue: c.countdownValue,
+                lengthValue: ui2C146Length,
+                lengthEnabled: c.lengthEnabled ?? true,
+                filtersActive: c.filtersActive ?? false,
+                teleprompterActive: c.teleprompterActive ?? false
+            ),
+            // C-146 §2: width-driven, content trailing — the screen gives it room for the
+            // longest label ("Teleprompter"); previewed at C-147's 160 pt.
+            PreviewFrame(width: 160)
+        )
+    case "component.ui2.C-148":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-148: missing state.component")
+        }
+        // C-148 §4 (R-07): `value` and `phase` are both required, so a nil is a fixture bug.
+        // The shared `value` field is `String?` (C-022/C-043/C-090's) and may not be retyped, so
+        // the fixture carries C-148's Int as a numeric string, parsed here (the C-093 precedent).
+        guard let ui2C148Raw = c.value, let ui2C148Value = Int(ui2C148Raw) else {
+            throw ViewRegistryError.unknownView("component.ui2.C-148: props.value (1…10) is required")
+        }
+        let ui2C148Phase: MakeReadyUI.CountdownNumerals.Phase
+        switch c.phase {
+        case "preRoll": ui2C148Phase = .preRoll
+        case "ending": ui2C148Phase = .ending
+        default:
+            throw ViewRegistryError.unknownView("component.ui2.C-148: props.phase (preRoll | ending) is required")
+        }
+        return declareCase(
+            MakeReadyUI.CountdownNumerals(value: ui2C148Value, phase: ui2C148Phase),
+            // C-148 §2: width-driven, one centred 180 pt line; previewed at the 440 pt screen's
+            // width less the page margins (any width ≥ 240 holds "10").
+            PreviewFrame(width: 408)
+        )
+    case "component.ui2.C-149":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-149: missing state.component")
+        }
+        // C-149 §4 (R-07): `length` is required (1:00 is the container's default, not the view's),
+        // so a nil is a fixture bug; `onChange` is the view's no-op default. C-145's `length`
+        // field (Double, seconds) is reused — same name, same type.
+        guard let ui2C149Length = c.length else {
+            throw ViewRegistryError.unknownView("component.ui2.C-149: props.length (10…120 s) is required")
+        }
+        return declareCase(
+            MakeReadyUI.LengthSlider(length: ui2C149Length),
+            // C-149 §2: width-driven; the Length sheet insets it by space-page-margin, so it is
+            // 440 − 2 × 16 = 408 wide on the capture device.
+            PreviewFrame(width: 408)
+        )
+    case "component.ui2.C-150":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-150: missing state.component")
+        }
+        // C-150 §4 (R-07): `selected`, `strength` and `thumbnails` are all required, so a nil is a
+        // fixture bug; the three closures are the view's no-op defaults.
+        guard let ui2C150Selected = c.selected?.stringValue.flatMap(ui2C150Look) else {
+            throw ViewRegistryError.unknownView("component.ui2.C-150: props.selected (a Look case) is required")
+        }
+        guard let ui2C150Strength = c.strength, let ui2C150Sources = c.thumbnails else {
+            throw ViewRegistryError.unknownView("component.ui2.C-150: props.strength and props.thumbnails are required")
+        }
+        return declareCase(
+            MakeReadyUI.FilterStrip(
+                selected: ui2C150Selected,
+                strength: ui2C150Strength,
+                thumbnails: ui2C150Thumbnails(ui2C150Sources)
+            ),
+            // C-150 §2: width-driven, laid over the bottom of the 440 pt preview edge to edge
+            // (it insets its own rows by space-page-margin), so it is previewed full width.
+            PreviewFrame(width: 440, marginEdges: .vertical)
+        )
+    case "component.ui2.C-151":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-151: missing state.component")
+        }
+        // C-151 §4 (R-07): `surface`, `script`, `textSize` and `speed` are required, so a nil is a
+        // fixture bug; `scrollOffset` defaults to 0 (C-019's shared Double field, reused) and the
+        // five closures are the view's no-op defaults.
+        let ui2C151Surface: MakeReadyUI.TeleprompterBand.Surface
+        switch c.surface {
+        case "band": ui2C151Surface = .band
+        case "panel": ui2C151Surface = .panel
+        default:
+            throw ViewRegistryError.unknownView("component.ui2.C-151: props.surface (band | panel) is required")
+        }
+        guard let ui2C151Size = MakeReadyUI.TeleprompterBand.TextSize.allCases.first(where: { "\($0)" == c.textSize }) else {
+            throw ViewRegistryError.unknownView("component.ui2.C-151: props.textSize (small | medium | large) is required")
+        }
+        guard let ui2C151Script = c.script, let ui2C151Speed = c.speed else {
+            throw ViewRegistryError.unknownView("component.ui2.C-151: props.script and props.speed are required")
+        }
+        return declareCase(
+            MakeReadyUI.TeleprompterBand(
+                surface: ui2C151Surface,
+                script: ui2C151Script,
+                textSize: ui2C151Size,
+                speed: ui2C151Speed,
+                scrollOffset: CGFloat(c.scrollOffset ?? 0)
+            ),
+            // C-151 §2: width-driven. The band is "full width minus 2×16" over the 440 pt preview
+            // (video-recorder §2c) and the panel is inset space-page-margin by its sheet, so both
+            // are 408 wide on the capture device.
+            PreviewFrame(width: 408)
+        )
+    case "component.ui2.C-152":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-152: missing state.component")
+        }
+        // C-152 §4 (R-07): `feed`, `corners` and `overlay` are all required, so a nil is a fixture
+        // bug. `.layer` has no fixture form (a capture has no live display layer).
+        let ui2C152Feed: MakeReadyUI.CameraPreview<AnyView>.Feed
+        switch c.feed?.kind {
+        case "still":
+            guard let raw = c.feed?.imageURL, let url = URL(string: raw),
+                  let data = try? Data(contentsOf: url), let image = UIImage(data: data) else {
+                throw ViewRegistryError.unknownView("component.ui2.C-152: props.feed.imageURL must load for .still")
+            }
+            ui2C152Feed = .still(Image(uiImage: image))
+        case "none":
+            ui2C152Feed = .none
+        default:
+            throw ViewRegistryError.unknownView("component.ui2.C-152: props.feed.kind (still | none) is required")
+        }
+        let ui2C152Corners: MakeReadyUI.CameraPreview<AnyView>.Corners
+        switch c.corners {
+        case "square": ui2C152Corners = .square
+        case "rounded": ui2C152Corners = .rounded
+        default:
+            throw ViewRegistryError.unknownView("component.ui2.C-152: props.corners (square | rounded) is required")
+        }
+        guard let ui2C152Parts = c.overlay else {
+            throw ViewRegistryError.unknownView("component.ui2.C-152: props.overlay is required ([] for an empty slot)")
+        }
+        let ui2C152Slot = try ui2C152Overlay(ui2C152Parts)
+        return declareCase(
+            MakeReadyUI.CameraPreview(feed: ui2C152Feed, corners: ui2C152Corners, overlay: { ui2C152Slot }),
+            // C-152 §2: width-driven; the screen gives it the full 440 pt device width (Figma
+            // node 3567:34789, 440×781), edge to edge.
+            PreviewFrame(width: 440, marginEdges: .vertical)
+        )
     default:
         return nil
+    }
+}
+
+/// C-152's `overlay` slot content, placed as video-recorder §2c places it, relative to the
+/// preview's own rect: C-144 TimerPill centred, top 20; C-013 video record / stop 80×80 centred,
+/// bottom 6; C-013 video pause 54×54, leading 18, bottom 20.
+private func ui2C152Overlay(_ parts: [CaptureUI2CameraOverlayPart]) throws -> AnyView {
+    var placed: [AnyView] = []
+    for part in parts {
+        switch part.part {
+        case "C-144":
+            guard let elapsed = part.elapsed else {
+                throw ViewRegistryError.unknownView("component.ui2.C-152: overlay C-144 needs elapsed")
+            }
+            placed.append(AnyView(
+                MakeReadyUI.TimerPill(elapsed: elapsed)
+                    .padding(.top, 20)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            ))
+        case "C-013":
+            let kind: MakeReadyUI.RecordButton.Kind
+            switch part.kind {
+            case "record": kind = .record
+            case "stop": kind = .stop
+            case "pause": kind = .pause
+            default:
+                throw ViewRegistryError.unknownView("component.ui2.C-152: overlay C-013 needs kind (record | stop | pause)")
+            }
+            guard part.size == "video" else {
+                throw ViewRegistryError.unknownView("component.ui2.C-152: overlay C-013 is size video (video-recorder §2c)")
+            }
+            if kind == .pause {
+                placed.append(AnyView(
+                    MakeReadyUI.RecordButton(kind: kind, size: .video)
+                        .padding(.leading, 18)
+                        .padding(.bottom, 20)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                ))
+            } else {
+                placed.append(AnyView(
+                    MakeReadyUI.RecordButton(kind: kind, size: .video)
+                        .padding(.bottom, 6)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                ))
+            }
+        default:
+            throw ViewRegistryError.unknownView("component.ui2.C-152: overlay part \(part.part) is not C-144 or C-013")
+        }
+    }
+    return AnyView(ZStack {
+        ForEach(placed.indices, id: \.self) { placed[$0] }
+    })
+}
+
+private func ui2C150Look(_ raw: String) -> MakeReadyUI.FilterStrip.Look? {
+    MakeReadyUI.FilterStrip.Look.allCases.first { "\($0)" == raw }
+}
+
+/// C-150 OQ-C-150-002: the container grades one still per look; the harness stands in for it,
+/// loading each catalog URL and applying C-150 §2's Core Image grade table, so the swatches
+/// differ as they will in the recorder. The view itself never runs Core Image (R-04).
+private func ui2C150Thumbnails(_ sources: [String: String]) -> [MakeReadyUI.FilterStrip.Look: Image] {
+    let context = CIContext()
+    var out: [MakeReadyUI.FilterStrip.Look: Image] = [:]
+    for (key, urlString) in sources {
+        guard let look = ui2C150Look(key), let url = URL(string: urlString),
+              let data = try? Data(contentsOf: url), let input = CIImage(data: data) else { continue }
+        let graded = ui2C150Grade(input, look: look)
+        guard let cg = context.createCGImage(graded, from: input.extent) else { continue }
+        out[look] = Image(uiImage: UIImage(cgImage: cg))
+    }
+    return out
+}
+
+private func ui2C150Grade(_ image: CIImage, look: MakeReadyUI.FilterStrip.Look) -> CIImage {
+    func apply(_ name: String, _ params: [String: Any] = [:]) -> CIImage {
+        image.applyingFilter(name, parameters: params)
+    }
+    switch look {
+    case .normal: return image
+    case .vivid: return apply("CIColorControls", [kCIInputSaturationKey: 1.35, kCIInputContrastKey: 1.08])
+    case .warm: return apply("CITemperatureAndTint", ["inputNeutral": CIVector(x: 6500, y: 0), "inputTargetNeutral": CIVector(x: 5000, y: 0)])
+    case .cool: return apply("CITemperatureAndTint", ["inputNeutral": CIVector(x: 6500, y: 0), "inputTargetNeutral": CIVector(x: 8000, y: 0)])
+    case .fade: return apply("CIPhotoEffectFade")
+    case .chrome: return apply("CIPhotoEffectChrome")
+    case .mono: return apply("CIPhotoEffectMono")
+    case .noir: return apply("CIPhotoEffectNoir")
     }
 }
 
@@ -4696,6 +5137,12 @@ private func buildScreenActivitiesEditor(_ fixture: CaptureFixture) throws -> An
             MakeReadyUI.Ui2ImageCache.shared.seed(picture, for: url)
         }
     }
+    // §35.1 `videoPending`: the poster frame — seeded the same way.
+    let videoPendingPosterURL = c.videoPendingPosterURL.flatMap(URL.init(string:)) ?? sample.videoPendingPosterURL
+    if let url = videoPendingPosterURL, url.scheme?.hasPrefix("http") == true,
+       let data = try? Data(contentsOf: url), let picture = UIImage(data: data) {
+        MakeReadyUI.Ui2ImageCache.shared.seed(picture, for: url)
+    }
     // OQ-C-081-6: the chips' screenshots, seeded the same way (the screen reads the cache only).
     let slideImages = c.slideImages ?? sample.slideImages
     for raw in slideImages {
@@ -4783,6 +5230,8 @@ private func buildScreenActivitiesEditor(_ fixture: CaptureFixture) throws -> An
             readOnlyKind: c.readOnlyKind ?? sample.readOnlyKind,
             readOnlyTitle: c.readOnlyTitle ?? sample.readOnlyTitle,
             readOnlyPosterURL: readOnlyPosterURL,
+            videoPendingPosterURL: videoPendingPosterURL,
+            replaceVideoMenuOpen: c.replaceVideoMenuOpen ?? sample.replaceVideoMenuOpen,
             sliderDocked: c.sliderDocked ?? sample.sliderDocked,
             snapIndex: c.snapIndex ?? sample.snapIndex,
             objectLocks: c.objectLocks ?? sample.objectLocks,
@@ -4802,7 +5251,17 @@ private func buildScreenActivitiesEditor(_ fixture: CaptureFixture) throws -> An
             bibleVerticalAlignment: c.bibleVerticalAlignment ?? sample.bibleVerticalAlignment,
             toolbarTone: c.toolbarTone.flatMap(MakeReadyUI.ToolbarTone.init(rawValue:))
                 ?? sample.toolbarTone
-        )
+        ),
+        // §35.5 `video-recorder-inline`: a stand-in in the slot — the real recorder is the
+        // container's (the `video-recorder` screen), which this screen never draws.
+        videoRecorder: {
+            ZStack {
+                Color.black
+                Text(verbatim: "Video recorder")
+                    .font(.headline)
+                    .foregroundStyle(.white.opacity(0.6))
+            }
+        }
     )
     .safeAreaPadding(.top, device.safeArea.top)
     .frame(height: screenHeight)
@@ -6841,6 +7300,7 @@ enum ViewRegistry {
         "screen.2.0.note-editor",
         "screen.2.0.memo-detail",
         "component.ui2.C-015",
+        "screen.2.0.video-detail",
     ]
 }
 

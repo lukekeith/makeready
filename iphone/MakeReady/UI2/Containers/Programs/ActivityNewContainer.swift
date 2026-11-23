@@ -22,8 +22,9 @@ struct ActivityNewContainer: View {
     let programId: String
     let lessonId: String
 
-    /// D15 (Bible verse is enabled by bible-verse-picker D15): Video, YouTube, Write and Poll — C-086 raw case names.
-    static let unavailableTypes = ["video", "youtube", "write", "poll"]
+    /// D15 (Bible verse is enabled by bible-verse-picker D15; Video by video-recorder D18): YouTube, Write and Poll —
+    /// C-086 raw case names.
+    static let unavailableTypes = ["youtube", "write", "poll"]
 
     @Environment(\.ui2Navigator) private var navigator
     @State private var model: Model
