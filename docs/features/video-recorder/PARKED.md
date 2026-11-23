@@ -1,96 +1,85 @@
 # video-recorder — parked
-parked: 2026-11-23 463f78aa · by build phase 1 (fleet unpark retry 1 of 2)
+parked: 2026-11-23 f9ff51a3 · by build phase 1 (unpark retry after the owner created both screens)
 kind: human-step
-blocked: "d2m requests can't create the new Video Recorder and Video Detail screens, and the owner approves every d2m screen before iPhone code (P2) — next: create both in the d2m app (see PARKED.md), approve the screens, then /builder:agent"
+blocked: "the video recorder's nine new parts need two Figma links and a timer text style that only the owner can add in d2m, and the owner approves the screens before iPhone code (P2) — next: do the 3 steps in PARKED.md, then /builder:agent"
 
 ## What is stuck
-Phase 1 needs d2m to spec and build two NEW screens, `video-detail` and `video-recorder`, then the
-owner to approve every d2m screen in this feature before any iPhone code (SPEC §iphone: "Phase 1 is
-d2m (P2): no app code until the owner approves the screens"). Neither screen row exists in d2m,
-and no request can create one:
+The cause of the last park is gone: the owner created both screens in d2m. Video Detail is now
+specced and built. Video Recorder's screen spec is written (all 43 questions closed), but its nine
+new parts (C-143 RecordButtonSet, C-144 TimerPill, C-145 SegmentedProgressBar, C-146 CameraRail,
+C-147 RailTool, C-148 CountdownNumerals, C-149 LengthSlider, C-150 FilterStrip, C-151
+TeleprompterBand) are minted but **neither specced nor built**, so the screen cannot build. d2m
+stopped the screen (run stop `cmwsxcl1i0005v0w8orswh600`) on manual steps that the request channel
+cannot do. They are app actions for the owner:
 
-- d2m's `screen:create` skill needs two quoted strings, `--name "<title>"` and the requirements.
-  Given only a title, it stops with "pass its requirements in quotes" and writes nothing, but it
-  exits 0, so d2m marked both earlier "Create screen" steps **done**. That is why two requests said
-  "Ran: Create screen…" and nothing appeared.
-- The request chain's action tool allows **one quoted string per command** and about 200 characters
-  of requirements, so it cannot file a create that works. d2m refused the third request:
-  "cannot be done: the chat's action tool allows one quoted string per command".
-- `video-recorder` has Figma frames (3567:34892, 3567:34787), so `screen:create`, which is for
-  requirements only with no Figma, is the wrong path anyway: it must be a row with Figma refs,
-  specced by `/d2m:screen:spec`.
-- A screen's requirements are the owner's own text, stored verbatim and never rewritten. Writing
-  them into d2m behind the channel (its HTTP API) would be builder authoring design input, which
-  `.claude/builder.md` §Design source forbids.
+1. Add a Figma reference to **C-143 RecordButtonSet**: node `3322-31523` (variants `3322:31531`
+   Recording, `3322:31557` Pause).
+2. Add a Figma reference to **C-144 TimerPill**: node `3322-31629` (the Timecode symbol).
+3. On the **Typography tab**, add `type-timecode`: SF Pro Regular 18 / 25.2, tracking +0.72,
+   monospaced digits. This is the OQ-video-recorder-003 ruling, and type tokens are owned by that
+   tab, so no run can mint one.
 
-Even with the rows in place, the owner's approval of the d2m screens is a person's step (P2, and
-the owner's 2026-11-20 rule: screens are approved before any wiring).
+After that comes the owner's approval of every d2m screen in this feature before any iPhone code
+(SPEC §iphone: "Phase 1 is d2m (P2): no app code until the owner approves the screens"; also the
+owner's 2026-11-20 rule).
 
-The server half is done: phases 2–3 are closed, verify phase GREEN at 7952fbf1, and the contract
-froze 2026-11-22.
+The server half is done: phases 2–3 closed, verify phase GREEN at 7952fbf1, and the contract froze
+on 2026-11-22.
 
 ## What was tried
-- Run 1–2 (2026-11-22/23): filed 7 d2m requests (ledger: library-home, activity-new,
-  activities-editor, C-132, C-142, C-013, plus memo-detail asking d2m to mint both screens).
-  `video-detail` / `video-recorder` were refused as unknown subjects.
-- Run 3: re-requested the two creates through library-home (cmwsp258b004kv0tz9jna6yz7). It reported
-  done; neither row exists.
-- This run: traced the root cause in the d2m runs (below), then refiled
-  (cmwspr1wa0001v0zxx3m8jdp9) with `--name` and quoted requirements in each step. d2m's chat
-  answered `cannot be done:` because its action tool allows one quoted string. Nothing was filed.
-- Considered and rejected: creating the rows through d2m's HTTP API (the New screen dialog's
-  route). That bypasses the channel and writes the owner's requirements text for them.
+- Earlier runs: the root cause of the missing screens was that d2m requests cannot create screens
+  (see History). The owner then created both in the app (video-recorder at 05:53 UTC with Figma
+  3567:34892 / 3567:34787; video-detail from the suggested requirements).
+- This run filed **video-detail** `cmwsuqyfn0001v0xuwomy9lv9`: it settled OQ-video-detail-001..003
+  with d2m's recommended options (SPEC D16 "built like memo-detail"; F9 lets the d2m phase settle its
+  states before approval). **Done**: `VideoDetailScreen.swift` built, 10 previews captured.
+- This run filed **video-recorder** `cmwsur3f5000gv0xuyph9rezu` (spec + build) and answered all 43
+  questions. 001–004 took the recommended options. 005–042 (reference images not uploaded) were
+  answered "ignore the link", because the channel carries markdown only; the images are committed at
+  `docs/features/video-recording/assets/`. 043 (no-Figma parts) was answered with the D71–D73
+  ruling: spec from SPEC.md and the analyses, then freeze the first accepted capture. The screen
+  spec landed. The chain reported "Ran: Spec/Build" for all nine parts, but `get_screen` rollcall
+  shows every one `specced: false, built: false` (the same false-done pattern as the last park). I
+  retried once after the stop; it holds on the three manual steps.
+- Retried **C-013** `cmwsm155r…`: it stopped "unexplained" again (run cmwsur60u…). It is left open.
+  C-143 RecordButtonSet covers the 80 pt video button, and memo hosts keep C-013 unchanged.
 
 ## Evidence
-- d2m run cmwsp2p2e004tv0tzmu5g6qdk (`/d2m:screen:create video-detail "Video Detail"`, exit 0)
-  ends: "`get_screen("video-detail")` returned not found … The only quoted text in the arguments is
-  "Video Detail", which I read as the screen's title. That leaves no requirements … the rules say to
-  stop rather than call `create_screen`." The same happened in cmwsm4a66…, cmwsm4yib… and
-  cmwsp3m2g…
-- d2m run cmwspr1xm0008v0zxsvftq3yq (chat on this run's request): "cannot be done: the chat's action
-  tool allows one quoted string per command, and these two creates need two. File nothing. … A
-  requirements string over 200 characters … would also hit this tool's length limit."
-- d2m `packages/skills/skills/screen-create/SKILL.md` §1: "Not found → requirements on the command
-  line → create_screen(…) … No requirements → report `<screen> does not exist — pass its
-  requirements in quotes` and stop."
-- d2m's repo lane is slow, not stuck. At 03:37 UTC capture item cmwsm49mu000lv0fj0olqeokx (activity-new,
-  every variant) had been running since 01:54 UTC, with stills landing 21:12 / 21:13 / 21:32 CST.
-  Six apply/build runs queue behind it: activities-editor, C-132, C-142, library-home, C-013 and
-  activity-new again. Their output lands **uncommitted in the main checkout on `main`**
-  (activity-new's three files are already there), never on this branch.
-- C-013 questions the earlier run answered for the owner, for review: the memo button stays at its
-  current size; pressed is a 0.6 dim; there is no disabled state; the video button morphs from disc
-  to square over about 200 ms.
+- `get_screen video-recorder` (part summary): `"questions":{"open":0,"closed":43}`; the rollcall has
+  C-143…C-151 all `"specced":false,"built":false`; runStop steps s3 "Add C-143's Figma reference",
+  s4 "Add C-144's Figma reference" and s5 "Add type-timecode on the Typography tab" are
+  `"met":false`. s2 (answer OQ-043) also reads unmet, although the question is closed: "report_stop
+  refused it as an `answer` step although get_screen lists it open".
+- Change cmwsur3f5… `next`: "d2m settled what it could and left 4 steps for you on video-recorder".
+- Change cmwsuqyfn… result: "Built video-detail for the first time at
+  iphone/MakeReadyUI/Screens/Library/VideoDetailScreen.swift … Created 10 previews and captured all
+  of them (10/10)".
+- Phase-1 output is all **uncommitted in the main checkout on `main`** (`/Users/lukekeith/www/makeready`):
+  library-home, activity-new, activities-editor, C-132, C-142, video-detail and the minted parts.
+  It is never on this branch.
 
 ## Where to dig
-- d2m: `screen:create` exits 0 after a stop. The chain then marks the step done
-  (`apps/server/src/services/projectChanges.ts` `resultOf` lists done steps as "Ran: …"). That is
-  a d2m defect worth a d2m ticket: a create that wrote nothing should fail its step.
-- d2m: the chat action tool's one-quoted-string rule (`bad_command`) makes `screen:create`
-  impossible to file from any request.
-- Not yet ruled out: whether the six queued d2m changes finish cleanly once the activity-new capture
-  ends. Their stops and questions will need settling, and the owner's review of their uncommitted
-  diff on `main`.
+- d2m: a component's "Build" step reports done when the spec step was refused for lack of a
+  reference ("lifecycle: Referenced or specced unmet"). That is the same exit-0-after-a-stop defect
+  as `screen:create` in the last park. It is worth a d2m ticket.
+- d2m: the stop's s2 step cannot be met by `answer_project_change` once the question is closed (a
+  race between the chat's answer and `report_stop`). Closing the stop in the app should clear it.
+- Not yet ruled out: whether C-145…C-151 spec cleanly from SPEC.md once the stop closes, since
+  OQ-043 is answered no-Figma.
 
 ## Recommended next step
 In the d2m app (Library namespace):
-1. **New screen `video-detail`** ("Video Detail", pushed detail, from memo-detail). Suggested
-   requirements, yours to edit: "Pushed iPhone page for one Library video, opened from a
-   library-home video row. Like memo-detail: header with back and more; title renamed in place
-   (1–120 chars); date and duration; a video player instead of the audio scrub/transport;
-   timestamped transcript paragraphs, tap to seek, playing one highlighted. States: ready,
-   processing, uploading, error, no transcript yet. More menu: Rename, Delete with confirmation."
-2. **New screen `video-recorder`** ("Video Recorder") with Figma frames 3567:34892 and 3567:34787
-   attached, then spec it (`/d2m:screen:spec video-recorder`; SPEC §iphone lists every state and
-   component).
-3. Let the six queued d2m changes finish, review and commit their output on `main`, and approve all
-   eight subjects.
-4. `/builder:agent --path docs/features/video-recorder`. The rerun files the spec/build requests for
-   the two new screens if they are still unbuilt, records d2m's names, and builds phases 4–5.
+1. Add Figma reference `3322-31523` to C-143 and `3322-31629` to C-144.
+2. Add `type-timecode` on the Typography tab (SF Pro Regular 18 / 25.2, +0.72, monospaced digits).
+3. Close video-recorder's stop and retry change `cmwsur3f5000gv0xuyph9rezu`, or let the next run do
+   it. Then review and commit the phase-1 output on `main` and approve the screens (video-recorder,
+   video-detail, library-home, activity-new, activities-editor).
+4. `/builder:agent --path docs/features/video-recorder`. The rerun waits on cmwsur3f5…, records
+   d2m's names in `d2m-api.md`, and builds phases 4–5.
 
 Why this and not the alternatives:
-- Retrying the request: it cannot work, because the chain's tool cannot carry the create.
-- Builder writing the rows through d2m's API: that authors the owner's requirements.
+- Retrying through the channel: d2m names these as owner steps. No channel tool adds a Figma ref or a
+  type token (`set_color_token` is colour only).
 - Starting phase 4 early: the SPEC forbids iPhone code before approval.
 
 ## History
@@ -99,3 +88,4 @@ Why this and not the alternatives:
 - 2026-11-23 unparked by the fleet — automatic retry 1 of 2
 - 2026-11-23 parked — root cause found: d2m requests cannot create screens (its chain tool takes one quoted string; the create skill needs two and exits 0 when it stops); owner creates both in the app, then approves (P2)
 - 2026-11-23 unparked by a person — named to /builder:agent or /builder:fleet
+- 2026-11-23 parked — owner created both screens; video-detail built; video-recorder specced, but its nine new parts need two Figma refs and a type token only the owner can add, then screen approval (P2)
