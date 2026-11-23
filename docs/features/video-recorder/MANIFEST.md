@@ -1,7 +1,7 @@
 size: lg
 state: built
-next: /builder:agent-walk --path docs/features/video-recorder
-head: 0a253833
+next: /builder:resume --path docs/features/video-recorder
+head: 3da18ab9
 ticket: none
 branch: builder/video-recorder
 pr: none

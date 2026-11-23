@@ -300,3 +300,7 @@ The plan, task by task: `docs/features/video-recorder/PLAN.md` (§PLAN.md).
 - Phase 5 · Task 16 · The recorder model and the full-screen recorder from +
 - Phase 5 · Task 17 · Review, import, trim and Save
 - Phase 5 · Task 18 · The lesson video activity — tile, inline recorder, Replace video
+
+## Fixes
+
+- [ ] server: E3 — a Library-removed video stays in its lesson — expected the lesson to list and play it on the web lesson page, saw 404 for every lesson there (a lesson whose video was not removed 404s too) because `GET /api/member/lessons/:id` was deleted on main in 540e13ef (agent walk round 1). Ruling: no product fix — the owner accepted the dead web lesson pages (text-activity D6/D7). The spec's "the lesson still plays it on the web lesson page" and the §Apps client row's "web lesson player" claim are stale: correct both here, and reword walk.md E3's "See" to "the lesson version the server serves still has the `video` activity with that `videoId`, its media entry still resolves to a playable url, and the iPhone lesson still shows it"; then re-walk E3 — cost if wrong: the web lesson page goes unchecked until member web is rebuilt. Never restore the removed routes
