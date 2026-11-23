@@ -1,12 +1,12 @@
 size: lg
 state: planned
 next: /builder:resume --path docs/features/video-recorder
-head: 250d9f28
+head: 7952fbf1
 ticket: none
 branch: builder/video-recorder
 pr: none
 apps: server+iphone
-contract: open
+contract: frozen 2026-11-22
 hold: none
 go-ahead: auto (recommended) 2026-11-22
 tests: walk=risk review=slice
