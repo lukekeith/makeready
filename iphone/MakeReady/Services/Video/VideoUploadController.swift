@@ -239,6 +239,14 @@ final class VideoUploadController {
         pending().first { $0.localId == localId }?.serverId ?? completedServerIds[localId]
     }
 
+    /// Drops a queued video: its `.mp4`, poster and manifest go, as a memo's do (`MemoUploadController.remove`).
+    /// A stage in flight finds the manifest gone and stops. The caller deletes a server row first.
+    /// Unknown `localId` (the item finished): `CancellationError`.
+    func remove(localId: String) throws {
+        guard let item = pending().first(where: { $0.localId == localId }) else { throw CancellationError() }
+        discard(item)
+    }
+
     // MARK: Flush
 
     /// Runs the queue serially until it is empty or paused. A failed item waits out its backoff while
@@ -512,6 +520,11 @@ final class VideoUploadController {
 
     private func finish(_ item: VideoQueueItem) {
         if let serverId = item.serverId { completedServerIds[item.localId] = serverId }
+        discard(item)
+    }
+
+    /// Deletes the item's files and manifest, then refreshes `pendingItems`.
+    private func discard(_ item: VideoQueueItem) {
         for url in [item.fileURL, manifestURL(item)] + (item.posterURL.map { [$0] } ?? []) {
             do {
                 try FileManager.default.removeItem(at: url)

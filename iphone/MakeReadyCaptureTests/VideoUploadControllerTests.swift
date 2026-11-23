@@ -152,6 +152,18 @@ final class VideoUploadControllerTests: XCTestCase {
         XCTAssertEqual(c.pending().map(\.localId), [item.localId])
     }
 
+    func testRemoveDropsTheQueuedFilesAndAnUnknownIdIsACancellation() throws {
+        let c = makeController(api: FakeVideoAPI())
+        let item = try c.enqueue(exported(), attach: nil)
+        let poster = try XCTUnwrap(item.posterURL)
+        try c.remove(localId: item.localId)
+        XCTAssertTrue(c.pending().isEmpty)
+        XCTAssertTrue(c.pendingItems.isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: item.fileURL.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: poster.path))
+        XCTAssertThrowsError(try c.remove(localId: item.localId)) { XCTAssertTrue($0 is CancellationError) }
+    }
+
     func testTheUploadStreamsTheQueuedFileAndTheStreamUidIsPersistedBeforeIt() async throws {
         let api = FakeVideoAPI()
         let c = makeController(api: api)

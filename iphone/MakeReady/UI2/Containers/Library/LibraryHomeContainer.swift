@@ -26,15 +26,14 @@ struct LibraryHomeContainer: View {
     @State private var deletingMemoIds: Set<String> = []
     /// video-recorder D17: a video row stays until the server call succeeds (`removesRow: false`), so this
     /// is only the second confirm for a video that lessons use.
-    @State private var pendingRemoval: PendingVideoRemoval?
-    /// D20: the last scroll offset and whether a next page is already loading, so paging fires once.
+    @State private var pendingRemoval: LibraryVideoDeletion.Removal?
+    /// D20: the last scroll offset, the measured viewport and row count, whether a page is loading, and
+    /// whether the last page failed (a failed page waits for Retry, a refresh or the page reappearing).
     @State private var scrollOffset: CGFloat = 0
+    @State private var viewportHeight: CGFloat = 0
+    @State private var rowCount = 0
     @State private var isPagingVideos = false
-
-    private struct PendingVideoRemoval: Equatable {
-        let id: String
-        let decision: VideoDeleteDecision
-    }
+    @State private var lastPageFailed = false
 
     /// D8: the pause after the last keystroke before `q` is sent.
     static let searchDebounce: Duration = .milliseconds(300)
@@ -81,7 +80,7 @@ struct LibraryHomeContainer: View {
             onScrollChange: { offset, interacting in
                 scrollReport.report(offset, interacting)
                 scrollOffset = offset
-                loadMoreVideosIfNearEnd(rowCount: rows.ids.count)
+                loadMoreVideosIfNearEnd()
             },
             onSaveTypes: { selectedTypes = $0 },
             onRefresh: { Task { await fetch(q: Self.trimmedQuery(query)) } },
@@ -92,6 +91,10 @@ struct LibraryHomeContainer: View {
             onDeleteMemo: { id in Task { await deleteMemo(id: id) } },
             onDeleteVideo: { id in Task { await deleteVideo(id: id) } }
         )
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+            viewportHeight = height
+            loadMoreVideosIfNearEnd()
+        }
         .actionMenuPresentation(isPresented: pendingRemoval != nil, onDismiss: { pendingRemoval = nil }) {
             removalConfirmation
         }
@@ -102,7 +105,10 @@ struct LibraryHomeContainer: View {
             Task { await fetch(q: nil) }
         }
         // A short list (older rows held back) cannot scroll, so it asks for the next page itself.
-        .onChange(of: rows.ids.count) { _, count in loadMoreVideosIfNearEnd(rowCount: count) }
+        .onChange(of: rows.ids.count, initial: true) { _, count in
+            rowCount = count
+            loadMoreVideosIfNearEnd()
+        }
         .onDisappear { searchTask?.cancel() }
     }
 
@@ -141,36 +147,31 @@ struct LibraryHomeContainer: View {
         }
     }
 
-    /// video-recorder D17: the screen already asked "Delete this video?". A video no lesson uses is deleted
-    /// at once; one lessons use asks a second time, with the count, then leaves the Library. A failed read
-    /// or call goes to the error banner and the row stays. A queued video (`local:`) has no server row,
-    /// and the upload queue offers no removal, so its row stays until it lands.
-    private func deleteVideo(id: String) async {
-        guard !id.hasPrefix(Self.localMemoPrefix) else { return }
+    /// video-recorder D17: the flow itself is `LibraryVideoDeletion`; this wires its seams to the actions,
+    /// the upload queue and the error banner.
+    private var videoDeletion: LibraryVideoDeletion {
         let actions = VideoActions()
-        do {
-            let decision = try await actions.deleteDecision(id: id)
-            switch decision {
-            case .delete: try await actions.deleteOrRemove(id: id, decision: decision)
-            case .removeFromLibrary: pendingRemoval = PendingVideoRemoval(id: id, decision: decision)
-            }
-        } catch {
-            AppState.shared.recordError(error, context: "LibraryHomeContainer.deleteVideo", surface: true,
-                                        friendlyMessage: "Couldn't delete this video",
-                                        retry: { Task { await deleteVideo(id: id) } })
-        }
+        return LibraryVideoDeletion(
+            decide: { try await actions.deleteDecision(id: $0) },
+            perform: { try await actions.deleteOrRemove(id: $0, decision: $1) },
+            serverId: { AppState.shared.videoUploads?.serverId(forLocalId: $0) },
+            removeQueued: { id in
+                guard let uploads = AppState.shared.videoUploads else { throw CancellationError() }
+                try uploads.remove(localId: id)
+            },
+            askAgain: { pendingRemoval = $0 },
+            surface: { error, context, message, retry in
+                AppState.shared.recordError(error, context: context, surface: true, friendlyMessage: message,
+                                            retry: retry)
+            })
     }
+
+    private func deleteVideo(id: String) async { await videoDeletion.delete(id: id) }
 
     private func confirmRemoval() async {
         guard let removal = pendingRemoval else { return }
         pendingRemoval = nil
-        do {
-            try await VideoActions().deleteOrRemove(id: removal.id, decision: removal.decision)
-        } catch {
-            AppState.shared.recordError(error, context: "LibraryHomeContainer.confirmRemoval", surface: true,
-                                        friendlyMessage: "Couldn't remove this video from your Library",
-                                        retry: { pendingRemoval = removal; Task { await confirmRemoval() } })
-        }
+        await videoDeletion.confirm(removal)
     }
 
     /// The second C-066 confirm: the decision's own title, one destructive action, Cancel.
@@ -186,28 +187,29 @@ struct LibraryHomeContainer: View {
         )
     }
 
-    /// D20: the next page loads when the viewport (an estimated height) is within a few rows of the end of the
-    /// rows the list holds. Row heights are the memo row's, near enough for a look-ahead.
-    static func isNearEnd(offset: CGFloat, rowCount: Int) -> Bool {
-        offset + estimatedViewport + lookAheadRows * estimatedRowHeight >= CGFloat(rowCount) * estimatedRowHeight
-    }
-
-    private static let estimatedRowHeight: CGFloat = 76
-    private static let estimatedViewport: CGFloat = 800
-    private static let lookAheadRows: CGFloat = 8
-
-    private func loadMoreVideosIfNearEnd(rowCount: Int) {
+    /// D20: the next page loads when the viewport is near the end of the rows the list holds
+    /// (`LibraryVideoPaging`). After a page lands the check runs again, so a list too short to scroll keeps
+    /// loading until it fills or runs out. A failure goes to the console and the banner with Retry; nothing
+    /// retries it by itself, so a dead network is not hammered by scroll events.
+    private func loadMoreVideosIfNearEnd() {
         let window = AppState.shared.videoLibraryWindow
-        guard !isPagingVideos, window.hasMore, window.query == Self.trimmedQuery(query),
-              LibraryItemType.shows(.video, in: selectedTypes),
-              Self.isNearEnd(offset: scrollOffset, rowCount: rowCount) else { return }
+        guard LibraryVideoPaging.shouldLoadNext(
+            hasMore: window.hasMore, windowMatchesQuery: window.query == Self.trimmedQuery(query),
+            videosShown: LibraryItemType.shows(.video, in: selectedTypes), isLoading: isPagingVideos,
+            lastPageFailed: lastPageFailed, offset: scrollOffset, viewport: viewportHeight, rowCount: rowCount)
+        else { return }
         isPagingVideos = true
         Task {
-            defer { isPagingVideos = false }
             do {
                 try await VideoActions().loadNextLibraryPage()
+                isPagingVideos = false
+                loadMoreVideosIfNearEnd()
             } catch {
-                // Silent: a failed page is retried by the next scroll; the loaded rows stay.
+                isPagingVideos = false
+                lastPageFailed = true
+                AppState.shared.recordError(error, context: "LibraryHomeContainer.loadNextVideoPage", surface: true,
+                                            friendlyMessage: "Couldn't load more videos",
+                                            retry: { lastPageFailed = false; loadMoreVideosIfNearEnd() })
             }
         }
     }
@@ -262,6 +264,7 @@ struct LibraryHomeContainer: View {
     /// load in parallel, and one failing keeps the other (D5).
     private func fetch(q: String?) async {
         isLoading = true
+        lastPageFailed = false
         defer { isLoading = false }
         do {
             let failed: Bool

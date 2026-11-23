@@ -1312,6 +1312,9 @@
 		L1BH0MAP0000000000000002 /* LibraryHomeMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MAP0000000000000001 /* LibraryHomeMapper.swift */; };
 		L1BH0MAP0000000000000004 /* LibraryHomeMapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MAP0000000000000003 /* LibraryHomeMapperTests.swift */; };
 		L1BH0MAP0000000000000012 /* LibraryHomeSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MAP0000000000000011 /* LibraryHomeSearch.swift */; };
+		L1BH0VFL0000000000000002 /* LibraryHomeVideoFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VFL0000000000000001 /* LibraryHomeVideoFlow.swift */; };
+		L1BH0VFL0000000000000005 /* LibraryHomeVideoFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VFL0000000000000001 /* LibraryHomeVideoFlow.swift */; };
+		L1BH0VFL0000000000000004 /* LibraryHomeVideoFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VFL0000000000000003 /* LibraryHomeVideoFlowTests.swift */; };
 		L1BH0MAP0000000000000014 /* LibraryHomeSearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MAP0000000000000013 /* LibraryHomeSearchTests.swift */; };
 		L1BH0MAP0000000000000022 /* MemoDetailMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MAP0000000000000021 /* MemoDetailMapper.swift */; };
 		L1BH0MAP0000000000000024 /* MemoDetailMapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MAP0000000000000023 /* MemoDetailMapperTests.swift */; };
@@ -2190,6 +2193,8 @@
 		L1BH0MAP0000000000000001 /* LibraryHomeMapper.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LibraryHomeMapper.swift; path = Containers/Library/LibraryHomeMapper.swift; sourceTree = "<group>"; };
 		L1BH0MAP0000000000000003 /* LibraryHomeMapperTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LibraryHomeMapperTests.swift; sourceTree = "<group>"; };
 		L1BH0MAP0000000000000011 /* LibraryHomeSearch.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LibraryHomeSearch.swift; path = Containers/Library/LibraryHomeSearch.swift; sourceTree = "<group>"; };
+		L1BH0VFL0000000000000001 /* LibraryHomeVideoFlow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LibraryHomeVideoFlow.swift; path = Containers/Library/LibraryHomeVideoFlow.swift; sourceTree = "<group>"; };
+		L1BH0VFL0000000000000003 /* LibraryHomeVideoFlowTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LibraryHomeVideoFlowTests.swift; sourceTree = "<group>"; };
 		L1BH0MAP0000000000000013 /* LibraryHomeSearchTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LibraryHomeSearchTests.swift; sourceTree = "<group>"; };
 		L1BH0MAP0000000000000021 /* MemoDetailMapper.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MemoDetailMapper.swift; path = Containers/Memo/MemoDetailMapper.swift; sourceTree = "<group>"; };
 		L1BH0MAP0000000000000023 /* MemoDetailMapperTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MemoDetailMapperTests.swift; sourceTree = "<group>"; };
@@ -2479,6 +2484,7 @@
 				429C1700CBC11241A622131B /* LibraryHomeContainer.swift */,
 				L1BH0MAP0000000000000001 /* LibraryHomeMapper.swift */,
 				L1BH0MAP0000000000000011 /* LibraryHomeSearch.swift */,
+				L1BH0VFL0000000000000001 /* LibraryHomeVideoFlow.swift */,
 				L1BH0MAP0000000000000021 /* MemoDetailMapper.swift */,
 				L1BH0MDM0000000000000003 /* MemoDetailContainer.swift */,
 				L1BH0MDM0000000000000001 /* MemoDetailModel.swift */,
@@ -2942,6 +2948,7 @@
 				740ADE21BCEA7CDF0395D75B /* NoteSaveQueueTests.swift */,
 				L1BH0MAP0000000000000003 /* LibraryHomeMapperTests.swift */,
 				L1BH0MAP0000000000000013 /* LibraryHomeSearchTests.swift */,
+				L1BH0VFL0000000000000003 /* LibraryHomeVideoFlowTests.swift */,
 				L1BH0MAP0000000000000023 /* MemoDetailMapperTests.swift */,
 				L1BH0MDM0000000000000005 /* MemoDetailModelTests.swift */,
 				L1BH0RSE0000000000000005 /* RecorderSessionTests.swift */,
@@ -4344,6 +4351,7 @@
 				C9D7A391F10F78F97AC79BA9 /* NoteSaveQueueTests.swift in Sources */,
 				L1BH0MAP0000000000000004 /* LibraryHomeMapperTests.swift in Sources */,
 				L1BH0MAP0000000000000014 /* LibraryHomeSearchTests.swift in Sources */,
+				L1BH0VFL0000000000000004 /* LibraryHomeVideoFlowTests.swift in Sources */,
 				L1BH0MAP0000000000000024 /* MemoDetailMapperTests.swift in Sources */,
 				L1BH0MDM0000000000000006 /* MemoDetailModelTests.swift in Sources */,
 				L1BH0RSE0000000000000006 /* RecorderSessionTests.swift in Sources */,
@@ -4720,6 +4728,7 @@
 				FC653A4C64E454C7386E767B /* LibraryHomeContainer.swift in Sources */,
 				L1BH0MAP0000000000000002 /* LibraryHomeMapper.swift in Sources */,
 				L1BH0MAP0000000000000012 /* LibraryHomeSearch.swift in Sources */,
+				L1BH0VFL0000000000000002 /* LibraryHomeVideoFlow.swift in Sources */,
 				L1BH0MAP0000000000000022 /* MemoDetailMapper.swift in Sources */,
 				L1BH0MDM0000000000000002 /* MemoDetailModel.swift in Sources */,
 				L1BH0MDM0000000000000004 /* MemoDetailContainer.swift in Sources */,
@@ -5436,6 +5445,7 @@
 				2DC4410952E5B404024E52DE /* NoteEditorScreen.swift in Sources */,
 				30DC09E145BE5EDAC408025A /* NoteDocumentCodec.swift in Sources */,
 				DC9CDB8CB59202B2442CF317 /* LibraryHomeSearch.swift in Sources */,
+				L1BH0VFL0000000000000005 /* LibraryHomeVideoFlow.swift in Sources */,
 				317E471334A1DAFCC4AD2F50 /* NoteEditorContainer.swift in Sources */,
 				CF44ADD80A5C737462681577 /* NoteEntry.swift in Sources */,
 				EC1DE70BDA8FFC924DFCE0DA /* PlayheadWaveformView.swift in Sources */,

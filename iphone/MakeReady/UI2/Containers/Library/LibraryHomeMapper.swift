@@ -96,7 +96,7 @@ enum LibraryHomeMapper {
 
     /// A queued video has no listed server row yet, so its id is `local:` + `localId` (D27).
     static func videoSource(queued: VideoQueueItem) -> VideoSource {
-        VideoSource(id: "local:" + queued.localId, title: queued.title, durationMs: Int(queued.durationSeconds * 1000),
+        VideoSource(id: LibraryVideoDeletion.localPrefix + queued.localId, title: queued.title, durationMs: Int(queued.durationSeconds * 1000),
                     recordedAt: queued.createdAt, state: queued.isOnServer ? .created : .queued)
     }
 
