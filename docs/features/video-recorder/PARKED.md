@@ -49,3 +49,4 @@ create both in d2m, approve the d2m changes, then /builder:agent --path docs/fea
 ## History
 - 2026-11-22 parked — d2m screens missing and not yet owner-approved (P2)
 - 2026-11-23 parked — new Video Recorder and Video Detail screens are missing in d2m, and the owner must approve all d2m screens before iPhone code (P2)
+- 2026-11-23 unparked by the fleet — automatic retry 1 of 2
