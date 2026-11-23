@@ -190,8 +190,8 @@ struct UI2Shell: View {
     private func openRequestedVideoRecorder() {
         guard videoRecorderRequested else { return }
         videoRecorderRequested = false
-        guard videoRecorder == nil, recorder == nil, let userId = authManager.currentUser?.id else { return }
-        guard let opened = VideoRecorderModel.live(entry: .plusMenu, userId: userId) else { return }
+        guard videoRecorder == nil, recorder == nil,
+              let opened = VideoRecorderModel.live(entry: .plusMenu, userId: authManager.currentUser?.id) else { return }
         // D9: behind the recorder, which then slides away.
         opened.onFinished = { _ in model.showLibrary() }
         videoRecorder = opened

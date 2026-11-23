@@ -41,7 +41,8 @@ final class VideoDetailModelTests: XCTestCase {
         state = AppState()
         api = StubAPIClient()
         player = SpyVideoPlayer()
-        model = VideoDetailModel(id: "v1", actions: VideoActions(api: api, state: state), player: player, state: state)
+        model = VideoDetailModel(id: "v1", actions: VideoActions(api: api, state: state), player: player, state: state,
+                                 pollDelaySeconds: 0)
     }
 
     override func tearDown() {
@@ -68,6 +69,15 @@ final class VideoDetailModelTests: XCTestCase {
     private func seed(lessonUseCount: Int = 0, segments: String? = nil) {
         state.videos.upsert(try! JSONDecoder.apiDecoder.decode(Video.self, from: Data(videoJSON(
             transcript: "Hi", segments: segments, lessonUseCount: lessonUseCount).utf8)))
+    }
+
+    private func stubDetail(lessonUseCount: Int) {
+        api.stub("GET", "/api/videos/v1", json: #"{"success":true,"data":\#(videoJSON(lessonUseCount: lessonUseCount))}"#)
+    }
+
+    private func stubRemove() {
+        api.stub("POST", "/api/videos/v1/remove-from-library",
+                 json: #"{"success":true,"data":{"id":"v1","libraryRemovedAt":"2026-11-22T00:00:00Z"}}"#)
     }
 
     private func patches() -> [StubAPIClient.RecordedCall] { api.recordedCalls(method: "PATCH") }
@@ -124,6 +134,7 @@ final class VideoDetailModelTests: XCTestCase {
 
     func testAnUnusedVideoIsDeletedAndThePageGoesBack() async {
         seed(lessonUseCount: 0)
+        stubDetail(lessonUseCount: 0)
         api.stub("DELETE", "/api/videos/v1", json: #"{"success":true}"#)
         let pop = await model.requestDelete()
         XCTAssertTrue(pop)
@@ -133,12 +144,39 @@ final class VideoDetailModelTests: XCTestCase {
 
     func testAVideoInLessonsLeavesTheLibraryInstead() async {
         seed(lessonUseCount: 2)
-        api.stub("POST", "/api/videos/v1/remove-from-library",
-                 json: #"{"success":true,"data":{"id":"v1","libraryRemovedAt":"2026-11-22T00:00:00Z"}}"#)
+        stubDetail(lessonUseCount: 2)
+        stubRemove()
         let pop = await model.requestDelete()
         XCTAssertTrue(pop)
         XCTAssertEqual(api.callCount("POST", "/api/videos/v1/remove-from-library"), 1)
         XCTAssertEqual(api.callCount("DELETE", "/api/videos/v1"), 0)
+    }
+
+    /// Another leader put it in a lesson since the page loaded: the server's count decides.
+    func testTheDeleteReadsTheUseCountAgain() async {
+        seed(lessonUseCount: 0)
+        stubDetail(lessonUseCount: 1)
+        stubRemove()
+        let pop = await model.requestDelete()
+        XCTAssertTrue(pop)
+        XCTAssertEqual(api.callCount("DELETE", "/api/videos/v1"), 0)
+    }
+
+    func testARetriedDeletePopsThePage() async {
+        seed()
+        var pops = 0
+        model.onDeleted = { pops += 1 }
+        api.errorToThrow = APIError.serverError("boom")
+        let popped = await model.requestDelete()
+        XCTAssertFalse(popped)
+        XCTAssertEqual(pops, 0)
+        api.errorToThrow = nil
+        stubDetail(lessonUseCount: 0)
+        api.stub("DELETE", "/api/videos/v1", json: #"{"success":true}"#)
+        state.activeSurfacedError?.retry?()
+        for _ in 0..<200 where pops == 0 { await Task.yield() }
+        XCTAssertEqual(pops, 1)
+        XCTAssertNil(state.videos["v1"])
     }
 
     func testAFailedDeleteStaysOnThePage() async {
@@ -164,6 +202,43 @@ final class VideoDetailModelTests: XCTestCase {
         api.stub("GET", "/api/videos/v1", json: #"{"success":true,"data":\#(videoJSON(status: "pending"))}"#)
         await model.load()
         XCTAssertTrue(player.loaded.isEmpty)
+    }
+
+    /// D23: an open page follows its video until it is ready, and then can play it.
+    func testAnOpenPageFollowsAPendingVideoUntilItIsReady() async {
+        state.videos.upsert(video(transcriptStatus: "pending", status: "pending"))
+        var refreshes = 0
+        api.responseFor = { [self] _, _ in
+            refreshes += 1
+            return Data(#"{"success":true,"data":\#(videoJSON(status: refreshes < 3 ? "pending" : "ready"))}"#.utf8)
+        }
+        XCTAssertTrue(model.isProcessing)
+        await model.followProcessing()
+        XCTAssertEqual(refreshes, 3)
+        XCTAssertFalse(model.isProcessing)
+        XCTAssertEqual(player.loaded.count, 1)
+    }
+
+    func testFollowingAPendingVideoIsBounded() async {
+        state.videos.upsert(video(transcriptStatus: "pending", status: "pending"))
+        api.stub("POST", "/api/videos/v1/refresh", json: #"{"success":true,"data":\#(videoJSON(status: "pending"))}"#)
+        await model.followProcessing()
+        XCTAssertEqual(api.callCount("POST", "/api/videos/v1/refresh"), 15)
+        XCTAssertTrue(player.loaded.isEmpty)
+    }
+
+    func testAReadyVideoIsNotFollowed() async {
+        seed()
+        await model.followProcessing()
+        XCTAssertTrue(api.calls.isEmpty)
+    }
+
+    func testLeavingThePageStopsFollowing() async {
+        state.videos.upsert(video(transcriptStatus: "pending", status: "pending"))
+        let follow = Task { await model.followProcessing() }
+        follow.cancel()
+        await follow.value
+        XCTAssertTrue(api.calls.isEmpty)
     }
 
     func testAParagraphSeeksAndPlays() {

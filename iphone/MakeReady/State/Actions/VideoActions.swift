@@ -66,10 +66,35 @@ private let api: APIClientProtocol
             throw APIError.serverError(response.error ?? "Failed to fetch videos")
         }
 
-        state.videos.replaceAll(videos)
+        state.videos.replaceAll(videos.map(countingKnownUses))
         state.persist()
 
         NSLog("🎬 VideoActions: Loaded \(videos.count) videos")
+    }
+
+    /// Every full `Video` answer lands here: the detail store and, when the Library lists it, its row (D27).
+    @MainActor
+    private func store(_ video: Video) {
+        state.videos.upsert(countingKnownUses(video))
+        _ = state.libraryVideos.update(video.id) { row in
+            row.title = video.title
+            row.thumbnailUrl = video.thumbnailUrl
+            row.playbackUrl = video.playbackUrl
+            row.duration = video.duration
+            row.status = video.status
+            if let status = video.transcriptStatus { row.transcriptStatus = status }
+            if let transcript = video.transcript { row.transcriptPreview = String(transcript.prefix(Self.previewLength)) }
+        }
+        state.persist()
+    }
+
+    /// Only `GET /api/videos/:id` carries `lessonUseCount`: any other answer keeps the count already known.
+    @MainActor
+    private func countingKnownUses(_ video: Video) -> Video {
+        guard video.lessonUseCount == nil else { return video }
+        var counted = video
+        counted.lessonUseCount = state.videos[video.id]?.lessonUseCount
+        return counted
     }
 
     // MARK: - Get Single Video
@@ -83,8 +108,7 @@ private let api: APIClientProtocol
             throw APIError.serverError(response.error ?? "Failed to get video")
         }
 
-        state.videos.upsert(video)
-        state.persist()
+        store(video)
 
         return video
     }
@@ -138,8 +162,7 @@ private let api: APIClientProtocol
             throw APIError.serverError(response.error ?? "Failed to create video record")
         }
 
-        state.videos.upsert(video)
-        state.persist()
+        store(video)
 
         return video
     }
@@ -194,9 +217,7 @@ private let api: APIClientProtocol
     /// `PATCH /api/videos/:id` with the title; the Library row follows in the same call (D27).
     @MainActor
     func rename(id: String, title: String) async throws {
-        let video = try await updateVideo(id: id, title: title)
-        _ = state.libraryVideos.update(id) { $0.title = video.title }
-        state.persist()
+        _ = try await updateVideo(id: id, title: title)
     }
 
     /// `POST /api/videos/:id/remove-from-library`: the video leaves the Library but stays in lessons (D17).
@@ -213,11 +234,11 @@ private let api: APIClientProtocol
     }
 
     /// Which confirm a delete shows (D17): from `lessonUseCount` on `GET /api/videos/:id`.
-    /// A failed read throws, for the caller's error banner, and changes nothing.
+    /// A failed read, or an answer without the count, throws for the caller's error banner.
     @MainActor
     func deleteDecision(id: String) async throws -> VideoDeleteDecision {
         let video = try await getVideo(id: id)
-        let count = video.lessonUseCount ?? 0
+        guard let count = video.lessonUseCount else { throw APIError.invalidResponse }
         return count > 0 ? .removeFromLibrary(lessonCount: count) : .delete
     }
 
@@ -240,6 +261,8 @@ private let api: APIClientProtocol
     }
 
     private static let libraryPageSize = 50
+    /// The server's `transcriptPreview` length.
+    private static let previewLength = 160
 
     private static func encoded(_ value: String) -> String {
         value.addingPercentEncoding(withAllowedCharacters: .urlQueryValueAllowed) ?? value
@@ -264,8 +287,7 @@ private let api: APIClientProtocol
             throw APIError.serverError(response.error ?? "Failed to update video")
         }
 
-        state.videos.upsert(video)
-        state.persist()
+        store(video)
 
         return video
     }
@@ -282,8 +304,7 @@ private let api: APIClientProtocol
             throw APIError.serverError(response.error ?? "Failed to refresh video status")
         }
 
-        state.videos.upsert(video)
-        state.persist()
+        store(video)
 
         return video
     }
@@ -319,7 +340,7 @@ private let api: APIClientProtocol
 
         NSLog("🎬 VideoActions: Waiting for video processing...")
 
-        for attempt in 1...maxAttempts {
+        for attempt in 1...maxAttempts where !Task.isCancelled {
             do {
                 try await Task.sleep(nanoseconds: UInt64(delaySeconds * 1_000_000_000))
 
@@ -532,6 +553,8 @@ enum VideoDeleteDecision: Equatable {
         switch self {
         case .delete:
             return "Delete this video?"
+        case .removeFromLibrary(1):
+            return "This video is used in 1 lesson activity. It will stay in it and leave your Library."
         case .removeFromLibrary(let n):
             return "This video is used in \(n) lesson activities. It will stay in them and leave your Library."
         }

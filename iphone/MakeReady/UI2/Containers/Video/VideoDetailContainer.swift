@@ -35,10 +35,15 @@ struct VideoDetailContainer: View {
             .id(screen.title.isEmpty)
         }
         .task { await model.load() }
-        .onDisappear { model.stop() }
+        .task(id: model.isProcessing) { await model.followProcessing() }
+        .onAppear { model.onDeleted = { navigator.pop() } }
+        .onDisappear {
+            model.onDeleted = {}
+            model.stop()
+        }
     }
 
-    /// The screen has already confirmed (D17); the model picks delete or remove from the use count it showed.
+    /// The screen has already confirmed (D17); the model picks delete or remove.
     private func remove() {
         Task { if await model.requestDelete() { navigator.pop() } }
     }

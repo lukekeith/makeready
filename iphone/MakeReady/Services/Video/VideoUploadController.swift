@@ -148,6 +148,8 @@ final class VideoUploadController {
     private let flushesOnEnqueue: Bool
     private var isProcessing = false
     private var flushTask: Task<Void, Never>?
+    /// Which flush `flushTask` is: one that was cancelled must not clear its successor.
+    private var flushNumber = 0
     private var sleepTask: Task<Void, Error>?
     private var wakeRequested = false
     private var pathMonitor: NWPathMonitor?
@@ -263,6 +265,10 @@ final class VideoUploadController {
         }.sorted { ($0.createdAt, $0.localId) < ($1.createdAt, $1.localId) }
     }
 
+    func queued(localId: String) -> VideoQueueItem? {
+        pending().first { $0.localId == localId }
+    }
+
     /// A pending item's `serverId`, or the one recorded when that item finished this session.
     func serverId(forLocalId localId: String) -> String? {
         pending().first { $0.localId == localId }?.serverId ?? completedServerIds[localId]
@@ -287,10 +293,11 @@ final class VideoUploadController {
             return
         }
         guard !isPausedForAuth else { return }
-        let task = Task { await runFlush() }
+        flushNumber += 1
+        let number = flushNumber
+        let task = Task { await runFlush(number) }
         flushTask = task
         await task.value
-        if flushTask == task { flushTask = nil }
         if pending().isEmpty { stopPathMonitoring() }
     }
 
@@ -355,7 +362,10 @@ final class VideoUploadController {
         sleepTask.cancel()
     }
 
-    private func runFlush() async {
+    /// Ends its turn in the same step as its last look at the queue, so a video queued after that look
+    /// gets a flush of its own.
+    private func runFlush(_ number: Int) async {
+        defer { if flushNumber == number { flushTask = nil } }
         while !Task.isCancelled {
             switch await step(onlyDue: true) {
             case .advanced, .retryLater:
@@ -409,8 +419,8 @@ final class VideoUploadController {
             return .advanced
         } catch {
             if case .unauthorized? = error as? APIError { return .paused }
-            // Silent: the item was removed while this pass was in flight (`update` found no manifest).
-            if error is CancellationError { return .retryLater }
+            // Silent: the item was removed while this pass was in flight.
+            if error is ItemRemoved { return .retryLater }
             recordFailure(&item, error)
             return .retryLater
         }
@@ -459,8 +469,8 @@ final class VideoUploadController {
         try advance(&item, to: .creating)
     }
 
-    /// Creates or replaces the activity. A refusal (the version was published or deleted) keeps the
-    /// video in the Library and surfaces the banner; any other failure retries.
+    /// Creates or replaces the activity. A refusal (`isRefusal`) keeps the video in the Library and
+    /// surfaces the banner; any other failure retries.
     private func attach(_ item: inout VideoQueueItem) async throws {
         guard let attach = item.attach else { return }
         guard let serverId = item.serverId else { return try restartAtCreate(&item) }
@@ -517,6 +527,8 @@ final class VideoUploadController {
         item.nextAttemptAt = now().addingTimeInterval(Double(Self.delay(forAttempt: item.failures).components.seconds))
         do {
             try update(item)
+        } catch is ItemRemoved {
+            return // Silent: the leader deleted it; its failure no longer matters
         } catch {
             Log.media.error("video backoff not persisted: \(error.localizedDescription, privacy: .public)")
         }
@@ -526,8 +538,16 @@ final class VideoUploadController {
                        retry: { [weak self] in Task { await self?.retryNow() } })
     }
 
+    /// An attach no retry can make: no access, a document the server rejects, or a version or activity
+    /// that is gone or published. A 409 `CONFLICT` is two writes meeting; the retry reloads the version.
     private static func isRefusal(_ error: Error) -> Bool {
-        if let http = error as? APIHTTPError { return [403, 404, 409].contains(http.status) }
+        if let http = error as? APIHTTPError {
+            switch http.status {
+            case 403, 404: return true
+            case 400: return http.details["code"] == "VALIDATION"
+            default: return false
+            }
+        }
         if let activity = error as? ActivityActionsError { return activity == .notDraft || activity == .gone }
         return false
     }
@@ -544,10 +564,10 @@ final class VideoUploadController {
     }
 
     /// Rewrites the manifest of an item that is already queued. A manifest that is gone (the item
-    /// finished while a stage was awaiting the server) throws `CancellationError` instead of being
-    /// resurrected.
+    /// finished, or was removed, while a stage was awaiting the server) throws `ItemRemoved` instead of
+    /// being resurrected.
     private func update(_ item: VideoQueueItem) throws {
-        guard FileManager.default.fileExists(atPath: manifestURL(item).path) else { throw CancellationError() }
+        guard FileManager.default.fileExists(atPath: manifestURL(item).path) else { throw ItemRemoved() }
         try persist(item)
     }
 
@@ -589,6 +609,9 @@ final class VideoUploadController {
         try folder.setResourceValues(values)
     }
 }
+
+/// The item's manifest is gone: it finished or was deleted while a stage was in flight.
+private struct ItemRemoved: Error {}
 
 enum VideoUploadError: Error, Equatable {
     case badUploadURL
@@ -678,15 +701,19 @@ struct LiveVideoUploadAPI: VideoUploadAPI {
         try await videos.refreshVideoStatus(id: id).videoStatus
     }
 
+    /// Reads the server's current version first, never a cached one: the cache may be cold after a
+    /// relaunch, or stale. A version or activity that is gone is a refusal (D18). A create whose answer
+    /// was lost has left its activity there, so a retry finds it and makes no second one.
     func attach(_ attach: VideoAttach, videoId: String) async throws {
+        try await activities.loadVersionKeepingStatus(id: attach.versionId)
         guard let activityId = attach.activityId else {
+            let attached = await state.activities(forVersion: attach.versionId)
+                .contains { ActivitiesEditorMapper.videoId(of: $0) == videoId }
+            guard !attached else { return }
             try await activities.create(versionId: attach.versionId, kind: "video", title: attach.title,
                                         document: Self.videoDocument(videoId: videoId, title: attach.title))
             return
         }
-        // Always the server's current document, never a cached one: the cache may be cold after a
-        // relaunch, or stale. A version or activity that is gone is a refusal (D18).
-        try await activities.loadVersionKeepingStatus(id: attach.versionId)
         guard let existing = await state.activities[activityId] else { throw ActivityActionsError.gone }
         let document = existing.document.updating { $0[path: ["content", "videoId"]] = .string(videoId) }
         try await activities.save(activityId: activityId, title: nil, document: document)

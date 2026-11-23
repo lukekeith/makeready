@@ -20,7 +20,12 @@ final class FakeVideoAPI: VideoUploadAPI, VideoStreamTransport {
     private let readyAfterPolls: Int
     private let dropFirstCreateResponse: Bool
     private let failUploads: Int
-    private let attachStatus: Int?
+    /// Thrown by the first attaches, in order; later ones succeed.
+    private var attachErrors: [Error]
+    /// What a failed upload throws.
+    var uploadError: Error = URLError(.networkConnectionLost)
+    /// Runs as each upload starts, with its 1-based number.
+    var onUpload: (@MainActor (Int) throws -> Void)?
 
     private(set) var mints = 0
     private(set) var uploads: [(url: URL, fileURL: URL)] = []
@@ -30,11 +35,11 @@ final class FakeVideoAPI: VideoUploadAPI, VideoStreamTransport {
     private(set) var activityCreates: [ActivityCreate] = []
     private(set) var activityReplaces: [(activityId: String, videoId: String)] = []
 
-    init(readyAfterPolls: Int = 1, dropFirstCreateResponse: Bool = false, failUploads: Int = 0, attachStatus: Int? = nil) {
+    init(readyAfterPolls: Int = 1, dropFirstCreateResponse: Bool = false, failUploads: Int = 0, attachErrors: [Error] = []) {
         self.readyAfterPolls = readyAfterPolls
         self.dropFirstCreateResponse = dropFirstCreateResponse
         self.failUploads = failUploads
-        self.attachStatus = attachStatus
+        self.attachErrors = attachErrors
     }
 
     func mintUploadURL(title: String) async throws -> VideoUploadTicket {
@@ -44,7 +49,8 @@ final class FakeVideoAPI: VideoUploadAPI, VideoStreamTransport {
 
     func upload(fileURL: URL, to url: URL) async throws -> Int {
         uploads.append((url, fileURL))
-        if uploads.count <= failUploads { throw URLError(.networkConnectionLost) }
+        try await onUpload?(uploads.count)
+        if uploads.count <= failUploads { throw uploadError }
         return 200
     }
 
@@ -61,7 +67,7 @@ final class FakeVideoAPI: VideoUploadAPI, VideoStreamTransport {
     }
 
     func attach(_ attach: VideoAttach, videoId: String) async throws {
-        if let attachStatus { throw APIHTTPError(status: attachStatus, message: nil) }
+        if !attachErrors.isEmpty { throw attachErrors.removeFirst() }
         if let activityId = attach.activityId {
             activityReplaces.append((activityId, videoId))
         } else {
@@ -326,7 +332,7 @@ final class VideoUploadControllerTests: XCTestCase {
 
     func testARefusedAttachKeepsTheVideoAndSurfacesTheError() async throws {
         let banner = BannerSpy()
-        let api = FakeVideoAPI(attachStatus: 409)
+        let api = FakeVideoAPI(attachErrors: [ActivityActionsError.notDraft])
         let c = makeController(api: api, banner: banner)
         let item = try c.enqueue(exported(), attach: VideoAttach(versionId: "ver1", activityId: nil, title: "Video 1"))
         await drain(c)
@@ -334,6 +340,89 @@ final class VideoUploadControllerTests: XCTestCase {
         XCTAssertEqual(banner.shown.first?.hasRetry, false)
         XCTAssertTrue(c.pending().isEmpty)
         XCTAssertEqual(c.serverId(forLocalId: item.localId), api.createdId)
+    }
+
+    func testEveryPermanentRefusalKeepsTheVideoAndStopsRetrying() async throws {
+        let refusals: [(String, Error)] = [
+            ("403", APIHTTPError(status: 403, message: nil)),
+            ("404", APIHTTPError(status: 404, message: nil, details: ["code": "NOT_FOUND"])),
+            ("validation", APIHTTPError(status: 400, message: nil, details: ["code": "VALIDATION"])),
+            ("not-draft", ActivityActionsError.notDraft),
+            ("gone", ActivityActionsError.gone)
+        ]
+        for (name, error) in refusals {
+            let banner = BannerSpy()
+            let api = FakeVideoAPI(attachErrors: [error])
+            let c = makeController(api: api, banner: banner, root: root.appendingPathComponent("q-\(name)"))
+            _ = try c.enqueue(exported(), attach: VideoAttach(versionId: "ver1", activityId: nil, title: "V"))
+            await drain(c)
+            XCTAssertEqual(banner.shown.map(\.hasRetry), [false], name)
+            XCTAssertTrue(api.activityCreates.isEmpty, name)
+            XCTAssertTrue(c.pending().isEmpty, name)
+        }
+    }
+
+    /// 409 `CONFLICT` is two writes meeting on one version; the retry reloads it.
+    func testAConflictRetriesTheAttach() async throws {
+        let banner = BannerSpy()
+        let api = FakeVideoAPI(attachErrors: [APIHTTPError(status: 409, message: nil, details: ["code": "CONFLICT"])])
+        let c = makeController(api: api, banner: banner)
+        _ = try c.enqueue(exported(), attach: VideoAttach(versionId: "ver1", activityId: nil, title: "V"))
+        await drain(c)
+        XCTAssertTrue(banner.shown.isEmpty)
+        XCTAssertEqual(api.activityCreates.count, 1)
+        XCTAssertTrue(c.pending().isEmpty)
+    }
+
+    // MARK: - Cancellations and the end of a flush
+
+    func testACancellationThatIsNotARemovalBacksOff() async throws {
+        let api = FakeVideoAPI(failUploads: 1)
+        api.uploadError = CancellationError()
+        let c = makeController(api: api)
+        _ = try c.enqueue(exported(), attach: nil)
+        let step = await c.processNext()
+        XCTAssertEqual(step, .retryLater)
+        XCTAssertEqual(c.pending().first?.failures, 1)
+        XCTAssertNotNil(c.pending().first?.nextAttemptAt)
+    }
+
+    func testAnItemRemovedWhileItsUploadFailsIsSilent() async throws {
+        let banner = BannerSpy()
+        let api = FakeVideoAPI(failUploads: 3)
+        let c = makeController(api: api, banner: banner)
+        let item = try c.enqueue(exported(), attach: nil)
+        api.onUpload = { number in
+            guard number == 3 else { return }
+            try c.remove(localId: item.localId)
+        }
+        for _ in 0..<3 { _ = await c.processNext() }
+        XCTAssertTrue(banner.shown.isEmpty)
+        XCTAssertTrue(c.pending().isEmpty)
+    }
+
+    /// Queued between a flush ending and its first caller resuming: that flush cannot run it.
+    func testAVideoQueuedAsAFlushEndsStillUploads() async throws {
+        let api = FakeVideoAPI(readyAfterPolls: 0)
+        var late: Task<Void, Error>?
+        var controller: VideoUploadController?
+        let c = VideoUploadController(api: api, transport: api, banner: BannerSpy(), directory: dir, ownerUserId: "user-a",
+                                      environment: "Local", defaultTitle: { "Video 1" }, now: { [self] in
+            // The flush's last look at the queue.
+            if late == nil, !api.created.isEmpty, let controller, controller.pendingItems.isEmpty {
+                late = Task {
+                    _ = try controller.enqueue(exported(), attach: nil)
+                    await controller.flush()
+                }
+            }
+            return Date()
+        })
+        controller = c
+        _ = try c.enqueue(exported(), attach: nil)
+        await c.flush()
+        try await XCTUnwrap(late).value
+        XCTAssertEqual(api.created.count, 2)
+        XCTAssertTrue(c.pending().isEmpty)
     }
 
     // MARK: - Titles (D14)
@@ -390,6 +479,30 @@ final class VideoUploadControllerTests: XCTestCase {
         let content = try XCTUnwrap(document["content"] as? [String: Any])
         XCTAssertEqual(content["videoId"] as? String, "vid-1")
         XCTAssertEqual(content["type"] as? String, "video")
+    }
+
+    private func videoActivityJSON(videoId: String) -> String {
+        Self.activityJSON.replacingOccurrences(of: #""videoId":"old""#, with: #""videoId":"\#(videoId)""#)
+    }
+
+    private func stubVersion(_ stub: StubAPIClient, activity: String) {
+        stub.stub("GET", "/api/lesson-versions/ver1", json: #"{"version":\#(Self.versionJSON),"activities":[\#(activity)],"media":{}}"#)
+        stub.stub("POST", "/api/lesson-versions/ver1/activities", json: #"{"activity":\#(Self.activityJSON),"media":{}}"#)
+    }
+
+    /// The create's response was lost, or the app was killed before it was recorded.
+    func testACreateJobWhoseActivityAlreadyExistsDoesNotMakeASecond() async throws {
+        let stub = StubAPIClient()
+        stubVersion(stub, activity: videoActivityJSON(videoId: "vid-1"))
+        try await liveAPI(stub, state: AppState()).attach(VideoAttach(versionId: "ver1", activityId: nil, title: "V"), videoId: "vid-1")
+        XCTAssertTrue(stub.recordedCalls(method: "POST").isEmpty)
+    }
+
+    func testACreateJobMakesItsActivityBesideOtherVideos() async throws {
+        let stub = StubAPIClient()
+        stubVersion(stub, activity: videoActivityJSON(videoId: "other"))
+        try await liveAPI(stub, state: AppState()).attach(VideoAttach(versionId: "ver1", activityId: nil, title: "V"), videoId: "vid-1")
+        XCTAssertEqual(stub.callCount("POST", "/api/lesson-versions/ver1/activities"), 1)
     }
 
     func testAReplaceJobWhoseVersionIsGone404IsARefusalNotAnOutage() async throws {

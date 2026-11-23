@@ -298,10 +298,14 @@ struct VideoRecorderContainer: View {
 extension VideoRecorderModel {
     /// A recorder on the camera, with the signed-in user's drafts in this environment. Nil, with a
     /// banner, when their folder cannot be made.
-    static func live(entry: VideoRecorderEntry, userId: String) -> VideoRecorderModel? {
-        let state = AppState.shared
+    static func live(entry: VideoRecorderEntry, userId: String?, app: AppState? = nil) -> VideoRecorderModel? {
+        let state = app ?? AppState.shared
         let report: (Error, String) -> Void = { error, message in
             state.recordError(error, context: "VideoRecorder", surface: true, friendlyMessage: message)
+        }
+        guard let userId else {
+            report(NoSignedInUser(), "Couldn't open the recorder")
+            return nil
         }
         do {
             let saver = try state.startVideoSaves(userId: userId)
@@ -317,6 +321,8 @@ extension VideoRecorderModel {
             return nil
         }
     }
+
+    private struct NoSignedInUser: Error {}
 }
 
 /// C-150's swatches: each look over the same sky-to-skin gradient.

@@ -117,15 +117,16 @@ enum LibraryHomeMapper {
     }
 
     /// D15: the second line, in this order: not yet created, still processing, transcribing, the
-    /// transcript's first line, else nothing.
+    /// transcript's first line, else nothing. A video that failed shows its transcript's line, else so.
     static func videoLine2(_ state: VideoSource.State) -> String {
         guard case .stored(let video) = state else { return state == .queued ? "Uploading…" : "Processing…" }
         if video.videoStatus == .pending { return "Processing…" }
-        if video.transcriptStatus == .pending { return "Transcribing…" }
-        if video.transcriptStatus == .ready, let preview = video.transcriptPreview {
-            return preview.split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
+        if video.videoStatus == .ready, video.transcriptStatus == .pending { return "Transcribing…" }
+        if video.transcriptStatus == .ready,
+           let line = video.transcriptPreview?.split(whereSeparator: \.isNewline).first {
+            return String(line)
         }
-        return ""
+        return video.videoStatus == .error ? "Couldn't be processed" : ""
     }
 
     /// The screen's preview slot for a video's second line.
@@ -135,7 +136,7 @@ enum LibraryHomeMapper {
         case .created: return .processing
         case .stored(let video):
             if video.videoStatus == .pending { return .processing }
-            if video.transcriptStatus == .pending { return .transcribing }
+            if video.videoStatus == .ready, video.transcriptStatus == .pending { return .transcribing }
             return .transcript(videoLine2(state))
         }
     }

@@ -90,7 +90,7 @@ struct VideoSummary: Codable, Identifiable, Equatable {
     let id: String
     var title: String?
     var thumbnailUrl: String?
-    let playbackUrl: String
+    var playbackUrl: String
     var duration: Int?
     var status: String
     var transcriptStatus: VideoTranscriptStatus

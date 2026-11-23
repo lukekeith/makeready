@@ -13,13 +13,18 @@ final class VideoDetailModel {
 
     private let actions: VideoActions
     private let state: AppState
+    private let pollDelaySeconds: Double
     private var loadedStream: URL?
+    /// Runs when a delete retried from the banner goes through; the page pops.
+    @ObservationIgnored var onDeleted: () -> Void = {}
 
-    init(id: String, actions: VideoActions, player: VideoPlaying, state: AppState? = nil) {
+    init(id: String, actions: VideoActions, player: VideoPlaying, state: AppState? = nil,
+         pollDelaySeconds: Double = 2) {
         self.id = id
         self.actions = actions
         self.player = player
         self.state = state ?? AppState.shared
+        self.pollDelaySeconds = pollDelaySeconds
     }
 
     /// The stored video, when there is one.
@@ -38,6 +43,16 @@ final class VideoDetailModel {
                                   Task { await self?.load() }
                               })
         }
+        loadStream()
+    }
+
+    /// The stored video is still being processed.
+    var isProcessing: Bool { video?.videoStatus == .pending }
+
+    /// D23: the poll behind an open page's "Processing…"; the page cancels it when it leaves the screen.
+    func followProcessing() async {
+        if let video, isProcessing { _ = await actions.waitForVideoReady(video: video, delaySeconds: pollDelaySeconds) }
+        guard !Task.isCancelled else { return }
         loadStream()
     }
 
@@ -63,18 +78,22 @@ final class VideoDetailModel {
     }
 
     /// D17, after the screen's own confirm: a video no lesson uses is deleted, one that lessons use leaves the
-    /// Library and stays in them. True means the page should pop.
+    /// Library and stays in them. The count is read again, so a stale one never decides. True means the page
+    /// should pop.
     func requestDelete() async -> Bool {
-        let count = video?.lessonUseCount ?? 0
-        let decision: VideoDeleteDecision = count > 0 ? .removeFromLibrary(lessonCount: count) : .delete
+        var message = "Couldn't delete this video"
         do {
+            let decision = try await actions.deleteDecision(id: id)
+            if decision != .delete { message = "Couldn't remove this video from your Library" }
             try await actions.deleteOrRemove(id: id, decision: decision)
         } catch {
             state.recordError(error, context: "VideoDetailModel.delete", surface: true,
-                              friendlyMessage: count > 0 ? "Couldn't remove this video from your Library"
-                                                         : "Couldn't delete this video",
+                              friendlyMessage: message,
                               retry: { [weak self] in
-                                  Task { await self?.requestDelete() }
+                                  Task {
+                                      guard let self, await self.requestDelete() else { return }
+                                      self.onDeleted()
+                                  }
                               })
             return false
         }

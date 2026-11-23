@@ -733,13 +733,6 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         XCTAssertEqual(nav.pops, 1)
     }
 
-    /// A missing user is not silent: the page that pops says why.
-    func testARecorderWithNoSignedInUserShowsTheBanner() {
-        let app = AppState()
-        XCTAssertNil(ActivitiesEditorContainer.liveRecorder(entry: .lesson(versionId: "v1", activityId: nil), userId: nil, app: app))
-        XCTAssertEqual(app.activeSurfacedError?.message, "Couldn't open the recorder")
-    }
-
     // MARK: - video-recorder D18: the editor opened on a video activity
 
     private func videoActivity(_ id: String, key: String = "k", version: String, position: Int = 0) -> ContentActivity {

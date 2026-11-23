@@ -177,6 +177,18 @@ final class LibraryHomeMapperTests: XCTestCase {
         XCTAssertEqual(LibraryHomeMapper.videoLine2(.stored(videoSummary(status: "ready", transcriptStatus: "failed"))), "")
     }
 
+    /// A video that failed is never "Transcribing…": its transcript's line, else what happened.
+    func testAVideoThatFailedIsNeverTranscribing() {
+        let failed = videoSummary(status: "error", transcriptStatus: "pending")
+        XCTAssertEqual(LibraryHomeMapper.videoLine2(.stored(failed)), "Couldn't be processed")
+        let spoken = videoSummary(status: "error", transcriptStatus: "ready", preview: "Hello there")
+        XCTAssertEqual(LibraryHomeMapper.videoLine2(.stored(spoken)), "Hello there")
+        let source = LibraryHomeMapper.VideoSource(id: "v1", title: "Video 1", durationMs: 45_000, recordedAt: now, state: .stored(failed))
+        let rows = LibraryHomeMapper.rows(notes: [], searchIds: nil, memos: [], videos: [source], videosHaveMore: false)
+        let state = LibraryHomeMapper.state(rows: rows, phase: .list, query: "", now: now, calendar: chicago)
+        guard case .transcript("Couldn't be processed")? = state.videos.first?.preview else { return XCTFail("expected the failure line") }
+    }
+
     func testHoldBack() {
         let videos = [video(daysAgo: 0), video(daysAgo: 5)]
         let rows = LibraryHomeMapper.rows(notes: [note(daysAgo: 1), note(daysAgo: 9)], searchIds: nil, memos: [], videos: videos, videosHaveMore: true)

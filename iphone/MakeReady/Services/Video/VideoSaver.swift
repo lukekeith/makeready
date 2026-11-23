@@ -59,6 +59,8 @@ protocol VideoSaving: AnyObject {
 protocol VideoSaveQueue: AnyObject {
     func enqueue(_ video: ExportedVideo, localId: String, title: String, source: VideoSource, attach: VideoAttach?,
                  transcriptHold: TimeInterval) throws -> VideoQueueItem
+    /// The item the queue holds under `localId`, if any.
+    func queued(localId: String) -> VideoQueueItem?
     func supplyTranscript(_ transcript: VideoTranscript?, forLocalId localId: String)
 }
 
@@ -191,13 +193,18 @@ final class VideoSaver: VideoSaving {
         let item: VideoQueueItem
         let timeout: TimeInterval
         do {
-            let video = try await export(draft.segments.map(\.url), save.window, save.filter, save.strength / 100,
-                                         draft.folder.appendingPathComponent(Self.exportName))
-            try Task.checkCancellation()
-            let title = save.title ?? nextTitle()
-            timeout = video.durationSeconds
-            item = try queue.enqueue(video, localId: draft.id.uuidString, title: title, source: save.source,
-                                     attach: save.attach(title: title), transcriptHold: timeout)
+            if let queued = queue.queued(localId: draft.id.uuidString) {
+                // A kill came after the queue took the video: only its transcript is left to do.
+                (item, timeout) = (queued, queued.durationSeconds)
+            } else {
+                let video = try await export(draft.segments.map(\.url), save.window, save.filter, save.strength / 100,
+                                             draft.folder.appendingPathComponent(Self.exportName))
+                try Task.checkCancellation()
+                let title = save.title ?? nextTitle()
+                timeout = video.durationSeconds
+                item = try queue.enqueue(video, localId: draft.id.uuidString, title: title, source: save.source,
+                                         attach: save.attach(title: title), transcriptHold: timeout)
+            }
             drafts.discard(draft)
             saving.removeAll { $0.localId == item.localId }
         } catch {

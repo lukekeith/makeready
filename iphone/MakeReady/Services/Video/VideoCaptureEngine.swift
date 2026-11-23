@@ -62,7 +62,7 @@ final class VideoCaptureEngine {
     private(set) var state: State = .idle
     /// The recording in progress, with its finished segments; nil until the first `start`.
     private(set) var draft: VideoDraft?
-    private(set) var lastError: Error?
+    var lastError: Error?
     /// Assign a new filter for every change (a filter's parameters are read when it is assigned).
     /// Preview only: it never reaches the recording (D6).
     var previewFilter: CIFilter? {

@@ -283,6 +283,26 @@ final class VideoRecorderModelTests: XCTestCase {
         XCTAssertEqual(reports, ["Couldn't save the clip"])
     }
 
+    func testALostClipIsReportedOnce() async {
+        engine.fileDuration = nil
+        let m = makeModel()
+        m.recordTapped(); m.tick(recorded: 3); m.recordTapped()
+        await m.settled()
+        // Stopped before it began: the engine never starts, so nothing was lost this time.
+        m.recordTapped(); m.recordTapped()
+        await m.settled()
+        XCTAssertEqual(reports, ["Couldn't save the clip"])
+    }
+
+    /// The shell's + menu opens it as the lesson editor does.
+    func testOpeningWithNoSignedInUserShowsTheBanner() {
+        for entry in [VideoRecorderEntry.plusMenu, .lesson(versionId: "v1", activityId: nil)] {
+            let app = AppState()
+            XCTAssertNil(VideoRecorderModel.live(entry: entry, userId: nil, app: app))
+            XCTAssertEqual(app.activeSurfacedError?.message, "Couldn't open the recorder")
+        }
+    }
+
     // MARK: an interruption pauses and never resumes (D26)
 
     func testInterruptionPauses() async {

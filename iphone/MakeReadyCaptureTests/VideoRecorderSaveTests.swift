@@ -37,6 +37,8 @@ final class QueueSpy: VideoSaveQueue {
             ownerUserId: "u", environment: "test")
     }
 
+    func queued(localId: String) -> VideoQueueItem? { nil }
+
     func supplyTranscript(_ transcript: VideoTranscript?, forLocalId localId: String) {
         supplied.append(transcript)
     }
@@ -459,6 +461,29 @@ final class VideoRecorderSaveTests: XCTestCase {
         XCTAssertEqual(queue.items.first?.attach, VideoAttach(versionId: "v", activityId: nil, title: "Video 1"))
         XCTAssertEqual(exporter.calls, [.init(clips: draft.segments.map(\.url), window: 1...3, filter: .warm, strength: 0.6)])
         XCTAssertFalse(drafts.exists(draft))
+    }
+
+    /// The kill came after the queue took the video and before the draft went.
+    func testARelaunchDoesNotQueueAVideoTheQueueAlreadyHas() async throws {
+        let api = FakeVideoAPI()
+        let queue = VideoUploadController(api: api, transport: api, banner: BannerSpy(), directory: dir.appendingPathComponent("queue"),
+                                          ownerUserId: "u", environment: "test", defaultTitle: { "Video 1" })
+        let draft = try drafts.finalize(segment: tmpURL, duration: 4, in: drafts.begin())
+        try drafts.markSaving(VideoSave(entry: .plusMenu, source: .recording, filter: .normal, strength: 100, window: nil), in: draft)
+        try queue.enqueue(ExportedVideo(url: tmpURL, durationSeconds: 4, posterImage: UIImage()), localId: draft.id.uuidString,
+                          attach: nil, transcriptHold: 600)
+        let exporter = exporter!
+        let spoken = VideoTranscript(text: "hello", segments: [])
+        let saver = VideoSaver(drafts: drafts, queue: queue, nextTitle: { "Video 2" }, report: { _, message, _ in XCTFail(message) },
+                               export: { try await exporter.export($0, $1, $2, $3, $4) }, transcribe: { _, _ in spoken },
+                               waitForForeground: { false })
+        saver.resume()
+        await saver.settled()
+        XCTAssertEqual(queue.pending().map(\.localId), [draft.id.uuidString])
+        XCTAssertEqual(queue.pending().first?.transcript, spoken)
+        XCTAssertTrue(exporter.calls.isEmpty)
+        XCTAssertFalse(drafts.exists(draft))
+        XCTAssertTrue(saver.saving.isEmpty)
     }
 
     func testACancelledSaverEnqueuesNothingAndKeepsTheRecording() async throws {

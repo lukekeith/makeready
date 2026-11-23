@@ -42,6 +42,11 @@ final class VideoActionsLibraryTests: XCTestCase {
         #"{"id":"\#(id)","title":"\#(title)","cloudflareUid":"u\#(id)","playbackUrl":"https://x/\#(id).m3u8","status":"ready","userId":"me","createdAt":"\#(stamp)","updatedAt":"\#(stamp)","transcriptStatus":"ready","lessonUseCount":\#(lessonUseCount)}"#
     }
 
+    /// A `Video` from any endpoint but `GET /api/videos/:id`.
+    private func uncountedJSON(id: String) -> String {
+        videoJSON(id: id).replacingOccurrences(of: #","lessonUseCount":0"#, with: "")
+    }
+
     private func page(_ ids: [String], next: String?, titles: [String: String] = [:]) -> String {
         let rows = ids.map { summaryJSON($0, title: titles[$0] ?? "Video 1") }.joined(separator: ",")
         let cursor = next.map { #""\#($0)""# } ?? "null"
@@ -67,6 +72,57 @@ final class VideoActionsLibraryTests: XCTestCase {
         let two = try await actions.deleteDecision(id: "v2")
         XCTAssertEqual(two, .removeFromLibrary(lessonCount: 2))
         XCTAssertEqual(two.confirmTitle, "This video is used in 2 lesson activities. It will stay in them and leave your Library.")
+    }
+
+    func testTheConfirmOfOneActivityIsSingular() {
+        XCTAssertEqual(VideoDeleteDecision.removeFromLibrary(lessonCount: 1).confirmTitle,
+                       "This video is used in 1 lesson activity. It will stay in it and leave your Library.")
+    }
+
+    /// Only `GET /api/videos/:id` counts; an answer without the count is not a count of 0.
+    func testADetailWithNoUseCountDecidesNothing() async {
+        seedLibrary(ids: ["a"])
+        api.stub("GET", "/api/videos/a", json: #"{"success":true,"data":\#(uncountedJSON(id: "a"))}"#)
+        do {
+            let decision = try await actions.deleteDecision(id: "a")
+            XCTFail("decided \(decision)")
+        } catch {}
+    }
+
+    func testAnAnswerWithNoUseCountKeepsTheKnownOne() async throws {
+        seedLibrary(ids: ["a"])
+        _ = state.videos.update("a") { $0.lessonUseCount = 2 }
+        api.stub("PATCH", "/api/videos/a", json: #"{"success":true,"data":\#(uncountedJSON(id: "a"))}"#)
+        try await actions.rename(id: "a", title: "T")
+        XCTAssertEqual(state.videos["a"]?.lessonUseCount, 2)
+        api.stub("POST", "/api/videos/a/refresh", json: #"{"success":true,"data":\#(uncountedJSON(id: "a"))}"#)
+        _ = try await actions.refreshVideoStatus(id: "a")
+        XCTAssertEqual(state.videos["a"]?.lessonUseCount, 2)
+        api.stub("GET", "/api/videos/me", json: #"{"success":true,"data":[\#(uncountedJSON(id: "a"))]}"#)
+        try await actions.loadVideos()
+        for _ in 0..<200 where state.loadingStates.isLoading(.videos) { await Task.yield() }
+        XCTAssertEqual(state.videos["a"]?.lessonUseCount, 2)
+    }
+
+    func testARefreshUpdatesTheLibraryRow() async throws {
+        seedLibrary(ids: ["a"])
+        _ = state.libraryVideos.update("a") { $0.status = "pending"; $0.transcriptStatus = .pending; $0.transcriptPreview = nil }
+        let text = String(repeating: "w", count: 200)
+        api.stub("POST", "/api/videos/a/refresh", json: #"{"success":true,"data":{"id":"a","title":"Video 1","cloudflareUid":"ua","playbackUrl":"https://new/a.m3u8","thumbnailUrl":"https://new/a.jpg","duration":61,"status":"ready","userId":"me","createdAt":"\#(stamp)","updatedAt":"\#(stamp)","transcriptStatus":"ready","transcript":"\#(text)"}}"#)
+        _ = try await actions.refreshVideoStatus(id: "a")
+        let row = try XCTUnwrap(state.libraryVideos["a"])
+        XCTAssertEqual(row.videoStatus, .ready)
+        XCTAssertEqual(row.playbackUrl, "https://new/a.m3u8")
+        XCTAssertEqual(row.thumbnailUrl, "https://new/a.jpg")
+        XCTAssertEqual(row.duration, 61)
+        XCTAssertEqual(row.transcriptStatus, .ready)
+        XCTAssertEqual(row.transcriptPreview, String(text.prefix(160)))
+    }
+
+    func testARefreshOfAVideoTheLibraryDoesNotListAddsNoRow() async throws {
+        api.stub("POST", "/api/videos/z/refresh", json: #"{"success":true,"data":\#(uncountedJSON(id: "z"))}"#)
+        _ = try await actions.refreshVideoStatus(id: "z")
+        XCTAssertNil(state.libraryVideos["z"])
     }
 
     func testDeleteDecisionPropagatesAFailedRead() async {

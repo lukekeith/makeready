@@ -108,7 +108,7 @@ struct ActivitiesEditorContainer: View {
         .onAppear {
             model.navigator = LiveNavigator(navigator: navigator, current: route)
             model.makeRecorder = { [authManager] entry in
-                Self.liveRecorder(entry: entry, userId: authManager?.currentUser?.id)
+                VideoRecorderModel.live(entry: entry, userId: authManager?.currentUser?.id)
             }
             model.openPendingRecorder()
             backSwipe?.blocksBackSwipe = { true }
@@ -177,17 +177,6 @@ struct ActivitiesEditorContainer: View {
             seeded = true
         }
         return seeded
-    }
-
-    /// The recorder for the signed-in user; nil, with a banner, when it cannot open.
-    @MainActor
-    static func liveRecorder(entry: VideoRecorderEntry, userId: String?, app: AppState? = nil) -> VideoRecorderModel? {
-        guard let userId else {
-            (app ?? .shared).recordError(NoSignedInUser(), context: "ActivitiesEditorContainer.liveRecorder", surface: true,
-                                         friendlyMessage: "Couldn't open the recorder")
-            return nil
-        }
-        return VideoRecorderModel.live(entry: entry, userId: userId)
     }
 
     /// D18: the new video activities this version waits for.
@@ -300,7 +289,6 @@ struct ActivitiesEditorContainer: View {
     }
 
     private struct LoadFailed: Error {}
-    private struct NoSignedInUser: Error {}
 
     /// The live seam: `UI2Navigator.replaceTop` needs the page being replaced.
     @MainActor

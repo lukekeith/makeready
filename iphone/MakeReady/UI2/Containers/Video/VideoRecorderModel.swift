@@ -27,7 +27,8 @@ enum VideoRecorderEntry: Equatable, Codable {
 protocol VideoRecorderCapturing: AnyObject {
     var state: VideoCaptureEngine.State { get }
     var draft: VideoDraft? { get }
-    var lastError: Error? { get }
+    /// The last lost segment's, until the recorder has reported it.
+    var lastError: Error? { get set }
     var displayLayer: CALayer { get }
     var previewFilter: CIFilter? { get set }
     var onInterrupted: (() -> Void)? { get set }
@@ -540,7 +541,10 @@ final class VideoRecorderModel {
         phase = idlePhase
         perform { [self] in
             await engine.stopSegment()
-            if let error = engine.lastError { report(error, "Couldn't save the clip") }
+            if let error = engine.lastError {
+                engine.lastError = nil
+                report(error, "Couldn't save the clip")
+            }
             settleSegments()
         }
     }
