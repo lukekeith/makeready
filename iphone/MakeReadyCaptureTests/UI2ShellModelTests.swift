@@ -20,6 +20,16 @@ final class UI2ShellModelTests: XCTestCase {
         shell.onSelect(.recordVideo)
         XCTAssertEqual(shell.hostedOverlay?.id, "video-recorder")
     }
+    /// video-recorder D9: Save from the + menu lands on the Library, whatever was open.
+    func testASavedVideoLandsOnTheLibrary() {
+        var shell = UI2ShellModel()
+        shell.push(.createGroup, on: .home)
+        shell.tab = .profile
+        shell.showLibrary()
+        XCTAssertEqual(shell.tab, .home)
+        XCTAssertEqual(shell.section, .library)
+        XCTAssertTrue(shell.path(for: .home).isEmpty)
+    }
     func testPlusMenuRecordVideoRowIsInTheMenu() {
         XCTAssertTrue(UI2Shell.addMenuActions.map(\.label).contains(VideoRecorderEntry.rowLabel))
     }

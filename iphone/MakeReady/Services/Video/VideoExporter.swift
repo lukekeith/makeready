@@ -49,6 +49,15 @@ enum VideoExporter {
         return ExportedVideo(url: destination, durationSeconds: duration, posterImage: await poster(of: destination))
     }
 
+    /// The joined segments for playback, drawn with whatever look the box holds as each frame is shown.
+    static func playerItem(segments: [URL], look: VideoLookBox) async throws -> AVPlayerItem {
+        let joined = try await join(segments)
+        let drawing = try await drawing(of: joined) { look.look }
+        let item = AVPlayerItem(asset: joined.composition)
+        item.videoComposition = drawing
+        return item
+    }
+
     // MARK: Joining
 
     /// One segment's place in the joined video and how its stored pixels are turned upright.
@@ -124,14 +133,20 @@ enum VideoExporter {
             joined.videoTrack.preferredTransform = first.transform
             return nil
         }
+        let look = VideoLook(filter: filter, strength: strength)
+        return try await drawing(of: joined) { look }
+    }
 
+    private static func drawing(of joined: Joined, look: @escaping @Sendable () -> VideoLook) async throws -> AVVideoComposition {
+        guard let first = joined.placements.first else { throw VideoExportError.nothingToExport }
         let placements = joined.placements
         let renderSize = renderSize(for: first.shownSize)
         let canvas = CGRect(origin: .zero, size: renderSize)
         let drawing = try await AVVideoComposition(applyingFiltersTo: joined.composition) { frame in
             let placement = placements.last { $0.range.start <= frame.compositionTime } ?? first
             let upright = fit(turned(frame.sourceImage, by: placement.transform), in: canvas)
-            let picture = filter.apply(to: upright, strength: strength)
+            let shown = look()
+            let picture = shown.filter.apply(to: upright, strength: shown.strength)
                 .composited(over: CIImage(color: .black))
                 .cropped(to: canvas)
             return AVCIImageFilteringResult(resultImage: picture)

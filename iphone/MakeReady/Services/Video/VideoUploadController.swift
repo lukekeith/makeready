@@ -87,7 +87,7 @@ struct VideoQueueItem: Codable, Equatable {
     var title: String
     let durationSeconds: Double
     let source: VideoSource
-    let transcript: VideoTranscript?
+    var transcript: VideoTranscript?
     let createdAt: Date
     var streamUid: String?
     var serverId: String?
@@ -99,12 +99,15 @@ struct VideoQueueItem: Codable, Equatable {
     var attach: VideoAttach?
     let ownerUserId: String
     let environment: String
+    /// Until then the item waits for its on-device transcript (D10); nil when it waits no more.
+    var transcriptDue: Date?
     /// The queue folder, filled in when the controller reads the item; never written to the manifest.
     var folder = URL(fileURLWithPath: "/")
 
     private enum CodingKeys: String, CodingKey {
         case localId, fileName, posterFileName, title, durationSeconds, source, transcript, createdAt, streamUid
         case serverId, stage, failures, polls, nextAttemptAt, attach, ownerUserId, environment
+        case transcriptDue
     }
 
     /// The exported video in the queue folder.
@@ -112,6 +115,10 @@ struct VideoQueueItem: Codable, Equatable {
 
     /// The first-frame image, when it could be written.
     var posterURL: URL? { posterFileName.map { folder.appendingPathComponent($0) } }
+
+    /// When the queue may run the item; nil is now. Neither the network's return nor Retry shortens
+    /// the wait for the transcript.
+    var dueAt: Date? { [nextAttemptAt, transcriptDue].compactMap { $0 }.max() }
 
     /// True once the server has the row: the Library shows "Processing…", not "Uploading…".
     var isOnServer: Bool { serverId != nil }
@@ -178,7 +185,7 @@ final class VideoUploadController {
     }
 
     /// Where a user's queue lives: Application Support, per environment and user, kept out of backup.
-    static func folder(environment: String, userId: String, root: URL? = nil) throws -> URL {
+    nonisolated static func folder(environment: String, userId: String, root: URL? = nil) throws -> URL {
         let base = try root ?? FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
                                                        appropriateFor: nil, create: true)
         return base.appendingPathComponent("videos", isDirectory: true)
@@ -189,10 +196,12 @@ final class VideoUploadController {
     // MARK: Queue
 
     /// Moves the exported video into the queue folder and writes its manifest. No network. A nil
-    /// `title` is the next `Video n`.
+    /// `title` is the next `Video n`. With `transcriptHold` the upload waits that long for
+    /// `supplyTranscript`, then goes without one (D10).
     @discardableResult
     func enqueue(_ video: ExportedVideo, title: String? = nil, source: VideoSource = .recording,
-                 transcript: VideoTranscript? = nil, attach: VideoAttach?) throws -> VideoQueueItem {
+                 transcript: VideoTranscript? = nil, attach: VideoAttach?,
+                 transcriptHold: TimeInterval? = nil) throws -> VideoQueueItem {
         let fm = FileManager.default
         try prepareDirectory()
         let localId = UUID().uuidString
@@ -204,7 +213,8 @@ final class VideoUploadController {
             localId: localId, fileName: fileName, posterFileName: posterFileName, title: title ?? defaultTitle(),
             durationSeconds: video.durationSeconds, source: source, transcript: transcript, createdAt: now(),
             streamUid: nil, serverId: nil, stage: .queued, failures: 0, polls: 0, nextAttemptAt: nil, attach: attach,
-            ownerUserId: ownerUserId, environment: environment, folder: directory)
+            ownerUserId: ownerUserId, environment: environment,
+            transcriptDue: transcriptHold.map { now().addingTimeInterval($0) }, folder: directory)
         do {
             try persist(item)
         } catch {
@@ -216,6 +226,22 @@ final class VideoUploadController {
         startPathMonitoring()
         Task { await flush() }
         return item
+    }
+
+    /// Ends an item's wait for its transcript, nil included. Dropped once the upload has begun.
+    func supplyTranscript(_ transcript: VideoTranscript?, forLocalId localId: String) {
+        guard var item = pending().first(where: { $0.localId == localId }), item.transcriptDue != nil else { return }
+        item.transcript = transcript
+        item.transcriptDue = nil
+        do {
+            try update(item)
+        } catch {
+            // Recovered: the item uploads without it when its wait is over, and the server transcribes.
+            Log.media.error("video transcript not persisted: \(error.localizedDescription, privacy: .public)")
+            return
+        }
+        guard flushesOnEnqueue else { return }
+        if flushTask != nil { wake() } else { Task { await flush() } }
     }
 
     /// This owner's and this environment's unsent items, oldest first.
@@ -335,7 +361,7 @@ final class VideoUploadController {
                 isPausedForAuth = true
                 return
             case .idle:
-                guard let due = pending().compactMap(\.nextAttemptAt).min() else { return }
+                guard let due = pending().compactMap(\.dueAt).min() else { return }
                 let wait = max(0, due.timeIntervalSince(now()))
                 guard await sleeps(.seconds(wait)) else { return }
                 await Task.yield()
@@ -374,7 +400,7 @@ final class VideoUploadController {
         isProcessing = true
         defer { isProcessing = false }
         let cutoff = now()
-        guard var item = pending().first(where: { !onlyDue || ($0.nextAttemptAt ?? .distantPast) <= cutoff }) else { return .idle }
+        guard var item = pending().first(where: { !onlyDue || ($0.dueAt ?? .distantPast) <= cutoff }) else { return .idle }
         do {
             try await run(&item)
             return .advanced
@@ -388,6 +414,10 @@ final class VideoUploadController {
     }
 
     private func run(_ item: inout VideoQueueItem) async throws {
+        if item.transcriptDue != nil {
+            item.transcriptDue = nil
+            try update(item)
+        }
         switch item.stage {
         case .queued:
             try await upload(&item)

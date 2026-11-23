@@ -73,6 +73,12 @@ private final class SpyRecorderEngine: VideoRecorderCapturing {
     }
 }
 
+/// Save is `VideoRecorderSaveTests`'s.
+@MainActor
+private final class UnusedSaver: VideoSaving {
+    func start(_ save: VideoSave, of clip: VideoClip) throws -> Task<Void, Never> { Task {} }
+}
+
 /// Suspends every sleep until the test steps it.
 @MainActor
 private final class StepClock {
@@ -126,7 +132,7 @@ final class VideoRecorderModelTests: XCTestCase {
         settings.preRoll = preRoll
         let clock = clock!
         return VideoRecorderModel(
-            entry: .plusMenu, engine: engine, settings: settings,
+            entry: .plusMenu, engine: engine, settings: settings, player: VideoReviewPlayer(), saver: UnusedSaver(),
             recoverDraft: { recovered }, beep: { [weak self] in self?.beeps.append($0) },
             report: { [weak self] _, message in self?.reports.append(message) },
             loadNotes: { [weak self] in self?.notesLoads += 1 },
@@ -403,7 +409,7 @@ final class VideoRecorderModelTests: XCTestCase {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) } // Silent: a temp folder
         let folders = try [("local", "a"), ("local", "b"), ("production", "a")].map {
-            try VideoRecorderModel.draftsFolder(environment: $0.0, userId: $0.1, root: root).path
+            try VideoDraftStore.folder(environment: $0.0, userId: $0.1, root: root).path
         }
         XCTAssertEqual(Set(folders).count, 3)
     }

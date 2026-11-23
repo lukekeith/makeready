@@ -162,6 +162,9 @@ final class AppState {
     /// pending items merge into the Library as local rows.
     var videoUploads: VideoUploadController?
 
+    /// Saves from the video recorder until `videoUploads` has them; built and released with it.
+    @ObservationIgnored private(set) var videoSaves: VideoSaver?
+
     /// `GET /api/members/:id/groups`, by member id.
     var memberGroupsById: [String: [MemberGroupItem]] = [:]
 
@@ -860,9 +863,30 @@ final class AppState {
         }
     }
 
+    /// Builds the recorder's saves for `userId` if there are none. Throws when a folder cannot be made.
+    @discardableResult
+    func startVideoSaves(userId: String) throws -> VideoSaver {
+        if let videoSaves { return videoSaves }
+        guard let queue = startVideoUploads(userId: userId) else { throw CocoaError(.fileWriteUnknown) }
+        let drafts = VideoDraftStore(root: try VideoDraftStore.folder(environment: Self.memoEnvironmentName, userId: userId))
+        let saver = VideoSaver(
+            drafts: drafts, queue: queue, nextTitle: { [weak self] in self?.nextVideoTitle() ?? "Video 1" },
+            report: { [weak self] error, message, retry in
+                self?.recordError(error, context: "VideoSaver", surface: true, friendlyMessage: message, retry: retry)
+            })
+        videoSaves = saver
+        return saver
+    }
+
     /// Launch work for a signed-in user: flush what a kill or a lost network left in the video queue.
     func launchVideoUploads(userId: String) async {
         guard let controller = startVideoUploads(userId: userId) else { return }
+        do {
+            try startVideoSaves(userId: userId).resume()
+        } catch {
+            // Console-only: the leader has asked for nothing yet; opening the recorder reports it.
+            Log.media.error("video saves unavailable: \(error.localizedDescription, privacy: .public)")
+        }
         controller.startPathMonitoring()
         await controller.resumeAfterSignIn()
     }
@@ -1040,6 +1064,8 @@ final class AppState {
     private func clearInMemory() {
         memoUploads?.cancel()
         memoUploads = nil
+        videoSaves?.cancel()
+        videoSaves = nil
         videoUploads?.cancel()
         videoUploads = nil
         programs.clear()

@@ -173,6 +173,13 @@ struct UI2ShellModel {
         }
     }
 
+    /// video-recorder D9: a video saved from the + menu lands here.
+    mutating func showLibrary() {
+        setPath([], for: .home)
+        tab = .home
+        section = .library
+    }
+
     func navigationOwnership(for tab: TabBar.Tab) -> UUID? { pathRevisions[tab] }
 
     /// D1: TopNav is part of the Home stack's ROOT page, so a pushed page covers it — no hide logic.

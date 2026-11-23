@@ -2,8 +2,8 @@
 //  VideoRecorderModel.swift
 //  MakeReady
 //
-//  video-recorder D1–D7, D9, D19, D26: one recorder's logic for both layouts — the record button's
-//  state machine, the timeline, the rail tools and the confirms — over the capture engine. The screen
+//  video-recorder D1–D9, D19, D26: one recorder's logic for both layouts — the record button's
+//  state machine, the timeline, the rail tools, import, Review, Save and the confirms — over the capture engine. The screen
 //  answers a tap at once; the engine's work runs behind it, one call at a time, and the segments then
 //  take their files' own durations.
 //
@@ -13,7 +13,7 @@ import Foundation
 import QuartzCore
 
 /// Where the recorder was opened from, which is where Save returns to (D9).
-enum VideoRecorderEntry: Equatable {
+enum VideoRecorderEntry: Equatable, Codable {
     case plusMenu
     /// `activityId` is the activity whose video is replaced; nil makes a new one (D18).
     case lesson(versionId: String, activityId: String?)
@@ -61,12 +61,13 @@ final class VideoRecorderModel {
 
     /// The C-066 confirms.
     enum Confirm: Equatable {
-        case deleteLast, discard
+        case deleteLast, discard, retake
 
         var title: String {
             switch self {
             case .deleteLast: "Delete the last clip?"
             case .discard: "Discard this recording?"
+            case .retake: "Discard this video and start over?"
             }
         }
 
@@ -74,6 +75,7 @@ final class VideoRecorderModel {
             switch self {
             case .deleteLast: "Delete clip"
             case .discard: "Discard recording"
+            case .retake: "Retake"
             }
         }
     }
@@ -99,6 +101,8 @@ final class VideoRecorderModel {
         var showsDeleteLast: Bool
         /// D5: the checkmark opens Review.
         var canFinish: Bool
+        /// D8: only before the first segment.
+        var canImport: Bool
         /// The full-screen close is hidden while recording or counting down.
         var showsClose: Bool
     }
@@ -115,6 +119,14 @@ final class VideoRecorderModel {
     private(set) var notePickerOpen = false
     /// True once the recorder is done; its host takes it off the screen.
     private(set) var isClosed = false
+    /// A picked video is being read.
+    private(set) var isImporting = false
+    /// The imported clip Review or Trim shows; nil for a recording.
+    private(set) var importedClip: VideoImportFlow.Clip?
+    /// The part of `importedClip` kept; nil is all of it (D8).
+    private(set) var trimWindow: ClosedRange<Double>?
+    /// Save was tapped and the recorder is done (D9).
+    @ObservationIgnored var onFinished: (VideoRecorderEntry) -> Void = { _ in }
 
     private var timeline: RecordingTimeline
     /// Total recorded time, the segment in progress included.
@@ -132,6 +144,8 @@ final class VideoRecorderModel {
 
     @ObservationIgnored private let engine: VideoRecorderCapturing
     @ObservationIgnored private let settings: RecorderSettings
+    @ObservationIgnored private let player: VideoReviewPlaying
+    @ObservationIgnored private let saver: VideoSaving
     @ObservationIgnored private let recoverDraft: () -> VideoDraft?
     @ObservationIgnored private let beep: (Double) -> Void
     @ObservationIgnored private let report: (Error, String) -> Void
@@ -147,15 +161,19 @@ final class VideoRecorderModel {
     @ObservationIgnored private var cancelledSegment: Int?
     @ObservationIgnored private var engineWork: Task<Void, Never>?
     @ObservationIgnored private var pendingWork = 0
+    @ObservationIgnored private var playerWork: Task<Void, Never>?
+    @ObservationIgnored private var isSaving = false
 
     init(entry: VideoRecorderEntry, engine: VideoRecorderCapturing, settings: RecorderSettings,
-         recoverDraft: @escaping () -> VideoDraft?, beep: @escaping (Double) -> Void,
+         player: VideoReviewPlaying, saver: VideoSaving, recoverDraft: @escaping () -> VideoDraft?, beep: @escaping (Double) -> Void,
          report: @escaping (Error, String) -> Void, loadNotes: @escaping () async throws -> Void,
          now: @escaping () -> TimeInterval = CACurrentMediaTime,
          sleep: @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) }) {
         self.entry = entry
         self.engine = engine
         self.settings = settings
+        self.player = player
+        self.saver = saver
         self.recoverDraft = recoverDraft
         self.beep = beep
         self.report = report
@@ -174,6 +192,8 @@ final class VideoRecorderModel {
 
     var displayLayer: CALayer { engine.displayLayer }
 
+    var playerLayer: CALayer { player.layer }
+
     var screenState: ScreenState {
         ScreenState(
             phase: phase, segments: timeline.segments,
@@ -183,6 +203,7 @@ final class VideoRecorderModel {
             teleprompterOffset: teleprompterOffset,
             showsDeleteLast: phase == .paused && !timeline.segments.isEmpty,
             canFinish: phase == .paused && !timeline.segments.isEmpty,
+            canImport: phase == .ready && timeline.segments.isEmpty,
             showsClose: !isCapturing && !isCountingDown)
     }
 
@@ -217,10 +238,14 @@ final class VideoRecorderModel {
         prepare()
     }
 
-    /// Back from Settings: the camera may be allowed now (D19).
+    /// Back from Settings the camera may be allowed now (D19); back in Review the video plays on.
     func becameActive() {
-        guard opened, phase == .permissionDenied else { return }
-        prepare()
+        guard opened, !isClosed else { return }
+        switch phase {
+        case .permissionDenied: prepare()
+        case .review, .trim: player.play()
+        case .ready, .preRoll, .recording, .endCountdown, .paused: break
+        }
     }
 
     /// The engine ends a segment itself (D26); a countdown has no segment yet.
@@ -230,9 +255,10 @@ final class VideoRecorderModel {
 
     /// Asks first when something would be lost (D9).
     func closeTapped() {
+        guard !isSaving, !isClosed else { return }
         cancelPreRoll()
         if isCapturing { endSegment() }
-        if timeline.segments.isEmpty {
+        if timeline.segments.isEmpty && importedClip == nil {
             discardAndClose()
         } else {
             confirm = .discard
@@ -241,6 +267,7 @@ final class VideoRecorderModel {
 
     func discardConfirmed() {
         confirm = nil
+        guard !isSaving else { return }
         discardAndClose()
     }
 
@@ -251,6 +278,8 @@ final class VideoRecorderModel {
     private func discardAndClose() {
         guard !isClosed else { return }
         isClosed = true
+        stopPlaying()
+        dropImport()
         perform { [self] in
             await engine.stopSegment()
             engine.discardDraft()
@@ -280,7 +309,7 @@ final class VideoRecorderModel {
     /// Opens Review (D5).
     func done() {
         guard screenState.canFinish else { return }
-        phase = .review
+        openReview()
     }
 
     func requestDeleteLast() {
@@ -310,7 +339,7 @@ final class VideoRecorderModel {
         recorded = min(total, Double(timeline.lengthSeconds))
         guard !timeline.shouldAutoStop(atRecorded: recorded) else {
             endSegment()
-            phase = .review
+            openReview()
             return
         }
         let next: Phase = timeline.endCountdown(atRecorded: recorded).map(Phase.endCountdown) ?? .recording
@@ -442,7 +471,7 @@ final class VideoRecorderModel {
 
     private func beginSegment() {
         guard !timeline.shouldAutoStop(atRecorded: timeline.total) else {
-            phase = .review
+            openReview()
             return
         }
         segmentNumber += 1
@@ -526,8 +555,9 @@ final class VideoRecorderModel {
         switch phase {
         case .ready, .paused:
             phase = idlePhase
-        case .review where timeline.segments.isEmpty && engine.draft != nil:
+        case .review where timeline.segments.isEmpty && engine.draft != nil && importedClip == nil:
             phase = .ready // the only segment was lost
+            prepare()
         case .preRoll, .recording, .endCountdown, .permissionDenied, .review, .trim:
             break
         }
@@ -545,6 +575,171 @@ final class VideoRecorderModel {
 
     private var deniedPhase: Phase? {
         if case .denied = engine.state { .permissionDenied } else { nil }
+    }
+
+    // MARK: Import and trim (D8)
+
+    /// Reads a pick; a recording begun meanwhile wins.
+    func importPicked(_ load: () async throws -> VideoImportFlow.Clip) async {
+        guard !isImporting, screenState.canImport else { return }
+        isImporting = true
+        defer { isImporting = false }
+        do {
+            let clip = try await load()
+            imported(url: clip.url, duration: clip.duration)
+        } catch is CancellationError {
+            return
+        } catch {
+            if !isClosed { report(error, "Couldn't read that video") }
+        }
+    }
+
+    /// The recorder owns the file from here.
+    func imported(url: URL, duration: TimeInterval) {
+        guard screenState.canImport, !isClosed else {
+            VideoImportFlow.delete(url)
+            return
+        }
+        importedClip = VideoImportFlow.Clip(url: url, duration: duration)
+        if duration > VideoTrim.maxLength {
+            trimWindow = VideoTrim.window(0...duration, duration: duration)
+            showClip(in: .trim)
+        } else {
+            trimWindow = nil
+            showClip(in: .review)
+        }
+    }
+
+    func moveTrim(to range: ClosedRange<Double>) {
+        guard phase == .trim, let importedClip else { return }
+        let window = VideoTrim.window(range, duration: importedClip.duration)
+        trimWindow = window
+        player.move(to: window)
+    }
+
+    func trimmed(range: ClosedRange<Double>) {
+        guard phase == .trim else { return }
+        moveTrim(to: range)
+        phase = .review
+    }
+
+    func trimCancelled() {
+        guard phase == .trim else { return }
+        returnToCamera()
+    }
+
+    private func dropImport() {
+        if let importedClip { VideoImportFlow.delete(importedClip.url) }
+        importedClip = nil
+        trimWindow = nil
+    }
+
+    // MARK: Review (D9)
+
+    private var isPlayback: Bool { phase == .review || phase == .trim }
+
+    private func openReview() {
+        showClip(in: .review)
+    }
+
+    /// Turns the camera off, so the player has the audio session, then plays the clips in a loop.
+    private func showClip(in shown: Phase) {
+        phase = shown
+        perform { [self] in
+            guard isPlayback, !isClosed else { return }
+            await engine.close()
+            settleSegments()
+            startPlaying()
+        }
+    }
+
+    private func startPlaying() {
+        guard isPlayback, !isClosed else { return }
+        let clips = importedClip.map { [$0.url] } ?? engine.draft?.segments.map(\.url) ?? []
+        guard !clips.isEmpty else { return }
+        let window = trimWindow
+        let look = look
+        playerWork = Task { [player, report] in
+            do {
+                try await player.load(clips: clips, window: window, look: look)
+                // Dragged while it loaded.
+                if !Task.isCancelled, let trimWindow, trimWindow != window { player.move(to: trimWindow) }
+            } catch is CancellationError {
+                return
+            } catch {
+                if !Task.isCancelled { report(error, "Couldn't play this video") }
+            }
+        }
+    }
+
+    private func stopPlaying() {
+        playerWork?.cancel()
+        playerWork = nil
+        player.stop()
+    }
+
+    func requestRetake() {
+        guard phase == .review, !isSaving else { return }
+        confirm = .retake
+    }
+
+    /// Discards everything and returns to the camera.
+    func retakeConfirmed() {
+        confirm = nil
+        guard phase == .review, !isSaving, !isClosed else { return }
+        returnToCamera()
+    }
+
+    private func returnToCamera() {
+        stopPlaying()
+        dropImport()
+        timeline = RecordingTimeline(lengthSeconds: timeline.lengthSeconds)
+        recorded = 0
+        teleprompterShift = 0
+        phase = .ready
+        perform { [self] in
+            await engine.stopSegment()
+            engine.discardDraft()
+        }
+        prepare()
+    }
+
+    /// Returns once the player has loaded what it was last given.
+    func playerSettled() async {
+        await playerWork?.value
+    }
+
+    // MARK: Save (D9)
+
+    /// Closes the recorder once the recording is safely handed over, and returns when its video is in
+    /// the upload queue, or has failed to get there.
+    func save() async {
+        guard !isSaving, !isClosed, phase == .review || screenState.canFinish else { return }
+        isSaving = true
+        defer { isSaving = false }
+        await settled()
+        guard !isClosed, let clip = clipToSave else { return }
+        let work: Task<Void, Never>
+        do {
+            work = try saver.start(
+                VideoSave(entry: entry, source: importedClip == nil ? .recording : .imported, filter: filter,
+                          strength: Double(filterStrength), window: trimWindow), of: clip)
+        } catch {
+            report(error, "Couldn't save your video")
+            return
+        }
+        importedClip = nil
+        isClosed = true
+        stopPlaying()
+        perform { [self] in await engine.close() }
+        onFinished(entry)
+        await work.value
+    }
+
+    private var clipToSave: VideoClip? {
+        if let importedClip { return .file(importedClip.url, duration: importedClip.duration) }
+        guard let draft = engine.draft, !draft.segments.isEmpty else { return nil }
+        return .draft(draft)
     }
 
     // MARK: Engine
@@ -568,8 +763,11 @@ final class VideoRecorderModel {
     }
 
     private func applyFilter() {
-        engine.previewFilter = filter.previewFilter(strength: Double(filterStrength) / 100)
+        engine.previewFilter = filter.previewFilter(strength: look.strength)
+        player.show(look)
     }
+
+    private var look: VideoLook { VideoLook(filter: filter, strength: Double(filterStrength) / 100) }
 
     private func saveChoices() {
         engine.save(settings: VideoDraftSettings(lengthSeconds: timeline.lengthSeconds,

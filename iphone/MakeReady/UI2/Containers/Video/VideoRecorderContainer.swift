@@ -7,6 +7,7 @@
 //
 
 import CoreImage
+import PhotosUI
 import SwiftUI
 
 /// The recorder as the shell presents it from the + menu: it slides itself in and out, because a
@@ -51,6 +52,8 @@ struct VideoRecorderContainer: View {
     @State private var bottomEdge: CGFloat = 0
     /// The confirm on screen, kept while its sheet slides out.
     @State private var shownConfirm: VideoRecorderModel.Confirm = .discard
+    @State private var pickerOpen = false
+    @State private var pick: PhotosPickerItem?
     @State private var thumbnails: [FilterStrip.Look: Image] = [:]
 
     private var shown: VideoRecorderModel.ScreenState { model.screenState }
@@ -66,6 +69,13 @@ struct VideoRecorderContainer: View {
             }
             .filterMenuPresentation(isPresented: model.notePickerOpen, onDismiss: model.closeNotePicker) {
                 notePicker
+            }
+            // D8: the system picker — a modifier, not .sheet/.fullScreenCover (as MediaHomeContainer's).
+            .photosPicker(isPresented: $pickerOpen, selection: $pick, matching: .videos)
+            .onChange(of: pick) { _, picked in
+                guard let picked else { return }
+                pick = nil
+                Task { await model.importPicked { try await VideoImportFlow.clip(from: picked) } }
             }
             .onAppear {
                 model.open()
@@ -108,15 +118,17 @@ struct VideoRecorderContainer: View {
             fillsHeight: layout == .fullScreen,
             sheetBottomInset: sheetBottomInset,
             previewSlot: { AnyView(closeButton) },
-            recordRowSlot: { AnyView(recordRowButtons) }
+            recordRowSlot: { AnyView(recordRowButtons) },
+            reviewSlot: { AnyView(reviewRow) }
         )
     }
 
-    /// Review's player and Trim's clip are not the camera.
+    /// Review and Trim show the player, not the camera.
     private var feed: CameraPreview<AnyView>.Feed {
         switch shown.phase {
         case .ready, .preRoll, .recording, .endCountdown, .paused: .layer(model.displayLayer)
-        case .permissionDenied, .review, .trim: .none
+        case .review, .trim: .layer(model.playerLayer)
+        case .permissionDenied: .none
         }
     }
 
@@ -127,6 +139,10 @@ struct VideoRecorderContainer: View {
         /// bottom 6: 6 + (80 − 40) / 2. No size token.
         static let rowButton: CGFloat = 40
         static let rowButtonBottom: CGFloat = 26
+        /// GAP — video-recorder §2c: import "leading 17".
+        static let importLeading: CGFloat = 17
+        /// GAP — video-recorder §2d: C-105's 36 pt pill in the same row: 6 + (80 − 36) / 2.
+        static let reviewButtonBottom: CGFloat = 28
         /// GAP — video-recorder §2c: undo "centre 98 left of the record centre".
         static let undoOffset: CGFloat = -98
         /// C-021 §2: a 24 pt glyph in a 44 pt target.
@@ -150,6 +166,11 @@ struct VideoRecorderContainer: View {
     /// §2c: undo and ✓, on the record row (D5).
     private var recordRowButtons: some View {
         ZStack {
+            if shown.canImport {
+                importButton
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, Geometry.importLeading)
+            }
             if shown.showsDeleteLast {
                 glyphButton(.undo2, label: "Delete last clip", size: Geometry.rowButton, action: model.requestDeleteLast)
                     .offset(x: Geometry.undoOffset)
@@ -161,6 +182,44 @@ struct VideoRecorderContainer: View {
             }
         }
         .padding(.bottom, Geometry.rowButtonBottom)
+    }
+
+    /// D8: a spinner while the pick is read.
+    @ViewBuilder private var importButton: some View {
+        if model.isImporting {
+            ProgressView()
+                .tint(Token.textPrimary)
+                .frame(width: Geometry.rowButton, height: Geometry.rowButton)
+                .accessibilityLabel("Importing")
+        } else {
+            glyphButton(.image, label: "Import from Photos", size: Geometry.rowButton) { pickerOpen = true }
+        }
+    }
+
+    /// §2d: Retake and Save beside the Filters tool; Trim's window above Cancel and Next.
+    @ViewBuilder private var reviewRow: some View {
+        if shown.phase == .trim, let clip = model.importedClip, let window = model.trimWindow {
+            VStack(spacing: Token.Space.stackGap) {
+                TimerPill(elapsed: window.upperBound - window.lowerBound)
+                VideoTrimBar(duration: clip.duration, window: window, onChange: model.moveTrim)
+                HStack {
+                    Button(label: "Cancel", onTap: model.trimCancelled)
+                    Spacer(minLength: 0)
+                    Button(label: "Next", onTap: { model.trimmed(range: window) })
+                }
+            }
+            .padding(.horizontal, Token.Space.pageMargin)
+            .padding(.bottom, Geometry.reviewButtonBottom)
+        } else if shown.phase == .review {
+            ZStack {
+                Button(label: "Retake", onTap: model.requestRetake)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, Token.Space.pageMargin)
+                // The model outlives the recorder until its save is done.
+                Button(label: "Save", onTap: { Task { await model.save() } })
+            }
+            .padding(.bottom, Geometry.reviewButtonBottom)
+        }
     }
 
     private func glyphButton(_ glyph: GlyphName, label: String, size: CGFloat, action: @escaping () -> Void) -> some View {
@@ -186,6 +245,7 @@ struct VideoRecorderContainer: View {
                 switch confirm {
                 case .deleteLast: model.deleteLastConfirmed()
                 case .discard: model.discardConfirmed()
+                case .retake: model.retakeConfirmed()
                 }
             },
             onDone: model.dismissConfirm
@@ -244,28 +304,18 @@ extension VideoRecorderModel {
             state.recordError(error, context: "VideoRecorder", surface: true, friendlyMessage: message)
         }
         do {
-            let drafts = VideoDraftStore(root: try draftsFolder(environment: AppState.memoEnvironmentName, userId: userId))
+            let saver = try state.startVideoSaves(userId: userId)
+            let drafts = VideoDraftStore(root: try VideoDraftStore.folder(environment: AppState.memoEnvironmentName, userId: userId))
             let engine = VideoCaptureEngine(session: LiveVideoCaptureSession(), drafts: drafts)
             let beeper = CountdownBeeper()
             return VideoRecorderModel(
                 entry: entry, engine: engine, settings: RecorderSettings(),
-                recoverDraft: { drafts.recoverable().last }, beep: { beeper.beep(hz: $0) }, report: report,
+                player: VideoReviewPlayer(), saver: saver, recoverDraft: { drafts.recoverable().last }, beep: { beeper.beep(hz: $0) }, report: report,
                 loadNotes: { _ = try await NoteActions().load() })
         } catch {
             report(error, "Couldn't open the recorder")
             return nil
         }
-    }
-
-    /// Beside the user's upload queue, which reads only the files directly in its own folder.
-    static func draftsFolder(environment: String, userId: String, root: URL? = nil) throws -> URL {
-        var folder = try VideoUploadController.folder(environment: environment, userId: userId, root: root)
-            .appendingPathComponent("drafts", isDirectory: true)
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        var values = URLResourceValues()
-        values.isExcludedFromBackup = true
-        try folder.setResourceValues(values)
-        return folder
     }
 }
 

@@ -196,6 +196,47 @@ final class VideoUploadControllerTests: XCTestCase {
         XCTAssertEqual(api.created.first?.title, "Video 1")
     }
 
+    // MARK: - The wait for the on-device transcript (D10)
+
+    func testAHeldItemUploadsWithTheTranscriptItWaitedFor() async throws {
+        let api = FakeVideoAPI()
+        let c = makeController(api: api)
+        let transcript = VideoTranscript(text: "hello", segments: [])
+        let item = try c.enqueue(exported(), attach: nil, transcriptHold: 600)
+        XCTAssertEqual(c.pendingItems.map(\.localId), [item.localId])
+        c.supplyTranscript(transcript, forLocalId: item.localId)
+        XCTAssertNil(c.pending().first?.transcriptDue)
+        await drain(c)
+        XCTAssertEqual(api.created.first?.transcript, transcript)
+    }
+
+    func testTheFlushLeavesAHeldItemUntilItsTranscriptIsDue() async throws {
+        let api = FakeVideoAPI()
+        var waits: [Duration] = []
+        let start = Date()
+        var clock = start
+        let c = VideoUploadController(api: api, transport: api, banner: BannerSpy(), directory: dir, ownerUserId: "user-a",
+                                      environment: "Local", defaultTitle: { "Video 1" }, now: { clock },
+                                      sleep: { wait in
+                                          if waits.isEmpty { XCTAssertEqual(api.mints, 0) }
+                                          waits.append(wait)
+                                          clock = clock.addingTimeInterval(Double(wait.components.seconds) + 1)
+                                      })
+        _ = try c.enqueue(exported(), attach: nil, transcriptHold: 42)
+        await c.networkReturned()
+        XCTAssertEqual(Double(waits.first?.components.seconds ?? 0), 42, accuracy: 1)
+        XCTAssertEqual(api.created.count, 1)
+        XCTAssertNil(api.created.first?.transcript)
+    }
+
+    func testATranscriptThatComesAfterTheUploadBeganIsDropped() async throws {
+        let c = makeController(api: FakeVideoAPI())
+        let item = try c.enqueue(exported(), attach: nil, transcriptHold: 600)
+        _ = await c.processNext()
+        c.supplyTranscript(VideoTranscript(text: "late", segments: []), forLocalId: item.localId)
+        XCTAssertNil(c.pending().first?.transcript)
+    }
+
     func testThePollStopsAfterFifteenTriesAndTheItemLeavesTheQueue() async throws {
         let api = FakeVideoAPI(readyAfterPolls: 99)
         let c = makeController(api: api)

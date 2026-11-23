@@ -264,7 +264,7 @@ final class VideoCaptureEngineTests: XCTestCase {
 }
 
 @MainActor
-private final class FakeCaptureSession: VideoCaptureSession {
+final class FakeCaptureSession: VideoCaptureSession {
     let displayLayer = CALayer()
     var denied: Set<CapturePermission> = []
     var failure: Error?

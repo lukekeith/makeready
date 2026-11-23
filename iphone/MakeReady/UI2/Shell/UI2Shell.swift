@@ -26,6 +26,8 @@ struct UI2Shell: View {
     @State private var recorder: RecorderSession?
     /// Voice memo was chosen: the recorder starts once the add menu's slide-out has ended.
     @State private var voiceMemoRequested = false
+    /// Record a video was chosen: its recorder opens once the add menu's slide-out has ended.
+    @State private var videoRecorderRequested = false
     /// video-recorder D25: the recorder `model.hostedOverlay` presents; nil otherwise.
     @State private var videoRecorder: VideoRecorderModel?
 
@@ -109,7 +111,7 @@ struct UI2Shell: View {
                                 case NoteEntry.rowLabel: NoteEntry.open(on: model.tab, model: $model)  // notes D17
                                 case MemoEntry.rowLabel:  // memo-screens D2, D14
                                     voiceMemoRequested = MemoEntry.shouldStart(recorderPresented: recorder != nil)
-                                case VideoRecorderEntry.rowLabel: openVideoRecorder()  // video-recorder D25
+                                case VideoRecorderEntry.rowLabel: videoRecorderRequested = videoRecorder == nil  // video-recorder D25
                                 default: break
                                 }
                             },
@@ -131,7 +133,7 @@ struct UI2Shell: View {
             UI2HostedOverlay(view: AnyView(RecorderSheetContainer(session: session, onEnd: recorderEnded)),
                              transition: .identity)
         })
-        // video-recorder D25: the recorder covers the whole shell; it shows once the add menu has slid out.
+        // video-recorder D25: the recorder covers the whole shell; it opens once the add menu has slid out.
         .hostedOverlay(model.hostedOverlay == .videoRecorder ? videoRecorder.map { recorder in
             UI2HostedOverlay(view: AnyView(VideoRecorderOverlay(model: recorder, onEnd: videoRecorderEnded)),
                              transition: .identity)
@@ -174,6 +176,7 @@ struct UI2Shell: View {
 
     /// memo-screens D3: the add menu has slid out, so the recorder can be the one hosted overlay.
     private func startRequestedRecorder() {
+        openRequestedVideoRecorder()
         guard voiceMemoRequested else { return }
         voiceMemoRequested = false
         guard MemoEntry.shouldStart(recorderPresented: recorder != nil),
@@ -183,11 +186,16 @@ struct UI2Shell: View {
         recorder = MemoEntry.makeSession(userId: userId)
     }
 
-    /// video-recorder D25: the host keeps the add menu until it has slid out, then shows the recorder.
-    private func openVideoRecorder() {
+    /// video-recorder D25: as the memo recorder, once the add menu has slid out.
+    private func openRequestedVideoRecorder() {
+        guard videoRecorderRequested else { return }
+        videoRecorderRequested = false
         guard videoRecorder == nil, recorder == nil, let userId = authManager.currentUser?.id else { return }
-        videoRecorder = VideoRecorderModel.live(entry: .plusMenu, userId: userId)
-        if videoRecorder != nil { model.onSelect(.recordVideo) }
+        guard let opened = VideoRecorderModel.live(entry: .plusMenu, userId: userId) else { return }
+        // D9: behind the recorder, which then slides away.
+        opened.onFinished = { _ in model.showLibrary() }
+        videoRecorder = opened
+        model.onSelect(.recordVideo)
     }
 
     private func videoRecorderEnded() {

@@ -46,12 +46,25 @@ struct VideoDraftStore {
     }
 
     private static let manifestName = "draft.json"
+    /// Present while a saved draft waits for the upload queue to have its video.
+    private static let saveName = "save.json"
 
     /// Holds one folder per draft. Use a root per owner and environment, as memos do.
     let root: URL
 
     init(root: URL) {
         self.root = root
+    }
+
+    /// Beside the user's upload queue, which reads only the files directly in its own folder.
+    static func folder(environment: String, userId: String, root: URL? = nil) throws -> URL {
+        var folder = try VideoUploadController.folder(environment: environment, userId: userId, root: root)
+            .appendingPathComponent("drafts", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try folder.setResourceValues(values)
+        return folder
     }
 
     /// An empty draft with its folder and manifest on disk. If they cannot be written, the first
@@ -105,17 +118,34 @@ struct VideoDraftStore {
         return self.draft(id: draft.id, folder: draft.folder, manifest: manifest)
     }
 
-    /// Drafts with at least one finished segment, oldest first. Deletes every file no manifest lists
-    /// and every draft with nothing finished, so call it only while nothing is recording.
+    /// The draft is saved: from here it belongs to `VideoSaver`, not to a recorder.
+    func markSaving(_ save: VideoSave, in draft: VideoDraft) throws {
+        try JSONEncoder().encode(save).write(to: draft.folder.appendingPathComponent(Self.saveName), options: .atomic)
+    }
+
+    /// Drafts saved whose video the upload queue does not have yet, oldest first.
+    func saving() -> [(draft: VideoDraft, save: VideoSave)] {
+        folders().compactMap { folder in
+            guard let id = UUID(uuidString: folder.lastPathComponent), let save = readSave(in: folder) else { return nil }
+            do {
+                let manifest = try readManifest(in: folder)
+                guard !manifest.segments.isEmpty else {
+                    delete(folder)
+                    return nil
+                }
+                return (draft(id: id, folder: folder, manifest: manifest), save)
+            } catch {
+                Log.media.error("saved video draft unreadable: \(error.localizedDescription, privacy: .public)")
+                return nil
+            }
+        }.sorted { $0.draft.createdAt < $1.draft.createdAt }
+    }
+
+    /// Drafts with at least one finished segment, oldest first, without those being saved. Deletes
+    /// every file no manifest lists and every draft with nothing finished, so call it only while
+    /// nothing is recording.
     func recoverable() -> [VideoDraft] {
-        let folders: [URL]
-        do {
-            folders = try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isDirectoryKey])
-        } catch {
-            // Silent: no folder yet means no drafts.
-            return []
-        }
-        return folders.compactMap(salvage).sorted { $0.createdAt < $1.createdAt }
+        folders().compactMap(salvage).sorted { $0.createdAt < $1.createdAt }
     }
 
     func discard(_ draft: VideoDraft) {
@@ -128,8 +158,30 @@ struct VideoDraftStore {
 
     // MARK: Helpers
 
+    private func folders() -> [URL] {
+        do {
+            return try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isDirectoryKey])
+        } catch {
+            // Silent: no folder yet means no drafts.
+            return []
+        }
+    }
+
+    /// Nil when the draft is not being saved.
+    private func readSave(in folder: URL) -> VideoSave? {
+        let url = folder.appendingPathComponent(Self.saveName)
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        do {
+            return try JSONDecoder().decode(VideoSave.self, from: Data(contentsOf: url))
+        } catch {
+            // Recovered: an unreadable save leaves an ordinary draft, which the recorder brings back.
+            Log.media.error("video save unreadable: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+    }
+
     private func salvage(_ folder: URL) -> VideoDraft? {
-        guard let id = UUID(uuidString: folder.lastPathComponent) else { return nil }
+        guard let id = UUID(uuidString: folder.lastPathComponent), readSave(in: folder) == nil else { return nil }
         var manifest: Manifest
         do {
             manifest = try readManifest(in: folder)
