@@ -102,7 +102,7 @@ describe('followed enrollments (D12)', () => {
 })
 
 describe('layer discovery (D2, D6)', () => {
-  it('finds base plus the activities-editor, activities-player, activity-new, bible-books, bible-reader, groups, groups-enroll-program, home-dashboard, invitation, invite-member, media-home, members and shared-edit-field layers; only shared-edit-field adds a scenario (sparse)', async () => {
+  it('finds base plus the activities-editor, activities-player, activity-new, bible-books, bible-reader, groups, groups-enroll-program, home-dashboard, invitation, invite-member, media-home, members, shared-edit-field and video-detail layers; only shared-edit-field adds a scenario (sparse)', async () => {
     const layers = await loadLayers(FIXTURES_DIR)
     expect(layers.screens.map((s) => s.name)).toEqual([
       'activities-editor',
@@ -131,6 +131,7 @@ describe('layer discovery (D2, D6)', () => {
       'shared-edit-field',
       'study-program-home',
       'study-programs',
+      'video-detail',
     ])
     expect(availableScenarios(layers.screens)).toEqual(['full', 'sparse', 'empty', 'new-group'])
   })
