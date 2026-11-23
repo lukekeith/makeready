@@ -1,7 +1,7 @@
 size: lg
 state: signed-off
 next: /builder:resume --path docs/features/video-recorder
-head: f50e5ddd
+head: 1f003f49
 ticket: none
 branch: builder/video-recorder
 pr: none
@@ -12,7 +12,7 @@ go-ahead: auto (recommended) 2026-11-22
 tests: walk=risk review=slice
 target: main
 walk: agent-pass 2026-11-23 f50e5ddd
-verify: none
+verify: QUICK 2026-11-23 1f003f49
 ready: yes 2026-11-23 85e90bba
 ui2: none (phase 1 — d2m specs video-recorder, video-detail and the library-home change from doc source, P2)
 auto: on 2026-11-22
