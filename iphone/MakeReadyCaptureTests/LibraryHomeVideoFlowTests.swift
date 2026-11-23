@@ -9,7 +9,10 @@
 import XCTest
 @testable import MakeReady
 
-final class LibraryVideoPagingTests: XCTestCase {
+@MainActor
+final class LibraryHomeVideoFlowTests: XCTestCase {
+
+    // MARK: - Paging (D20)
 
     private let floor = LibraryVideoPaging.rowHeightFloor
 
@@ -50,10 +53,8 @@ final class LibraryVideoPagingTests: XCTestCase {
         XCTAssertFalse(should(loading: true))
         XCTAssertFalse(should(failed: true))
     }
-}
 
-@MainActor
-final class LibraryVideoDeletionTests: XCTestCase {
+    // MARK: - Delete (D17)
 
     private struct Boom: Error {}
 
