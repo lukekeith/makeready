@@ -202,6 +202,20 @@ final class LibraryHomeMapperTests: XCTestCase {
         XCTAssertEqual(LibraryHomeMapper.visibleVideos(stored: [], queued: [queuedVideo(localId: "L2")]).first?.state, .queued)
     }
 
+    /// D12: a video being exported shows at once, as the queued row it becomes.
+    func testAVideoBeingSavedIsAnUploadingRowUntilTheQueueHoldsIt() {
+        let saving = VideoSavingItem(localId: "L1", title: "Video 3", durationSeconds: 45, savedAt: now, attach: nil)
+        let rows = LibraryHomeMapper.visibleVideos(stored: [videoSummary("v9")], queued: [], saving: [saving])
+        XCTAssertEqual(rows.map(\.id), ["v9", "local:L1"])
+        XCTAssertEqual(rows.last?.title, "Video 3")
+        XCTAssertEqual(rows.last?.durationMs, 45_000)
+        XCTAssertEqual(rows.last.map { LibraryHomeMapper.videoLine2($0.state) }, "Uploading…")
+        XCTAssertEqual(LibraryHomeMapper.visibleVideos(stored: [], queued: [queuedVideo(localId: "L1")], saving: [saving]).map(\.id), ["local:L1"])
+        // Already on the server: neither local row returns.
+        XCTAssertEqual(LibraryHomeMapper.visibleVideos(stored: [videoSummary("v9")], queued: [queuedVideo(localId: "L1", serverId: "v9")],
+                                                       saving: [saving]).map(\.id), ["v9"])
+    }
+
     func testTypeFilter() {
         XCTAssertEqual(LibraryHomeMapper.kinds(checked: [.video]), [.video])
         XCTAssertEqual(LibraryHomeMapper.kinds(checked: []), [.note, .memo, .video])

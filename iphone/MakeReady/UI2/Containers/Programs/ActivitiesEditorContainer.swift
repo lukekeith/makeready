@@ -26,25 +26,34 @@ extension ActivitiesEditorNavigating {
 /// re-PUTs once; a failure after that raises the screen's "Couldn't save activity" alert (D46).
 /// Backing out of an untouched activity deletes it (D16).
 struct ActivitiesEditorContainer: View {
-    let activityId: String
+    /// The destination this page is, for `replace` and `pop`.
+    private let route: UI2Destination
 
     static let loadContext = "ActivitiesEditorContainer.load"
 
     @Environment(\.ui2Navigator) private var navigator
     /// This page's veto on the shell's edge swipe: leaving always runs `back()` (save or D16 delete).
     @Environment(\.ui2BackSwipeGuard) private var backSwipe
+    @Environment(AuthManager.self) private var authManager: AuthManager?
     @State private var model: Model
     /// Bumped when the background image lands in Ui2ImageCache, which SwiftUI does not observe.
     @State private var imagesSeeded = 0
 
     init(activityId: String) {
-        self.activityId = activityId
+        route = .activitiesEditor(activityId: activityId)
         _model = State(initialValue: Model.resolving(activityId: activityId))
+    }
+
+    /// video-recorder D18: the `.lessonVideo` destination — the editor on the inline recorder, for a new video activity.
+    init(recordingIn lessonId: String, versionId: String) {
+        route = .lessonVideo(lessonId: lessonId, versionId: versionId)
+        _model = State(initialValue: Model.recording(lessonId: lessonId, versionId: versionId))
     }
 
     var body: some View {
         let _ = imagesSeeded
         let state = Self.screenState(model, app: AppState.shared)
+        let pendingVideos = Self.pendingVideos(AppState.shared, versionId: model.lessonVersionId)
         ActivitiesEditorScreen(
             state: state,
             onBack: { Task { await model.back() } },
@@ -69,7 +78,9 @@ struct ActivitiesEditorContainer: View {
             onEndHighlighting: { Task { await model.endHighlighting() } },
             onBibleStyleChange: { change in model.setBibleStyle(change) },
             // D48: a text dropped on the trash circle is deleted and saved.
-            onDeleteObject: { index in Task { await model.dropDelete(objectIndex: index) } }
+            onDeleteObject: { index in Task { await model.dropDelete(objectIndex: index) } },
+            onReplaceVideo: { model.replaceVideo() },
+            videoRecorder: { inlineRecorder }
         )
         // The screen seeds its sheets' buffers and its alert from `State` once, at init; a new
         // generation (loaded, a failed save, a discard) re-seeds them.
@@ -95,7 +106,11 @@ struct ActivitiesEditorContainer: View {
             confirmationOverlay(BiblePassageMenu.deleteConfirmation, onConfirm: { Task { await model.confirmDelete() } })
         }
         .onAppear {
-            model.navigator = LiveNavigator(navigator: navigator, current: .activitiesEditor(activityId: activityId))
+            model.navigator = LiveNavigator(navigator: navigator, current: route)
+            model.makeRecorder = { [authManager] entry in
+                authManager?.currentUser.flatMap { VideoRecorderModel.live(entry: entry, userId: $0.id) }
+            }
+            model.openPendingRecorder()
             backSwipe?.blocksBackSwipe = { true }
             backSwipe?.onBlockedBackSwipe = { [model] in Task { await model.back() } }
             // D40: the Media pick mode delivers here; the page is back on top.
@@ -120,9 +135,56 @@ struct ActivitiesEditorContainer: View {
             if await UI2ImageLoader.seed(others, context: "ActivitiesEditorContainer.chips") { seeded = true }
             if seeded { imagesSeeded += 1 }
         }
+        // D18: the pending video on screen is now an activity, or will never be one.
+        .onChange(of: pendingVideos.map(\.id), initial: true) {
+            Task { await model.settlePendingVideo() }
+        }
+        .task(id: posterURLs(of: state, pending: pendingVideos)) {
+            if await Self.seedPosters(posterURLs(of: state, pending: pendingVideos)) { imagesSeeded += 1 }
+        }
         .task(id: state.pageImageURL) {
             if await UI2ImageLoader.seed([state.pageImageURL], context: "ActivitiesEditorContainer") { imagesSeeded += 1 }
         }
+    }
+
+    /// P3: the recorder over the page area, whole on any phone: its preview states its own height for its width.
+    @ViewBuilder private var inlineRecorder: some View {
+        if let recorder = model.recorder {
+            GeometryReader { area in
+                VideoRecorderContainer(model: recorder, layout: .lessonInline)
+                    .id(ObjectIdentifier(recorder))
+                    .frame(width: min(area.size.width, area.size.height * Self.previewWidthPerHeight))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+    }
+
+    /// C-152 §2: 440 × 781.
+    private static let previewWidthPerHeight: CGFloat = 440.0 / 781.0
+
+    private func posterURLs(of state: ActivitiesEditorScreen.State,
+                            pending: [ActivitiesEditorMapper.PendingVideoActivity]) -> [URL] {
+        pending.compactMap(\.posterURL) + (state.videoPendingPosterURL.map { [$0] } ?? [])
+    }
+
+    /// Puts the pending videos' local poster frames where the screen reads its images.
+    private static func seedPosters(_ urls: [URL]) async -> Bool {
+        var seeded = false
+        for url in urls where Ui2ImageCache.shared.image(for: url) == nil {
+            // The file goes with its queue item: no picture is then the right look.
+            guard let image = await Task.detached(operation: { UIImage(contentsOfFile: url.path)?.preparingForDisplay() }).value else { continue }
+            Ui2ImageCache.shared.seed(image, for: url)
+            seeded = true
+        }
+        return seeded
+    }
+
+    /// D18: the new video activities this version waits for.
+    @MainActor
+    static func pendingVideos(_ app: AppState, versionId: String) -> [ActivitiesEditorMapper.PendingVideoActivity] {
+        ActivitiesEditorMapper.pendingVideoActivities(
+            queued: app.videoUploads?.pendingItems ?? [], saving: app.videoSaves?.saving ?? [], versionId: versionId,
+            attachedVideoIds: Set(app.activities(forVersion: versionId).compactMap(ActivitiesEditorMapper.videoId)))
     }
 
     private func confirmationOverlay(_ confirmation: BiblePassageMenu.Confirmation,
@@ -180,6 +242,20 @@ struct ActivitiesEditorContainer: View {
         case .activity: state.canvasContent = "activity"
         case .typeGrid: state.canvasContent = "typeGrid"
         case .readOnly: state.canvasContent = "readOnly"
+        case .videoRecorder: state.canvasContent = "videoRecorder"
+        case .videoPending: state.canvasContent = "videoPending"
+        }
+        let pending = pendingVideos(app, versionId: model.lessonVersionId)
+        state = ActivitiesEditorMapper.withPendingVideos(state, pending)
+        if model.canvasContent == .videoPending {
+            state.videoPendingPosterURL = pending.first { $0.id == model.activityId }?.posterURL
+        }
+        if model.canvasContent == .videoRecorder {
+            // No page is open: none of its tools show.
+            state.isBible = false
+            state.videoRecorderHidesChrome = model.recorder.map { $0.isCapturing || $0.isCountingDown } ?? false
+            // The server appends the new activity.
+            if model.recordingActivityId == nil { state = withPlaceholder(state, after: nil) }
         }
         // D37: while the grid shows, an empty placeholder chip follows the activity it was opened from and is active.
         if model.canvasContent == .typeGrid {
@@ -188,6 +264,13 @@ struct ActivitiesEditorContainer: View {
         state.unavailableTypes = ActivityNewContainer.unavailableTypes
         state.pendingType = model.pendingType
         if model.canvasContent == .readOnly, let activity = app.activities[model.activityId] {
+            // D9: a replaced video shows at once, still uploading.
+            if let replacement = ActivitiesEditorMapper.pendingReplacement(
+                queued: app.videoUploads?.pendingItems ?? [], saving: app.videoSaves?.saving ?? [],
+                versionId: model.lessonVersionId, activityId: model.activityId) {
+                state.canvasContent = "videoPending"
+                state.videoPendingPosterURL = replacement.posterURL
+            }
             state.readOnlyKind = activity.kind
             state.readOnlyTitle = activity.title
             if case .video(let video) = activity.document.renderable {
@@ -881,6 +964,7 @@ struct ActivitiesEditorContainer: View {
         /// Back: unsaved changes save first (an open edit commits), and a failed save stays on the page with
         /// the alert. No activity is ever deleted on the way out (D16, superseded round 5).
         func back() async {
+            if closeRecorder(then: { [weak self] in await self?.back() }) { return }
             guard await leave() else { return }
             navigator?.pop()
         }
@@ -893,6 +977,10 @@ struct ActivitiesEditorContainer: View {
             case typeGrid
             /// A kind this editor can't edit yet, drawn read-only.
             case readOnly
+            /// video-recorder P3: the inline recorder.
+            case videoRecorder
+            /// video-recorder D18: a new video the upload queue has yet to attach; `activityId` is its `local:` id.
+            case videoPending
         }
 
         private(set) var canvasContent: CanvasContent = .activity
@@ -905,11 +993,18 @@ struct ActivitiesEditorContainer: View {
         /// D26: a chip swaps the canvas to that activity in place — the current one saves first, nothing
         /// navigates. D28: a kind the editor can't edit shows read-only. While the grid shows, a chip
         /// closes it (D27).
-        func selectSlide(_ id: String, app: AppState? = nil) async {
+        func selectSlide(_ id: String, app: AppState? = nil,
+                         pending: [ActivitiesEditorMapper.PendingVideoActivity]? = nil) async {
             let app = app ?? .shared
-            guard let target = app.activities[id] else { return }
-            guard id != activityId || canvasContent == .typeGrid else { return }
+            let pending = pending ?? ActivitiesEditorContainer.pendingVideos(app, versionId: lessonVersionId)
+            let pendingVideo = pending.first { $0.id == id }
+            guard pendingVideo != nil || app.activities[id] != nil else { return }
+            guard id != activityId || [.typeGrid, .videoRecorder].contains(canvasContent) else { return }
+            if closeRecorder(then: { [weak self] in await self?.selectSlide(id, app: app) }) { return }
             guard await leave() else { return }
+            if let pendingVideo { return show(pendingVideo) }
+            guard let target = app.activities[id] else { return }
+            recorder = nil
             let editable = ActivityEntry.canvasKinds.contains(target.kind) && ActivitiesEditorMapper.isEditable(target.document)
             activityId = target.id
             activityKey = target.activityKey
@@ -930,7 +1025,10 @@ struct ActivitiesEditorContainer: View {
 
         /// D27: ＋ shows the type grid in place of the canvas, once the current activity has saved.
         func addActivity() async {
-            guard canvasContent != .typeGrid, await leave() else { return }
+            guard canvasContent != .typeGrid else { return }
+            if closeRecorder(then: { [weak self] in await self?.addActivity() }) { return }
+            guard await leave() else { return }
+            recorder = nil
             insertAfterID = activityId
             canvasContent = .typeGrid
             screenGeneration += 1
@@ -951,6 +1049,121 @@ struct ActivitiesEditorContainer: View {
             grid.selectBible()
         }
 
+        // MARK: Video recorder (video-recorder D18)
+
+        /// The inline recorder, while `canvasContent` is `.videoRecorder`.
+        private(set) var recorder: VideoRecorderModel?
+        /// The activity whose video is being replaced; nil records a new one.
+        private(set) var recordingActivityId: String?
+        /// Builds the recorder; nil when it could not open (the banner says why).
+        var makeRecorder: (VideoRecorderEntry) -> VideoRecorderModel? = { _ in nil }
+        /// Where the leader was going when the recorder asked to discard.
+        private var afterRecorder: (() async -> Void)?
+
+        /// The New Activity page's Video tile: no activity yet, so the editor opens on the recorder.
+        static func recording(lessonId: String, versionId: String) -> Model {
+            let model = Model(activityId: "", activityKey: "", document: blankVideo, lessonId: lessonId,
+                              lessonVersionId: versionId, kind: "video")
+            model.canvasContent = .videoRecorder
+            return model
+        }
+
+        private static var blankVideo: ActivityDocument { LiveVideoUploadAPI.videoDocument(videoId: "", title: "") }
+
+        /// Opens the recorder an editor made by `recording` starts on; without one there is no page to show.
+        func openPendingRecorder(app: AppState? = nil) {
+            guard canvasContent == .videoRecorder, recorder == nil else { return }
+            if !openRecorder(activityId: nil, app: app ?? .shared) { navigator?.pop() }
+        }
+
+        /// The attached video's menu: Replace video.
+        func replaceVideo(app: AppState? = nil) {
+            guard canvasContent == .readOnly, kind == "video" else { return }
+            _ = openRecorder(activityId: activityId, app: app ?? .shared)
+        }
+
+        private func openRecorder(activityId target: String?, app: AppState) -> Bool {
+            guard let opened = makeRecorder(.lesson(versionId: lessonVersionId, activityId: target)) else { return false }
+            opened.onFinished = { [weak self] _ in self?.recorderSaved(app: app) }
+            opened.onDiscarded = { [weak self] in self?.recorderDiscarded() }
+            recorder = opened
+            recordingActivityId = target
+            canvasContent = .videoRecorder
+            return true
+        }
+
+        /// D9: back to Edit lesson, on the video just saved.
+        private func recorderSaved(app: AppState) {
+            recorder = nil
+            afterRecorder = nil
+            screenGeneration += 1
+            if recordingActivityId != nil {
+                canvasContent = .readOnly
+            } else if let saved = ActivitiesEditorContainer.pendingVideos(app, versionId: lessonVersionId).last {
+                show(saved)
+            } else {
+                Task { await showFirstActivity(app: app) }
+            }
+        }
+
+        /// True when the open recorder has to close first; `next` runs once it has, and not when the leader keeps recording.
+        private func closeRecorder(then next: @escaping () async -> Void) -> Bool {
+            guard canvasContent == .videoRecorder, let recorder, !recorder.isClosed else { return false }
+            afterRecorder = next
+            recorder.closeTapped()
+            return true
+        }
+
+        /// The closed recorder stays on the page until `next` replaces it.
+        private func recorderDiscarded() {
+            guard let next = afterRecorder else { return }
+            afterRecorder = nil
+            Task { await next() }
+        }
+
+        private func show(_ pending: ActivitiesEditorMapper.PendingVideoActivity) {
+            recorder = nil
+            activityId = pending.id
+            activityKey = ""
+            kind = "video"
+            document = Self.blankVideo
+            savedDocument = document
+            highlightingObjectID = nil
+            presentation = nil
+            endEditing()
+            saveError = nil
+            canvasContent = .videoPending
+            screenGeneration += 1
+        }
+
+        /// The pending video on screen left the queue: its activity opens in place. With none (a refused attach, a
+        /// deleted video) the first activity does, or the type grid.
+        func settlePendingVideo(app: AppState? = nil, pending: [ActivitiesEditorMapper.PendingVideoActivity]? = nil,
+                                serverId: ((String) -> String?)? = nil) async {
+            let app = app ?? .shared
+            let pending = pending ?? ActivitiesEditorContainer.pendingVideos(app, versionId: lessonVersionId)
+            guard canvasContent == .videoPending, !pending.contains(where: { $0.id == activityId }) else { return }
+            let localId = String(activityId.dropFirst(LibraryVideoDeletion.localPrefix.count))
+            let videoId = serverId.map { $0(localId) } ?? app.videoUploads?.serverId(forLocalId: localId)
+            if let videoId,
+               let activity = app.activities(forVersion: lessonVersionId).first(where: { ActivitiesEditorMapper.videoId(of: $0) == videoId }) {
+                await selectSlide(activity.id, app: app)
+            } else {
+                await showFirstActivity(app: app)
+            }
+        }
+
+        private func showFirstActivity(app: AppState) async {
+            if let first = app.activities(forVersion: lessonVersionId).first {
+                await selectSlide(first.id, app: app)
+            } else {
+                activityId = ""
+                insertAfterID = nil
+                canvasContent = .typeGrid
+                screenGeneration += 1
+            }
+        }
+
         /// D27: a type picked on the grid. Text and Bible can be created today (the others are unavailable tiles);
         /// the new activity then opens in place through `selectSlide`. A Bible passage is placed by its own
         /// ordered save (`BibleSave`), so it skips `placeAfterInsertPoint`.
@@ -958,6 +1171,11 @@ struct ActivitiesEditorContainer: View {
             if rawType == ActivityTypeGrid.ActivityType.bibleVerse.rawValue {
                 guard canvasContent == .typeGrid, pendingType.isEmpty else { return }
                 pickBible()
+                return
+            }
+            if rawType == ActivityTypeGrid.ActivityType.video.rawValue {
+                guard canvasContent == .typeGrid, pendingType.isEmpty else { return }
+                _ = openRecorder(activityId: nil, app: app ?? .shared)
                 return
             }
             guard canvasContent == .typeGrid, pendingType.isEmpty,

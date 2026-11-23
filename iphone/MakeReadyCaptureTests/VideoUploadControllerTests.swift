@@ -152,6 +152,25 @@ final class VideoUploadControllerTests: XCTestCase {
         XCTAssertEqual(c.pending().map(\.localId), [item.localId])
     }
 
+    /// A kill between the queue's copy and the saver dropping its draft runs the save again.
+    func testEnqueueingTheSameLocalIdAgainQueuesOneItem() throws {
+        let c = makeController(api: FakeVideoAPI())
+        let first = try c.enqueue(exported(), localId: "L1", attach: nil)
+        let second = try c.enqueue(exported(), localId: "L1", attach: nil)
+        XCTAssertEqual(first.localId, "L1")
+        XCTAssertEqual(first, second)
+        XCTAssertEqual(c.pending().count, 1)
+    }
+
+    func testAnOrphanedVideoFileDoesNotBlockTheSaveThatLeftIt() throws {
+        let c = makeController(api: FakeVideoAPI())
+        let item = try c.enqueue(exported(), localId: "L1", attach: nil)
+        try FileManager.default.removeItem(at: item.fileURL.deletingPathExtension().appendingPathExtension("json"))
+        XCTAssertEqual(c.pending().count, 0)
+        _ = try c.enqueue(exported(), localId: "L1", attach: nil)
+        XCTAssertEqual(c.pending().map(\.localId), ["L1"])
+    }
+
     func testRemoveDropsTheQueuedFilesAndAnUnknownIdIsACancellation() throws {
         let c = makeController(api: FakeVideoAPI())
         let item = try c.enqueue(exported(), attach: nil)

@@ -310,7 +310,7 @@ extension VideoRecorderModel {
             let beeper = CountdownBeeper()
             return VideoRecorderModel(
                 entry: entry, engine: engine, settings: RecorderSettings(),
-                player: VideoReviewPlayer(), saver: saver, recoverDraft: { drafts.recoverable().last }, beep: { beeper.beep(hz: $0) }, report: report,
+                player: VideoReviewPlayer(), saver: saver, recoverDraft: { drafts.recoverable(for: entry).last }, beep: { beeper.beep(hz: $0) }, report: report,
                 loadNotes: { _ = try await NoteActions().load() })
         } catch {
             report(error, "Couldn't open the recorder")

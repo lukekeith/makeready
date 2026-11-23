@@ -24,6 +24,33 @@ final class ActivityNewContainerTests: XCTestCase {
         XCTAssertFalse(ActivityNewContainer.unavailableTypes.contains(ActivityTypeGrid.ActivityType.video.rawValue))
     }
 
+    /// D18: the tile opens the inline recorder on the lesson's draft; nothing is created yet.
+    func testTheVideoTileOpensTheInlineRecorderOnTheDraft() async {
+        let nav = RecordingNavigator()
+        var during: String?
+        var model: ActivityNewContainer.Model!
+        let actions = ActivityNewContainer.Actions(
+            draftVersionId: { _ in during = model.pendingType; return "ver1" },
+            create: { _, _, _, _ in XCTFail("the upload controller creates the activity"); return "" })
+        model = ActivityNewContainer.Model(lessonId: "l1", actions: actions, navigator: nav, report: { _ in XCTFail("reported") })
+        await model.selectVideo()
+        XCTAssertEqual(nav.replaced, [.lessonVideo(lessonId: "l1", versionId: "ver1")])
+        XCTAssertEqual(during, "video")
+        XCTAssertEqual(model.pendingType, "")
+        XCTAssertTrue(UI2Destination.lessonVideo(lessonId: "l1", versionId: "ver1").isFullScreen)
+    }
+
+    func testAVideoTileWhoseDraftCannotLoadReportsAndStaysPut() async {
+        let nav = RecordingNavigator()
+        var reports = 0
+        let actions = ActivityNewContainer.Actions(draftVersionId: { _ in throw Boom() }, create: { _, _, _, _ in "" })
+        let model = ActivityNewContainer.Model(lessonId: "l1", actions: actions, navigator: nav, report: { _ in reports += 1 })
+        await model.selectVideo()
+        XCTAssertEqual(reports, 1)
+        XCTAssertTrue(nav.replaced.isEmpty)
+        XCTAssertEqual(model.pendingType, "")
+    }
+
     func testTheBibleTileIsAvailable() {
         XCTAssertFalse(ActivityNewContainer.unavailableTypes.contains(ActivityTypeGrid.ActivityType.bibleVerse.rawValue))
     }

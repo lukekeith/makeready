@@ -25,10 +25,9 @@ final class QueueSpy: VideoSaveQueue {
     private(set) var items: [Item] = []
     private(set) var supplied: [VideoTranscript?] = []
 
-    func enqueue(_ video: ExportedVideo, title: String, source: VideoSource, attach: VideoAttach?,
+    func enqueue(_ video: ExportedVideo, localId: String, title: String, source: VideoSource, attach: VideoAttach?,
                  transcriptHold: TimeInterval) throws -> VideoQueueItem {
         if let error { throw error }
-        let localId = UUID().uuidString
         items.append(Item(localId: localId, title: title, source: source.rawValue, attach: attach,
                           holdsForTranscript: transcriptHold, hasPoster: video.posterImage != nil))
         return VideoQueueItem(
@@ -44,7 +43,7 @@ final class QueueSpy: VideoSaveQueue {
 }
 
 @MainActor
-private final class ReviewPlayerSpy: VideoReviewPlaying {
+final class ReviewPlayerSpy: VideoReviewPlaying {
     let layer = CALayer()
     private(set) var loads: [(clips: [URL], window: ClosedRange<Double>?)] = []
     private(set) var looks: [VideoLook] = []
@@ -129,11 +128,12 @@ final class VideoRecorderSaveTests: XCTestCase {
         return url
     }
 
-    private func makeSaver(queue: QueueSpy, existingTitles: [String] = []) -> VideoSaver {
+    private func makeSaver(queue: QueueSpy, existingTitles: [String] = [],
+                           savingTitles: @escaping () -> [String] = { [] }) -> VideoSaver {
         let exporter = exporter!
         return VideoSaver(
             drafts: drafts, queue: queue,
-            nextTitle: { MemoActions.nextDefaultTitle(prefix: "Video", existingTitles: existingTitles + queue.items.map(\.title)) },
+            nextTitle: { MemoActions.nextDefaultTitle(prefix: "Video", existingTitles: existingTitles + queue.items.map(\.title) + savingTitles()) },
             report: { [weak self] _, message, retry in
                 self?.reports.append(message)
                 self?.retries.append(retry)
@@ -475,6 +475,92 @@ final class VideoRecorderSaveTests: XCTestCase {
         XCTAssertTrue(queue.items.isEmpty)
         XCTAssertEqual(reports, [])
         XCTAssertEqual(drafts.saving().count, 1)
+    }
+
+    // MARK: a video being saved is listed at once (D12)
+
+    func testAVideoBeingSavedIsListedUntilTheQueueHasIt() async {
+        let queue = QueueSpy()
+        exporter.holds = true
+        let saver = makeSaver(queue: queue)
+        let m = makeModel(entry: .lesson(versionId: "ver1", activityId: nil), saver: saver)
+        var listedOnFinish: [String] = []
+        m.onFinished = { _ in listedOnFinish = saver.saving.map(\.title) }
+        record(m)
+        let saving = Task { await m.save() }
+        for _ in 0..<200 where exporter.calls.isEmpty { await Task.yield() }
+        XCTAssertEqual(listedOnFinish, ["Video 1"])
+        let item = saver.saving.first
+        XCTAssertEqual(item?.attach, VideoAttach(versionId: "ver1", activityId: nil, title: "Video 1"))
+        exporter.release()
+        await saving.value
+        XCTAssertTrue(saver.saving.isEmpty)
+        XCTAssertEqual(queue.items.map(\.localId), [item?.localId])
+        XCTAssertEqual(queue.items.map(\.title), ["Video 1"])
+    }
+
+    func testTwoVideosBeingSavedAtOnceTakeDifferentTitles() async {
+        let queue = QueueSpy()
+        exporter.holds = true
+        var saver: VideoSaver!
+        saver = makeSaver(queue: queue, savingTitles: { saver.saving.map(\.title) })
+        let m = makeModel(saver: saver), n = makeModel(saver: saver)
+        record(m)
+        record(n)
+        let first = Task { await m.save() }
+        let second = Task { await n.save() }
+        for _ in 0..<200 where exporter.calls.count < 2 { await Task.yield() }
+        XCTAssertEqual(saver.saving.map(\.title).sorted(), ["Video 1", "Video 2"])
+        exporter.release()
+        await first.value
+        await second.value
+        XCTAssertEqual(queue.items.map(\.title).sorted(), ["Video 1", "Video 2"])
+    }
+
+    func testARelaunchKeepsTheTitleTheRowHad() async throws {
+        let queue = QueueSpy()
+        let draft = try drafts.finalize(segment: tmpURL, duration: 4, in: drafts.begin())
+        var save = VideoSave(entry: .plusMenu, source: .recording, filter: .normal, strength: 100, window: nil)
+        save.title = "Video 7"
+        try drafts.markSaving(save, in: draft)
+        let saver = makeSaver(queue: queue)
+        saver.resume()
+        XCTAssertEqual(saver.saving.map(\.title), ["Video 7"])
+        XCTAssertEqual(saver.saving.map(\.durationSeconds), [4])
+        await saver.settled()
+        XCTAssertEqual(queue.items.map(\.title), ["Video 7"])
+    }
+
+    func testAFailedSaveStaysListedAndRemovingItDropsTheRecording() async {
+        exporter.failures = 1
+        let queue = QueueSpy()
+        let saver = makeSaver(queue: queue)
+        let m = makeModel(saver: saver)
+        record(m)
+        await m.save()
+        XCTAssertEqual(saver.saving.count, 1)
+        XCTAssertTrue(saver.remove(localId: saver.saving[0].localId))
+        XCTAssertTrue(saver.saving.isEmpty)
+        XCTAssertTrue(drafts.saving().isEmpty)
+        retries[0]()
+        await saver.settled()
+        XCTAssertTrue(queue.items.isEmpty)
+        XCTAssertFalse(saver.remove(localId: "unknown"))
+    }
+
+    func testRemovingAVideoWhileItExportsEnqueuesNothing() async {
+        let queue = QueueSpy()
+        exporter.holds = true
+        let saver = makeSaver(queue: queue)
+        let m = makeModel(saver: saver)
+        record(m)
+        let saving = Task { await m.save() }
+        for _ in 0..<200 where exporter.calls.isEmpty { await Task.yield() }
+        XCTAssertTrue(saver.remove(localId: saver.saving[0].localId))
+        exporter.release()
+        await saving.value
+        XCTAssertTrue(queue.items.isEmpty)
+        XCTAssertEqual(reports, [])
     }
 
     // MARK: the looping player

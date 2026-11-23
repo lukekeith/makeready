@@ -20,6 +20,8 @@ struct VideoSave: Codable, Equatable {
     let strength: Double
     /// Seconds of the clips kept (D8); nil is all of them.
     let window: ClosedRange<Double>?
+    /// Given when the save starts, and kept through a relaunch.
+    var title: String?
 
     func attach(title: String) -> VideoAttach? {
         switch entry {
@@ -27,6 +29,15 @@ struct VideoSave: Codable, Equatable {
         case let .lesson(versionId, activityId): VideoAttach(versionId: versionId, activityId: activityId, title: title)
         }
     }
+}
+
+/// A saved video the upload queue does not have yet; its id is the queue item's to be.
+struct VideoSavingItem: Equatable {
+    let localId: String
+    let title: String
+    let durationSeconds: Double
+    let savedAt: Date
+    let attach: VideoAttach?
 }
 
 enum VideoClip {
@@ -46,19 +57,20 @@ protocol VideoSaving: AnyObject {
 /// What the saver needs of `VideoUploadController`.
 @MainActor
 protocol VideoSaveQueue: AnyObject {
-    func enqueue(_ video: ExportedVideo, title: String, source: VideoSource, attach: VideoAttach?,
+    func enqueue(_ video: ExportedVideo, localId: String, title: String, source: VideoSource, attach: VideoAttach?,
                  transcriptHold: TimeInterval) throws -> VideoQueueItem
     func supplyTranscript(_ transcript: VideoTranscript?, forLocalId localId: String)
 }
 
 extension VideoUploadController: VideoSaveQueue {
-    func enqueue(_ video: ExportedVideo, title: String, source: VideoSource, attach: VideoAttach?,
+    func enqueue(_ video: ExportedVideo, localId: String, title: String, source: VideoSource, attach: VideoAttach?,
                  transcriptHold: TimeInterval) throws -> VideoQueueItem {
-        try enqueue(video, title: title, source: source, transcript: nil, attach: attach, transcriptHold: transcriptHold)
+        try enqueue(video, localId: localId, title: title, source: source, transcript: nil, attach: attach, transcriptHold: transcriptHold)
     }
 }
 
 @MainActor
+@Observable
 final class VideoSaver: VideoSaving {
     /// The clips, the window, the filter, its strength (0–1) and the destination.
     typealias Export = @MainActor ([URL], ClosedRange<Double>?, VideoFilter, Double, URL) async throws -> ExportedVideo
@@ -72,8 +84,11 @@ final class VideoSaver: VideoSaving {
     private let export: Export
     private let transcribe: @MainActor (URL, Duration) async -> VideoTranscript?
     private let waitForForeground: @MainActor () async -> Bool
-    private var jobs: [UUID: Task<Void, Never>] = [:]
-    private var isCancelled = false
+    @ObservationIgnored private var jobs: [UUID: Task<Void, Never>] = [:]
+    @ObservationIgnored private var isCancelled = false
+
+    /// Oldest save first (D12: a saved video shows at once). An item leaves as the queue takes it.
+    private(set) var saving: [VideoSavingItem] = []
 
     /// `report`'s last argument is Retry. `waitForForeground` answers false at once in the foreground,
     /// else true once the app is back.
@@ -94,6 +109,7 @@ final class VideoSaver: VideoSaving {
     }
 
     func start(_ save: VideoSave, of clip: VideoClip) throws -> Task<Void, Never> {
+        let save = titled(save)
         switch clip {
         case let .draft(draft):
             try drafts.markSaving(save, in: draft)
@@ -123,6 +139,24 @@ final class VideoSaver: VideoSaving {
     func cancel() {
         isCancelled = true
         jobs.values.forEach { $0.cancel() }
+        saving = []
+    }
+
+    /// Deletes a video before the queue has it, recording included. False when it is not being saved.
+    func remove(localId: String) -> Bool {
+        guard saving.contains(where: { $0.localId == localId }) else { return false }
+        for cut in drafts.saving() where cut.draft.id.uuidString == localId {
+            jobs[cut.draft.id]?.cancel()
+            drafts.discard(cut.draft)
+        }
+        saving.removeAll { $0.localId == localId }
+        return true
+    }
+
+    private func titled(_ save: VideoSave) -> VideoSave {
+        var save = save
+        save.title = save.title ?? nextTitle()
+        return save
     }
 
     /// Returns once nothing is being saved.
@@ -133,12 +167,22 @@ final class VideoSaver: VideoSaving {
     private func run(_ save: VideoSave, _ draft: VideoDraft) -> Task<Void, Never> {
         if let job = jobs[draft.id] { return job }
         guard !isCancelled, drafts.exists(draft) else { return Task {} }
+        let save = titled(save)
+        list(save, draft)
         let job = Task {
             await work(save, draft)
             jobs[draft.id] = nil
         }
         jobs[draft.id] = job
         return job
+    }
+
+    private func list(_ save: VideoSave, _ draft: VideoDraft) {
+        let localId = draft.id.uuidString
+        guard let title = save.title, !saving.contains(where: { $0.localId == localId }) else { return }
+        let duration = save.window.map { $0.upperBound - $0.lowerBound } ?? draft.segments.reduce(0) { $0 + $1.duration }
+        saving.append(VideoSavingItem(localId: localId, title: title, durationSeconds: duration, savedAt: Date(),
+                                      attach: save.attach(title: title)))
     }
 
     private func work(_ save: VideoSave, _ draft: VideoDraft) async {
@@ -150,11 +194,12 @@ final class VideoSaver: VideoSaving {
             let video = try await export(draft.segments.map(\.url), save.window, save.filter, save.strength / 100,
                                          draft.folder.appendingPathComponent(Self.exportName))
             try Task.checkCancellation()
-            let title = nextTitle()
+            let title = save.title ?? nextTitle()
             timeout = video.durationSeconds
-            item = try queue.enqueue(video, title: title, source: save.source, attach: save.attach(title: title),
-                                     transcriptHold: timeout)
+            item = try queue.enqueue(video, localId: draft.id.uuidString, title: title, source: save.source,
+                                     attach: save.attach(title: title), transcriptHold: timeout)
             drafts.discard(draft)
+            saving.removeAll { $0.localId == item.localId }
         } catch {
             guard !Task.isCancelled else { return }
             time.end()

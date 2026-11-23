@@ -245,6 +245,71 @@ enum ActivitiesEditorMapper {
         slideSummaries(slides).map { StudyProgramHomeMapper.slideImage($0, media: media) }
     }
 
+    // MARK: - video-recorder D18: videos on their way to the lesson
+
+    /// A new video activity the upload queue has yet to create, as the editor lists it.
+    struct PendingVideoActivity: Equatable {
+        /// `local:` + the queue item's id.
+        let id: String
+        let title: String
+        let statusText: String
+        /// The local poster frame; nil until the export has written one.
+        let posterURL: URL?
+    }
+
+    /// The videos being attached to `versionId` as new activities: queued ones oldest first, then those still
+    /// being saved. One whose activity already exists (`attachedVideoIds`) is not pending.
+    static func pendingVideoActivities(queued: [VideoQueueItem], saving: [VideoSavingItem] = [], versionId: String,
+                                       attachedVideoIds: Set<String> = []) -> [PendingVideoActivity] {
+        pendingAttaches(queued: queued, saving: saving)
+            .filter { $0.attach.versionId == versionId && $0.attach.activityId == nil }
+            .filter { pending in pending.serverId.map { !attachedVideoIds.contains($0) } ?? true }
+            .map(\.row)
+    }
+
+    /// The video on its way to replace `activityId`'s; the newest when there are several.
+    static func pendingReplacement(queued: [VideoQueueItem], saving: [VideoSavingItem] = [], versionId: String,
+                                   activityId: String) -> PendingVideoActivity? {
+        pendingAttaches(queued: queued, saving: saving)
+            .last { $0.attach.versionId == versionId && $0.attach.activityId == activityId }?.row
+    }
+
+    private struct PendingAttach {
+        let attach: VideoAttach
+        let serverId: String?
+        let row: PendingVideoActivity
+    }
+
+    /// Every attach job still to run; a video being saved counts until the queue holds it.
+    private static func pendingAttaches(queued: [VideoQueueItem], saving: [VideoSavingItem]) -> [PendingAttach] {
+        func row(_ localId: String, _ title: String, _ poster: URL?) -> PendingVideoActivity {
+            PendingVideoActivity(id: LibraryVideoDeletion.localPrefix + localId, title: title, statusText: "Uploading…", posterURL: poster)
+        }
+        let queuedIds = Set(queued.map(\.localId))
+        return queued.compactMap { item in
+            guard let attach = item.attach, [.queued, .uploading, .creating].contains(item.stage) else { return nil }
+            return PendingAttach(attach: attach, serverId: item.serverId, row: row(item.localId, item.title, item.posterURL))
+        } + saving.compactMap { item in
+            guard let attach = item.attach, !queuedIds.contains(item.localId) else { return nil }
+            return PendingAttach(attach: attach, serverId: nil, row: row(item.localId, item.title, nil))
+        }
+    }
+
+    /// `state` with the pending videos' chips after the activities'.
+    static func withPendingVideos(_ state: ActivitiesEditorScreen.State, _ pending: [PendingVideoActivity]) -> ActivitiesEditorScreen.State {
+        var state = state
+        state.slideIDs += pending.map(\.id)
+        state.slideLabels += pending.map { "\($0.title), \($0.statusText)" }
+        state.slideImages += pending.map { $0.posterURL?.absoluteString ?? "" }
+        return state
+    }
+
+    /// A video activity's `content.videoId`.
+    static func videoId(of activity: ContentActivity) -> String? {
+        if case .video(let video) = activity.document.renderable { return video.videoId }
+        return nil
+    }
+
     // MARK: - text-activity-v2: the Background rail's state (D13, D14, D22)
 
     /// The Background rail's fields on top of `state()`: the selected option, the gradient (hidden

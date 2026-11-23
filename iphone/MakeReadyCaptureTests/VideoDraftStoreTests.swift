@@ -87,6 +87,24 @@ final class VideoDraftStoreTests: XCTestCase {
         XCTAssertEqual(VideoDraftStore(root: dir).recoverable().first?.settings, settings)
     }
 
+    /// video-recorder D18: a lesson's draft comes back only where it was recorded.
+    func testADraftIsRecoverableOnlyForTheEntryItWasRecordedFrom() throws {
+        let store = VideoDraftStore(root: dir)
+        let lesson = VideoRecorderEntry.lesson(versionId: "ver1", activityId: nil)
+        func record(_ name: String, entry: VideoRecorderEntry?) throws -> UUID {
+            let draft = store.begin()
+            try store.save(settings: VideoDraftSettings(entry: entry), in: draft)
+            return try store.finalize(segment: try write(name), duration: 4, in: draft).id
+        }
+        let plus = try record("s1.mov", entry: nil)
+        let inLesson = try record("s2.mov", entry: lesson)
+        XCTAssertEqual(store.recoverable(for: .plusMenu).map(\.id), [plus])
+        XCTAssertEqual(store.recoverable(for: lesson).map(\.id), [inLesson])
+        XCTAssertEqual(store.recoverable(for: .lesson(versionId: "ver1", activityId: "a1")), [])
+        XCTAssertEqual(store.recoverable(for: .lesson(versionId: "ver2", activityId: nil)), [])
+        XCTAssertEqual(store.recoverable().count, 2)
+    }
+
     func testFinalizeAfterDiscardThrows() throws {
         let store = VideoDraftStore(root: dir)
         let draft = store.begin()

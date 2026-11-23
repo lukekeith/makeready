@@ -198,15 +198,18 @@ final class VideoUploadController {
     /// Moves the exported video into the queue folder and writes its manifest. No network. A nil
     /// `title` is the next `Video n`. With `transcriptHold` the upload waits that long for
     /// `supplyTranscript`, then goes without one (D10).
+    /// A `localId` already queued answers its item, so a save a kill cut off can run again.
     @discardableResult
-    func enqueue(_ video: ExportedVideo, title: String? = nil, source: VideoSource = .recording,
+    func enqueue(_ video: ExportedVideo, localId: String = UUID().uuidString, title: String? = nil, source: VideoSource = .recording,
                  transcript: VideoTranscript? = nil, attach: VideoAttach?,
                  transcriptHold: TimeInterval? = nil) throws -> VideoQueueItem {
         let fm = FileManager.default
         try prepareDirectory()
-        let localId = UUID().uuidString
+        if let queued = pending().first(where: { $0.localId == localId }) { return queued }
         let fileName = "\(localId).mp4"
         let destination = directory.appendingPathComponent(fileName)
+        // No manifest names it: a kill came between the move and the manifest.
+        if fm.fileExists(atPath: destination.path) { try fm.removeItem(at: destination) }
         try fm.moveItem(at: video.url, to: destination)
         let posterFileName = writePoster(video.posterImage, localId: localId)
         let item = VideoQueueItem(

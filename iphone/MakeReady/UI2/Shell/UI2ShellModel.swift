@@ -75,6 +75,9 @@ enum UI2Destination: Hashable {
     /// text-activity D39: the Text editor, over one activity. Reached from the Text tile (swapped in place)
     /// and from a canvas-kind slide tap; the Background and Actions sheets are drawn in-screen.
     case activitiesEditor(activityId: String)
+    /// video-recorder D18: the editor, opened on the inline recorder for a lesson's new video activity (the
+    /// activity does not exist until the upload attaches it). Reached only from the Video tile.
+    case lessonVideo(lessonId: String, versionId: String)
     /// text-activity D39/D22: the full-screen viewer on one activity of a lesson version.
     case activityViewer(lessonVersionId: String, activityId: String)
     /// text-activity D40: the Media grid in pick mode, above the editor; a pick goes back to it by
@@ -117,7 +120,7 @@ extension UI2Destination {
         // text-activity D39: the viewer takes the whole screen, and the background pick is a full-screen
         // picker. Owner 2026-11-08: the editor is full screen too — its own bars are drawn in-screen,
         // so no TabBar sits under it.
-        case .activitiesEditor, .activityViewer, .chooseActivityBackground: return true
+        case .activitiesEditor, .lessonVideo, .activityViewer, .chooseActivityBackground: return true
         // bible-verse-picker D2: the picker's pages carry their own header and Select, so no TabBar.
         case .bibleBooks, .bibleChapters, .bibleVerses, .bibleReader: return true
         // notes D17: the editor draws its own chrome, so no TabBar.

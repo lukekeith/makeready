@@ -127,12 +127,12 @@ final class VideoRecorderModelTests: XCTestCase {
         defaults.removePersistentDomain(forName: suiteName)
     }
 
-    private func makeModel(length: Int = 60, preRoll: PreRoll = .off, recovered: VideoDraft? = nil) -> VideoRecorderModel {
+    private func makeModel(entry: VideoRecorderEntry = .plusMenu, length: Int = 60, preRoll: PreRoll = .off, recovered: VideoDraft? = nil) -> VideoRecorderModel {
         settings.length = length
         settings.preRoll = preRoll
         let clock = clock!
         return VideoRecorderModel(
-            entry: .plusMenu, engine: engine, settings: settings, player: VideoReviewPlayer(), saver: UnusedSaver(),
+            entry: entry, engine: engine, settings: settings, player: VideoReviewPlayer(), saver: UnusedSaver(),
             recoverDraft: { recovered }, beep: { [weak self] in self?.beeps.append($0) },
             report: { [weak self] _, message in self?.reports.append(message) },
             loadNotes: { [weak self] in self?.notesLoads += 1 },
@@ -420,6 +420,14 @@ final class VideoRecorderModelTests: XCTestCase {
         m.recordTapped()
         await m.settled()
         XCTAssertEqual(engine.savedSettings.last, VideoDraftSettings(lengthSeconds: 30, filter: "noir", filterStrength: 100))
+    }
+
+    func testALessonRecordingSavesItsEntryInTheDraft() async {
+        let entry = VideoRecorderEntry.lesson(versionId: "ver1", activityId: nil)
+        let m = makeModel(entry: entry)
+        m.recordTapped()
+        await m.settled()
+        XCTAssertEqual(engine.savedSettings.last?.entry, entry)
     }
 
     func testClosingWithNothingRecordedClosesAtOnce() async {

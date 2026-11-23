@@ -52,7 +52,8 @@ struct LibraryHomeContainer: View {
         let windowMatches = window.query == trimmed
         let videos = LibraryHomeMapper.visibleVideos(
             stored: windowMatches ? window.ids.compactMap { AppState.shared.libraryVideos[$0] } : [],
-            queued: trimmed == nil ? AppState.shared.videoUploads?.pendingItems ?? [] : [])
+            queued: trimmed == nil ? AppState.shared.videoUploads?.pendingItems ?? [] : [],
+            saving: trimmed == nil ? AppState.shared.videoSaves?.saving ?? [] : [])
         let kinds = LibraryHomeMapper.kinds(checked: selectedTypes)
         let rows = LibraryHomeMapper.rows(notes: kinds.contains(.note) ? notes : [],
                                           searchIds: searchIds, memos: kinds.contains(.memo) ? memos : [],
@@ -159,6 +160,7 @@ struct LibraryHomeContainer: View {
             perform: { try await actions.deleteOrRemove(id: $0, decision: $1) },
             serverId: { AppState.shared.videoUploads?.serverId(forLocalId: $0) },
             removeQueued: { id in
+                if AppState.shared.videoSaves?.remove(localId: id) == true { return }
                 guard let uploads = AppState.shared.videoUploads else { throw CancellationError() }
                 try uploads.remove(localId: id)
             },

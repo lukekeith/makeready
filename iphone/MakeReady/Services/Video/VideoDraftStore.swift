@@ -16,6 +16,8 @@ struct VideoDraftSettings: Codable, Equatable {
     var filter: String?
     /// 0–100 (D6).
     var filterStrength: Double = 100
+    /// Where it was recorded; nil is the + menu.
+    var entry: VideoRecorderEntry?
 }
 
 struct VideoDraftSegment: Equatable {
@@ -146,6 +148,11 @@ struct VideoDraftStore {
     /// nothing is recording.
     func recoverable() -> [VideoDraft] {
         folders().compactMap(salvage).sorted { $0.createdAt < $1.createdAt }
+    }
+
+    /// `recoverable`, only those recorded from `entry`: a lesson's recording never turns up elsewhere (D18).
+    func recoverable(for entry: VideoRecorderEntry) -> [VideoDraft] {
+        recoverable().filter { ($0.settings.entry ?? .plusMenu) == entry }
     }
 
     func discard(_ draft: VideoDraft) {

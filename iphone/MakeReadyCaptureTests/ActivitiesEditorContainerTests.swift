@@ -437,6 +437,305 @@ final class ActivitiesEditorContainerTests: XCTestCase {
     // MARK: - One save at a time
 
     /// Three saves started together run one after another: never two PUTs at once.
+    // MARK: - video-recorder D18: the inline recorder, the pending row and Replace video
+
+    private var recorderDir: URL!
+
+    override func setUp() async throws {
+        recorderDir = FileManager.default.temporaryDirectory.appendingPathComponent("EditorRecorder-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: recorderDir, withIntermediateDirectories: true)
+    }
+
+    override func tearDown() async throws {
+        UserDefaults.standard.removePersistentDomain(forName: recorderDir.lastPathComponent)
+        try FileManager.default.removeItem(at: recorderDir)
+    }
+
+    /// `holds` keeps the export from ending, so the video stays "being saved".
+    private func makeSaver(queue: QueueSpy, holds: Bool = false) -> VideoSaver {
+        VideoSaver(drafts: VideoDraftStore(root: recorderDir), queue: queue,
+                   nextTitle: { MemoActions.nextDefaultTitle(prefix: "Video", existingTitles: queue.items.map(\.title)) },
+                   report: { _, message, _ in XCTFail(message) },
+                   export: { _, _, _, _, url in
+                       if holds { try await Task.sleep(for: .seconds(60)) }
+                       return ExportedVideo(url: url, durationSeconds: 3, posterImage: nil)
+                   },
+                   transcribe: { _, _ in nil }, waitForForeground: { false })
+    }
+
+    private func makeRecorderModel(entry: VideoRecorderEntry, queue: QueueSpy, saver: VideoSaver? = nil) -> VideoRecorderModel {
+        VideoRecorderModel(
+            entry: entry,
+            engine: VideoCaptureEngine(session: FakeCaptureSession(), drafts: VideoDraftStore(root: recorderDir),
+                                       freeBytes: { nil }, notificationCenter: NotificationCenter()),
+            settings: RecorderSettings(defaults: UserDefaults(suiteName: recorderDir.lastPathComponent)!),
+            player: ReviewPlayerSpy(), saver: saver ?? makeSaver(queue: queue), recoverDraft: { nil }, beep: { _ in },
+            report: { _, message in XCTFail(message) }, loadNotes: {}, now: { 0 })
+    }
+
+    private func queued(localId: String, attach: VideoAttach?, stage: VideoUploadStage = .queued,
+                        serverId: String? = nil, poster: String? = nil) -> VideoQueueItem {
+        VideoQueueItem(
+            localId: localId, fileName: "\(localId).mp4", posterFileName: poster, title: attach?.title ?? "V", durationSeconds: 12,
+            source: .recording, transcript: nil, createdAt: Date(timeIntervalSince1970: 0), streamUid: nil, serverId: serverId,
+            stage: stage, failures: 0, polls: 0, nextAttemptAt: nil, attach: attach, ownerUserId: "u1", environment: "test")
+    }
+
+    private func saving(localId: String, attach: VideoAttach?) -> VideoSavingItem {
+        VideoSavingItem(localId: localId, title: attach?.title ?? "V", durationSeconds: 12,
+                        savedAt: Date(timeIntervalSince1970: 0), attach: attach)
+    }
+
+    private func editor(app: AppState, at id: String, queue: QueueSpy, saver: VideoSaver? = nil) -> ActivitiesEditorContainer.Model {
+        let model = ActivitiesEditorContainer.Model(
+            activityId: id, activityKey: "k-\(id)", document: app.activities[id]!.document, lessonId: "l1",
+            lessonVersionId: "v1", actions: ScriptedActivityActions())
+        model.makeRecorder = { self.makeRecorderModel(entry: $0, queue: queue, saver: saver) }
+        return model
+    }
+
+    func testPendingVideoActivity() {
+        let q = [queued(localId: "L1", attach: VideoAttach(versionId: "ver1", activityId: nil, title: "Video 3")),
+                 queued(localId: "L2", attach: VideoAttach(versionId: "other", activityId: nil, title: "Video 4"))]
+        let rows = ActivitiesEditorMapper.pendingVideoActivities(queued: q, versionId: "ver1")
+        XCTAssertEqual(rows.map(\.id), ["local:L1"])
+        XCTAssertEqual(rows.first?.statusText, "Uploading…")
+    }
+
+    func testAReplacementOrAFinishedAttachIsNotAPendingActivity() {
+        let new = VideoAttach(versionId: "ver1", activityId: nil, title: "Video 3")
+        let q = [queued(localId: "L1", attach: VideoAttach(versionId: "ver1", activityId: "a1", title: "V")),
+                 queued(localId: "L2", attach: new, stage: .attaching, serverId: "s2"),
+                 queued(localId: "L3", attach: new, stage: .processing, serverId: "s3"),
+                 queued(localId: "L4", attach: new, stage: .creating, serverId: "s4"),
+                 queued(localId: "L5", attach: nil)]
+        XCTAssertEqual(ActivitiesEditorMapper.pendingVideoActivities(queued: q, versionId: "ver1").map(\.id), ["local:L4"])
+        // The activity landed before the stage moved on.
+        XCTAssertEqual(ActivitiesEditorMapper.pendingVideoActivities(queued: q, versionId: "ver1", attachedVideoIds: ["s4"]), [])
+    }
+
+    /// D12: a video still exporting is listed too, once.
+    func testAVideoBeingSavedIsAPendingActivityUntilTheQueueHoldsIt() {
+        let attach = VideoAttach(versionId: "ver1", activityId: nil, title: "Video 3")
+        let items = [saving(localId: "L1", attach: attach),
+                     saving(localId: "L2", attach: VideoAttach(versionId: "other", activityId: nil, title: "V")),
+                     saving(localId: "L3", attach: nil)]
+        let rows = ActivitiesEditorMapper.pendingVideoActivities(queued: [], saving: items, versionId: "ver1")
+        XCTAssertEqual(rows.map(\.id), ["local:L1"])
+        XCTAssertEqual(rows.first?.statusText, "Uploading…")
+        let both = ActivitiesEditorMapper.pendingVideoActivities(
+            queued: [queued(localId: "L1", attach: attach, poster: "L1.jpg")], saving: items, versionId: "ver1")
+        XCTAssertEqual(both.map(\.id), ["local:L1"])
+        XCTAssertNotNil(both.first?.posterURL)
+        // Attached while the saver still lists it: no pending row comes back.
+        XCTAssertEqual(ActivitiesEditorMapper.pendingVideoActivities(
+            queued: [queued(localId: "L1", attach: attach, stage: .processing)], saving: items, versionId: "ver1"), [])
+    }
+
+    func testReplaceVideoAttach() async {
+        let queue = QueueSpy()
+        let m = makeRecorderModel(entry: .lesson(versionId: "ver1", activityId: "act9"), queue: queue)
+        m.recordTapped(); m.tick(recorded: 3); m.recordTapped()
+        await m.save()
+        XCTAssertEqual(queue.items.first?.attach, VideoAttach(versionId: "ver1", activityId: "act9", title: "Video 1"))
+    }
+
+    func testReplaceVideoOpensTheInlineRecorderForThatActivity() async {
+        let app = appWithLesson([("a1", "text"), ("v1", "video")])
+        let queue = QueueSpy()
+        let model = editor(app: app, at: "a1", queue: queue)
+        await model.selectSlide("v1", app: app)
+        model.replaceVideo(app: app)
+        XCTAssertEqual(model.recorder?.entry, .lesson(versionId: "v1", activityId: "v1"))
+        let state = ActivitiesEditorContainer.screenState(model, app: app)
+        XCTAssertEqual(state.canvasContent, "videoRecorder")
+        XCTAssertEqual(state.activeID, "v1")
+        XCTAssertEqual(state.slideIDs, ["a1", "v1"])
+    }
+
+    /// P3: the header and the strip hide from the countdown to the stop, and show otherwise.
+    func testTheChromeHidesOnlyWhileRecording() async throws {
+        let app = appWithLesson([("a1", "text")])
+        let model = editor(app: app, at: "a1", queue: QueueSpy())
+        await model.addActivity()
+        await model.pickType("video", app: app)
+        let recorder = try XCTUnwrap(model.recorder)
+        func hidden() -> Bool { ActivitiesEditorContainer.screenState(model, app: app).videoRecorderHidesChrome }
+        XCTAssertFalse(hidden())
+        recorder.recordTapped()
+        XCTAssertTrue(hidden())
+        recorder.tick(recorded: 55)
+        XCTAssertTrue(hidden())
+        recorder.recordTapped()
+        XCTAssertFalse(hidden())
+        recorder.rail(.countdown)
+        recorder.recordTapped()
+        XCTAssertTrue(hidden())
+        recorder.recordTapped()
+        XCTAssertFalse(hidden())
+        await recorder.settled()
+    }
+
+    func testTheGridsVideoTileOpensTheRecorderWithAPlaceholderChip() async {
+        let app = appWithLesson([("a1", "text"), ("a2", "text")])
+        let model = editor(app: app, at: "a1", queue: QueueSpy())
+        await model.addActivity()
+        await model.pickType("video", app: app)
+        XCTAssertEqual(model.recorder?.entry, .lesson(versionId: "v1", activityId: nil))
+        let state = ActivitiesEditorContainer.screenState(model, app: app)
+        XCTAssertEqual(state.canvasContent, "videoRecorder")
+        // The server appends the activity, so its chip waits at the end.
+        XCTAssertEqual(state.slideIDs, ["a1", "a2", "placeholder"])
+        XCTAssertEqual(state.activeID, "placeholder")
+    }
+
+    func testSavingANewVideoShowsItsPendingActivity() async {
+        let app = appWithLesson([("a1", "text")])
+        let queue = QueueSpy()
+        let saver = makeSaver(queue: queue, holds: true)
+        app.videoSaves = saver
+        let model = editor(app: app, at: "a1", queue: queue, saver: saver)
+        await model.addActivity()
+        await model.pickType("video", app: app)
+        let recorder = model.recorder!
+        recorder.recordTapped(); recorder.tick(recorded: 3); recorder.recordTapped()
+        let save = Task { await recorder.save() }
+        for _ in 0..<200 where model.recorder != nil { await Task.yield() }
+        let localId = saver.saving[0].localId
+        XCTAssertNil(model.recorder)
+        let state = ActivitiesEditorContainer.screenState(model, app: app)
+        XCTAssertEqual(state.canvasContent, "videoPending")
+        XCTAssertEqual(state.slideIDs, ["a1", "local:\(localId)"])
+        XCTAssertEqual(state.slideLabels.last, "Video 1, Uploading…")
+        XCTAssertEqual(state.activeID, "local:\(localId)")
+        // Another chip and back.
+        await model.selectSlide("a1", app: app)
+        XCTAssertEqual(model.canvasContent, .activity)
+        await model.selectSlide("local:\(localId)", app: app)
+        XCTAssertEqual(model.canvasContent, .videoPending)
+        saver.cancel()
+        await save.value
+    }
+
+    func testSavingAReplacementShowsThePendingVideoOnItsActivity() async {
+        let app = appWithLesson([("a1", "text"), ("v1", "video")])
+        let queue = QueueSpy()
+        let saver = makeSaver(queue: queue, holds: true)
+        app.videoSaves = saver
+        let model = editor(app: app, at: "a1", queue: queue, saver: saver)
+        await model.selectSlide("v1", app: app)
+        model.replaceVideo(app: app)
+        let recorder = model.recorder!
+        recorder.recordTapped(); recorder.tick(recorded: 3); recorder.recordTapped()
+        let save = Task { await recorder.save() }
+        for _ in 0..<200 where model.recorder != nil { await Task.yield() }
+        let state = ActivitiesEditorContainer.screenState(model, app: app)
+        XCTAssertEqual(state.activeID, "v1")
+        XCTAssertEqual(state.slideIDs, ["a1", "v1"])
+        XCTAssertEqual(state.canvasContent, "videoPending")
+        saver.cancel()
+        await save.value
+        XCTAssertEqual(ActivitiesEditorContainer.screenState(model, app: app).canvasContent, "readOnly")
+    }
+
+    func testAPendingVideoBecomesItsActivityOnceAttached() async {
+        let app = appWithLesson([("a1", "text")])
+        let model = editor(app: app, at: "a1", queue: QueueSpy())
+        let attach = VideoAttach(versionId: "v1", activityId: nil, title: "Video 1")
+        let pending = ActivitiesEditorMapper.pendingVideoActivities(queued: [queued(localId: "L1", attach: attach)], versionId: "v1")
+        await model.selectSlide("local:L1", app: app, pending: pending)
+        XCTAssertEqual(model.canvasContent, .videoPending)
+        app.activities.upsert(ContentActivity(id: "new1", lessonVersionId: "v1", activityKey: "k-new1", position: 1, kind: "video",
+                                              title: "Video 1", document: LiveVideoUploadAPI.videoDocument(videoId: "s1", title: "Video 1"),
+                                              estimatedSeconds: nil))
+        await model.settlePendingVideo(app: app, pending: [], serverId: { $0 == "L1" ? "s1" : nil })
+        XCTAssertEqual(model.activityId, "new1")
+        XCTAssertEqual(model.canvasContent, .readOnly)
+    }
+
+    /// D18: a refused attach (or a deleted video) leaves no activity to show.
+    func testAPendingVideoThatNeverAttachesFallsBackToTheFirstActivity() async {
+        let app = appWithLesson([("a1", "text"), ("a2", "text")])
+        let model = editor(app: app, at: "a2", queue: QueueSpy())
+        let attach = VideoAttach(versionId: "v1", activityId: nil, title: "Video 1")
+        let pending = ActivitiesEditorMapper.pendingVideoActivities(queued: [queued(localId: "L1", attach: attach)], versionId: "v1")
+        await model.selectSlide("local:L1", app: app, pending: pending)
+        await model.settlePendingVideo(app: app, pending: pending, serverId: { _ in nil })
+        XCTAssertEqual(model.activityId, "local:L1")
+        await model.settlePendingVideo(app: app, pending: [], serverId: { _ in nil })
+        XCTAssertEqual(model.activityId, "a1")
+        XCTAssertEqual(model.canvasContent, .activity)
+    }
+
+    func testLeavingTheRecorderWithAClipAsksFirst() async throws {
+        let app = appWithLesson([("a1", "text"), ("a2", "text")])
+        let nav = RecordingEditorNavigator()
+        let model = editor(app: app, at: "a1", queue: QueueSpy())
+        model.navigator = nav
+        await model.addActivity()
+        await model.pickType("video", app: app)
+        let recorder = try XCTUnwrap(model.recorder)
+        recorder.recordTapped(); recorder.tick(recorded: 3); recorder.recordTapped()
+        await recorder.settled()
+        await model.back()
+        XCTAssertEqual(recorder.confirm, .discard)
+        XCTAssertEqual(nav.pops, 0)
+        // Not discarded: the recorder stays, and the next way out is the one that counts.
+        recorder.dismissConfirm()
+        XCTAssertNotNil(model.recorder)
+        await model.selectSlide("a2", app: app)
+        XCTAssertEqual(recorder.confirm, .discard)
+        recorder.discardConfirmed()
+        for _ in 0..<50 { await Task.yield() }
+        XCTAssertNil(model.recorder)
+        XCTAssertEqual(model.activityId, "a2")
+        XCTAssertEqual(model.canvasContent, .activity)
+        XCTAssertEqual(nav.pops, 0)
+        await recorder.settled()
+    }
+
+    func testBackFromAnEmptyRecorderLeavesTheEditor() async {
+        let app = appWithLesson([("a1", "text")])
+        let nav = RecordingEditorNavigator()
+        let model = editor(app: app, at: "a1", queue: QueueSpy())
+        model.navigator = nav
+        await model.addActivity()
+        await model.pickType("video", app: app)
+        let recorder = model.recorder!
+        await model.back()
+        for _ in 0..<50 { await Task.yield() }
+        XCTAssertEqual(nav.pops, 1)
+        XCTAssertTrue(recorder.isClosed)
+        await recorder.settled()
+    }
+
+    /// The New Activity page's Video tile: no activity yet, so the editor opens on the recorder.
+    func testTheEditorCanOpenOnTheRecorderWithNoActivity() async {
+        let app = AppState()
+        let nav = RecordingEditorNavigator()
+        let queue = QueueSpy()
+        let model = ActivitiesEditorContainer.Model.recording(lessonId: "l1", versionId: "v1")
+        model.navigator = nav
+        XCTAssertEqual(ActivitiesEditorContainer.screenState(model, app: app).canvasContent, "videoRecorder")
+        model.makeRecorder = { self.makeRecorderModel(entry: $0, queue: queue) }
+        model.openPendingRecorder(app: app)
+        XCTAssertEqual(model.recorder?.entry, .lesson(versionId: "v1", activityId: nil))
+        XCTAssertEqual(ActivitiesEditorContainer.screenState(model, app: app).slideIDs, ["placeholder"])
+        let recorder = model.recorder!
+        model.openPendingRecorder(app: app)
+        XCTAssertTrue(model.recorder === recorder)
+        await recorder.settled()
+    }
+
+    func testARecorderThatCannotOpenLeavesNoBlankPage() {
+        let nav = RecordingEditorNavigator()
+        let model = ActivitiesEditorContainer.Model.recording(lessonId: "l1", versionId: "v1")
+        model.navigator = nav
+        model.makeRecorder = { _ in nil }
+        model.openPendingRecorder(app: AppState())
+        XCTAssertEqual(nav.pops, 1)
+    }
+
     func testConcurrentSavesRunOneAtATime() async {
         let actions = ScriptedActivityActions(saveDelayNanoseconds: 20_000_000)
         let model = ActivitiesEditorContainer.Model(activityId: "a1", activityKey: "k1", actions: actions)

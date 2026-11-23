@@ -309,6 +309,8 @@ struct UI2Shell: View {
         case .programsHome: ProgramsHomeHost()                // master-search D27: a template result's exit
         case let .activityNew(programId, lessonId): ActivityNewContainer(programId: programId, lessonId: lessonId)  // program-lesson-add-activity D2
         case let .activitiesEditor(activityId): ActivitiesEditorContainer(activityId: activityId)  // text-activity D39
+        case let .lessonVideo(lessonId, versionId):
+            ActivitiesEditorContainer(recordingIn: lessonId, versionId: versionId)  // video-recorder D18
         case let .activityViewer(lessonVersionId, activityId):
             ActivityViewerContainer(lessonVersionId: lessonVersionId, activityId: activityId)  // text-activity D39
         case let .chooseActivityBackground(activityId): MediaHomeContainer(mode: .pickActivityBackground(activityId: activityId))  // D40

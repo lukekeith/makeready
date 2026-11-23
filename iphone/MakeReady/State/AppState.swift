@@ -163,7 +163,7 @@ final class AppState {
     var videoUploads: VideoUploadController?
 
     /// Saves from the video recorder until `videoUploads` has them; built and released with it.
-    @ObservationIgnored private(set) var videoSaves: VideoSaver?
+    var videoSaves: VideoSaver?
 
     /// `GET /api/members/:id/groups`, by member id.
     var memberGroupsById: [String: [MemberGroupItem]] = [:]
@@ -837,9 +837,10 @@ final class AppState {
         return MemoActions.nextDefaultTitle(prefix: "Memo", existingTitles: titles)
     }
 
-    /// `Video n` for a new recording: the Library's videos plus the unsent queue's (D14).
+    /// `Video n` for a new recording: the Library's videos plus the unsent queue's and those being saved (D14).
     func nextVideoTitle() -> String {
         let titles = libraryVideos.all.compactMap(\.title) + (videoUploads?.pending().map(\.title) ?? [])
+            + (videoSaves?.saving.map(\.title) ?? [])
         return MemoActions.nextDefaultTitle(prefix: "Video", existingTitles: titles)
     }
 

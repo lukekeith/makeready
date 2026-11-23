@@ -100,11 +100,20 @@ enum LibraryHomeMapper {
                     recordedAt: queued.createdAt, state: queued.isOnServer ? .created : .queued)
     }
 
-    /// D27: the stored window plus the queue, minus a queued item whose `serverId` the store already lists.
-    static func visibleVideos(stored: [VideoSummary], queued: [VideoQueueItem]) -> [VideoSource] {
+    /// D12: a video still being saved is the queued row it becomes.
+    static func videoSource(saving item: VideoSavingItem) -> VideoSource {
+        VideoSource(id: LibraryVideoDeletion.localPrefix + item.localId, title: item.title,
+                    durationMs: Int(item.durationSeconds * 1000), recordedAt: item.savedAt, state: .queued)
+    }
+
+    /// D27: the stored window plus the queue, minus a queued item whose `serverId` the store already lists;
+    /// plus the videos being saved, until the queue holds them (D12).
+    static func visibleVideos(stored: [VideoSummary], queued: [VideoQueueItem], saving: [VideoSavingItem] = []) -> [VideoSource] {
         let storedIds = Set(stored.map(\.id))
         let waiting = queued.filter { item in item.serverId.map { !storedIds.contains($0) } ?? true }
+        let queuedIds = Set(queued.map(\.localId))
         return stored.map { videoSource(summary: $0) } + waiting.map { videoSource(queued: $0) }
+            + saving.filter { !queuedIds.contains($0.localId) }.map { videoSource(saving: $0) }
     }
 
     /// D15: the second line, in this order: not yet created, still processing, transcribing, the

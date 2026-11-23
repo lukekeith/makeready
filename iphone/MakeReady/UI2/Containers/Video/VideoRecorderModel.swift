@@ -127,6 +127,8 @@ final class VideoRecorderModel {
     private(set) var trimWindow: ClosedRange<Double>?
     /// Save was tapped and the recorder is done (D9).
     @ObservationIgnored var onFinished: (VideoRecorderEntry) -> Void = { _ in }
+    /// The recorder closed with nothing saved.
+    @ObservationIgnored var onDiscarded: () -> Void = {}
 
     private var timeline: RecordingTimeline
     /// Total recorded time, the segment in progress included.
@@ -285,6 +287,7 @@ final class VideoRecorderModel {
             engine.discardDraft()
             await engine.close()
         }
+        onDiscarded()
     }
 
     // MARK: Record button
@@ -772,7 +775,8 @@ final class VideoRecorderModel {
     private func saveChoices() {
         engine.save(settings: VideoDraftSettings(lengthSeconds: timeline.lengthSeconds,
                                                  filter: filter == .normal ? nil : filter.rawValue,
-                                                 filterStrength: Double(filterStrength)))
+                                                 filterStrength: Double(filterStrength),
+                                                 entry: entry == .plusMenu ? nil : entry))
     }
 
     /// Runs engine work after all the work asked for before it.
