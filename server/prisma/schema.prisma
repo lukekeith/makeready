@@ -615,6 +615,13 @@ model Video {
   duration             Int? // Duration in seconds
   status               String @default("pending") // pending, ready, error
   userId               String
+  transcript           String? @db.Text
+  transcriptSegments   Json?
+  transcriptStatus     String @default("none") // none, pending, ready, failed
+  transcriptSource     String? // on_device, server
+  transcriptAttempts   Int @default(0)
+  transcriptClaimedAt  DateTime?
+  libraryRemovedAt     DateTime?
   isActive             Boolean @default(true)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
@@ -624,6 +631,8 @@ model Video {
   @@index([userId])
   @@index([status])
   @@index([isActive])
+  @@index([userId, createdAt, id])
+  @@index([status, createdAt])
   @@map("videos")
 }
 
