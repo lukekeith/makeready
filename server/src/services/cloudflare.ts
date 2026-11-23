@@ -47,6 +47,8 @@ export interface VideoDetails {
 
 export interface GetVideoResult {
   success: boolean
+  /** Stream answered that it has no such video, rather than failing to answer. */
+  notFound?: boolean
   video?: VideoDetails
   error?: string
 }
@@ -191,6 +193,7 @@ export async function getVideo(videoUid: string): Promise<GetVideoResult> {
       console.error('[Cloudflare] Error getting video:', data.errors)
       return {
         success: false,
+        notFound: response.status === 404,
         error: data.errors?.[0]?.message || 'Failed to get video details',
       }
     }

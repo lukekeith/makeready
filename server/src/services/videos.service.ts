@@ -39,6 +39,9 @@ export class VideoServiceError extends Error {
   }
 }
 
+/** Stream has no video for the row's uid. */
+class StreamVideoMissingError extends VideoServiceError {}
+
 export interface CreateVideoResult {
   status: 200 | 201
   video: Video
@@ -211,7 +214,8 @@ export function lessonUseCount(videoId: string): Promise<number> {
 export async function refreshFromStream(video: Video): Promise<Video> {
   const cloudflareResult = await getCloudflareVideo(video.cloudflareUid)
   if (!cloudflareResult.success) {
-    throw new VideoServiceError(500, cloudflareResult.error || 'Failed to get video status')
+    const Failure = cloudflareResult.notFound ? StreamVideoMissingError : VideoServiceError
+    throw new Failure(500, cloudflareResult.error || 'Failed to get video status')
   }
   const cfVideo = cloudflareResult.video!
 
@@ -243,8 +247,14 @@ export async function refreshFromStream(video: Video): Promise<Video> {
 }
 
 const PENDING_VIDEO_WINDOW_MS = 24 * 3_600_000
+/** Stale pending videos checked against Stream per run, oldest first. */
+const STALE_VIDEO_BATCH = 50
 
-/** The job's Stream sync (D23): refreshes pending videos from the last 24 h, errors the older ones. One failure never stops the rest. */
+/**
+ * The job's Stream sync (D23): refreshes pending videos from the last 24 h. An older one gets a refresh too, and
+ * is marked error unless Stream has it ready; while Stream cannot be read it waits for the next run. One failure
+ * never stops the rest.
+ */
 export async function syncPendingVideos(now: Date): Promise<{ refreshed: number; expired: number }> {
   const cutoff = new Date(now.getTime() - PENDING_VIDEO_WINDOW_MS)
   let refreshed = 0
@@ -259,16 +269,38 @@ export async function syncPendingVideos(now: Date): Promise<{ refreshed: number;
     }
   }
 
-  // Two statements so a pending transcript fails with its video; each is guarded on the row still being pending.
-  await prisma.video.updateMany({
-    where: { status: 'pending', createdAt: { lt: cutoff }, transcriptStatus: 'pending' },
-    data: { transcriptStatus: 'failed' },
-  })
-  const { count: expired } = await prisma.video.updateMany({
+  let expired = 0
+  const stale = await prisma.video.findMany({
     where: { status: 'pending', createdAt: { lt: cutoff } },
-    data: { status: 'error' },
+    orderBy: { createdAt: 'asc' },
+    take: STALE_VIDEO_BATCH,
   })
+  for (const video of stale) {
+    try {
+      if (await isReadyOnStream(video)) refreshed++
+      else if (await expireVideo(video.id)) expired++
+    } catch (error) {
+      console.error(`[videos] Stream refresh failed for stale video ${video.id}:`, error)
+    }
+  }
   return { refreshed, expired }
+}
+
+/** Refreshes the row and answers whether it is ready; false when Stream no longer has the video. Throws when Stream cannot be read. */
+async function isReadyOnStream(video: Video): Promise<boolean> {
+  try {
+    return (await refreshFromStream(video)).status === 'ready'
+  } catch (error) {
+    if (error instanceof StreamVideoMissingError) return false
+    throw error
+  }
+}
+
+/** Marks a video error, and its transcript failed when that was pending, unless it has become ready meanwhile. */
+async function expireVideo(id: string): Promise<boolean> {
+  await prisma.video.updateMany({ where: { id, status: { not: 'ready' }, transcriptStatus: 'pending' }, data: { transcriptStatus: 'failed' } })
+  const { count } = await prisma.video.updateMany({ where: { id, status: { not: 'ready' } }, data: { status: 'error' } })
+  return count > 0
 }
 
 /** Ids of ready videos waiting on the server fallback transcript: the claim's predicate without its timestamp (D11). `libraryRemovedAt` rows are included. */

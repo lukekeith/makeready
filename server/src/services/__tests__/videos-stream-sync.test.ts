@@ -26,6 +26,8 @@ describe('videos.service Stream status sync', () => {
     video: { uid, readyToStream: true, status: { state: 'ready' }, duration: 42, thumbnail: 't', playback: { hls: 'h' } },
   })
 
+  const inState = (state: string) => ({ success: true, video: { uid: 'u', readyToStream: false, status: { state } } })
+
   beforeAll(async () => {
     userId = (await prisma.user.create({ data: { googleId: `gid-vs-${stamp}`, email: `vs-${stamp}@cl.test`, name: 'VS' } })).id
   })
@@ -48,14 +50,48 @@ describe('videos.service Stream status sync', () => {
     expect(await prisma.video.findUnique({ where: { id } })).toMatchObject({ status: 'ready', duration: 42 })
   })
 
-  it('expires stale pending videos', async () => {
+  it('expires stale pending videos Stream still has not processed', async () => {
+    getVideo.mockResolvedValue(inState('inprogress'))
     const id = await seedVideo(userId, { status: 'pending', transcriptStatus: 'pending', createdAt: hoursAgo(25) })
     expect(await syncPendingVideos(new Date())).toMatchObject({ expired: 1 })
+    expect(getVideo).toHaveBeenCalledTimes(1)
     expect(await prisma.video.findUnique({ where: { id } })).toMatchObject({ status: 'error', transcriptStatus: 'failed' })
-    expect(getVideo).not.toHaveBeenCalled()
+  })
+
+  it('makes a stale video ready when Stream has it ready', async () => {
+    getVideo.mockResolvedValue(readyAt('old'))
+    const id = await seedVideo(userId, { transcriptStatus: 'pending', createdAt: hoursAgo(24 * 90) })
+    expect(await syncPendingVideos(new Date())).toMatchObject({ refreshed: 1, expired: 0 })
+    expect(await prisma.video.findUnique({ where: { id } })).toMatchObject({ status: 'ready', transcriptStatus: 'pending', duration: 42 })
+  })
+
+  it('expires a stale video Stream reports failed or no longer has', async () => {
+    const failed = await seedVideo(userId, { cloudflareUid: `failed-${stamp}`, transcriptStatus: 'pending', createdAt: hoursAgo(30) })
+    const gone = await seedVideo(userId, { cloudflareUid: `gone-${stamp}`, transcriptStatus: 'pending', createdAt: hoursAgo(30) })
+    getVideo.mockImplementation(async (uid: string) =>
+      uid === `gone-${stamp}` ? { success: false, error: 'Not found', notFound: true } : inState('error'))
+    expect(await syncPendingVideos(new Date())).toMatchObject({ expired: 2 })
+    for (const id of [failed, gone]) {
+      expect(await prisma.video.findUnique({ where: { id } })).toMatchObject({ status: 'error', transcriptStatus: 'failed' })
+    }
+  })
+
+  it('leaves a stale video pending while Stream cannot be read', async () => {
+    getVideo.mockResolvedValue({ success: false, error: 'boom' })
+    const id = await seedVideo(userId, { transcriptStatus: 'pending', createdAt: hoursAgo(30) })
+    expect(await syncPendingVideos(new Date())).toMatchObject({ expired: 0 })
+    expect(await prisma.video.findUnique({ where: { id } })).toMatchObject({ status: 'pending', transcriptStatus: 'pending' })
+  })
+
+  it('refreshes at most 50 stale videos a run', async () => {
+    getVideo.mockResolvedValue(inState('inprogress'))
+    for (let i = 0; i < 51; i++) await seedVideo(userId, { createdAt: hoursAgo(30 + i) })
+    expect(await syncPendingVideos(new Date())).toMatchObject({ expired: 50 })
+    expect(await prisma.video.count({ where: { userId, status: 'pending' } })).toBe(1)
   })
 
   it('keeps a stale video transcript status when it was not pending', async () => {
+    getVideo.mockResolvedValue(inState('inprogress'))
     const id = await seedVideo(userId, { status: 'pending', transcriptStatus: 'ready', createdAt: hoursAgo(25) })
     await syncPendingVideos(new Date())
     expect(await prisma.video.findUnique({ where: { id } })).toMatchObject({ status: 'error', transcriptStatus: 'ready' })
