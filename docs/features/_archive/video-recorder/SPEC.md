@@ -1,5 +1,5 @@
 # video-recorder — spec
-> 🤖 AGENT SIGNED OFF 2026-11-23 — f50e5ddd · agent walk round 2 · not human-tested · evidence: .builder/video-recorder/agent-walk/round-2/
+> ✅ SHIPPED 2026-11-23 — merged into main · no ticket · 🤖 agent signed off (walk round 2), not human-tested · quick-checked
 > lg · ticket: none · program: [video-recording](../video-recording/PROGRAM.md) child 1 of 2
 
 ## Idea
@@ -278,6 +278,7 @@ branch):
 | F12 | the persisted `videos` decode is strict (`PersistedState.swift:289`); a non-optional new key would drop every cached store | D27; build-time risk on the iPhone state task (a decode test of an old snapshot) |
 | F13 | P8 holds only because members cannot sign in to the iPhone app (Google only, `UI2Root.swift:10`); the video endpoints are `requireAuth` only | accepted: unchanged by this feature (videos are owner-scoped) |
 | F14 | a spent Stream direct-upload URL on retry orphans its uid on Stream (`cloudflare.ts:117-123` mints without `expiry`) | accepted; D12 mints a fresh URL. Orphan uids are bounded by retries |
+| L1 | lesson for §Standing traps: server test suites share one database and fixture suites leave rows behind, so a test of a service that scans every row (a sweep or maintenance job) must clear or settle other rows first, or assert only on its own ids | proposed |
 
 ## Fixes
 
