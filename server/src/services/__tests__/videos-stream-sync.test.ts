@@ -39,6 +39,8 @@ describe('videos.service Stream status sync', () => {
 
   beforeEach(async () => {
     await prisma.video.deleteMany({ where: { userId } })
+    // syncPendingVideos counts every pending row in the shared database, and the fixture suites leave one behind.
+    await prisma.video.updateMany({ where: { status: 'pending' }, data: { status: 'ready' } })
     getVideo.mockReset()
   })
 
