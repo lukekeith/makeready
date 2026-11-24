@@ -1,5 +1,5 @@
 # video-editor — spec
-> 🤖 AGENT SIGNED OFF 2026-11-24 — 788ad4d0 · agent walk round 2 · not human-tested · evidence: .builder/video-editor/agent-walk/round-2/
+> ✅ SHIPPED 2026-11-24 — merged into main · no ticket · 🤖 agent signed off (walk round 2), not human-tested · quick-checked
 > lg · no ticket · child 2 of the video-recording program (`docs/features/video-recording/PROGRAM.md`)
 
 ## Idea
@@ -222,6 +222,7 @@ No schema change (established 2026-11-23).
 | F8 | design: Review's row holds Retake, Save (`VideoRecorderContainer.reviewRow`, app code) and Filters (d2m); four controls must fit 440 pt and the narrower lesson inline width | phase 1 — d2m places Edit; the wiring task follows it |
 | F9 | `ImageRenderer` drawing C-092's `TextRenderer` at large scales is unproven off screen | build-time risk — the renderer task's pixel test |
 | F10 | contract: checked — `fit` trims to 20 000 UTF-16 units and 2 000 segments and the server accepts exactly that (`videos.service.ts:27-28`); server and client ⬜ rows hold (no new field, pixels only) | settled; nothing breaks a released build |
+| L1 | lesson for §Standing traps: a SwiftUI `.scaledToFill()` image under `.clipped()` still takes touches outside its frame and deadens the rows beside it — give it `.allowsHitTesting(false)` or a `.contentShape`; `UIView.hitTest` tests cannot see this, only a UI-driven walk does | proposed |
 
 ## Fixes
 

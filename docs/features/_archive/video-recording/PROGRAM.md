@@ -1,4 +1,5 @@
 # video-recording — program
+> ✅ SHIPPED 2026-11-24 — every child shipped · last: video-editor
 > tier: program · design: Figma `nVva9a2WvYmcWQo6zlHupO` section "Recording" `4806:34871` (2 frames) + the analyses in this folder; d2m era 2.0 specs every screen (P2)
 
 ## Overview
