@@ -51,3 +51,4 @@ and run /builder:agent. Starting app code first was rejected: the spec forbids i
 - 2026-11-24 built through phase 5; text tool keyboard fix on d2m fast lane (cmwudljq70001v0wl9pghmn1p); awaiting the walk lane
 - 2026-11-24 walk lane: cause gone — D31 approves the screens; readiness passed, walk starts
 - 2026-11-24 walk lane retry: D5 stays settled (D31); an earlier walker died before reporting. Round 1 walked at 1b70fe95: 2 fixes owed (SPEC §Fixes). The round 1 walker ran `xcrun simctl shutdown all`, outside the rule to touch only its own simulator; the next walk must shut down by UDID only
+- 2026-11-24 fixes lane: park cause still gone (D31). Both round 1 fixes landed (e1e36e55, f4569b7c), phase tier green at f4569b7, C-153 change reported to d2m (cmwv2rkxl0001v0s352bdtk1q). Next: round 2 re-walks track tap, trim, slide, scroll, Split disabled at 20 layers, filmstrip scrub, and the trimmed import's start
