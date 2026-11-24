@@ -70,6 +70,8 @@ struct VideoRecorderContainer: View {
             .filterMenuPresentation(isPresented: model.notePickerOpen, onDismiss: model.closeNotePicker) {
                 notePicker
             }
+            // video-editor D10, D29: the editor over Review, hosted or in place.
+            .videoEditorPresentation(model: model)
             // D8: the system picker — a modifier, not .sheet/.fullScreenCover (as MediaHomeContainer's).
             .photosPicker(isPresented: $pickerOpen, selection: $pick, matching: .videos)
             .onChange(of: pick) { _, picked in
@@ -119,7 +121,9 @@ struct VideoRecorderContainer: View {
             sheetBottomInset: sheetBottomInset,
             previewSlot: { AnyView(closeButton) },
             recordRowSlot: { AnyView(recordRowButtons) },
-            reviewSlot: { AnyView(reviewRow) }
+            reviewSlot: { AnyView(reviewRow) },
+            // D7: the screen has no disabled Edit; while `canEdit` is false the tap does nothing.
+            onEdit: { Task { await model.editTapped() } }
         )
     }
 
@@ -143,6 +147,7 @@ struct VideoRecorderContainer: View {
         static let importLeading: CGFloat = 17
         /// GAP — video-recorder §2d: C-105's 36 pt pill in the same row: 6 + (80 − 36) / 2.
         static let reviewButtonBottom: CGFloat = 28
+        /// GAP — video-recorder §2d: Retake and Save side by side, as Edit and Filters are (10 pt).
         /// GAP — video-recorder §2c: undo "centre 98 left of the record centre".
         static let undoOffset: CGFloat = -98
         /// C-021 §2: a 24 pt glyph in a 44 pt target.
@@ -211,14 +216,10 @@ struct VideoRecorderContainer: View {
             .padding(.horizontal, Token.Space.pageMargin)
             .padding(.bottom, Geometry.reviewButtonBottom)
         } else if shown.phase == .review {
-            ZStack {
-                Button(label: "Retake", onTap: model.requestRetake)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.leading, Token.Space.pageMargin)
-                // The model outlives the recorder until its save is done.
-                Button(label: "Save", onTap: { Task { await model.save() } })
-            }
-            .padding(.bottom, Geometry.reviewButtonBottom)
+            // F8: the screen leaves this the width beside Edit and Filters and margins the row itself.
+            VideoReviewActions(model: model)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.bottom, Geometry.reviewButtonBottom)
         }
     }
 
@@ -293,6 +294,22 @@ struct VideoRecorderContainer: View {
     }
 }
 
+/// Review's Retake and Save, side by side as Edit and Filters are.
+struct VideoReviewActions: View {
+    let model: VideoRecorderModel
+
+    /// GAP — video-recorder §2d: Retake and Save side by side, as Edit and Filters are (10 pt).
+    static let gap: CGFloat = 10
+
+    var body: some View {
+        HStack(spacing: Self.gap) {
+            Button(label: "Retake", onTap: model.requestRetake)
+            // The model outlives the recorder until its save is done.
+            Button(label: "Save", onTap: { Task { await model.save() } })
+        }
+    }
+}
+
 // MARK: - Live
 
 extension VideoRecorderModel {
@@ -323,6 +340,19 @@ extension VideoRecorderModel {
     }
 
     private struct NoSignedInUser: Error {}
+    private struct EditorPlaybackFailed: Error {}
+
+    /// The editor on its own player, transcribing the clip being edited for up to 60 s (video-editor D11, D23).
+    static func liveEditor(report: @escaping (Error, String) -> Void) -> MakeEditor {
+        { clip, layers, transcript, save in
+            let sized = VideoEditorModel.Clip(urls: clip.urls, window: clip.window, duration: clip.duration,
+                                              frame: try await VideoExporter.frameSize(of: clip.urls), look: clip.look)
+            return VideoEditorModel(
+                clip: sized, layers: layers, transcript: transcript, player: VideoReviewPlayer(),
+                transcribe: { await VideoTranscriber().transcribe(clips: sized.urls, window: sized.window, timeout: .seconds(60)) },
+                save: save, report: { report(EditorPlaybackFailed(), $0) })
+        }
+    }
 }
 
 /// C-150's swatches: each look over the same sky-to-skin gradient.

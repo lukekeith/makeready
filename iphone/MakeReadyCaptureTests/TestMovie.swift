@@ -31,14 +31,20 @@ enum TestMovie {
     private static let sampleRate = 44_100
 
     /// A clip of one colour, or of two halves when `rightHalf` is given, with a tone unless `audio` is
-    /// false. `size` is the stored pixels' size, before `transform`.
+    /// false. `size` is the stored pixels' size, before `transform`. `keyframeEvery` is the most frames
+    /// between keyframes (nil = the encoder's choice).
     static func make(seconds: Int, colour: Colour, size: CGSize, rightHalf: Colour? = nil,
-                     transform: CGAffineTransform = .identity, audio: Bool = true) async throws -> URL {
+                     transform: CGAffineTransform = .identity, audio: Bool = true,
+                     keyframeEvery: Int? = nil) async throws -> URL {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("TestMovie-\(UUID().uuidString).mov")
         let writer = try AVAssetWriter(outputURL: url, fileType: .mov)
-        let video = AVAssetWriterInput(mediaType: .video, outputSettings: [
+        var settings: [String: Any] = [
             AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: size.width, AVVideoHeightKey: size.height
-        ])
+        ]
+        if let keyframeEvery {
+            settings[AVVideoCompressionPropertiesKey] = [AVVideoMaxKeyFrameIntervalKey: keyframeEvery]
+        }
+        let video = AVAssetWriterInput(mediaType: .video, outputSettings: settings)
         video.transform = transform
         let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: video, sourcePixelBufferAttributes: nil)
         let tone = AVAssetWriterInput(mediaType: .audio, outputSettings: [
@@ -78,6 +84,26 @@ enum TestMovie {
     static func dominantColour(of url: URL, at seconds: Double,
                                in area: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1)) async throws -> Colour {
         let (r, g, b) = try await meanRGB(of: url, at: seconds, in: area)
+        return colour(r, g, b)
+    }
+
+    /// The colour a player item draws at `seconds` within `area`, composition and all.
+    static func itemColour(of item: AVPlayerItem, at seconds: Double, in area: CGRect) async throws -> Colour {
+        let generator = AVAssetImageGenerator(asset: item.asset)
+        generator.videoComposition = item.videoComposition
+        generator.requestedTimeToleranceBefore = .zero
+        generator.requestedTimeToleranceAfter = .zero
+        let image = try await generator.image(at: CMTime(seconds: seconds, preferredTimescale: 600)).image
+        return try dominantColour(of: image, in: area)
+    }
+
+    /// The colour of `area` of a frame already read, as `dominantColour(of:at:in:)` reads one.
+    static func dominantColour(of frame: CGImage, in area: CGRect) throws -> Colour {
+        let (r, g, b) = try meanRGB(of: frame, in: area)
+        return colour(r, g, b)
+    }
+
+    private static func colour(_ r: Int, _ g: Int, _ b: Int) -> Colour {
         let channels = [r, g, b]
         guard let high = channels.max(), let low = channels.min(), high - low > 40 else { return .grey }
         return high == r ? .red : (high == g ? .green : .blue)
@@ -90,6 +116,10 @@ enum TestMovie {
         generator.requestedTimeToleranceBefore = .zero
         generator.requestedTimeToleranceAfter = .zero
         let frame = try await generator.image(at: CMTime(seconds: seconds, preferredTimescale: 600)).image
+        return try meanRGB(of: frame, in: area)
+    }
+
+    private static func meanRGB(of frame: CGImage, in area: CGRect) throws -> (Int, Int, Int) {
         let rect = CGRect(x: area.minX * CGFloat(frame.width), y: area.minY * CGFloat(frame.height),
                           width: area.width * CGFloat(frame.width), height: area.height * CGFloat(frame.height))
         var pixel = [UInt8](repeating: 0, count: 4)

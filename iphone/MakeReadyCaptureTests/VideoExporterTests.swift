@@ -11,6 +11,7 @@ import MakeReadyUI
 import XCTest
 @testable import MakeReady
 
+@MainActor
 final class VideoExporterTests: XCTestCase {
     private var dir: URL!
 
@@ -167,6 +168,50 @@ final class VideoExporterTests: XCTestCase {
         }
     }
 
+    // MARK: layers (video-editor D2, D20, D23)
+
+    private let area = CGRect(x: 0.45, y: 0.24, width: 0.1, height: 0.02)
+
+    private func red(_ start: Int, _ end: Int) -> VideoLayer {
+        var style = VideoLayerStyle.standard
+        style.colour = "#FF0000"
+        style.size = 60
+        return VideoLayer(kind: .text, text: "████", style: style, centre: CGPoint(x: 0.5, y: 0.25), startMs: start, endMs: end)
+    }
+
+    func testLayersAreDrawnInTheirWindow() async throws {
+        let clip = try await TestMovie.make(seconds: 3, colour: .blue, size: CGSize(width: 540, height: 960))
+        let out = try await VideoExporter.export(segments: [clip], timeRange: nil, filter: .normal, strength: 1,
+                                                 layers: [red(1000, 2000)], to: tmp("layers.mp4"))
+        for (seconds, colour) in [(0.5, TestMovie.Colour.blue), (1.5, .red), (2.5, .blue)] {
+            let shown = try await TestMovie.dominantColour(of: out.url, at: seconds, in: area)
+            XCTAssertEqual(shown, colour, "at \(seconds)")
+        }
+    }
+
+    func testLayerTimesCountFromTheWindow() async throws {
+        let clip = try await TestMovie.make(seconds: 5, colour: .green, size: CGSize(width: 960, height: 540))
+        let range = CMTimeRange(start: .init(seconds: 2, preferredTimescale: 600), duration: .init(seconds: 2, preferredTimescale: 600))
+        let out = try await VideoExporter.export(segments: [clip], timeRange: range, filter: .vivid, strength: 1,
+                                                 layers: [red(0, 1000)], to: tmp("window.mp4"))
+        let early = try await TestMovie.dominantColour(of: out.url, at: 0.5, in: area)
+        let late = try await TestMovie.dominantColour(of: out.url, at: 1.5, in: area)
+        let frame = try await VideoExporter.frameSize(of: [clip])
+        XCTAssertEqual([early, late], [.red, .green]); XCTAssertEqual(frame, CGSize(width: 960, height: 540))
+    }
+
+    func testPlayerItemDrawsTheBox() async throws {
+        let clip = try await TestMovie.make(seconds: 2, colour: .blue, size: CGSize(width: 540, height: 960))
+        let box = VideoLayersBox()
+        let item = try await VideoExporter.playerItem(segments: [clip], look: VideoLookBox(), layers: box)
+        let size = try await VideoExporter.frameSize(of: [clip])
+        let itemColour = { try await TestMovie.itemColour(of: item, at: 1, in: self.area) }
+        let before = try await itemColour()
+        box.drawn = VideoLayerRenderer().drawn([red(0, 2000)], frame: size)
+        let after = try await itemColour()
+        XCTAssertEqual([before, after], [.blue, .red])
+    }
+
     // MARK: files
 
     func testSilentSegmentKeepsTheLaterAudioInPlace() async throws {
@@ -213,6 +258,28 @@ final class VideoExporterTests: XCTestCase {
             } catch {
                 XCTAssertEqual(error as? VideoExportError, .nothingToExport)
             }
+        }
+    }
+
+    // MARK: the window's sound is one m4a; silence is refused (D21)
+
+    func testExportSound() async throws {
+        let a = try await TestMovie.make(seconds: 2, colour: .red, size: CGSize(width: 360, height: 640))
+        let b = try await TestMovie.make(seconds: 2, colour: .blue, size: CGSize(width: 360, height: 640))
+        let window = CMTimeRange(start: CMTime(value: 1, timescale: 1), duration: CMTime(value: 2, timescale: 1))
+        try await VideoExporter.exportSound(segments: [a, b], timeRange: window, to: tmp("s.m4a"))
+        let asset = AVURLAsset(url: tmp("s.m4a"))
+        let seconds = try await asset.load(.duration).seconds
+        let videoTracks = try await asset.loadTracks(withMediaType: .video)
+        XCTAssertEqual(seconds, 2, accuracy: 0.2)
+        XCTAssertTrue(videoTracks.isEmpty)
+
+        let silent = try await TestMovie.make(seconds: 1, colour: .red, size: CGSize(width: 360, height: 640), audio: false)
+        do {
+            try await VideoExporter.exportSound(segments: [silent], timeRange: nil, to: tmp("n.m4a"))
+            XCTFail("expected noSound")
+        } catch {
+            XCTAssertEqual(error as? VideoExportError, .noSound)
         }
     }
 

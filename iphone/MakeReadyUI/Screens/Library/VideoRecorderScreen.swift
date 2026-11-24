@@ -19,7 +19,7 @@ import UIKit
 ///
 /// Composed only of §4's C-152 CameraPreview, C-013 RecordButton (`video`), C-144 TimerPill,
 /// C-145 SegmentedProgressBar, C-146 CameraRail (→ C-147 RailTool), C-147 RailTool (Review's
-/// Filters), C-148 CountdownNumerals, C-149 LengthSlider, C-150 FilterStrip, C-151
+/// Edit and Filters), C-148 CountdownNumerals, C-149 LengthSlider, C-150 FilterStrip, C-151
 /// TeleprompterBand, C-132 EmptyState, and the lessonInline host chrome C-040 PageHeader and
 /// C-081 ActivityNavBar (deviation 3). §2's C-021 GlyphButton roles (close, import, undo, ✓) and
 /// C-105 Button roles (Retake, Save) are NOT in §4's roll-call (§4: "they join the roll-call
@@ -117,8 +117,11 @@ struct VideoRecorderScreen: View {
     var previewSlot: () -> AnyView
     /// Laid over the record row, bottom-aligned; hidden with it (§2c import, undo, ✓).
     var recordRowSlot: () -> AnyView
-    /// The bottom row of `review` (beside Filters) and `trim` (§2d Retake, Save; Cancel, Next).
+    /// The bottom row of `review` (trailing of Edit + Filters, sized to the width left) and `trim`
+    /// (§2d Retake, Save; Cancel, Next).
     var reviewSlot: () -> AnyView
+    /// §3: Review's Edit — the container opens the video editor. nil hides the control.
+    var onEdit: (() -> Void)?
 
     // §3 UI-only rule: "Sheets (Length, Filters, Teleprompter) … are screen-local presentation
     // state" (R-31).
@@ -146,7 +149,8 @@ struct VideoRecorderScreen: View {
         sheetBottomInset: CGFloat = 0,
         previewSlot: @escaping () -> AnyView = { AnyView(EmptyView()) },
         recordRowSlot: @escaping () -> AnyView = { AnyView(EmptyView()) },
-        reviewSlot: @escaping () -> AnyView = { AnyView(EmptyView()) }
+        reviewSlot: @escaping () -> AnyView = { AnyView(EmptyView()) },
+        onEdit: (() -> Void)? = nil
     ) {
         self.state = state
         self.onRecord = onRecord
@@ -170,6 +174,7 @@ struct VideoRecorderScreen: View {
         self.previewSlot = previewSlot
         self.recordRowSlot = recordRowSlot
         self.reviewSlot = reviewSlot
+        self.onEdit = onEdit
         _sheet = SwiftUI.State(initialValue: state.sheet)
     }
 
@@ -187,6 +192,8 @@ struct VideoRecorderScreen: View {
         /// GAP — video-recorder §2d Review: the Filters C-147 tool sits "on the record row" — its
         /// 50 pt slot centred on the 80 pt record row at bottom 6: 6 + (80 − 50) / 2.
         static let reviewToolBottom: CGFloat = 21
+        /// GAP — video-recorder §2d Review: Edit and Filters "10 pt gap"; no spacing token.
+        static let reviewToolGap: CGFloat = 10
         /// GAP — video-recorder §2a: the host's "hairline divider"; no stroke token.
         static let hairline: CGFloat = 1
     }
@@ -472,15 +479,7 @@ struct VideoRecorderScreen: View {
         } else if showsRecordRow {
             recordRow
         } else if phase == .review {
-            // §2d Review: "Filters (C-147 tool) … on the record row" (Retake / Save: C-105, not
-            // in §4 — not drawn).
-            ZStack(alignment: .bottom) {
-                RailTool(tool: .filters, active: look != .normal, onTap: { openSheet(.filters, tool: .filters) })
-                    .ui2Element("C-147 RailTool")
-                    .padding(.trailing, Token.Space.pageMargin)
-                    .padding(.bottom, Geometry.reviewToolBottom)
-                reviewSlot()
-            }
+            reviewRow
         } else if phase == .trim {
             reviewSlot()
         }
@@ -502,6 +501,41 @@ struct VideoRecorderScreen: View {
             }
             recordRowSlot()
         }
+    }
+
+    /// §2d Review: Edit + Filters (C-147 tools) leading, the app's row trailing (Retake / Save: C-105,
+    /// not in §4 — not drawn). Without `onEdit`, Filters alone "exactly as before".
+    @ViewBuilder private var reviewRow: some View {
+        if let onEdit {
+            HStack(alignment: .bottom, spacing: Token.Space.metaGap) {
+                // OQ-video-recorder-45: the labels stay, so each tool takes its natural width.
+                HStack(spacing: Geometry.reviewToolGap) {
+                    RailTool(tool: .edit, onTap: onEdit)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .ui2Element("C-147 RailTool")
+                    filtersTool
+                        .fixedSize(horizontal: true, vertical: false)
+                        .ui2Element("C-147 RailTool 2")
+                }
+                .padding(.bottom, Geometry.reviewToolBottom)
+                reviewSlot()
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Token.Space.pageMargin)
+        } else {
+            ZStack(alignment: .bottom) {
+                filtersTool
+                    .ui2Element("C-147 RailTool")
+                    .padding(.trailing, Token.Space.pageMargin)
+                    .padding(.bottom, Geometry.reviewToolBottom)
+                reviewSlot()
+            }
+        }
+    }
+
+    private var filtersTool: some View {
+        RailTool(tool: .filters, active: look != .normal, onTap: { openSheet(.filters, tool: .filters) })
     }
 
     private func openSheet(_ next: State.Sheet, tool: RailTool.Tool) {
@@ -601,7 +635,7 @@ struct VideoRecorderScreen: View {
 }
 
 #Preview("Review") {
-    VideoRecorderScreen(state: .init(phase: .review, segments: [7.8, 7.0]))
+    VideoRecorderScreen(state: .init(phase: .review, segments: [7.8, 7.0]), onEdit: {})
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)

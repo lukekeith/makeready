@@ -9,6 +9,7 @@
 
 import AVFoundation
 import CoreImage
+import os
 import UIKit
 
 struct ExportedVideo {
@@ -22,24 +23,56 @@ enum VideoExportError: Error, Equatable {
     /// No segment, no picture in one, or a time range outside them.
     case nothingToExport
     case sessionUnavailable
+    /// No clip has a sound to take.
+    case noSound
+}
+
+/// The layers a player item draws and the kept window's start, read by the video composition on its
+/// own queue (video-editor D23).
+final class VideoLayersBox: Sendable {
+    private struct Held {
+        var drawn: [DrawnLayer] = []
+        var startSeconds: Double = 0
+    }
+
+    private let stored = OSAllocatedUnfairLock(initialState: Held())
+
+    /// Rasterised on the main actor at `VideoExporter.frameSize(of:)`.
+    var drawn: [DrawnLayer] {
+        get { stored.withLock { $0.drawn } }
+        set { stored.withLock { $0.drawn = newValue } }
+    }
+
+    /// Where layer time 0 falls on the joined clips' timeline.
+    var startSeconds: Double {
+        get { stored.withLock { $0.startSeconds } }
+        set { stored.withLock { $0.startSeconds = newValue } }
+    }
+
+    fileprivate var held: (drawn: [DrawnLayer], startSeconds: Double) {
+        stored.withLock { ($0.drawn, $0.startSeconds) }
+    }
 }
 
 enum VideoExporter {
     /// Joins `segments` in order, keeps `timeRange` of the result (nil = all of it) and writes it to
-    /// `destination`, replacing a file already there. `strength` is the filter's, 0 to 1.
+    /// `destination`, replacing a file already there. `strength` is the filter's, 0 to 1. `layers`
+    /// are drawn above the filter, their times counted from the start of the kept window (D2, D20).
     static func export(segments: [URL], timeRange: CMTimeRange?, filter: VideoFilter, strength: Double,
-                       to destination: URL) async throws -> ExportedVideo {
+                       layers: [VideoLayer] = [], to destination: URL) async throws -> ExportedVideo {
         let joined = try await join(segments)
         let whole = CMTimeRange(start: .zero, duration: joined.composition.duration)
         let window = timeRange.map { $0.intersection(whole) } ?? whole
         guard window.duration > .zero else { throw VideoExportError.nothingToExport }
+        let drawn = try await rasterise(layers, for: joined)
         guard let session = AVAssetExportSession(asset: joined.composition, presetName: AVAssetExportPreset1920x1080) else {
             throw VideoExportError.sessionUnavailable
         }
         session.timeRange = window
         session.shouldOptimizeForNetworkUse = true
         session.audioMix = audioMix(for: joined)
-        session.videoComposition = try await videoComposition(for: joined, filter: filter, strength: strength)
+        session.videoComposition = try await videoComposition(
+            for: joined, filter: filter, strength: strength, layers: drawn, windowStart: window.start.seconds)
         if FileManager.default.fileExists(atPath: destination.path) {
             try FileManager.default.removeItem(at: destination)
         }
@@ -49,13 +82,51 @@ enum VideoExporter {
         return ExportedVideo(url: destination, durationSeconds: duration, posterImage: await poster(of: destination))
     }
 
-    /// The joined segments for playback, drawn with whatever look the box holds as each frame is shown.
-    static func playerItem(segments: [URL], look: VideoLookBox) async throws -> AVPlayerItem {
+    /// The sound of `segments` joined, kept to `timeRange` (nil = all), as one `.m4a` at `destination`
+    /// (video-editor D21). `AVAssetExportPresetAppleM4A` rather than `MemoAudioExporter`'s passthrough,
+    /// which refuses a track with one edit per segment.
+    static func exportSound(segments: [URL], timeRange: CMTimeRange?, to destination: URL) async throws {
         let joined = try await join(segments)
-        let drawing = try await drawing(of: joined) { look.look }
+        guard joined.audioTrack != nil else { throw VideoExportError.noSound }
+        let whole = CMTimeRange(start: .zero, duration: joined.composition.duration)
+        let window = timeRange.map { $0.intersection(whole) } ?? whole
+        guard window.duration > .zero else { throw VideoExportError.nothingToExport }
+        guard let session = AVAssetExportSession(asset: joined.composition, presetName: AVAssetExportPresetAppleM4A) else {
+            throw VideoExportError.sessionUnavailable
+        }
+        session.timeRange = window
+        session.audioMix = audioMix(for: joined)
+        if FileManager.default.fileExists(atPath: destination.path) {
+            try FileManager.default.removeItem(at: destination)
+        }
+        try await session.export(to: destination, as: .m4a)
+    }
+
+    /// The joined segments for playback, drawn with whatever look the box holds as each frame is shown.
+    static func playerItem(segments: [URL], look: VideoLookBox, layers: VideoLayersBox = VideoLayersBox()) async throws -> AVPlayerItem {
+        let joined = try await join(segments)
+        let drawing = try await drawing(of: joined, look: { look.look }, layers: { layers.held })
         let item = AVPlayerItem(asset: joined.composition)
         item.videoComposition = drawing
         return item
+    }
+
+    /// The size the clips are drawn at, which layers are rasterised for (D20).
+    static func frameSize(of segments: [URL]) async throws -> CGSize {
+        let joined = try await join(segments)
+        guard let first = joined.placements.first else { throw VideoExportError.nothingToExport }
+        return renderSize(for: first.shownSize)
+    }
+
+    /// Every layer's picture, made on the main actor before the session starts (D22). A layer that
+    /// cannot be drawn fails the export: a file must not upload missing its text.
+    private static func rasterise(_ layers: [VideoLayer], for joined: Joined) async throws -> [DrawnLayer] {
+        guard !layers.isEmpty else { return [] }
+        guard let first = joined.placements.first else { throw VideoExportError.nothingToExport }
+        let frame = renderSize(for: first.shownSize)
+        let drawn = await MainActor.run { VideoLayerRenderer().drawn(layers, frame: frame) }
+        guard drawn.count == layers.count else { throw VideoExportError.sessionUnavailable }
+        return drawn
     }
 
     // MARK: Joining
@@ -123,21 +194,23 @@ enum VideoExporter {
 
     // MARK: Drawing
 
-    /// Nil when the export needs no drawing: Normal, and every segment stored the same way. Segments
+    /// Nil when the export needs no drawing: Normal, no layers, and every segment stored the same way. Segments
     /// recorded with different cameras or rotations are turned upright here, since one track has only
     /// one `preferredTransform`.
-    private static func videoComposition(for joined: Joined, filter: VideoFilter, strength: Double) async throws -> AVVideoComposition? {
+    private static func videoComposition(for joined: Joined, filter: VideoFilter, strength: Double,
+                                      layers: [DrawnLayer], windowStart: Double) async throws -> AVVideoComposition? {
         guard let first = joined.placements.first else { throw VideoExportError.nothingToExport }
         let alike = joined.placements.allSatisfy { $0.storedSize == first.storedSize && $0.transform == first.transform }
-        if filter == .normal && alike {
+        if filter == .normal && alike && layers.isEmpty {
             joined.videoTrack.preferredTransform = first.transform
             return nil
         }
         let look = VideoLook(filter: filter, strength: strength)
-        return try await drawing(of: joined) { look }
+        return try await drawing(of: joined, look: { look }, layers: { (layers, windowStart) })
     }
 
-    private static func drawing(of joined: Joined, look: @escaping @Sendable () -> VideoLook) async throws -> AVVideoComposition {
+    private static func drawing(of joined: Joined, look: @escaping @Sendable () -> VideoLook,
+                                layers: @escaping @Sendable () -> (drawn: [DrawnLayer], startSeconds: Double)) async throws -> AVVideoComposition {
         guard let first = joined.placements.first else { throw VideoExportError.nothingToExport }
         let placements = joined.placements
         let renderSize = renderSize(for: first.shownSize)
@@ -149,7 +222,11 @@ enum VideoExporter {
             let picture = shown.filter.apply(to: upright, strength: shown.strength)
                 .composited(over: CIImage(color: .black))
                 .cropped(to: canvas)
-            return AVCIImageFilteringResult(resultImage: picture)
+            let held = layers()
+            let ms = Int(((frame.compositionTime.seconds - held.startSeconds) * 1000).rounded())
+            let result = held.drawn.isEmpty ? picture
+                : VideoLayerRenderer.compose(held.drawn, over: picture, at: ms, frame: renderSize)
+            return AVCIImageFilteringResult(resultImage: result)
         }
         // The drawing above, at the export's own size and in the preview's colours (SDR).
         return AVVideoComposition(configuration: AVVideoComposition.Configuration(

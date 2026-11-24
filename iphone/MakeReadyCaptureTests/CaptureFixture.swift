@@ -1655,6 +1655,79 @@ struct CaptureComponent: Codable {
     let teleprompterOn: Bool?                  // video-recorder — §5 teleprompter.on
     let sheet: String?                         // video-recorder — "" | length | filters | teleprompter
     let cameraImageURL: String?                // video-recorder — the sample still (catalog URL); "" = none
+    // ── preview props ──
+    // C-153 VideoEditorTimeline — `playing` (Bool?) is reused above. `tracks` is a §4 @ViewBuilder
+    // slot: the fixture carries how many plain 44 pt rows the capture case puts in it (§3).
+    let playheadMs: Int?                       // C-153 — ms under the playhead, required
+    let durationMs: Int?                       // C-153 — the clip's length in ms, required
+    let filmstrip: [String]?                   // C-153 — catalog image URLs in time order; [] = none, required
+    let tracks: Int?                           // C-153 — slot rows, required
+    // ── preview props ──
+    // C-154 VideoEditorLayerTrack — `kind` (C-023's) and `selectedID` (C-106's) are reused above.
+    let bars: [CaptureUI2LayerTrackBar]?       // C-154 — {id, text, startMs, endMs}, required
+    // Harness key, not a §4 prop (the `__frameWidth` precedent): §3 `text-pinned` draws the track
+    // this many points off the leading edge of a scroll view; nil = no scroll view.
+    let __scrolledOff: Double?
+    // ── preview props ──
+    let transcribing: Bool?                    // C-155 VideoEditorToolbar — required
+    // ── preview props ──
+    // C-156 VideoEditorLayerToolbar — `text` is reused above.
+    let startMs: Int?                          // C-156 — the layer's window start in ms, required
+    let endMs: Int?                            // C-156 — the layer's window end in ms, required
+    let canSplit: Bool?                        // C-156 — required
+    // ── preview props ──
+    // Harness key, not a §4 prop (C-158 §4): the frame the case gives the overlay, "9:16" | "16:9".
+    let frameAspect: String?                   // C-158 — required
+    // ── screen video-editor ── (`selectedID`, `playing`, `filmstrip`, `canUndo`, `canSplit`, `playheadMs`,
+    // `durationMs` and `openTool` are reused above)
+    let layers: [CaptureUI2EditorLayer]?
+    let frameAspectRatio: Double?
+    let stillImageURL: String?
+    let captions: String?                      // none | transcribing | added | unavailable
+    let captionsReason: String?
+    let limitMessage: String?
+    let textTool: CaptureUI2EditorTextTool?
+    let confirm: String?                       // none | removeCaptions | cancel
+    let manipulatingID: String?
+}
+
+/// video-editor §5 `style`.
+struct CaptureUI2EditorStyle: Codable {
+    let font: String
+    let weight: Int
+    let size: Double
+    let color: String
+    let label: String
+    let alignment: String
+}
+
+/// video-editor §5 `layers` element.
+struct CaptureUI2EditorLayer: Codable {
+    let id: String
+    let kind: String
+    let text: String
+    let style: CaptureUI2EditorStyle
+    let centreX: Double
+    let centreY: Double
+    let scale: Double?
+    let rotation: Double?
+    let startMs: Int
+    let endMs: Int
+}
+
+/// video-editor §5 `textTool`.
+struct CaptureUI2EditorTextTool: Codable {
+    let text: String
+    let style: CaptureUI2EditorStyle
+    let stylePanels: Bool
+}
+
+/// C-154 §4 `VideoEditorLayerTrack.Bar`.
+struct CaptureUI2LayerTrackBar: Codable {
+    let id: String
+    let text: String
+    let startMs: Int
+    let endMs: Int
 }
 
 /// C-152 §4 `CameraPreview.Feed` — `kind` is the case; `imageURL` the `.still` image (a catalog

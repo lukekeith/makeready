@@ -20,9 +20,11 @@ struct RailTool: View {
     /// C-147 §2 "Tool → glyph and label" (closed; library glyphs, OQ-C-147-4).
     enum Tool {
         case flip, countdown, length, filters, teleprompter
+        /// Review's Edit (OQ-video-recorder-44); never on the rail.
+        case edit
 
         /// §2: flip→refresh-cw, countdown→clock, length→arrow-left-right, filters→palette,
-        /// teleprompter→file-text.
+        /// teleprompter→file-text; edit→edit (OQ-video-recorder-44).
         var glyph: GlyphName {
             switch self {
             case .flip: return .refreshCw
@@ -30,6 +32,7 @@ struct RailTool: View {
             case .length: return .arrowLeftRight
             case .filters: return .palette
             case .teleprompter: return .fileText
+            case .edit: return .edit
             }
         }
 
@@ -41,6 +44,7 @@ struct RailTool: View {
             case .length: return "Length"
             case .filters: return "Filters"
             case .teleprompter: return "Teleprompter"
+            case .edit: return "Edit"
             }
         }
     }
