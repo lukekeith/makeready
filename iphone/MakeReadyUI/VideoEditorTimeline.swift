@@ -292,6 +292,9 @@ private struct VideoEditorFilmstrip: View, Equatable {
                             images[index]
                                 .resizable()
                                 .scaledToFill()
+                                // `.clipped()` hides the overflow but not its touches, which would
+                                // cover the tracks above. The component's own shape takes the scrub.
+                                .allowsHitTesting(false)
                         }
                         .clipped()
                         .ui2Element("Frame \(index + 1)")
