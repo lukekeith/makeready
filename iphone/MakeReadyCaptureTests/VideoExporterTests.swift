@@ -205,14 +205,7 @@ final class VideoExporterTests: XCTestCase {
         let box = VideoLayersBox()
         let item = try await VideoExporter.playerItem(segments: [clip], look: VideoLookBox(), layers: box)
         let size = try await VideoExporter.frameSize(of: [clip])
-        let itemColour = { () async throws -> TestMovie.Colour in
-            let generator = AVAssetImageGenerator(asset: item.asset)
-            generator.videoComposition = item.videoComposition
-            generator.requestedTimeToleranceBefore = .zero
-            generator.requestedTimeToleranceAfter = .zero
-            let image = try await generator.image(at: CMTime(seconds: 1, preferredTimescale: 600)).image
-            return try TestMovie.dominantColour(of: image, in: self.area)
-        }
+        let itemColour = { try await TestMovie.itemColour(of: item, at: 1, in: self.area) }
         let before = try await itemColour()
         box.drawn = VideoLayerRenderer().drawn([red(0, 2000)], frame: size)
         let after = try await itemColour()

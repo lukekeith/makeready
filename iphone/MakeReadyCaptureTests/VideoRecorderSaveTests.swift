@@ -53,6 +53,14 @@ final class ReviewPlayerSpy: VideoReviewPlaying {
     private(set) var loads: [(clips: [URL], window: ClosedRange<Double>?)] = []
     private(set) var looks: [VideoLook] = []
     private(set) var stops = 0
+    private(set) var pauses = 0
+    private(set) var plays = 0
+    private(set) var seeks: [Double] = []
+    private(set) var shownLayers: [[VideoLayer]] = []
+    var loops = true
+    var autoplays = true
+    var onEnd: (() -> Void)?
+    var currentTime: Double = 0
 
     func load(clips: [URL], window: ClosedRange<Double>?, look: VideoLook) async throws {
         loads.append((clips, window))
@@ -61,7 +69,10 @@ final class ReviewPlayerSpy: VideoReviewPlaying {
 
     func show(_ look: VideoLook) { looks.append(look) }
     func move(to window: ClosedRange<Double>) { }
-    func play() {}
+    func show(layers: [VideoLayer]) { shownLayers.append(layers) }
+    func play() { plays += 1 }
+    func pause() { pauses += 1 }
+    func seek(to seconds: Double) { seeks.append(seconds) }
     func stop() { stops += 1 }
 }
 

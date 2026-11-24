@@ -81,6 +81,16 @@ enum TestMovie {
         return colour(r, g, b)
     }
 
+    /// The colour a player item draws at `seconds` within `area`, composition and all.
+    static func itemColour(of item: AVPlayerItem, at seconds: Double, in area: CGRect) async throws -> Colour {
+        let generator = AVAssetImageGenerator(asset: item.asset)
+        generator.videoComposition = item.videoComposition
+        generator.requestedTimeToleranceBefore = .zero
+        generator.requestedTimeToleranceAfter = .zero
+        let image = try await generator.image(at: CMTime(seconds: seconds, preferredTimescale: 600)).image
+        return try dominantColour(of: image, in: area)
+    }
+
     /// The colour of `area` of a frame already read, as `dominantColour(of:at:in:)` reads one.
     static func dominantColour(of frame: CGImage, in area: CGRect) throws -> Colour {
         let (r, g, b) = try meanRGB(of: frame, in: area)
