@@ -108,6 +108,8 @@ final class VideoEditorModel {
             do {
                 try await player.load(clips: clip.urls, window: clip.window, look: clip.look)
             } catch {
+                // Leaving cancels the load; a video the user left needs no message.
+                guard !Task.isCancelled, !isClosed else { return }
                 report("Couldn't play this video")
             }
         }
@@ -134,6 +136,11 @@ final class VideoEditorModel {
 
     func gestureEnded() {
         session.endGesture()
+    }
+
+    /// Returns when the load `open` started has finished or been dropped.
+    func loadSettled() async {
+        await loadTask?.value
     }
 
     // MARK: Text
@@ -257,6 +264,7 @@ final class VideoEditorModel {
     /// Drops the answer of a transcription still running (D21).
     private func stopTranscribing() {
         transcribeRun += 1
+        transcribeTask?.cancel()
         if phase == .transcribing { phase = .idle }
     }
 
@@ -284,6 +292,8 @@ final class VideoEditorModel {
     private func close() {
         guard !isClosed else { return }
         isClosed = true
+        textTool = nil
+        offersRemoveCaptions = false
         pause()
         messageTask?.cancel()
         loadTask?.cancel()

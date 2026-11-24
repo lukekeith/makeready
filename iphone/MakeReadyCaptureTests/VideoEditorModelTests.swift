@@ -15,6 +15,7 @@ final class VideoEditorModelTests: XCTestCase {
     private var saves: [(layers: [VideoLayer], transcript: VideoTranscript?)] = []
     private var finished: [[VideoLayer]] = []
     private var asked = 0
+    private var reports: [String] = []
     private var released = false
     private var waiting: [CheckedContinuation<Void, Never>] = []
     private let t = VideoTranscript(text: "a b", segments: [
@@ -27,6 +28,7 @@ final class VideoEditorModelTests: XCTestCase {
         saves = []
         finished = []
         asked = 0
+        reports = []
     }
 
     private func release() {
@@ -36,7 +38,8 @@ final class VideoEditorModelTests: XCTestCase {
     }
 
     /// A 10 s clip. Each transcription takes the next answer; `held` ones wait for `release`.
-    private func make(_ layers: [VideoLayer] = [], answers: [VideoTranscript?] = [], held: Bool = false) -> VideoEditorModel {
+    private func make(_ layers: [VideoLayer] = [], answers: [VideoTranscript?] = [], held: Bool = false,
+                      player: (any VideoReviewPlaying)? = nil) -> VideoEditorModel {
         released = false
         waiting = []
         var remaining = answers
@@ -45,7 +48,7 @@ final class VideoEditorModelTests: XCTestCase {
                         frame: CGSize(width: 1080, height: 1920), look: VideoLook()),
             layers: layers,
             transcript: nil,
-            player: player,
+            player: player ?? self.player,
             transcribe: { [weak self] in
                 guard let self else { return nil }
                 self.asked += 1
@@ -54,7 +57,7 @@ final class VideoEditorModelTests: XCTestCase {
                 return answer
             },
             save: { [weak self] in self?.saves.append(($0, $1)) },
-            report: { _ in },
+            report: { [weak self] in self?.reports.append($0) },
             sleep: { _ in throw CancellationError() }
         )
     }
@@ -127,4 +130,58 @@ final class VideoEditorModelTests: XCTestCase {
         n.cancelTapped(); n.dismissConfirm(); XCTAssertFalse(n.isClosed)
         n.doneTapped(); XCTAssertEqual(saves.last?.layers.map(\.text), ["Title"])
     }
+
+    func testLoadFailureReports() async {
+        let failing = LoadingPlayerSpy(); failing.fails = true
+        let m = make(player: failing); m.open(); await m.loadSettled()
+        XCTAssertEqual(reports, ["Couldn't play this video"])
+    }
+
+    func testLeavingDuringLoadReportsNothing() async {
+        let loading = LoadingPlayerSpy(); loading.holds = true
+        let m = make(player: loading); m.open()
+        await Task.yield()
+        m.doneTapped(); loading.finish()
+        await m.loadSettled()
+        XCTAssertTrue(reports.isEmpty)
+    }
+
+    func testTextCancelledKeepsTheLayer() {
+        let m = make(); m.textTapped(); m.commitText("Title", style: .standard)
+        m.editTapped(); m.textCancelled()
+        XCTAssertNil(m.textTool); XCTAssertEqual(m.session.layers.map(\.text), ["Title"])
+    }
+
+    func testLeavingClosesTheTools() {
+        let m = make(); m.textTapped(); m.doneTapped()
+        XCTAssertNil(m.textTool); XCTAssertFalse(m.offersRemoveCaptions)
+    }
+}
+
+/// A player whose load fails, or waits until `finish` and then fails.
+@MainActor
+private final class LoadingPlayerSpy: VideoReviewPlaying {
+    struct LoadFailure: Error {}
+    let layer = CALayer()
+    var loops = true
+    var autoplays = true
+    var onEnd: (() -> Void)?
+    var currentTime: Double = 0
+    var fails = false
+    var holds = false
+    private var waiting: CheckedContinuation<Void, Never>?
+
+    func load(clips: [URL], window: ClosedRange<Double>?, look: VideoLook) async throws {
+        if holds { await withCheckedContinuation { waiting = $0 } }
+        throw LoadFailure()
+    }
+
+    func finish() { waiting?.resume(); waiting = nil }
+    func show(_ look: VideoLook) { }
+    func move(to window: ClosedRange<Double>) { }
+    func show(layers: [VideoLayer]) { }
+    func play() { }
+    func pause() { }
+    func seek(to seconds: Double) { }
+    func stop() { }
 }
