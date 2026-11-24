@@ -25,12 +25,24 @@ struct VideoDraftSegment: Equatable {
     let duration: TimeInterval
 }
 
+/// Why a draft operation had nothing to work on.
+enum VideoDraftError: Error, Equatable {
+    case noDraft
+}
+
 struct VideoDraft: Identifiable, Equatable {
     let id: UUID
     let folder: URL
     let createdAt: Date
     var settings: VideoDraftSettings
     var segments: [VideoDraftSegment]
+    /// The edit (D16); empty when none.
+    var layers: [VideoLayer] = []
+    var transcript: VideoTranscript?
+    /// `.recording` when the manifest says nothing (D19).
+    var source: VideoSource = .recording
+    /// The seconds of an imported clip kept; nil keeps all of it (D19).
+    var window: ClosedRange<Double>?
 }
 
 struct VideoDraftStore {
@@ -45,6 +57,39 @@ struct VideoDraftStore {
         let createdAt: Date
         var settings: VideoDraftSettings
         var segments: [Segment]
+        var layers: [VideoLayer] = []
+        var transcript: VideoTranscript?
+        var source: VideoSource?
+        /// `[from, to]` in seconds.
+        var window: [Double]?
+
+        init(createdAt: Date, settings: VideoDraftSettings, segments: [Segment]) {
+            self.createdAt = createdAt
+            self.settings = settings
+            self.segments = segments
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case createdAt, settings, segments, layers, transcript, source, window
+        }
+
+        /// The recording's keys are strict; each of the edit's reads as absent when it fails (D28), so a
+        /// damaged edit never costs the recording.
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            createdAt = try c.decode(Date.self, forKey: .createdAt)
+            settings = try c.decode(VideoDraftSettings.self, forKey: .settings)
+            segments = try c.decode([Segment].self, forKey: .segments)
+            layers = VideoLayer.decodeLenient(from: c, forKey: .layers) ?? []
+            transcript = try? c.decodeIfPresent(VideoTranscript.self, forKey: .transcript)
+            source = try? c.decodeIfPresent(VideoSource.self, forKey: .source)
+            let window = try? c.decodeIfPresent([Double].self, forKey: .window)
+            self.window = window.flatMap { Self.isWindow($0) ? $0 : nil }
+        }
+
+        private static func isWindow(_ values: [Double]) -> Bool {
+            values.count == 2 && values.allSatisfy(\.isFinite) && values[0] < values[1]
+        }
     }
 
     private static let manifestName = "draft.json"
@@ -117,6 +162,54 @@ struct VideoDraftStore {
         var manifest = try readManifest(in: draft.folder)
         manifest.settings = settings
         try write(manifest, to: draft.folder)
+        return self.draft(id: draft.id, folder: draft.folder, manifest: manifest)
+    }
+
+    /// Keeps the edit with the draft (D16), replacing the last one.
+    @discardableResult
+    func save(layers: [VideoLayer], transcript: VideoTranscript?, in draft: VideoDraft) throws -> VideoDraft {
+        var manifest = try readManifest(in: draft.folder)
+        manifest.layers = layers
+        manifest.transcript = transcript
+        try write(manifest, to: draft.folder)
+        return self.draft(id: draft.id, folder: draft.folder, manifest: manifest)
+    }
+
+    /// Makes an imported clip a draft (D19): the settings, source and window are written first, then
+    /// `file` moves in as the one segment. On failure the file is back in its place, the draft is gone
+    /// and the error is thrown.
+    @discardableResult
+    func adopt(imported file: URL, duration: TimeInterval, window: ClosedRange<Double>?,
+               settings: VideoDraftSettings) throws -> VideoDraft {
+        let id = UUID()
+        let folder = root.appendingPathComponent(id.uuidString, isDirectory: true)
+        var manifest = Manifest(createdAt: Date(), settings: settings, segments: [])
+        manifest.source = .imported
+        manifest.window = window.map { [$0.lowerBound, $0.upperBound] }
+        let moved = folder.appendingPathComponent(file.lastPathComponent)
+        do {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try write(manifest, to: folder)
+            try FileManager.default.moveItem(at: file, to: moved)
+            manifest.segments = [Manifest.Segment(fileName: file.lastPathComponent, duration: duration)]
+            try write(manifest, to: folder)
+        } catch {
+            if FileManager.default.fileExists(atPath: moved.path), !FileManager.default.fileExists(atPath: file.path) {
+                do {
+                    try FileManager.default.moveItem(at: moved, to: file)
+                } catch {
+                    Log.media.error("imported clip not returned: \(error.localizedDescription, privacy: .public)")
+                }
+            }
+            delete(folder)
+            throw error
+        }
+        return draft(id: id, folder: folder, manifest: manifest)
+    }
+
+    /// The draft as it is on disk; nil when it is gone or unreadable.
+    func current(_ draft: VideoDraft) -> VideoDraft? {
+        guard let manifest = try? readManifest(in: draft.folder) else { return nil }
         return self.draft(id: draft.id, folder: draft.folder, manifest: manifest)
     }
 
@@ -218,7 +311,9 @@ struct VideoDraftStore {
         VideoDraft(id: id, folder: folder, createdAt: manifest.createdAt, settings: manifest.settings,
                    segments: manifest.segments.map {
                        VideoDraftSegment(url: folder.appendingPathComponent($0.fileName), duration: $0.duration)
-                   })
+                   },
+                   layers: manifest.layers, transcript: manifest.transcript, source: manifest.source ?? .recording,
+                   window: manifest.window.map { $0[0]...$0[1] })
     }
 
     private func readManifest(in folder: URL) throws -> Manifest {

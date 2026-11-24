@@ -41,6 +41,8 @@ protocol VideoRecorderCapturing: AnyObject {
     func deleteLastSegment() throws
     func discardDraft()
     func save(settings: VideoDraftSettings)
+    func save(layers: [VideoLayer], transcript: VideoTranscript?) throws
+    func adopt(imported file: URL, duration: TimeInterval, window: ClosedRange<Double>?, settings: VideoDraftSettings) throws
 }
 
 extension VideoCaptureEngine: VideoRecorderCapturing {}

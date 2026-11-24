@@ -66,6 +66,20 @@ private final class SpyRecorderEngine: VideoRecorderCapturing {
     func discardDraft() { discards += 1; draft = nil }
     func save(settings: VideoDraftSettings) { savedSettings.append(settings) }
 
+    func save(layers: [VideoLayer], transcript: VideoTranscript?) throws {
+        guard var current = draft else { throw VideoDraftError.noDraft }
+        current.layers = layers
+        current.transcript = transcript
+        draft = current
+    }
+
+    func adopt(imported file: URL, duration: TimeInterval, window: ClosedRange<Double>?, settings: VideoDraftSettings) throws {
+        var adopted = Self.draft([duration], settings: settings)
+        adopted.source = .imported
+        adopted.window = window
+        draft = adopted
+    }
+
     static func draft(_ durations: [TimeInterval], settings: VideoDraftSettings = VideoDraftSettings()) -> VideoDraft {
         let folder = URL(fileURLWithPath: "/tmp/draft")
         return VideoDraft(id: UUID(), folder: folder, createdAt: Date(), settings: settings,

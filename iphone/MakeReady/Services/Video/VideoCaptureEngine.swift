@@ -181,6 +181,18 @@ final class VideoCaptureEngine {
         }
     }
 
+    /// Keeps the edit with the draft (video-editor D16). Throws `VideoDraftError.noDraft` without one.
+    func save(layers: [VideoLayer], transcript: VideoTranscript?) throws {
+        guard let draft else { throw VideoDraftError.noDraft }
+        self.draft = try drafts.save(layers: layers, transcript: transcript, in: draft)
+    }
+
+    /// Makes an imported clip the current draft (video-editor D19).
+    func adopt(imported file: URL, duration: TimeInterval, window: ClosedRange<Double>?,
+               settings: VideoDraftSettings) throws {
+        draft = try drafts.adopt(imported: file, duration: duration, window: window, settings: settings)
+    }
+
     // MARK: Interruptions (D26)
 
     /// Ends the segment when an interruption begins; its end changes nothing.
