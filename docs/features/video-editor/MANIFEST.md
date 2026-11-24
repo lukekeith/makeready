@@ -1,7 +1,7 @@
 size: lg
 state: built
-next: /builder:agent-walk --path docs/features/video-editor
-head: 341c7c02
+next: /builder:resume --path docs/features/video-editor
+head: 1b70fe95
 ticket: none
 branch: builder/video-editor
 pr: none
