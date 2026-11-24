@@ -23,6 +23,8 @@ final class QueueSpy: VideoSaveQueue {
     }
 
     var error: Error?
+    /// What the queue already holds, as after a kill between its taking the video and the draft going.
+    var alreadyHolds: VideoQueueItem?
     private(set) var items: [Item] = []
     private(set) var supplied: [VideoTranscript?] = []
 
@@ -38,7 +40,7 @@ final class QueueSpy: VideoSaveQueue {
             ownerUserId: "u", environment: "test")
     }
 
-    func queued(localId: String) -> VideoQueueItem? { nil }
+    func queued(localId: String) -> VideoQueueItem? { alreadyHolds?.localId == localId ? alreadyHolds : nil }
 
     func supplyTranscript(_ transcript: VideoTranscript?, forLocalId localId: String) {
         supplied.append(transcript)
@@ -553,6 +555,32 @@ final class VideoRecorderSaveTests: XCTestCase {
         await saver.settled()
         XCTAssertEqual(exporter.calls.map(\.layers), [[layers[0]]]); XCTAssertEqual(queue.supplied, [heard])
         XCTAssertNotNil(queue.items[0].holdsForTranscript); XCTAssertNil(queue.items[0].transcript)
+    }
+
+    func testAQueuedVideoWithATranscriptOnlyDiscardsTheDraft() async throws {
+        let queue = QueueSpy()
+        let draft = try edited(heard)
+        queue.alreadyHolds = VideoQueueItem(
+            localId: draft.id.uuidString, fileName: "q.mp4", posterFileName: nil, title: "Video 1", durationSeconds: 4,
+            source: .recording, transcript: nil, createdAt: Date(), streamUid: nil, serverId: nil, stage: .queued, failures: 0,
+            polls: 0, nextAttemptAt: nil, attach: nil, ownerUserId: "u", environment: "test")
+        try drafts.markSaving(plusSave, in: draft)
+        let saver = makeSaver(queue: queue)
+        saver.resume()
+        await saver.settled()
+        XCTAssertTrue(exporter.calls.isEmpty); XCTAssertEqual(transcriptTimeouts, [])
+        XCTAssertTrue(queue.items.isEmpty); XCTAssertEqual(queue.supplied, [])
+        XCTAssertFalse(drafts.exists(draft)); XCTAssertTrue(saver.saving.isEmpty)
+    }
+
+    func testAStaleDraftValueDrawsTheLayersTheManifestHolds() async throws {
+        let queue = QueueSpy()
+        let stale = try drafts.finalize(segment: tmpURL, duration: 4, in: drafts.begin())
+        _ = try drafts.save(layers: layers, transcript: heard, in: stale)
+        let saver = makeSaver(queue: queue)
+        _ = try saver.start(plusSave, of: .draft(stale))
+        await saver.settled()
+        XCTAssertEqual(exporter.calls.last?.layers, layers); XCTAssertEqual(queue.items.map(\.transcript?.text), ["John"])
     }
 
     // MARK: a video being saved is listed at once (D12)

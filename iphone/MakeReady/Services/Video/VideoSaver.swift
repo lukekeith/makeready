@@ -211,7 +211,7 @@ final class VideoSaver: VideoSaving {
                                          attach: save.attach(title: title), transcriptHold: spoken == nil ? timeout : nil)
             }
             drafts.discard(draft)
-            saving.removeAll { $0.localId == draft.id.uuidString }
+            saving.removeAll { $0.localId == item.localId }
         } catch {
             guard !Task.isCancelled else { return }
             time.end()
