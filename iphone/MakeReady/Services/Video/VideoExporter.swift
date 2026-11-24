@@ -23,6 +23,8 @@ enum VideoExportError: Error, Equatable {
     /// No segment, no picture in one, or a time range outside them.
     case nothingToExport
     case sessionUnavailable
+    /// No clip has a sound to take.
+    case noSound
 }
 
 /// The layers a player item draws and the kept window's start, read by the video composition on its
@@ -78,6 +80,26 @@ enum VideoExporter {
 
         let duration = try await AVURLAsset(url: destination).load(.duration).seconds
         return ExportedVideo(url: destination, durationSeconds: duration, posterImage: await poster(of: destination))
+    }
+
+    /// The sound of `segments` joined, kept to `timeRange` (nil = all), as one `.m4a` at `destination`
+    /// (video-editor D21). `AVAssetExportPresetAppleM4A` rather than `MemoAudioExporter`'s passthrough,
+    /// which refuses a track with one edit per segment.
+    static func exportSound(segments: [URL], timeRange: CMTimeRange?, to destination: URL) async throws {
+        let joined = try await join(segments)
+        guard joined.audioTrack != nil else { throw VideoExportError.noSound }
+        let whole = CMTimeRange(start: .zero, duration: joined.composition.duration)
+        let window = timeRange.map { $0.intersection(whole) } ?? whole
+        guard window.duration > .zero else { throw VideoExportError.nothingToExport }
+        guard let session = AVAssetExportSession(asset: joined.composition, presetName: AVAssetExportPresetAppleM4A) else {
+            throw VideoExportError.sessionUnavailable
+        }
+        session.timeRange = window
+        session.audioMix = audioMix(for: joined)
+        if FileManager.default.fileExists(atPath: destination.path) {
+            try FileManager.default.removeItem(at: destination)
+        }
+        try await session.export(to: destination, as: .m4a)
     }
 
     /// The joined segments for playback, drawn with whatever look the box holds as each frame is shown.

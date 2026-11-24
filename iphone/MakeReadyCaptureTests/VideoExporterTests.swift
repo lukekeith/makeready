@@ -268,6 +268,28 @@ final class VideoExporterTests: XCTestCase {
         }
     }
 
+    // MARK: the window's sound is one m4a; silence is refused (D21)
+
+    func testExportSound() async throws {
+        let a = try await TestMovie.make(seconds: 2, colour: .red, size: CGSize(width: 360, height: 640))
+        let b = try await TestMovie.make(seconds: 2, colour: .blue, size: CGSize(width: 360, height: 640))
+        let window = CMTimeRange(start: CMTime(value: 1, timescale: 1), duration: CMTime(value: 2, timescale: 1))
+        try await VideoExporter.exportSound(segments: [a, b], timeRange: window, to: tmp("s.m4a"))
+        let asset = AVURLAsset(url: tmp("s.m4a"))
+        let seconds = try await asset.load(.duration).seconds
+        let videoTracks = try await asset.loadTracks(withMediaType: .video)
+        XCTAssertEqual(seconds, 2, accuracy: 0.2)
+        XCTAssertTrue(videoTracks.isEmpty)
+
+        let silent = try await TestMovie.make(seconds: 1, colour: .red, size: CGSize(width: 360, height: 640), audio: false)
+        do {
+            try await VideoExporter.exportSound(segments: [silent], timeRange: nil, to: tmp("n.m4a"))
+            XCTFail("expected noSound")
+        } catch {
+            XCTAssertEqual(error as? VideoExportError, .noSound)
+        }
+    }
+
     private func pixel(_ image: CIImage) -> [UInt8] {
         var bytes = [UInt8](repeating: 0, count: 4)
         CIContext().render(image, toBitmap: &bytes, rowBytes: 4, bounds: CGRect(x: 4, y: 4, width: 1, height: 1),

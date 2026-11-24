@@ -92,4 +92,36 @@ final class VideoTranscriberTests: XCTestCase {
         XCTAssertNil(result)
         XCTAssertNil(core.audio)
     }
+
+    // MARK: clips are transcribed; blank text and a timeout are nil (D11, D21)
+
+    func testTranscribesClips() async throws {
+        let a = try await TestMovie.make(seconds: 2, colour: .red, size: size)
+        let b = try await TestMovie.make(seconds: 2, colour: .blue, size: size)
+        let window = 1.0...3.0
+        let core = FileTranscriber(Transcript(text: "hi", segments: [TranscriptSegment(text: "hi", startMs: 0, endMs: 300)]))
+        let heard = await VideoTranscriber(core: core).transcribe(clips: [a, b], window: window, timeout: .seconds(30))
+        XCTAssertEqual(heard?.text, "hi")
+        XCTAssertEqual(core.seconds ?? 0, 2, accuracy: 0.2)
+        let audio = try XCTUnwrap(core.audio)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: audio.path), "the sound file is deleted")
+
+        let blank = await VideoTranscriber(core: FileTranscriber(Transcript(text: " ", segments: [])))
+            .transcribe(clips: [a], window: nil, timeout: .seconds(30))
+        XCTAssertNil(blank)
+        let late = await VideoTranscriber(core: SlowTranscriber(delay: .seconds(5)))
+            .transcribe(clips: [a], window: nil, timeout: .seconds(1))
+        XCTAssertNil(late)
+    }
+
+    func testTranscribesAnAudioFile() async throws {
+        let movie = try await TestMovie.make(seconds: 1, colour: .red, size: size)
+        let audio = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).m4a")
+        try await VideoExporter.exportSound(segments: [movie], timeRange: nil, to: audio)
+        defer { try? FileManager.default.removeItem(at: audio) }
+        let core = FileTranscriber(Transcript(text: "ok", segments: []))
+        let heard = await VideoTranscriber(core: core).transcribe(audio: audio, timeout: .seconds(30))
+        XCTAssertEqual(heard?.text, "ok")
+        XCTAssertEqual(core.audio, audio)
+    }
 }
