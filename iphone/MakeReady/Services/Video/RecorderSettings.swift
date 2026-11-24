@@ -3,7 +3,7 @@
 //  MakeReady
 //
 //  The recorder's per-device choices, kept in UserDefaults (video-recorder D2, D3, D7): the length,
-//  the pre-roll, the teleprompter draft, its speed and its text size.
+//  the pre-roll, the countdown sound, the teleprompter draft, its speed and its text size.
 //
 
 import Foundation
@@ -12,6 +12,7 @@ struct RecorderSettings {
     private enum Key {
         static let length = "videoRecorder.lengthSeconds"
         static let preRoll = "videoRecorder.preRollSeconds"
+        static let countdownSound = "videoRecorder.countdownSound"
         static let script = "videoRecorder.teleprompterScript"
         static let speedStep = "videoRecorder.teleprompterSpeedStep"
         static let sizeStep = "videoRecorder.teleprompterSizeStep"
@@ -41,6 +42,13 @@ struct RecorderSettings {
     var preRoll: PreRoll {
         get { PreRoll.allCases.first { $0.seconds == defaults.integer(forKey: Key.preRoll) } ?? .off }
         nonmutating set { defaults.set(newValue.seconds, forKey: Key.preRoll) }
+    }
+
+    /// The countdown's beep: off until the leader turns it on, so demos, fixtures and agent walks
+    /// stay silent (countdown-sound S2, S3, owner 2026-11-24).
+    var countdownSound: Bool {
+        get { defaults.bool(forKey: Key.countdownSound) }
+        nonmutating set { defaults.set(newValue, forKey: Key.countdownSound) }
     }
 
     /// The teleprompter draft, kept until replaced (D7).

@@ -18,6 +18,7 @@ final class RecorderSettingsTests: XCTestCase {
         XCTAssertEqual(s.script, "")
         XCTAssertEqual(s.speedStep, 3)
         XCTAssertEqual(s.sizeStep, 2)
+        XCTAssertFalse(s.countdownSound, "countdown-sound S3: silent until the leader turns it on")
     }
 
     func testValuesPersistAcrossInstancesAndSnapToTheirRanges() {
@@ -30,5 +31,26 @@ final class RecorderSettingsTests: XCTestCase {
         XCTAssertEqual(reread.script, "In the beginning")
         XCTAssertEqual(reread.speedStep, 5)
         XCTAssertEqual(reread.sizeStep, 1)
+    }
+
+    func testCountdownSoundPersists() {
+        let defaults = freshDefaults()
+        RecorderSettings(defaults: defaults).countdownSound = true
+        XCTAssertTrue(RecorderSettings(defaults: defaults).countdownSound)
+        RecorderSettings(defaults: defaults).countdownSound = false
+        XCTAssertFalse(RecorderSettings(defaults: defaults).countdownSound)
+    }
+
+    @MainActor
+    func testBeeperIsSilentUnlessSoundIsOn() {
+        var soundOn = false
+        var played: [Double] = []
+        let beeper = CountdownBeeper(isSoundOn: { soundOn }, play: { played.append($0) })
+        beeper.beep(hz: 1100)
+        XCTAssertEqual(played, [], "Sound off: no beep")
+        soundOn = true
+        beeper.beep(hz: 1100)
+        beeper.beep(hz: 1660)
+        XCTAssertEqual(played, [1100, 1660], "Sound on: every beep plays, read fresh each time")
     }
 }
