@@ -177,6 +177,7 @@ final class VideoRecorderModel {
     @ObservationIgnored private var playerWork: Task<Void, Never>?
     @ObservationIgnored private var isSaving = false
     @ObservationIgnored private var isOpeningEditor = false
+    @ObservationIgnored private var backgroundedWhileOpening = false
     @ObservationIgnored private var transcript: VideoTranscript?
     @ObservationIgnored private let makeEditor: MakeEditor
 
@@ -291,6 +292,7 @@ final class VideoRecorderModel {
     /// The engine ends a segment itself (D26); a countdown has no segment yet.
     func backgrounded() {
         cancelPreRoll()
+        if isOpeningEditor { backgroundedWhileOpening = true }
         editor?.backgrounded()
     }
 
@@ -760,6 +762,7 @@ final class VideoRecorderModel {
     func editTapped() async {
         guard canEdit, !isClosed, !isOpeningEditor else { return }
         isOpeningEditor = true
+        backgroundedWhileOpening = false
         defer { isOpeningEditor = false }
         await settled()
         guard canEdit, !isClosed else { return }
@@ -773,11 +776,14 @@ final class VideoRecorderModel {
             let opened = try await makeEditor(clip, layers, transcript) { [weak self] layers, transcript in
                 self?.editorSaved(layers, transcript)
             }
+            // Retake, Save or Close may have landed while the editor was being made: it is not wanted then.
+            guard phase == .review, !isClosed, !isSaving else { return }
             opened.onFinished = { [weak self] layers in self?.editorFinished(layers) }
             editor = opened
             opened.open()
+            if backgroundedWhileOpening { opened.backgrounded() }
         } catch {
-            startPlaying()
+            if phase == .review, !isClosed, !isSaving { startPlaying() }
             report(error, "Couldn't open the editor")
         }
     }

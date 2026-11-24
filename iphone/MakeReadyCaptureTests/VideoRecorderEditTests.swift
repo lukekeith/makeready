@@ -33,6 +33,8 @@ final class VideoRecorderEditTests: XCTestCase {
     private var reports: [String] = []
     private var suiteName: String!
     private let lesson = VideoRecorderEntry.lesson(versionId: "ver1", activityId: nil)
+    private var gateOpen = true
+    private var enteredMake = false
     private let layers = [VideoLayer(kind: .text, text: "Title", startMs: 0, endMs: 3000)]
 
     override func setUp() async throws {
@@ -66,7 +68,9 @@ final class VideoRecorderEditTests: XCTestCase {
             settings: RecorderSettings(defaults: UserDefaults(suiteName: suiteName)!),
             player: player, saver: saver, recoverDraft: { [drafts] in drafts!.recoverable().last }, beep: { _ in },
             report: { [weak self] _, message in self?.reports.append(message) }, loadNotes: {},
-            makeEditor: { clip, layers, transcript, save in
+            makeEditor: { [unowned self] clip, layers, transcript, save in
+                self.enteredMake = true
+                while !self.gateOpen { await Task.yield() }
                 if editorFails { throw VideoExportError.nothingToExport }
                 return VideoEditorModel(clip: clip, layers: layers, transcript: transcript, player: editorPlayer,
                                         transcribe: { nil }, save: save, report: { _ in })
@@ -130,6 +134,8 @@ final class VideoRecorderEditTests: XCTestCase {
         _ = try drafts.save(layers: layers, transcript: nil, in: base)
         let m = model(); m.open(); await m.settled(); await m.playerSettled()
         XCTAssertEqual(m.screenState.phase, .review); XCTAssertEqual(m.layers, layers); XCTAssertEqual(player.shownLayers.last, layers)
+        m.retakeConfirmed(); await m.settled()
+        XCTAssertEqual(m.layers, []); XCTAssertEqual(drafts.recoverable(), [])
         drafts.discard(base)
         let adopted = try drafts.adopt(imported: tmpURL, duration: 300, window: 10...100, settings: VideoDraftSettings())
         XCTAssertEqual(adopted.source, .imported)
@@ -157,5 +163,35 @@ final class VideoRecorderEditTests: XCTestCase {
         XCTAssertEqual(reports, []); XCTAssertEqual(n.layers.count, 1)
         n.editor?.doneTapped(); n.editorHidden(); await n.save()
         XCTAssertEqual(reports, ["Couldn't save your video"]); XCTAssertFalse(n.isClosed)
+    }
+
+    // MARK: Retake, Save and Close that land while the editor is being made leave no editor behind
+
+    /// Starts Edit with the editor held back, runs `action` while it waits, then lets it finish.
+    private func whileOpening(_ m: VideoRecorderModel, _ action: () async -> Void) async {
+        gateOpen = false; enteredMake = false
+        let opening = Task { await m.editTapped() }
+        while !enteredMake { await Task.yield() }
+        await action()
+        gateOpen = true
+        await opening.value
+    }
+
+    func testRetakeWhileOpening() async throws {
+        let m = model(); await inReview(m)
+        await whileOpening(m) { m.retakeConfirmed() }
+        XCTAssertNil(m.editor); XCTAssertEqual(m.screenState.phase, .ready)
+    }
+
+    func testSaveWhileOpening() async throws {
+        let m = model(); await inReview(m)
+        await whileOpening(m) { await m.save() }
+        XCTAssertNil(m.editor); XCTAssertTrue(m.isClosed)
+    }
+
+    func testCloseWhileOpening() async throws {
+        let m = model(); await inReview(m)
+        await whileOpening(m) { m.closeTapped(); m.discardConfirmed() }
+        XCTAssertNil(m.editor); XCTAssertTrue(m.isClosed)
     }
 }
