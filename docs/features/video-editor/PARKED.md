@@ -14,6 +14,7 @@ built them; no approval is recorded. Tasks 2–14 have not started.
   but its two extra previews have not started since 2026-11-24 00:52 UTC.
 - d2m left its edits uncommitted in the main checkout; they are copied here as commit 52da3079 (without
   the Info.plist build number change 1869 → 1930). Verifier phase tier on 52da3079: green, 71 iPhone test files, 1 known failure.
+- 2026-11-23 retry: cause gone — D31 approves the screens; d2m's commit still verifies (only docs changed since 52da3079). Phase 1 closed, build continues at Task 2. The 16 copies in the main checkout are byte-identical to this branch; Info.plist is the only extra change there.
 
 ## Evidence
 - d2m, `video-editor`: 14 captured states — empty, layer-selected, split-disabled, text-tool-new,
