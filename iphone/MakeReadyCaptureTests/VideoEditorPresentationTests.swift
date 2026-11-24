@@ -9,7 +9,6 @@
 import SwiftUI
 import XCTest
 @testable import MakeReady
-@testable import MakeReadyUI
 
 @MainActor
 private final class NullSaver: VideoSaving {
