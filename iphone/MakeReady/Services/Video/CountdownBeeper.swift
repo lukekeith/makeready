@@ -2,11 +2,13 @@
 //  CountdownBeeper.swift
 //  MakeReady
 //
-//  The pre-roll countdown's beep (video-recorder D2): a short sine tone, made in memory and played
-//  through the capture session's audio session.
+//  The pre-roll countdown's beep (video-recorder D2): a short sine tone, made in memory. It sounds
+//  only when the recorder's countdown Sound setting is on (off by default), and it plays as a system
+//  sound, so the phone's ring/silent switch mutes it (countdown-sound S1–S3, owner 2026-11-24).
 //
 
-import AVFoundation
+import AudioToolbox
+import Foundation
 
 @MainActor
 final class CountdownBeeper {
@@ -16,18 +18,19 @@ final class CountdownBeeper {
     /// The tone fades at both ends over this long, so it does not click.
     private static let fadeSeconds = 0.01
 
-    private var players: [Double: AVAudioPlayer] = [:]
+    private let isSoundOn: () -> Bool
+    private let play: (Double) -> Void
+
+    /// `isSoundOn` reads the recorder's Sound setting each beep, so a change applies at once.
+    init(isSoundOn: @escaping () -> Bool = { RecorderSettings().countdownSound },
+         play: ((Double) -> Void)? = nil) {
+        self.isSoundOn = isSoundOn
+        self.play = play ?? SystemTone().play(hz:)
+    }
 
     func beep(hz: Double) {
-        do {
-            let player = try players[hz] ?? AVAudioPlayer(data: Self.wav(hz: hz))
-            players[hz] = player
-            player.currentTime = 0
-            player.play()
-        } catch {
-            // Recovered: the numerals still count down without the beep.
-            Log.media.error("countdown beep not playable: \(error.localizedDescription, privacy: .public)")
-        }
+        guard isSoundOn() else { return }
+        play(hz)
     }
 
     /// A 16-bit mono WAV file of one tone.
@@ -57,5 +60,36 @@ final class CountdownBeeper {
 
     private static func append<Value: FixedWidthInteger>(_ value: Value, to data: inout Data) {
         withUnsafeBytes(of: value.littleEndian) { data.append(contentsOf: $0) }
+    }
+}
+
+/// One registered system sound per pitch. System sounds play at the ringer volume and are silenced by
+/// the ring/silent switch, unlike the capture session's audio session.
+@MainActor
+private final class SystemTone {
+    private var sounds: [Double: SystemSoundID] = [:]
+
+    func play(hz: Double) {
+        if let id = sounds[hz] {
+            AudioServicesPlaySystemSound(id)
+            return
+        }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("countdown-\(Int(hz)).wav")
+        do {
+            try CountdownBeeper.wav(hz: hz).write(to: url, options: .atomic)
+        } catch {
+            // Recovered: the numerals still count down without the beep.
+            Log.media.error("countdown beep not written: \(error.localizedDescription, privacy: .public)")
+            return
+        }
+        var id: SystemSoundID = 0
+        let status = AudioServicesCreateSystemSoundID(url as CFURL, &id)
+        guard status == kAudioServicesNoError else {
+            // Recovered: the numerals still count down without the beep.
+            Log.media.error("countdown beep not registered: \(status, privacy: .public)")
+            return
+        }
+        sounds[hz] = id
+        AudioServicesPlaySystemSound(id)
     }
 }
