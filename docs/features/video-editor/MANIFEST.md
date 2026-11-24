@@ -1,14 +1,14 @@
 size: lg
 state: planned
 next: /builder:resume --path docs/features/video-editor
-head: 2e42e8dd
+head: abce9e20
 ticket: none
 branch: builder/video-editor
 pr: none
 apps: iphone
 contract: none
 hold: none
-go-ahead: none
+go-ahead: auto (recommended) 2026-11-23
 tests: walk=risk review=slice
 target: main
 walk: none
