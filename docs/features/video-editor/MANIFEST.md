@@ -1,7 +1,7 @@
 size: lg
-state: audited
+state: planned
 next: /builder:resume --path docs/features/video-editor
-head: 0b769f91
+head: 2e42e8dd
 ticket: none
 branch: builder/video-editor
 pr: none
