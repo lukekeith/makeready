@@ -1,7 +1,7 @@
 size: lg
 state: built
 next: /builder:agent-walk --path docs/features/video-editor
-head: 696b5001
+head: d1770dd0
 ticket: none
 branch: builder/video-editor
 pr: none
@@ -13,7 +13,7 @@ tests: walk=risk review=slice
 target: main
 walk: none
 verify: none
-ready: yes 2026-11-24 696b5001
+ready: yes 2026-11-24 d1770dd0
 ui2: none (phase 1 — d2m specs video-editor and the video-recorder Review change from doc source, P2)
 auto: on 2026-11-23
 blocked: none
