@@ -71,6 +71,8 @@ struct VideoRecorderContainer: View {
                 notePicker
             }
             // D8: the system picker — a modifier, not .sheet/.fullScreenCover (as MediaHomeContainer's).
+            // video-editor D10, D29: the editor over Review, hosted or in place.
+            .videoEditorPresentation(model: model)
             .photosPicker(isPresented: $pickerOpen, selection: $pick, matching: .videos)
             .onChange(of: pick) { _, picked in
                 guard let picked else { return }
@@ -119,7 +121,9 @@ struct VideoRecorderContainer: View {
             sheetBottomInset: sheetBottomInset,
             previewSlot: { AnyView(closeButton) },
             recordRowSlot: { AnyView(recordRowButtons) },
-            reviewSlot: { AnyView(reviewRow) }
+            reviewSlot: { AnyView(reviewRow) },
+            // D7: the screen has no disabled Edit; while `canEdit` is false the tap does nothing.
+            onEdit: { Task { await model.editTapped() } }
         )
     }
 
@@ -143,6 +147,8 @@ struct VideoRecorderContainer: View {
         static let importLeading: CGFloat = 17
         /// GAP — video-recorder §2d: C-105's 36 pt pill in the same row: 6 + (80 − 36) / 2.
         static let reviewButtonBottom: CGFloat = 28
+        /// GAP — video-recorder §2d: Retake and Save side by side, as Edit and Filters are (10 pt).
+        static let reviewButtonGap: CGFloat = 10
         /// GAP — video-recorder §2c: undo "centre 98 left of the record centre".
         static let undoOffset: CGFloat = -98
         /// C-021 §2: a 24 pt glyph in a 44 pt target.
@@ -211,13 +217,13 @@ struct VideoRecorderContainer: View {
             .padding(.horizontal, Token.Space.pageMargin)
             .padding(.bottom, Geometry.reviewButtonBottom)
         } else if shown.phase == .review {
-            ZStack {
+            // F8: the screen leaves this the width beside Edit and Filters and margins the row itself.
+            HStack(spacing: Geometry.reviewButtonGap) {
                 Button(label: "Retake", onTap: model.requestRetake)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.leading, Token.Space.pageMargin)
                 // The model outlives the recorder until its save is done.
                 Button(label: "Save", onTap: { Task { await model.save() } })
             }
+            .frame(maxWidth: .infinity, alignment: .trailing)
             .padding(.bottom, Geometry.reviewButtonBottom)
         }
     }
