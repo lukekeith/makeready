@@ -142,6 +142,8 @@ struct VideoEditorScreen: View {
     var feed: CALayer?
     /// §5 `filmstrip` from the app; nil = the state's catalog URLs.
     var filmstripImages: [Image]?
+    /// §5 host input: how far the keyboard reaches above this view's bottom edge; lifts the text tool.
+    var keyboardInset: CGFloat = 0
     var onCancel: () -> Void = {}
     var onUndo: () -> Void = {}
     var onDone: () -> Void = {}
@@ -183,6 +185,7 @@ struct VideoEditorScreen: View {
                     VideoEditorTextTool(
                         initial: tool,
                         openTool: state.openTool,
+                        keyboardInset: keyboardInset,
                         onCommit: onTextCommit,
                         onCancel: onTextCancel
                     )
@@ -1053,6 +1056,7 @@ private struct VideoEditorTextTool: View {
 
     let stylePanels: Bool
     let limit: Int
+    let keyboardInset: CGFloat
     let onCommit: (String, Style) -> Void
     let onCancel: () -> Void
 
@@ -1071,12 +1075,14 @@ private struct VideoEditorTextTool: View {
     init(
         initial: VideoEditorScreen.State.TextTool,
         openTool: Tool,
+        keyboardInset: CGFloat,
         onCommit: @escaping (String, Style) -> Void,
         onCancel: @escaping () -> Void
     ) {
         stylePanels = initial.stylePanels
         let base = VideoEditorScreen.textLimit
         limit = initial.stylePanels ? base : max(base, initial.text.count)
+        self.keyboardInset = keyboardInset
         self.onCommit = onCommit
         self.onCancel = onCancel
         _text = SwiftUI.State(initialValue: initial.text)
@@ -1130,6 +1136,7 @@ private struct VideoEditorTextTool: View {
                     toolRow
                 }
             }
+            .padding(.bottom, keyboardInset)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
