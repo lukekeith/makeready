@@ -131,6 +131,7 @@ private func buildCaptureViewInline(for fixture: CaptureFixture) throws -> AnyVi
     if let view = try buildCaptureViewPart10(fixture, authManager: authManager) { return view }
     if let view = try buildCaptureViewPart11(fixture, authManager: authManager) { return view }
     if let view = try buildCaptureViewPart12(fixture, authManager: authManager) { return view }
+    if let view = try buildCaptureViewPart13(fixture, authManager: authManager) { return view }
     throw ViewRegistryError.unknownView(fixture.view)
 }
 
@@ -3492,7 +3493,9 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
                 textSize: c.textSize ?? recorderDefaults.textSize,
                 sheet: recorderSheet,
                 cameraImageURL: c.cameraImageURL ?? recorderDefaults.cameraImageURL
-            )
+            ),
+            // §2d Review: Edit is drawn only when `onEdit` is set.
+            onEdit: {}
         ))
     case "screen.2.0.video-detail":
         guard let c = fixture.state?.component else {
@@ -4451,6 +4454,145 @@ private func buildCaptureViewPart12(_ fixture: CaptureFixture, authManager: Auth
             // node 3567:34789, 440×781), edge to edge.
             PreviewFrame(width: 440, marginEdges: .vertical)
         )
+    case "component.ui2.C-153":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-153: missing state.component")
+        }
+        // C-153 §4 (R-07): every value is required, so a nil is a fixture bug; both closures are the
+        // view's no-op defaults. `playing` is C-135's shared Bool field, reused.
+        guard let ui2C153Playing = c.playing, let ui2C153Playhead = c.playheadMs,
+              let ui2C153Duration = c.durationMs, let ui2C153Sources = c.filmstrip,
+              let ui2C153Rows = c.tracks else {
+            throw ViewRegistryError.unknownView("component.ui2.C-153: props.playing, playheadMs, durationMs, filmstrip and tracks are required")
+        }
+        let ui2C153Frames = try ui2C153Filmstrip(ui2C153Sources)
+        return declareCase(
+            MakeReadyUI.VideoEditorTimeline(
+                playing: ui2C153Playing,
+                playheadMs: ui2C153Playhead,
+                durationMs: ui2C153Duration,
+                filmstrip: ui2C153Frames,
+                tracks: {
+                    // C-153 §3: plain 44 pt bars, the full content width — C-154 owns the real look.
+                    ForEach(0..<ui2C153Rows, id: \.self) { _ in
+                        RoundedRectangle(cornerRadius: MakeReadyUI.Token.Radius.card, style: .continuous)
+                            .fill(MakeReadyUI.Token.white10)
+                            .frame(height: 44)
+                    }
+                }
+            ),
+            // C-153 §2: width-driven, design width 440, edge to edge.
+            PreviewFrame(width: 440, marginEdges: .vertical)
+        )
+    case "component.ui2.C-154":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-154: missing state.component")
+        }
+        // C-154 §4 (R-07): `kind` and `bars` are required; a nil `selectedID` selects none. The
+        // closures are the view's no-op defaults.
+        let ui2C154Kind: MakeReadyUI.VideoEditorLayerTrack.Kind
+        switch c.kind {
+        case "text": ui2C154Kind = .text
+        case "captions": ui2C154Kind = .captions
+        default:
+            throw ViewRegistryError.unknownView("component.ui2.C-154: props.kind (text | captions) is required")
+        }
+        guard let ui2C154Bars = c.bars else {
+            throw ViewRegistryError.unknownView("component.ui2.C-154: props.bars is required")
+        }
+        let ui2C154Track = MakeReadyUI.VideoEditorLayerTrack(
+            kind: ui2C154Kind,
+            bars: ui2C154Bars.map { .init(id: $0.id, text: $0.text, startMs: $0.startMs, endMs: $0.endMs) },
+            selectedID: c.selectedID
+        )
+        // C-154 §3: a 360 pt (9 s) track centred on the 440 design width.
+        guard let ui2C154Off = c.__scrolledOff else {
+            return declareCase(ui2C154Track, PreviewFrame(width: 360, marginEdges: .vertical))
+        }
+        // C-154 §3 `text-pinned`: off the leading edge of a component-wide scroll view, as C-153 lays it.
+        return declareCase(
+            ScrollView(.vertical) {
+                ui2C154Track
+                    .frame(width: 360)
+                    .padding(.leading, -CGFloat(ui2C154Off))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .scrollIndicators(.hidden)
+            .frame(height: 44),
+            PreviewFrame(width: 440, marginEdges: .vertical)
+        )
+    case "component.ui2.C-155":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-155: missing state.component")
+        }
+        // C-155 §4 (R-07): `transcribing` is required; both closures are the view's no-op defaults.
+        guard let ui2C155Transcribing = c.transcribing else {
+            throw ViewRegistryError.unknownView("component.ui2.C-155: props.transcribing is required")
+        }
+        return declareCase(
+            MakeReadyUI.VideoEditorToolbar(transcribing: ui2C155Transcribing),
+            // C-155 §3: the 440 design width, edge to edge.
+            PreviewFrame(width: 440, marginEdges: .vertical)
+        )
+    case "component.ui2.C-156":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-156: missing state.component")
+        }
+        // C-156 §4 (R-07): every value is required; the four closures are the view's no-op defaults.
+        guard let ui2C156Text = c.text, let ui2C156Start = c.startMs,
+              let ui2C156End = c.endMs, let ui2C156CanSplit = c.canSplit else {
+            throw ViewRegistryError.unknownView("component.ui2.C-156: props.text, startMs, endMs and canSplit are required")
+        }
+        return declareCase(
+            MakeReadyUI.VideoEditorLayerToolbar(
+                text: ui2C156Text,
+                startMs: ui2C156Start,
+                endMs: ui2C156End,
+                canSplit: ui2C156CanSplit
+            ),
+            // C-156 §3: the 440 design width, edge to edge.
+            PreviewFrame(width: 440, marginEdges: .vertical)
+        )
+    default:
+        return nil
+    }
+}
+
+/// Part 13 of `buildCaptureView` — nil when `fixture.view` is not one of its cases.
+@MainActor @inline(never)
+private func buildCaptureViewPart13(_ fixture: CaptureFixture, authManager: AuthManager) throws -> AnyView? {
+    switch fixture.view {
+    case "component.ui2.C-157":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-157: missing state.component")
+        }
+        // C-157 §4 (R-07): `canUndo` is required; the three closures are the view's no-op defaults.
+        guard let ui2C157CanUndo = c.canUndo else {
+            throw ViewRegistryError.unknownView("component.ui2.C-157: props.canUndo is required")
+        }
+        return declareCase(
+            MakeReadyUI.VideoEditorTopBar(canUndo: ui2C157CanUndo),
+            // C-157 §3: the 440 design width, edge to edge.
+            PreviewFrame(width: 440, marginEdges: .vertical)
+        )
+    case "component.ui2.C-158":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-158: missing state.component")
+        }
+        // C-158 §4: no props. `frameAspect` is the harness's frame (§3), required.
+        let ui2C158Size: CGSize
+        switch c.frameAspect {
+        case "9:16": ui2C158Size = CGSize(width: 247.5, height: 440)
+        case "16:9": ui2C158Size = CGSize(width: 440, height: 247.5)
+        default: throw ViewRegistryError.unknownView("component.ui2.C-158: frameAspect must be 9:16 or 16:9")
+        }
+        return declareCase(
+            MakeReadyUI.UnsafeBandOverlay(),
+            PreviewFrame(width: ui2C158Size.width, height: ui2C158Size.height, marginEdges: .vertical)
+        )
+    case "screen.2.0.video-editor":
+        // Out of line for the same stack-frame reason as C-083.
+        return try buildScreenVideoEditor(fixture)
     default:
         return nil
     }
@@ -4505,6 +4647,19 @@ private func ui2C152Overlay(_ parts: [CaptureUI2CameraOverlayPart]) throws -> An
     return AnyView(ZStack {
         ForEach(placed.indices, id: \.self) { placed[$0] }
     })
+}
+
+/// C-153 §4 `filmstrip`: each catalog URL as an image, loaded once however often it repeats.
+private func ui2C153Filmstrip(_ sources: [String]) throws -> [Image] {
+    var loaded: [String: UIImage] = [:]
+    return try sources.map { raw in
+        if let image = loaded[raw] { return Image(uiImage: image) }
+        guard let url = URL(string: raw), let data = try? Data(contentsOf: url), let image = UIImage(data: data) else {
+            throw ViewRegistryError.unknownView("component.ui2.C-153: props.filmstrip \(raw) must load")
+        }
+        loaded[raw] = image
+        return Image(uiImage: image)
+    }
 }
 
 private func ui2C150Look(_ raw: String) -> MakeReadyUI.FilterStrip.Look? {
@@ -7152,6 +7307,63 @@ private func buildScreenGroupsEnrollProgram(_ fixture: CaptureFixture) throws ->
         // §3 `discardable`: a non-nil `onDiscard` draws the Discard enrollment button.
         onDiscard: c.discardable == true ? {} : nil
     ))
+}
+
+/// `screen.2.0.video-editor` — the Video Editor screen preview. See the case in `buildCaptureViewPart13`.
+@MainActor @inline(never)
+private func buildScreenVideoEditor(_ fixture: CaptureFixture) throws -> AnyView {
+    guard let c = fixture.state?.component else {
+        throw ViewRegistryError.unknownView("screen.2.0.video-editor: missing state.component")
+    }
+    typealias Editor = MakeReadyUI.VideoEditorScreen.State
+    func bad(_ what: String) -> ViewRegistryError {
+        ViewRegistryError.unknownView("screen.2.0.video-editor: props.\(what) is not a known value")
+    }
+    func style(_ s: CaptureUI2EditorStyle) throws -> Editor.Style {
+        guard let label = Editor.Style.Label(rawValue: s.label),
+              let alignment = Editor.Style.Alignment(rawValue: s.alignment) else { throw bad("style") }
+        return .init(font: s.font, weight: s.weight, size: s.size, color: s.color, label: label, alignment: alignment)
+    }
+    let sample = Editor()
+    guard let captions = Editor.Captions(rawValue: c.captions ?? "none") else { throw bad("captions") }
+    guard let confirm = Editor.Confirm(rawValue: c.confirm ?? "none") else { throw bad("confirm") }
+    guard let openTool = Editor.Tool(rawValue: c.openTool ?? "") else { throw bad("openTool") }
+    let layers: [Editor.Layer] = try (c.layers ?? []).map { layer in
+        guard let kind = Editor.Layer.Kind(rawValue: layer.kind) else { throw bad("layers.kind") }
+        return .init(
+            id: layer.id, kind: kind, text: layer.text, style: try style(layer.style),
+            centre: CGPoint(x: layer.centreX, y: layer.centreY), scale: layer.scale ?? 1,
+            rotation: layer.rotation ?? 0, startMs: layer.startMs, endMs: layer.endMs
+        )
+    }
+    let textTool = try c.textTool.map {
+        Editor.TextTool(text: $0.text, style: try style($0.style), stylePanels: $0.stylePanels)
+    }
+    // The still and the filmstrip, resolved into the preview module's cache — the view performs no network.
+    for raw in (c.filmstrip ?? []) + [c.stillImageURL ?? ""] where !raw.isEmpty {
+        guard let url = URL(string: raw), MakeReadyUI.Ui2ImageCache.shared.image(for: url) == nil,
+              let data = try? Data(contentsOf: url), let image = UIImage(data: data) else { continue }
+        MakeReadyUI.Ui2ImageCache.shared.seed(image, for: url)
+    }
+    return AnyView(MakeReadyUI.VideoEditorScreen(state: .init(
+        layers: layers,
+        selectedID: c.selectedID,
+        playheadMs: c.playheadMs ?? sample.playheadMs,
+        durationMs: c.durationMs ?? sample.durationMs,
+        playing: c.playing ?? sample.playing,
+        frameAspectRatio: c.frameAspectRatio ?? sample.frameAspectRatio,
+        filmstrip: c.filmstrip ?? sample.filmstrip,
+        stillImageURL: c.stillImageURL ?? sample.stillImageURL,
+        canUndo: c.canUndo ?? sample.canUndo,
+        canSplit: c.canSplit ?? sample.canSplit,
+        captions: captions,
+        captionsReason: c.captionsReason ?? sample.captionsReason,
+        limitMessage: c.limitMessage ?? sample.limitMessage,
+        textTool: textTool,
+        confirm: confirm,
+        openTool: openTool,
+        manipulatingID: c.manipulatingID ?? sample.manipulatingID
+    )))
 }
 
 /// Namespace for the capture registry's introspection.

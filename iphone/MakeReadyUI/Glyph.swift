@@ -188,6 +188,7 @@ enum GlyphName: String, CaseIterable {
     case rotateCw = "rotate-cw"
     case save = "save"
     case scale = "scale"
+    case scissors = "scissors"
     case searchCarbon = "search-carbon"
     case sendFilled = "send-filled"
     case settings2 = "settings-2"

@@ -362,7 +362,7 @@ final class VideoRecorderModel {
             let index = choices.firstIndex(of: preRoll) ?? 0
             preRoll = choices[(index + 1) % choices.count]
             settings.preRoll = preRoll
-        case .length, .filters:
+        case .length, .filters, .edit:
             break
         case .teleprompter:
             teleprompterOn = true
