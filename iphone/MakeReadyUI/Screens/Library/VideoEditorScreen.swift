@@ -14,8 +14,8 @@ import UIKit
 /// Video Editor — timed, styled text layers and captions over a recorded clip. The view is pure
 /// (§5): limits, timing, undo, transcription and the player are the app's; it reports intents.
 ///
-/// Composed of §4's parts; screen-local (§4): the preview surface, the guides and delete target
-/// (C-091's looks, deviation 3) and the message line. C-066 is presented in place (§6).
+/// Composed of §4's parts; screen-local (§4): the preview surface, the guides
+/// (C-091's look, deviation 3) and the message line. C-066 is presented in place (§6).
 /// Standalone: `identifiedFrom` is null, so no D7 template applies.
 struct VideoEditorScreen: View {
 
@@ -124,8 +124,6 @@ struct VideoEditorScreen: View {
     /// §3: text input stops here; a caption's at max(this, its current length).
     static let textLimit = 200
     static let limitCopy = "Up to 20 text layers"
-    static let dragToDeleteCopy = "Drag to delete"
-    static let releaseToDeleteCopy = "Release to delete"
     static let removeCaptionsTitle = "Remove captions?"
     static let removeCaptionsMessage = "Every caption is removed from this video."
     static let removeCaptionsAction = "Remove captions"
@@ -235,8 +233,7 @@ struct VideoEditorScreen: View {
             onSelect: onSelect,
             onDeselect: onDeselect,
             onPlace: onPlace,
-            onGestureEnded: onGestureEnded,
-            onDelete: onDelete
+            onGestureEnded: onGestureEnded
         )
         .overlay(alignment: .bottom) { messageLine }
         .ui2Element("Preview")
@@ -485,17 +482,12 @@ private struct VideoEditorPreview: View {
     let onDeselect: () -> Void
     let onPlace: (String, CGPoint, Double, Double) -> Void
     let onGestureEnded: () -> Void
-    let onDelete: (String) -> Void
 
     private struct Place: Equatable {
         var id: String
         var centre: CGPoint
         var scale: Double
         var rotation: Double
-    }
-
-    private enum Target: Equatable {
-        case visible, armed
     }
 
     private struct Engaged: Equatable {
@@ -516,7 +508,6 @@ private struct VideoEditorPreview: View {
     @SwiftUI.State private var sizes: [String: CGSize] = [:]
     @SwiftUI.State private var glyphs: [String: CGRect] = [:]
     @SwiftUI.State private var touchedID: String?
-    @SwiftUI.State private var start: Place?
     @SwiftUI.State private var live: Place?
     @SwiftUI.State private var active: Set<CanvasManipulation.Kind> = []
     @SwiftUI.State private var moveBase: CGPoint = .zero
@@ -525,33 +516,13 @@ private struct VideoEditorPreview: View {
     @SwiftUI.State private var engaged = Engaged()
     @SwiftUI.State private var engagedAngle: Double?
     @SwiftUI.State private var guides: [ActivityCanvasGuideSegment] = []
-    @SwiftUI.State private var target: Target?
-    @SwiftUI.State private var targetZone: CGRect = .zero
-    @SwiftUI.State private var deleteRuledOut = false
-    @SwiftUI.State private var rearmHeld = false
-
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     private enum Geometry {
         /// §2: 1 wu = the frame's short side / 440.
         static let reference: CGFloat = 440
         /// FLAGGED LITERAL — video-editor §2: 1 pt guides.
         static let guide: CGFloat = 1
-        /// FLAGGED LITERAL — video-editor §2: the 44 pt delete ring, 16 pt above the frame's bottom.
-        static let ring: CGFloat = 44
-        static let ringBottom: CGFloat = 16
-        /// FLAGGED LITERAL — C-091 §4 `deleteTarget`: 2 pt stroke, the label 8 pt above, armed
-        /// ring 1.2×, armed label 1.35×, ≈ 170 ms show / hide, ≈ 100 ms arm.
-        static let ringStroke: CGFloat = 2
-        static let labelGap: CGFloat = 8
-        static let armedRing: CGFloat = 1.2
-        static let armedLabel: CGFloat = 1.35
-        static let fade = Animation.easeOut(duration: 0.17)
-        static let arm = Animation.easeOut(duration: 0.1)
-        /// FLAGGED LITERAL — activities-editor §32.2: the docked layer's scale; the zone grows by
-        /// 12 pt before the finger disarms it.
-        static let dockScale: CGFloat = 0.2
-        static let hysteresis: CGFloat = 12
+        /// FLAGGED LITERAL — the 44 pt minimum touch box.
+        static let minHit: CGFloat = 44
         /// FLAGGED LITERAL — video-editor §3: engage 8 pt, release 12 pt.
         static let engage: CGFloat = 8
         static let release: CGFloat = 12
@@ -602,10 +573,7 @@ private struct VideoEditorPreview: View {
             manipulationOverlays(frame)
         }
         .frame(width: frame.width, height: frame.height, alignment: .topLeading)
-        .coordinateSpace(.named(Self.space))
     }
-
-    private static let space = "VideoEditorScreen.frame"
 
     /// §2 Preview, backmost: the feed, else the still, else the page colour.
     @ViewBuilder private var video: some View {
@@ -638,7 +606,6 @@ private struct VideoEditorPreview: View {
     private func layerView(_ layer: Layer, frame: CGSize) -> some View {
         let u = unit(frame)
         let place = place(of: layer)
-        let docked = target == .armed && live?.id == layer.id
         return CanvasTextObject(
             text: layer.text,
             font: VideoEditorValue.font(layer.style.font),
@@ -661,9 +628,8 @@ private struct VideoEditorPreview: View {
         // The block states its own height whatever the frame's (a landscape frame is short).
         .fixedSize()
         .onGeometryChange(for: CGSize.self) { $0.size } action: { sizes[layer.id] = $0 }
-        .scaleEffect(docked ? u * Geometry.dockScale : u)
-        .position(docked ? ringCentre(frame) : CGPoint(x: place.centre.x * frame.width, y: place.centre.y * frame.height))
-        .animation(reduceMotion ? nil : Geometry.arm, value: docked)
+        .scaleEffect(u)
+        .position(CGPoint(x: place.centre.x * frame.width, y: place.centre.y * frame.height))
         // The preview resolves touches by the drawn glyphs, not C-092's 392 wu block.
         .allowsHitTesting(false)
         .accessibilityAction { onSelect(layer.id) }
@@ -717,8 +683,8 @@ private struct VideoEditorPreview: View {
             let dy = point.y - place.centre.y * frame.height - box.shift.dy * u
             let x = dx * cos(-place.rotation) - dy * sin(-place.rotation)
             let y = dx * sin(-place.rotation) + dy * cos(-place.rotation)
-            return abs(x) <= max(box.size.width * u, Geometry.ring) / 2
-                && abs(y) <= max(box.size.height * u, Geometry.ring) / 2
+            return abs(x) <= max(box.size.width * u, Geometry.minHit) / 2
+                && abs(y) <= max(box.size.height * u, Geometry.minHit) / 2
         }?.id
     }
 
@@ -731,21 +697,12 @@ private struct VideoEditorPreview: View {
 
     private func manipulationOverlays(_ frame: CGSize) -> some View {
         let moving = !active.isEmpty || seededPlace != nil
-        let shownTarget = target ?? (active.isEmpty && seededPlace != nil ? .visible : nil)
         return ZStack(alignment: .topLeading) {
             if moving {
                 snapGuides(frame)
                 UnsafeBandOverlay()
                     .ui2Element("C-158 UnsafeBandOverlay")
             }
-            ZStack {
-                if let shownTarget {
-                    deleteTarget(armed: shownTarget == .armed, frame: frame)
-                        .transition(.opacity)
-                }
-            }
-            .frame(width: frame.width, height: frame.height)
-            .animation(reduceMotion ? nil : Geometry.fade, value: shownTarget != nil)
         }
         .allowsHitTesting(false)
     }
@@ -765,35 +722,6 @@ private struct VideoEditorPreview: View {
         .stroke(Token.white80, lineWidth: Geometry.guide)
         .ui2Element("Snap guides")
         .accessibilityHidden(true)
-    }
-
-    private func ringCentre(_ frame: CGSize) -> CGPoint {
-        CGPoint(x: frame.width / 2, y: frame.height - Geometry.ringBottom - Geometry.ring / 2)
-    }
-
-    /// §2: C-091's delete target look; the ring 16 pt above the frame's bottom edge.
-    private func deleteTarget(armed: Bool, frame: CGSize) -> some View {
-        VStack(spacing: Geometry.labelGap) {
-            Text(VideoEditorScreen.dragToDeleteCopy)
-                // GAP — C-091 §4: semibold 13 pt; the closest token, as C-091 draws it.
-                .designTextStyle(Token.TypeStyle.captionSemibold)
-                .foregroundStyle(Token.white100)
-                .fixedSize()
-                .scaleEffect(armed ? Geometry.armedLabel : 1)
-            ZStack {
-                Circle().strokeBorder(Token.white100, lineWidth: Geometry.ringStroke)
-                Glyph(.trash2, size: .md, tint: Token.white100)
-            }
-            .frame(width: Geometry.ring, height: Geometry.ring)
-            .scaleEffect(armed ? Geometry.armedRing : 1)
-        }
-        .animation(reduceMotion ? nil : Geometry.arm, value: armed)
-        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.space)) } action: { targetZone = $0 }
-        .ui2Element("Delete target")
-        .accessibilityElement()
-        .accessibilityLabel(armed ? VideoEditorScreen.releaseToDeleteCopy : VideoEditorScreen.dragToDeleteCopy)
-        .padding(.bottom, Geometry.ringBottom)
-        .frame(width: frame.width, height: frame.height, alignment: .bottom)
     }
 
     // MARK: Gestures
@@ -817,18 +745,17 @@ private struct VideoEditorPreview: View {
 
     private func manipulate(_ update: CanvasManipulation.Update, frame: CGRect) {
         switch update.phase {
-        case .began: begin(update, frame: frame)
+        case .began: begin(update)
         case .changed: change(update, frame: frame)
         case .ended: end(update)
         }
     }
 
-    private func begin(_ update: CanvasManipulation.Update, frame: CGRect) {
+    private func begin(_ update: CanvasManipulation.Update) {
         if live == nil {
             guard let layer = layers.first(where: { $0.id == touchedID }) else { return }
             let place = place(of: layer)
             live = place
-            start = place
         }
         guard let place = live else { return }
         active.insert(update.kind)
@@ -838,30 +765,23 @@ private struct VideoEditorPreview: View {
         case .pinch: scaleBase = place.scale
         case .rotate: rotationBase = place.rotation
         }
-        trackDelete(update, frame: frame)
     }
 
     private func change(_ update: CanvasManipulation.Update, frame: CGRect) {
         guard active.contains(update.kind), var next = live, frame.width > 0, frame.height > 0 else { return }
-        trackDelete(update, frame: frame)
         switch update.kind {
         case .move:
             next.centre = CGPoint(
                 x: moveBase.x + update.translation.width / frame.width,
                 y: moveBase.y + update.translation.height / frame.height
             )
-            if target == .armed {
-                engaged = Engaged()
-                guides = []
-            } else {
-                let result = snapped(next, frame: frame.size, engaged: engaged)
-                let gained = (result.engaged.x != nil && result.engaged.x != engaged.x)
-                    || (result.engaged.y != nil && result.engaged.y != engaged.y)
-                if gained { Self.haptic() }
-                engaged = result.engaged
-                guides = result.guides
-                next.centre = result.centre
-            }
+            let result = snapped(next, frame: frame.size, engaged: engaged)
+            let gained = (result.engaged.x != nil && result.engaged.x != engaged.x)
+                || (result.engaged.y != nil && result.engaged.y != engaged.y)
+            if gained { Self.haptic() }
+            engaged = result.engaged
+            guides = result.guides
+            next.centre = result.centre
         case .pinch:
             next.scale = scaleBase * Double(update.scale)
         case .rotate:
@@ -873,29 +793,17 @@ private struct VideoEditorPreview: View {
         }
         guard next != live else { return }
         live = next
-        // §3: no place is kept from an armed drag.
-        if target != .armed { onPlace(next.id, next.centre, next.scale, next.rotation) }
+        onPlace(next.id, next.centre, next.scale, next.rotation)
     }
 
     private func end(_ update: CanvasManipulation.Update) {
         guard active.contains(update.kind) else { return }
         active.remove(update.kind)
         if update.kind == .move { guides = [] }
-        guard active.isEmpty else {
-            target = nil
-            return
-        }
-        let drop = target == .armed && !update.cancelled
-        let place = live
-        let origin = start
+        guard active.isEmpty else { return }
+        // §3: dropping a layer anywhere keeps its new place.
         reset()
-        if drop, let place {
-            // §3: lifting while armed deletes, and no place is kept.
-            if let origin { onPlace(origin.id, origin.centre, origin.scale, origin.rotation) }
-            onDelete(place.id)
-        } else {
-            onGestureEnded()
-        }
+        onGestureEnded()
     }
 
     /// The preview was covered mid-gesture.
@@ -908,42 +816,9 @@ private struct VideoEditorPreview: View {
     private func reset() {
         active = []
         live = nil
-        start = nil
         engaged = Engaged()
         engagedAngle = nil
         guides = []
-        target = nil
-        deleteRuledOut = false
-        rearmHeld = false
-    }
-
-    /// activities-editor §31–§32: a one-finger move only; a second finger rules it out.
-    private func trackDelete(_ update: CanvasManipulation.Update, frame: CGRect) {
-        if update.kind != .move || update.touches > 1 || active != [.move] { deleteRuledOut = true }
-        guard !deleteRuledOut, update.kind == .move, let place = live else {
-            target = nil
-            return
-        }
-        guard targetZone != .zero else {
-            target = .visible
-            return
-        }
-        let finger = CGPoint(x: update.location.x - frame.minX, y: update.location.y - frame.minY)
-        let fingerIn = targetZone.contains(finger)
-        let armed: Bool
-        if target == .armed {
-            armed = targetZone.insetBy(dx: -Geometry.hysteresis, dy: -Geometry.hysteresis).contains(finger)
-            if !armed { rearmHeld = true }
-        } else {
-            let u = unit(frame.size)
-            let box = bounds(place, frame: frame.size)
-            let drawn = CGRect(x: box.minX * u, y: box.minY * u, width: box.width * u, height: box.height * u)
-            let meets = drawn.intersects(targetZone)
-            if !meets || fingerIn { rearmHeld = false }
-            armed = fingerIn || (meets && !rearmHeld)
-        }
-        if armed, target != .armed { Self.haptic() }
-        target = armed ? .armed : .visible
     }
 
     private static func haptic() {

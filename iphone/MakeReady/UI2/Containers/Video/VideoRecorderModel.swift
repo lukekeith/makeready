@@ -145,6 +145,8 @@ final class VideoRecorderModel {
     /// Total recorded time, the segment in progress included.
     private var recorded: TimeInterval = 0
     private var preRoll: PreRoll
+    /// The Countdown panel's Sound switch (countdown-sound S2, S3): off until the leader turns it on.
+    private var countdownSound: Bool
     private var filter: VideoFilter = .normal
     private var filterStrength = 100
     private var teleprompterOn = false
@@ -201,6 +203,7 @@ final class VideoRecorderModel {
         self.makeEditor = makeEditor ?? Self.liveEditor(report: report)
         timeline = RecordingTimeline(lengthSeconds: settings.length)
         preRoll = settings.preRoll
+        countdownSound = settings.countdownSound
         script = settings.script
         speed = settings.speedStep
         textSizeStep = settings.sizeStep
@@ -394,21 +397,28 @@ final class VideoRecorderModel {
 
     // MARK: Rail (D1)
 
-    /// Length, Filters and Teleprompter open their own panels on the screen.
+    /// Countdown, Length, Filters and Teleprompter open their own panels on the screen.
     func rail(_ tool: RailTool.Tool) {
         switch tool {
         case .flip:
             engine.flip()
-        case .countdown:
-            let choices = PreRoll.allCases
-            let index = choices.firstIndex(of: preRoll) ?? 0
-            preRoll = choices[(index + 1) % choices.count]
-            settings.preRoll = preRoll
-        case .length, .filters, .edit:
+        case .countdown, .length, .filters, .edit:
             break
         case .teleprompter:
             teleprompterOn = true
         }
+    }
+
+    /// The Countdown panel's Off · 3 s · 10 s choice (D2; countdown-sound S4).
+    func setPreRoll(_ choice: PreRoll) {
+        preRoll = choice
+        settings.preRoll = choice
+    }
+
+    /// The Countdown panel's Sound switch (countdown-sound S2). The beeper reads the same setting.
+    func setCountdownSound(_ on: Bool) {
+        countdownSound = on
+        settings.countdownSound = on
     }
 
     /// Ignored once a segment exists (D3).
@@ -946,6 +956,7 @@ extension VideoRecorderModel {
         view.liveDuration = shown.liveDuration
         view.length = Double(shown.length)
         view.countdownValue = shown.preRoll == .off ? "" : "\(shown.preRoll.seconds)s"
+        view.countdownSound = countdownSound
         view.filterLook = shown.filter.name
         view.strength = shown.filterStrength
         view.teleprompterOn = shown.teleprompterOn

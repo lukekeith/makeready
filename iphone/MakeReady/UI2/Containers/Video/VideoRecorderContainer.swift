@@ -113,6 +113,8 @@ struct VideoRecorderContainer: View {
             onUseNote: model.openNotePicker,
             onSpeedChange: model.setSpeed,
             onTextSizeChange: { model.setTextSize(named: $0) },
+            onPreRollChange: { model.setPreRoll(PreRoll(panel: $0)) },
+            onCountdownSoundChange: model.setCountdownSound,
             feed: feed,
             hostChrome: false,
             teleprompterOffset: shown.teleprompterOffset,
@@ -376,4 +378,15 @@ private enum FilterSwatches {
         }
         return images
     }()
+}
+
+private extension PreRoll {
+    /// The Countdown panel's choice (countdown-sound S4).
+    init(panel: VideoRecorderScreen.State.PreRoll) {
+        switch panel {
+        case .off: self = .off
+        case .three: self = .three
+        case .ten: self = .ten
+        }
+    }
 }

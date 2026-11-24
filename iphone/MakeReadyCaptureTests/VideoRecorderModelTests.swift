@@ -159,14 +159,33 @@ final class VideoRecorderModelTests: XCTestCase {
         XCTAssertEqual(VideoRecorderModel.railTools, [.flip, .countdown, .length, .filters, .teleprompter])
     }
 
-    func testRailFlipsAndCyclesTheCountdown() {
+    func testRailFlipsAndCountdownOpensItsPanelWithoutCycling() {
         let m = makeModel()
         m.rail(.flip)
         XCTAssertEqual(engine.flips, 1)
-        var seen: [PreRoll] = []
-        for _ in 0..<3 { m.rail(.countdown); seen.append(m.screenState.preRoll) }
-        XCTAssertEqual(seen, [.three, .ten, .off])
-        XCTAssertEqual(settings.preRoll, .off)
+        m.rail(.countdown)
+        XCTAssertEqual(m.screenState.preRoll, .off, "countdown-sound S4: the tool opens the panel; it no longer cycles")
+    }
+
+    // MARK: the Countdown panel (countdown-sound S2–S4)
+
+    func testCountdownPanelSetsAndPersistsTheChoice() {
+        let m = makeModel()
+        m.setPreRoll(.ten)
+        XCTAssertEqual(m.screenState.preRoll, .ten)
+        XCTAssertEqual(settings.preRoll, .ten)
+        XCTAssertEqual(m.viewState(layout: .fullScreen).countdownValue, "10s")
+        m.setPreRoll(.off)
+        XCTAssertEqual(m.viewState(layout: .fullScreen).countdownValue, "")
+    }
+
+    func testCountdownSoundIsOffByDefaultAndPersists() {
+        let m = makeModel()
+        XCTAssertFalse(m.viewState(layout: .fullScreen).countdownSound, "S3: silent until the leader turns it on")
+        m.setCountdownSound(true)
+        XCTAssertTrue(settings.countdownSound)
+        XCTAssertTrue(m.viewState(layout: .fullScreen).countdownSound)
+        XCTAssertTrue(makeModel().viewState(layout: .fullScreen).countdownSound, "read back from the device setting")
     }
 
     // MARK: a tap during pre-roll cancels it (D2)

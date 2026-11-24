@@ -3466,7 +3466,7 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
             throw ViewRegistryError.unknownView("screen.2.0.video-recorder: props.phase must be ready | preRoll | recording | paused | endCountdown | permissionDenied | review | trim")
         }
         guard let recorderSheet = MakeReadyUI.VideoRecorderScreen.State.Sheet(rawValue: c.sheet ?? "") else {
-            throw ViewRegistryError.unknownView("screen.2.0.video-recorder: props.sheet must be \"\" | length | filters | teleprompter")
+            throw ViewRegistryError.unknownView("screen.2.0.video-recorder: props.sheet must be \"\" | length | countdown | filters | teleprompter")
         }
         // §1 deviation 4: the sample still, resolved into the preview module's cache (the
         // video-detail seam) — the view itself performs no network.
@@ -3485,6 +3485,7 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
                 liveDuration: c.liveDuration ?? recorderDefaults.liveDuration,
                 length: c.length ?? recorderDefaults.length,
                 countdownValue: c.countdownValue ?? recorderDefaults.countdownValue,
+                countdownSound: c.countdownSound ?? recorderDefaults.countdownSound,
                 filterLook: c.filterLook ?? recorderDefaults.filterLook,
                 strength: c.strength ?? recorderDefaults.strength,
                 teleprompterOn: c.teleprompterOn ?? recorderDefaults.teleprompterOn,

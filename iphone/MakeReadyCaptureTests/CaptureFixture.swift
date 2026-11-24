@@ -1653,7 +1653,8 @@ struct CaptureComponent: Codable {
     let countdownNumeral: Int?                 // video-recorder — the numeral n (preRoll / endCountdown)
     let filterLook: String?                    // video-recorder — a C-150 look by name ("Normal" …)
     let teleprompterOn: Bool?                  // video-recorder — §5 teleprompter.on
-    let sheet: String?                         // video-recorder — "" | length | filters | teleprompter
+    let sheet: String?                         // video-recorder — "" | length | countdown | filters | teleprompter
+    let countdownSound: Bool?                  // video-recorder — the Countdown panel's Sound switch (always off)
     let cameraImageURL: String?                // video-recorder — the sample still (catalog URL); "" = none
     // ── preview props ──
     // C-153 VideoEditorTimeline — `playing` (Bool?) is reused above. `tracks` is a §4 @ViewBuilder
