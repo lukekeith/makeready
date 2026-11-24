@@ -83,6 +83,10 @@ final class VideoRecorderModel {
         }
     }
 
+    /// Makes the editor for a clip. The clip's `frame` is not measured: the maker sizes it.
+    typealias MakeEditor = @MainActor (VideoEditorModel.Clip, [VideoLayer], VideoTranscript?,
+                                       @escaping ([VideoLayer], VideoTranscript?) -> Void) async throws -> VideoEditorModel
+
     /// Everything the recorder shows, as values.
     struct ScreenState: Equatable {
         var phase: Phase
@@ -128,6 +132,10 @@ final class VideoRecorderModel {
     private(set) var importedClip: VideoImportFlow.Clip?
     /// The part of `importedClip` kept; nil is all of it (D8).
     private(set) var trimWindow: ClosedRange<Double>?
+    /// The editor over Review while it is open (video-editor D7); its host drops it with `editorHidden`.
+    private(set) var editor: VideoEditorModel?
+    /// The edit's layers, kept in memory even when the draft cannot be written (D16, D28).
+    private(set) var layers: [VideoLayer] = []
     /// Save was tapped and the recorder is done (D9).
     @ObservationIgnored var onFinished: (VideoRecorderEntry) -> Void = { _ in }
     /// The recorder closed with nothing saved.
@@ -168,10 +176,14 @@ final class VideoRecorderModel {
     @ObservationIgnored private var pendingWork = 0
     @ObservationIgnored private var playerWork: Task<Void, Never>?
     @ObservationIgnored private var isSaving = false
+    @ObservationIgnored private var isOpeningEditor = false
+    @ObservationIgnored private var transcript: VideoTranscript?
+    @ObservationIgnored private let makeEditor: MakeEditor
 
     init(entry: VideoRecorderEntry, engine: VideoRecorderCapturing, settings: RecorderSettings,
          player: VideoReviewPlaying, saver: VideoSaving, recoverDraft: @escaping () -> VideoDraft?, beep: @escaping (Double) -> Void,
          report: @escaping (Error, String) -> Void, loadNotes: @escaping () async throws -> Void,
+         makeEditor: MakeEditor? = nil,
          now: @escaping () -> TimeInterval = CACurrentMediaTime,
          sleep: @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) }) {
         self.entry = entry
@@ -185,6 +197,7 @@ final class VideoRecorderModel {
         self.loadNotes = loadNotes
         self.now = now
         self.sleep = sleep
+        self.makeEditor = makeEditor ?? Self.liveEditor(report: report)
         timeline = RecordingTimeline(lengthSeconds: settings.length)
         preRoll = settings.preRoll
         script = settings.script
@@ -198,6 +211,9 @@ final class VideoRecorderModel {
     var displayLayer: CALayer { engine.displayLayer }
 
     var playerLayer: CALayer { player.layer }
+
+    /// Review, with nothing saving and no editor open (D7).
+    var canEdit: Bool { phase == .review && !isSaving && editor == nil }
 
     var screenState: ScreenState {
         ScreenState(
@@ -236,11 +252,30 @@ final class VideoRecorderModel {
             timeline = RecordingTimeline(lengthSeconds: draft.settings.lengthSeconds)
             filter = draft.settings.filter.flatMap(VideoFilter.init(rawValue:)) ?? .normal
             filterStrength = Int(draft.settings.filterStrength)
+            layers = draft.layers
+            transcript = draft.transcript
             syncTimeline()
+            if draft.source == .imported, let segment = draft.segments.first {
+                importedClip = VideoImportFlow.Clip(url: segment.url, duration: segment.duration)
+                trimWindow = draft.window
+                resumeReview()
+                return
+            }
+            if !draft.layers.isEmpty || draft.transcript != nil {
+                resumeReview()
+                return
+            }
             phase = idlePhase
         }
         applyFilter()
         prepare()
+    }
+
+    /// A kill mid-edit comes back to Review with its layers (D16, D19).
+    private func resumeReview() {
+        applyFilter()
+        player.show(layers: layers)
+        showClip(in: .review)
     }
 
     /// Back from Settings the camera may be allowed now (D19); back in Review the video plays on.
@@ -248,7 +283,7 @@ final class VideoRecorderModel {
         guard opened, !isClosed else { return }
         switch phase {
         case .permissionDenied: prepare()
-        case .review, .trim: player.play()
+        case .review, .trim: if editor == nil { player.play() }
         case .ready, .preRoll, .recording, .endCountdown, .paused: break
         }
     }
@@ -256,6 +291,7 @@ final class VideoRecorderModel {
     /// The engine ends a segment itself (D26); a countdown has no segment yet.
     func backgrounded() {
         cancelPreRoll()
+        editor?.backgrounded()
     }
 
     /// Asks first when something would be lost (D9).
@@ -285,6 +321,8 @@ final class VideoRecorderModel {
         isClosed = true
         stopPlaying()
         dropImport()
+        layers = []
+        transcript = nil
         perform { [self] in
             await engine.stopSegment()
             engine.discardDraft()
@@ -573,7 +611,7 @@ final class VideoRecorderModel {
     }
 
     private func syncTimeline() {
-        guard let draft = engine.draft else { return }
+        guard let draft = engine.draft, draft.source == .recording else { return }
         var synced = RecordingTimeline(lengthSeconds: timeline.lengthSeconds)
         draft.segments.forEach { synced.append($0.duration) }
         timeline = synced
@@ -668,6 +706,7 @@ final class VideoRecorderModel {
         guard !clips.isEmpty else { return }
         let window = trimWindow
         let look = look
+        player.show(layers: layers)
         playerWork = Task { [player, report] in
             do {
                 try await player.load(clips: clips, window: window, look: look)
@@ -702,6 +741,8 @@ final class VideoRecorderModel {
     private func returnToCamera() {
         stopPlaying()
         dropImport()
+        layers = []
+        transcript = nil
         timeline = RecordingTimeline(lengthSeconds: timeline.lengthSeconds)
         recorded = 0
         teleprompterShift = 0
@@ -711,6 +752,67 @@ final class VideoRecorderModel {
             engine.discardDraft()
         }
         prepare()
+    }
+
+    // MARK: Edit (video-editor D7, D16, D19, D23)
+
+    /// Opens the editor over Review on the draft's edit; a failure is reported and Review plays on.
+    func editTapped() async {
+        guard canEdit, !isClosed, !isOpeningEditor else { return }
+        isOpeningEditor = true
+        defer { isOpeningEditor = false }
+        await settled()
+        guard canEdit, !isClosed else { return }
+        stopPlaying()
+        do {
+            let draft = try draftToEdit()
+            let clip = VideoEditorModel.Clip(
+                urls: draft.segments.map(\.url), window: trimWindow,
+                duration: trimWindow.map { $0.upperBound - $0.lowerBound } ?? draft.segments.reduce(0) { $0 + $1.duration },
+                frame: .zero, look: look)
+            let opened = try await makeEditor(clip, layers, transcript) { [weak self] layers, transcript in
+                self?.editorSaved(layers, transcript)
+            }
+            opened.onFinished = { [weak self] layers in self?.editorFinished(layers) }
+            editor = opened
+            opened.open()
+        } catch {
+            startPlaying()
+            report(error, "Couldn't open the editor")
+        }
+    }
+
+    /// The editor's host has taken it off the screen.
+    func editorHidden() {
+        editor = nil
+    }
+
+    /// An import has no draft until its first edit (D19).
+    private func draftToEdit() throws -> VideoDraft {
+        if let importedClip, engine.draft == nil {
+            try engine.adopt(imported: importedClip.url, duration: importedClip.duration, window: trimWindow, settings: draftSettings)
+            if let segment = engine.draft?.segments.first {
+                self.importedClip = VideoImportFlow.Clip(url: segment.url, duration: segment.duration)
+            }
+        }
+        guard let draft = engine.draft else { throw VideoDraftError.noDraft }
+        return draft
+    }
+
+    private func editorSaved(_ layers: [VideoLayer], _ transcript: VideoTranscript?) {
+        self.layers = layers
+        self.transcript = transcript
+        do {
+            try engine.save(layers: layers, transcript: transcript)
+        } catch {
+            // Recovered: memory keeps the edit, and Save writes it again and reports a failure (D28).
+            Log.media.error("video edit not saved: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    private func editorFinished(_ layers: [VideoLayer]) {
+        self.layers = layers
+        startPlaying()
     }
 
     /// Returns once the player has loaded what it was last given.
@@ -730,9 +832,10 @@ final class VideoRecorderModel {
         guard !isClosed, let clip = clipToSave else { return }
         let work: Task<Void, Never>
         do {
+            if case .draft = clip { try engine.save(layers: layers, transcript: transcript) }
             work = try saver.start(
                 VideoSave(entry: entry, source: importedClip == nil ? .recording : .imported, filter: filter,
-                          strength: Double(filterStrength), window: trimWindow), of: clip)
+                          strength: Double(filterStrength), window: trimWindow), of: savedClip(clip))
         } catch {
             report(error, "Couldn't save your video")
             return
@@ -746,9 +849,18 @@ final class VideoRecorderModel {
     }
 
     private var clipToSave: VideoClip? {
-        if let importedClip { return .file(importedClip.url, duration: importedClip.duration) }
+        if let importedClip {
+            if let draft = engine.draft, draft.source == .imported { return .draft(draft) }
+            return .file(importedClip.url, duration: importedClip.duration)
+        }
         guard let draft = engine.draft, !draft.segments.isEmpty else { return nil }
         return .draft(draft)
+    }
+
+    /// The draft as the engine holds it once the edit is written again.
+    private func savedClip(_ clip: VideoClip) -> VideoClip {
+        if case .draft = clip, let draft = engine.draft { return .draft(draft) }
+        return clip
     }
 
     // MARK: Engine
@@ -779,10 +891,14 @@ final class VideoRecorderModel {
     private var look: VideoLook { VideoLook(filter: filter, strength: Double(filterStrength) / 100) }
 
     private func saveChoices() {
-        engine.save(settings: VideoDraftSettings(lengthSeconds: timeline.lengthSeconds,
-                                                 filter: filter == .normal ? nil : filter.rawValue,
-                                                 filterStrength: Double(filterStrength),
-                                                 entry: entry == .plusMenu ? nil : entry))
+        engine.save(settings: draftSettings)
+    }
+
+    private var draftSettings: VideoDraftSettings {
+        VideoDraftSettings(lengthSeconds: timeline.lengthSeconds,
+                           filter: filter == .normal ? nil : filter.rawValue,
+                           filterStrength: Double(filterStrength),
+                           entry: entry == .plusMenu ? nil : entry)
     }
 
     /// Runs engine work after all the work asked for before it.

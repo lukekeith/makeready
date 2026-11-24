@@ -323,6 +323,19 @@ extension VideoRecorderModel {
     }
 
     private struct NoSignedInUser: Error {}
+    private struct EditorPlaybackFailed: Error {}
+
+    /// The editor on its own player, transcribing the clip being edited for up to 60 s (video-editor D11, D23).
+    static func liveEditor(report: @escaping (Error, String) -> Void) -> MakeEditor {
+        { clip, layers, transcript, save in
+            let sized = VideoEditorModel.Clip(urls: clip.urls, window: clip.window, duration: clip.duration,
+                                              frame: try await VideoExporter.frameSize(of: clip.urls), look: clip.look)
+            return VideoEditorModel(
+                clip: sized, layers: layers, transcript: transcript, player: VideoReviewPlayer(),
+                transcribe: { await VideoTranscriber().transcribe(clips: sized.urls, window: sized.window, timeout: .seconds(60)) },
+                save: save, report: { report(EditorPlaybackFailed(), $0) })
+        }
+    }
 }
 
 /// C-150's swatches: each look over the same sky-to-skin gradient.
