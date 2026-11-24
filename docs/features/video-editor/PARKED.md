@@ -49,3 +49,4 @@ and run /builder:agent. Starting app code first was rejected: the spec forbids i
 - 2026-11-23 unparked by Luke — screens approved ("the video editor looks fantastic! Love the screens"), D31
 - 2026-11-24 unparked by a person — named to /builder:agent or /builder:fleet
 - 2026-11-24 built through phase 5; text tool keyboard fix on d2m fast lane (cmwudljq70001v0wl9pghmn1p); awaiting the walk lane
+- 2026-11-24 walk lane: cause gone — D31 approves the screens; readiness passed, walk starts
