@@ -45,3 +45,4 @@ and run /builder:agent. Starting app code first was rejected: the spec forbids i
 
 ## History
 - 2026-11-23 parked — owner approval of the d2m screens
+- 2026-11-23 unparked by Luke — screens approved ("the video editor looks fantastic! Love the screens"), D31
