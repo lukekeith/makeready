@@ -70,9 +70,9 @@ struct VideoRecorderContainer: View {
             .filterMenuPresentation(isPresented: model.notePickerOpen, onDismiss: model.closeNotePicker) {
                 notePicker
             }
-            // D8: the system picker — a modifier, not .sheet/.fullScreenCover (as MediaHomeContainer's).
             // video-editor D10, D29: the editor over Review, hosted or in place.
             .videoEditorPresentation(model: model)
+            // D8: the system picker — a modifier, not .sheet/.fullScreenCover (as MediaHomeContainer's).
             .photosPicker(isPresented: $pickerOpen, selection: $pick, matching: .videos)
             .onChange(of: pick) { _, picked in
                 guard let picked else { return }
@@ -148,7 +148,6 @@ struct VideoRecorderContainer: View {
         /// GAP — video-recorder §2d: C-105's 36 pt pill in the same row: 6 + (80 − 36) / 2.
         static let reviewButtonBottom: CGFloat = 28
         /// GAP — video-recorder §2d: Retake and Save side by side, as Edit and Filters are (10 pt).
-        static let reviewButtonGap: CGFloat = 10
         /// GAP — video-recorder §2c: undo "centre 98 left of the record centre".
         static let undoOffset: CGFloat = -98
         /// C-021 §2: a 24 pt glyph in a 44 pt target.
@@ -218,13 +217,9 @@ struct VideoRecorderContainer: View {
             .padding(.bottom, Geometry.reviewButtonBottom)
         } else if shown.phase == .review {
             // F8: the screen leaves this the width beside Edit and Filters and margins the row itself.
-            HStack(spacing: Geometry.reviewButtonGap) {
-                Button(label: "Retake", onTap: model.requestRetake)
-                // The model outlives the recorder until its save is done.
-                Button(label: "Save", onTap: { Task { await model.save() } })
-            }
-            .frame(maxWidth: .infinity, alignment: .trailing)
-            .padding(.bottom, Geometry.reviewButtonBottom)
+            VideoReviewActions(model: model)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.bottom, Geometry.reviewButtonBottom)
         }
     }
 
@@ -295,6 +290,22 @@ struct VideoRecorderContainer: View {
         let duration = note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double ?? 0.25
         withAnimation(.easeOut(duration: duration)) {
             keyboardHeight = hiding ? 0 : max(0, screenHeight - frame.minY)
+        }
+    }
+}
+
+/// Review's Retake and Save, side by side as Edit and Filters are.
+struct VideoReviewActions: View {
+    let model: VideoRecorderModel
+
+    /// GAP — video-recorder §2d: Retake and Save side by side, as Edit and Filters are (10 pt).
+    static let gap: CGFloat = 10
+
+    var body: some View {
+        HStack(spacing: Self.gap) {
+            Button(label: "Retake", onTap: model.requestRetake)
+            // The model outlives the recorder until its save is done.
+            Button(label: "Save", onTap: { Task { await model.save() } })
         }
     }
 }

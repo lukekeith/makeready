@@ -54,13 +54,15 @@ final class VideoEditorPresentationTests: XCTestCase {
     }
 
     /// Puts `view` in a window and lets SwiftUI settle.
-    private func show(_ view: some View) {
+    @discardableResult
+    private func show(_ view: some View, size: CGSize = CGSize(width: 440, height: 956)) -> UIViewController {
         let host = UIHostingController(rootView: view)
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 440, height: 956))
+        let window = UIWindow(frame: CGRect(origin: .zero, size: size))
         window.rootViewController = host
         window.isHidden = false
         windows.append(window)
         settle(host)
+        return host
     }
 
     private func settle(_ host: UIViewController? = nil) {
@@ -114,5 +116,82 @@ final class VideoEditorPresentationTests: XCTestCase {
         try await until { m.editor == nil }
         XCTAssertFalse(m.isClosed)
         XCTAssertEqual(m.screenState.phase, .review)
+    }
+
+    // MARK: - Hosted by a real shell host (D10)
+
+    /// Opens Edit under a real `.ui2OverlayHost()`, ends it with `end`, and returns whether the hosted
+    /// overlay was on screen before and is gone after.
+    private func hostedRoundTrip(_ m: VideoRecorderModel, end: (VideoEditorModel) -> Void) async throws -> (up: Bool, gone: Bool) {
+        let seen = Seen()
+        show(Color.clear
+            .videoEditorPresentation(model: m)
+            .ui2OverlayHost()
+            .overlayPreferenceValue(UI2HostedOverlayKey.self) { overlay in
+                Color.clear.onChange(of: overlay != nil, initial: true) { _, handed in seen.overlay = handed }
+            })
+        await m.editTapped()
+        let editor = try XCTUnwrap(m.editor)
+        try await until { seen.overlay }
+        settle()
+        end(editor)
+        try await until { m.editor == nil }
+        settle()
+        return (true, !seen.overlay)
+    }
+
+    func testHostedDoneReturnsToTheSameReview() async throws {
+        let m = await reviewModel()
+        let result = try await hostedRoundTrip(m) { $0.doneTapped() }
+        XCTAssertTrue(result.up)
+        XCTAssertTrue(result.gone)
+        XCTAssertNil(m.editor)
+        XCTAssertFalse(m.isClosed)
+        XCTAssertEqual(m.screenState.phase, .review)
+    }
+
+    func testHostedCancelReturnsToTheSameReview() async throws {
+        let m = await reviewModel()
+        let result = try await hostedRoundTrip(m) { $0.cancelTapped() }
+        XCTAssertTrue(result.up)
+        XCTAssertTrue(result.gone)
+        XCTAssertNil(m.editor)
+        XCTAssertFalse(m.isClosed)
+        XCTAssertEqual(m.screenState.phase, .review)
+    }
+
+    // MARK: - Review's row fit (F8)
+
+    private final class Widths { var offered: CGFloat = 0 }
+
+    /// The width the screen offers Review's slot beside Edit and Filters at `width`, and the natural
+    /// width of the real Retake + Save content.
+    private func slotFit(width: CGFloat, layout: VideoRecorderScreen.State.Layout) async -> (offered: CGFloat, natural: CGFloat) {
+        let m = await reviewModel()
+        let widths = Widths()
+        show(VideoRecorderScreen(
+            state: .init(layout: layout, phase: .review, segments: [4]),
+            reviewSlot: {
+                AnyView(VideoReviewActions(model: m)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { widths.offered = $0 })
+            },
+            onEdit: {}
+        ), size: CGSize(width: width, height: 956))
+        let natural = UIHostingController(rootView: VideoReviewActions(model: m).fixedSize())
+            .sizeThatFits(in: CGSize(width: 10_000, height: 100)).width
+        return (widths.offered, natural)
+    }
+
+    func testReviewRowFitsAt440() async throws {
+        let fit = await slotFit(width: 440, layout: .fullScreen)
+        XCTAssertGreaterThan(fit.offered, 0)
+        XCTAssertLessThanOrEqual(fit.natural, fit.offered)
+    }
+
+    func testReviewRowFitsAtTheLessonsInlineWidth() async throws {
+        let fit = await slotFit(width: 343, layout: .lessonInline)
+        XCTAssertGreaterThan(fit.offered, 0)
+        XCTAssertLessThanOrEqual(fit.natural, fit.offered)
     }
 }
