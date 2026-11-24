@@ -795,7 +795,9 @@ final class VideoRecorderModel {
 
     /// An import has no draft until its first edit (D19).
     private func draftToEdit() throws -> VideoDraft {
-        if let importedClip, engine.draft == nil {
+        if let importedClip, engine.draft?.source != .imported {
+            // What is left of a recording with no clips: an import is only taken then.
+            engine.discardDraft()
             try engine.adopt(imported: importedClip.url, duration: importedClip.duration, window: trimWindow, settings: draftSettings)
             if let segment = engine.draft?.segments.first {
                 self.importedClip = VideoImportFlow.Clip(url: segment.url, duration: segment.duration)

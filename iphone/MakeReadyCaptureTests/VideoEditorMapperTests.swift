@@ -49,6 +49,15 @@ final class VideoEditorMapperTests: XCTestCase {
         XCTAssertTrue(VideoEditorMapper.state(of: m, filmstrip: []).canUndo)
     }
 
+    /// A text added where playback stopped is drawn, though its window ends there.
+    func testWholeClipLayerShowsAtTheEnd() {
+        let m = make([])
+        m.session.seek(10_000)
+        m.textTapped(); m.commitText("Title", style: .standard)
+        XCTAssertEqual(previewTexts(VideoEditorMapper.state(of: m, filmstrip: [])), ["Title"])
+        XCTAssertEqual(m.session.playheadMs, 10_000)
+    }
+
     func testStyleRoundTrip() {
         let styles = VideoLayerStyle.Font.allCases.flatMap { font in
             VideoLayerStyle.Background.allCases.map {

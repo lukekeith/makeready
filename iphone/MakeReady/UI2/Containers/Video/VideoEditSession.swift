@@ -153,7 +153,7 @@ final class VideoEditSession {
             guard layer.kind == .text else { return layer }
             var out = layer
             out.centre = centre
-            out.scale = scale
+            if scale.isFinite { out.scale = VideoLayer.clamped(scale: scale) }
             out.rotation = rotation
             return out
         }

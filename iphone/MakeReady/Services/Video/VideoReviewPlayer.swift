@@ -62,7 +62,8 @@ final class VideoReviewPlayer: VideoReviewPlaying {
 
     private let player = AVPlayer()
     private let look = VideoLookBox()
-    private let layersBox = VideoLayersBox()
+    let layersBox = VideoLayersBox()
+    private let renderer = VideoLayerRenderer()
     private let session: MemoPlaybackSessionControlling
     private var start: CMTime = .zero
     private var windowEnd: CMTime?
@@ -180,7 +181,7 @@ final class VideoReviewPlayer: VideoReviewPlaying {
 
     private func draw() {
         guard let frame else { return }
-        layersBox.drawn = layers.isEmpty ? [] : VideoLayerRenderer().drawn(layers, frame: frame)
+        layersBox.drawn = renderer.drawn(layers, frame: frame)
     }
 
     private func reachedEnd() {

@@ -160,6 +160,79 @@ final class VideoEditorPresentationTests: XCTestCase {
         XCTAssertEqual(m.screenState.phase, .review)
     }
 
+    // MARK: - The keyboard lifts the text tool (D8)
+
+    private static let safeBottom: CGFloat = 34
+    private static let keyboard = CGRect(x: 0, y: 620, width: 440, height: 336)
+
+    private func postKeyboard(_ name: Notification.Name, _ frame: CGRect) {
+        NotificationCenter.default.post(name: name, object: nil, userInfo: [
+            UIResponder.keyboardFrameEndUserInfoKey: frame, UIResponder.keyboardAnimationDurationUserInfoKey: 0.0
+        ])
+    }
+
+    /// `settle`, giving the main queue back so that state set by a notification is drawn.
+    private func settled(_ host: UIViewController) async throws {
+        for _ in 0..<5 {
+            host.view.layoutIfNeeded()
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        host.view.layoutIfNeeded()
+    }
+
+    /// Opens Edit's text tool under `host` and raises, then hides, a keyboard.
+    private func assertKeyboardLiftsTheTool(
+        under host: (AnyView) -> AnyView, file: StaticString = #filePath, line: UInt = #line
+    ) async throws {
+        let m = await reviewModel()
+        let map = UI2ElementMap()
+        let content = AnyView(Color.clear.ignoresSafeArea(.container, edges: .bottom).videoEditorPresentation(model: m))
+        let controller = show(host(content)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .ui2ElementMap(map))
+        controller.additionalSafeAreaInsets.bottom = Self.safeBottom
+        // The backdrop fills the editor, which ends at the bottom safe area. Measuring up from there
+        // leaves out the slide-in, whose effect an anchor may still carry here.
+        func rect(_ name: String) throws -> CGRect {
+            func raw(_ name: String) throws -> CGRect {
+                try XCTUnwrap(map.elements.first { $0.name == name }?.rect, name, file: file, line: line)
+            }
+            return try raw(name).offsetBy(dx: 0, dy: 956 - Self.safeBottom - raw("Text tool backdrop").maxY)
+        }
+        await m.editTapped()
+        try await until { m.editor != nil }
+        m.editor?.textTapped()
+        try await settled(controller)
+        postKeyboard(UIResponder.keyboardWillHideNotification, CGRect(x: 0, y: 956, width: 440, height: 336))
+        try await settled(controller)
+        let rowDown = try rect("Tool row"), preview = try rect("Preview"), backdrop = try rect("Text tool backdrop")
+
+        postKeyboard(UIResponder.keyboardWillChangeFrameNotification, Self.keyboard)
+        try await settled(controller)
+        XCTAssertEqual(try rect("Tool row").maxY, Self.keyboard.minY - 16, accuracy: 0.5, file: file, line: line)
+        XCTAssertEqual(try rect("Preview"), preview, "the column does not move", file: file, line: line)
+        XCTAssertEqual(try rect("Text tool backdrop"), backdrop, "the backdrop stays full screen", file: file, line: line)
+
+        postKeyboard(UIResponder.keyboardWillHideNotification, CGRect(x: 0, y: 956, width: 440, height: 336))
+        try await settled(controller)
+        XCTAssertEqual(try rect("Tool row"), rowDown, file: file, line: line)
+    }
+
+    func testKeyboardLiftsTheHostedTextTool() async throws {
+        try await assertKeyboardLiftsTheTool { content in
+            AnyView(content
+                .ignoresSafeArea(.container, edges: .bottom)
+                .ui2OverlayHost()
+                .ignoresSafeArea(.keyboard, edges: .bottom))
+        }
+    }
+
+    func testKeyboardLiftsTheTextToolInPlace() async throws {
+        try await assertKeyboardLiftsTheTool { content in
+            AnyView(content.environment(\.ui2HostsOverlays, false).ignoresSafeArea(.keyboard))
+        }
+    }
+
     // MARK: - Review's row fit (F8)
 
     private final class Widths { var offered: CGFloat = 0 }

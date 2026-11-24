@@ -65,6 +65,8 @@ struct VideoLayer: Codable, Equatable, Identifiable, Sendable {
 
     /// At most this many text layers (D15); captions are not counted.
     static let maxTextLayers = 20
+    /// A layer is never scaled past these: smaller cannot be seen, larger cannot be drawn.
+    static let scaleRange = 0.1...10.0
     static let defaultCentre = CGPoint(x: 0.5, y: 0.5)
 
     var id: UUID
@@ -125,7 +127,7 @@ struct VideoLayer: Codable, Equatable, Identifiable, Sendable {
         let centre = try? c.decode(CGPoint.self, forKey: .centre)
         self.centre = centre.flatMap { $0.x.isFinite && $0.y.isFinite ? $0 : nil } ?? Self.defaultCentre
         let scale = (try? c.decode(Double.self, forKey: .scale)) ?? 1
-        self.scale = scale.isFinite && scale > 0 ? scale : 1
+        self.scale = scale.isFinite && scale > 0 ? Self.clamped(scale: scale) : 1
         let rotation = (try? c.decode(Double.self, forKey: .rotation)) ?? 0
         self.rotation = rotation.isFinite ? rotation : 0
         sourceSegment = try? c.decode(Int.self, forKey: .sourceSegment)
@@ -134,6 +136,10 @@ struct VideoLayer: Codable, Equatable, Identifiable, Sendable {
     /// 200, or a caption's own length when longer (D15, D24).
     var textLimit: Int {
         kind == .caption ? max(200, text.count) : 200
+    }
+
+    static func clamped(scale: Double) -> Double {
+        min(max(scale, scaleRange.lowerBound), scaleRange.upperBound)
     }
 
     func isVisible(at ms: Int) -> Bool {

@@ -83,6 +83,18 @@ final class VideoReviewPlayerTests: XCTestCase {
         XCTAssertEqual([drawn, bare], [.red, .blue])
     }
 
+    // MARK: a layer only moved is not drawn again (D18)
+
+    func testReusesALayersPicture() async throws {
+        let clip = try await TestMovie.make(seconds: 2, colour: .blue, size: CGSize(width: 540, height: 960))
+        try await p.load(clips: [clip], window: nil, look: VideoLook())
+        var moved = block; moved.centre = CGPoint(x: 0.5, y: 0.8)
+        p.show(layers: [block])
+        let first = try XCTUnwrap(p.layersBox.drawn.first)
+        p.show(layers: [moved])
+        XCTAssertTrue(try XCTUnwrap(p.layersBox.drawn.first).image === first.image)
+    }
+
     // MARK: stop forgets the layers (D23)
 
     func testStopForgetsLayers() async throws {

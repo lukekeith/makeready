@@ -14,6 +14,8 @@ import SwiftUI
 struct DrawnLayer: @unchecked Sendable {
     /// The layer's text, unrotated, with its extent at the origin.
     let image: CIImage
+    /// How many times larger than `image` the layer is drawn: 1 unless its bitmap was capped.
+    let enlargement: CGFloat
     /// A unit point on the frame, y down.
     let centre: CGPoint
     /// Radians, clockwise.
@@ -28,6 +30,8 @@ final class VideoLayerRenderer {
     static let editSlotWidth: CGFloat = 392
     /// The reference width one wu is measured against (D20).
     static let referenceWidth: CGFloat = 440
+    /// No side of a layer's bitmap is longer, so drawing one cannot fail for its size.
+    static let maxBitmapSide: CGFloat = 8192
 
     /// What a layer's picture depends on (D18): the same look is drawn once.
     private struct Look: Hashable {
@@ -56,19 +60,24 @@ final class VideoLayerRenderer {
         }
     }
 
-    private var images: [Look: CIImage] = [:]
+    private struct Picture {
+        let image: CIImage
+        let enlargement: CGFloat
+    }
+
+    private var pictures: [Look: Picture] = [:]
 
     /// The layers drawn for `frame`, in order. A picture is reused until its layer's look changes.
     func drawn(_ layers: [VideoLayer], frame: CGSize) -> [DrawnLayer] {
-        var kept: [Look: CIImage] = [:]
+        var kept: [Look: Picture] = [:]
         let result = layers.compactMap { layer -> DrawnLayer? in
             let look = Look(layer, frame: frame)
-            guard let image = kept[look] ?? images[look] ?? rasterise(layer, frame: frame) else { return nil }
-            kept[look] = image
-            return DrawnLayer(image: image, centre: layer.centre, rotation: layer.rotation,
+            guard let picture = kept[look] ?? pictures[look] ?? rasterise(layer, frame: frame) else { return nil }
+            kept[look] = picture
+            return DrawnLayer(image: picture.image, enlargement: picture.enlargement, centre: layer.centre, rotation: layer.rotation,
                               startMs: layer.startMs, endMs: layer.endMs)
         }
-        images = kept
+        pictures = kept
         return result
     }
 
@@ -88,15 +97,33 @@ final class VideoLayerRenderer {
         )
     }
 
-    private func rasterise(_ layer: VideoLayer, frame: CGSize) -> CIImage? {
-        let pixelsPerWu = CGFloat(layer.scale) * min(frame.width, frame.height) / Self.referenceWidth
+    private func rasterise(_ layer: VideoLayer, frame: CGSize) -> Picture? {
+        let wanted = CGFloat(layer.scale) * min(frame.width, frame.height) / Self.referenceWidth
         let content = view(for: layer)
             .frame(width: Self.editSlotWidth)
             .fixedSize(horizontal: false, vertical: true)
         let renderer = ImageRenderer(content: content)
-        renderer.scale = pixelsPerWu
-        guard let cgImage = renderer.cgImage else { return nil }
-        return CIImage(cgImage: cgImage)
+        var longestSide: CGFloat = 0
+        renderer.render { size, _ in longestSide = max(size.width, size.height) }
+        guard longestSide > 0 else {
+            Log.media.error("video layer not drawn: it has no size")
+            return nil
+        }
+        // A pixel short, as the bitmap's sides are rounded up.
+        var pixelsPerWu = min(wanted, (Self.maxBitmapSide - 1) / longestSide)
+        while true {
+            renderer.scale = pixelsPerWu
+            guard let cgImage = renderer.cgImage else {
+                Log.media.error("video layer not drawn: no image at \(Double(pixelsPerWu), privacy: .public) px per wu")
+                return nil
+            }
+            // Each line of text is rounded to whole pixels, so many lines can end up over the cap.
+            let side = CGFloat(max(cgImage.width, cgImage.height))
+            if side <= Self.maxBitmapSide {
+                return Picture(image: CIImage(cgImage: cgImage), enlargement: wanted / pixelsPerWu)
+            }
+            pixelsPerWu *= (Self.maxBitmapSide - 1) / side
+        }
     }
 
     /// The layers visible at `ms`, in array order over `picture`, clipped to the frame (D2, D9, D25).
@@ -108,6 +135,7 @@ final class VideoLayerRenderer {
             let size = layer.image.extent.size
             let place = CGAffineTransform(translationX: layer.centre.x * frame.width, y: (1 - layer.centre.y) * frame.height)
                 .rotated(by: -layer.rotation)
+                .scaledBy(x: layer.enlargement, y: layer.enlargement)
                 .translatedBy(x: -size.width / 2, y: -size.height / 2)
             return layer.image.transformed(by: place).composited(over: below)
         }

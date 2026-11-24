@@ -19,7 +19,9 @@ enum VideoEditorMapper {
         var state = Screen()
         state.layers = ordered(session.layers).map(layer)
         state.selectedID = session.selectedId?.uuidString
-        state.playheadMs = session.playheadMs
+        // Windows end before their last ms, so the clip's end is read just inside it: a layer that runs
+        // to the end is still drawn there.
+        state.playheadMs = min(session.playheadMs, max(0, session.clipMs - 1))
         state.durationMs = session.clipMs
         state.playing = model.isPlaying
         let frame = model.clip.frame

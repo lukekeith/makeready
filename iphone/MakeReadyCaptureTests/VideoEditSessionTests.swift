@@ -69,6 +69,17 @@ final class VideoEditSessionTests: XCTestCase {
         XCTAssertEqual(s.layers.count, 4)
     }
 
+    func testScaleIsClamped() throws {
+        let s = make()
+        s.addText("T", style: .standard)
+        let id = try XCTUnwrap(s.selectedId)
+        let scales = [40, 10, 0.1, 0.001, -2, .nan].map { scale in
+            s.place(id, centre: .zero, scale: scale, rotation: 0)
+            return s.layers[0].scale
+        }
+        XCTAssertEqual(scales, [10, 10, 0.1, 0.1, 0.1, 0.1], "a scale that is no number changes nothing")
+    }
+
     func testLimits() {
         let s = make()
         s.addCaptions(transcript)

@@ -36,6 +36,7 @@ final class VideoEditorModel {
     }
 
     private enum Phase { case idle, transcribing, unavailable }
+    private enum Load { case waiting, ready, failed }
 
     let clip: Clip
     let captionsReason = "Captions aren't available for this video"
@@ -50,6 +51,7 @@ final class VideoEditorModel {
     private(set) var confirmsCancel = false
     private(set) var isClosed = false
     private var phase = Phase.idle
+    @ObservationIgnored private var load = Load.waiting
 
     @ObservationIgnored var onFinished: (([VideoLayer]) -> Void)?
 
@@ -107,9 +109,12 @@ final class VideoEditorModel {
             guard let self else { return }
             do {
                 try await player.load(clips: clip.urls, window: clip.window, look: clip.look)
+                loaded()
             } catch {
                 // Leaving cancels the load; a video the user left needs no message.
                 guard !Task.isCancelled, !isClosed else { return }
+                load = .failed
+                isPlaying = false
                 report("Couldn't play this video")
             }
         }
@@ -117,14 +122,19 @@ final class VideoEditorModel {
 
     func playTapped() {
         if isPlaying { return pause() }
-        if session.playheadMs >= session.clipMs { session.seek(0) }
-        player.play()
+        guard load != .failed else { return }
+        if session.playheadMs >= session.clipMs {
+            session.seek(0)
+            player.seek(to: 0)
+        }
         isPlaying = true
+        // Before the load ends there is nothing to play; `loaded` starts it.
+        if load == .ready { player.play() }
     }
 
     /// The playhead follows the player while it plays.
     func tick() {
-        guard isPlaying else { return }
+        guard isPlaying, load == .ready else { return }
         session.seek(Int((player.currentTime * 1000).rounded()))
     }
 
@@ -234,6 +244,14 @@ final class VideoEditorModel {
     }
 
     // MARK: Private
+
+    /// Puts the player where the user scrubbed to, and playing if they pressed Play, while it loaded.
+    private func loaded() {
+        guard !isClosed else { return }
+        load = .ready
+        if session.playheadMs > 0 { player.seek(to: Double(session.playheadMs) / 1000) }
+        if isPlaying { player.play() }
+    }
 
     private func pause() {
         guard isPlaying else { return }

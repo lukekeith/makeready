@@ -17,6 +17,10 @@ struct VideoEditorContainer: View {
 
     @State private var shown = false
     @State private var frames: [Int: Image] = [:]
+    /// The keyboard's top edge on the screen; below everything while it is away.
+    @State private var keyboardTop: CGFloat = .infinity
+    /// Where the editor ends on the screen once it has slid in.
+    @State private var bottomEdge: CGFloat = 0
 
     private static let frameCount = 12
     private static let placeholder = Image(uiImage: UIGraphicsImageRenderer(size: CGSize(width: 1, height: 1)).image {
@@ -33,6 +37,10 @@ struct VideoEditorContainer: View {
             .visualEffect { [shown] effect, proxy in
                 effect.offset(y: shown ? 0 : proxy.frame(in: .global).maxY)
             }
+            // Outside the effect, so the slide is not measured.
+            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { bottomEdge = $0 }
+            // The measured inset lifts the text tool, so the system must not lift it as well.
+            .ignoresSafeArea(.keyboard)
             .allowsHitTesting(!model.isClosed)
             .accessibilityAddTraits(.isModal)
             .accessibilityAction(.escape) { model.cancelTapped() }
@@ -49,6 +57,12 @@ struct VideoEditorContainer: View {
             }
             .task { await readFrames() }
             .task(id: model.isPlaying) { await follow() }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) {
+                followKeyboard($0)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) {
+                followKeyboard($0, hiding: true)
+            }
     }
 
     private var screen: some View {
@@ -56,6 +70,7 @@ struct VideoEditorContainer: View {
             state: VideoEditorMapper.state(of: model, filmstrip: []),
             feed: model.playerLayer,
             filmstripImages: filmstrip,
+            keyboardInset: max(0, bottomEdge - keyboardTop),
             onCancel: model.cancelTapped,
             onUndo: session.undo,
             onDone: model.doneTapped,
@@ -103,6 +118,16 @@ struct VideoEditorContainer: View {
     private func readFrames() async {
         for await frame in VideoFilmstrip.frames(of: model.clip.urls, window: model.clip.window, count: Self.frameCount) {
             frames[frame.index] = Image(uiImage: frame.image)
+        }
+    }
+
+    /// No shell this is hosted in keeps the keyboard's safe area, so its frame is followed by hand, as
+    /// `VideoRecorderContainer` does (D8).
+    private func followKeyboard(_ note: Notification, hiding: Bool = false) {
+        let frame = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect ?? .zero
+        let duration = note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double ?? 0.25
+        withAnimation(.easeOut(duration: duration)) {
+            keyboardTop = hiding || frame.isEmpty ? .infinity : frame.minY
         }
     }
 

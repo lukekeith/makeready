@@ -125,6 +125,25 @@ final class VideoRecorderEditTests: XCTestCase {
         guard case .file? = saver.clips.last else { return XCTFail("a file") }
     }
 
+    // MARK: an import made after a recording was emptied (D7, D19)
+
+    func testEditAnImportAfterDeletingTheOnlyClip() async throws {
+        let m = model(entry: lesson)
+        m.recordTapped(); m.tick(recorded: 4); m.recordTapped(); await m.settled()
+        m.requestDeleteLast(); m.deleteLastConfirmed(); await m.settled()
+        await imported(m)
+        await m.editTapped()
+        XCTAssertEqual(reports, [])
+        let editor = try XCTUnwrap(m.editor)
+        XCTAssertEqual(editor.clip.urls, [try XCTUnwrap(m.importedClip).url])
+        XCTAssertEqual(editor.clip.window, 10...100)
+        let folders = try FileManager.default.contentsOfDirectory(atPath: drafts.root.path)
+        XCTAssertEqual(folders.count, 1, "the empty draft is discarded")
+        editor.doneTapped(); m.editorHidden()
+        await m.save()
+        XCTAssertEqual(saver.saves.last?.source, .imported)
+    }
+
     // MARK: a kill mid-edit comes back to Review; Retake clears it (D16, D19)
 
     func testRecovery() async throws {

@@ -94,8 +94,8 @@ final class VideoEditorModelTests: XCTestCase {
         }
     }
 
-    func testPlayback() {
-        let m = make(); m.open()
+    func testPlayback() async {
+        let m = make(); m.open(); await m.loadSettled()
         XCTAssertFalse(player.loops || player.autoplays)
         m.playTapped(); player.currentTime = 1.25; m.tick()
         XCTAssertEqual(m.session.playheadMs, 1250)
@@ -106,6 +106,33 @@ final class VideoEditorModelTests: XCTestCase {
         m.commitText("Hi", style: .standard)
         m.playTapped(); m.backgrounded(); XCTAssertFalse(m.isPlaying)
         XCTAssertTrue(player.shownLayers.isEmpty)
+    }
+
+    func testPlayAfterScrubbingToTheEndRestarts() async {
+        let m = make(); m.open(); await m.loadSettled()
+        m.scrub(toMs: 10_000); m.playTapped()
+        XCTAssertEqual(player.seeks, [10, 0]); XCTAssertEqual(player.plays, 1)
+        XCTAssertTrue(m.isPlaying); XCTAssertEqual(m.session.playheadMs, 0)
+    }
+
+    func testPlayAndScrubDuringTheLoadApplyWhenItEnds() async {
+        let loading = LoadingPlayerSpy(); loading.holds = true; loading.fails = false
+        let m = make(player: loading); m.open()
+        await Task.yield()
+        m.scrub(toMs: 3000); m.playTapped(); m.tick()
+        XCTAssertEqual(m.session.playheadMs, 3000, "a player with nothing loaded moves no playhead")
+        let seeks = loading.seeks.count
+        loading.finish(); await m.loadSettled()
+        XCTAssertEqual(Array(loading.seeks.dropFirst(seeks)), [3]); XCTAssertEqual(loading.plays, 1); XCTAssertTrue(m.isPlaying)
+    }
+
+    func testFailedLoadLeavesPlayOff() async {
+        let loading = LoadingPlayerSpy(); loading.holds = true; loading.fails = true
+        let m = make(player: loading); m.open()
+        await Task.yield()
+        m.playTapped(); loading.finish(); await m.loadSettled()
+        XCTAssertFalse(m.isPlaying)
+        m.playTapped(); XCTAssertFalse(m.isPlaying)
     }
 
     func testTextTool() async {
@@ -132,7 +159,7 @@ final class VideoEditorModelTests: XCTestCase {
     }
 
     func testLoadFailureReports() async {
-        let failing = LoadingPlayerSpy(); failing.fails = true
+        let failing = LoadingPlayerSpy()
         let m = make(player: failing); m.open(); await m.loadSettled()
         XCTAssertEqual(reports, ["Couldn't play this video"])
     }
@@ -158,7 +185,7 @@ final class VideoEditorModelTests: XCTestCase {
     }
 }
 
-/// A player whose load fails, or waits until `finish` and then fails.
+/// A player whose load fails unless `fails` is off, at once or (`holds`) when `finish` is called.
 @MainActor
 private final class LoadingPlayerSpy: VideoReviewPlaying {
     struct LoadFailure: Error {}
@@ -167,21 +194,23 @@ private final class LoadingPlayerSpy: VideoReviewPlaying {
     var autoplays = true
     var onEnd: (() -> Void)?
     var currentTime: Double = 0
-    var fails = false
+    var fails = true
     var holds = false
     private var waiting: CheckedContinuation<Void, Never>?
 
     func load(clips: [URL], window: ClosedRange<Double>?, look: VideoLook) async throws {
         if holds { await withCheckedContinuation { waiting = $0 } }
-        throw LoadFailure()
+        if fails { throw LoadFailure() }
     }
 
     func finish() { waiting?.resume(); waiting = nil }
     func show(_ look: VideoLook) { }
     func move(to window: ClosedRange<Double>) { }
     func show(layers: [VideoLayer]) { }
-    func play() { }
+    private(set) var plays = 0
+    private(set) var seeks: [Double] = []
+    func play() { plays += 1 }
     func pause() { }
-    func seek(to seconds: Double) { }
+    func seek(to seconds: Double) { seeks.append(seconds) }
     func stop() { }
 }

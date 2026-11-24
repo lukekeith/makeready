@@ -87,6 +87,36 @@ final class VideoLayerRendererTests: XCTestCase {
         XCTAssertEqual(data(image(block, r)), data(image(block, VideoLayerRenderer())))
     }
 
+    /// No bitmap side passes 8192 px, and the layer is still drawn at its size (D22).
+    func testBitmapIsCapped() throws {
+        let full = CGSize(width: 1080, height: 1920)
+        var wide = block; wide.scale = 10
+        var tall = block; tall.text = Array(repeating: "█", count: 100).joined(separator: "\n")
+        var reference = wide; reference.scale = 1
+        let renderer = VideoLayerRenderer()
+        for layer in [wide, tall] {
+            let drawn = try XCTUnwrap(renderer.drawn([layer], frame: full).first)
+            XCTAssertLessThanOrEqual(max(drawn.image.extent.width, drawn.image.extent.height), 8192)
+        }
+        // The capped picture is enlarged to ten times the one at scale 1. Its 4 blocks are 10× as wide
+        // and tall, so they cover the whole middle of the frame.
+        let black = CIImage(color: .black).cropped(to: CGRect(origin: .zero, size: full))
+        func redRows(_ layer: VideoLayer) -> Int {
+            let image = VideoLayerRenderer.compose(renderer.drawn([layer], frame: full), over: black, at: 1500, frame: full)
+            let column = bytes(image, CGRect(x: 540, y: 0, width: 1, height: 1920))
+            return stride(from: 0, to: column.count, by: 4).filter { column[$0] > 200 }.count
+        }
+        XCTAssertEqual(Double(redRows(wide)) / Double(redRows(reference)), 10, accuracy: 0.3)
+    }
+
+    /// Both ends of the scale range draw.
+    func testSmallestScaleDraws() throws {
+        var small = block; small.scale = 0.1
+        let image = try XCTUnwrap(VideoLayerRenderer().drawn([small], frame: frame).first?.image)
+        XCTAssertFalse(image.extent.isEmpty)
+        XCTAssertEqual(px(shown([small], 1500), 0.5, 0.5), .red)
+    }
+
     func testLargeScale() {
         var big = block; big.scale = 6
         XCTAssertEqual(px(shown([big], 1500), 0.5, 0.5), .red)

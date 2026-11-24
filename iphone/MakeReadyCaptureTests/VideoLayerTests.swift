@@ -55,6 +55,14 @@ final class VideoLayerTests: XCTestCase {
         XCTAssertEqual([VideoLayer.Kind.text, .caption].map { VideoLayer(kind: $0, text: long, startMs: 0, endMs: 900).textLimit }, [200, 250])
     }
 
+    func testDecodedScaleIsClamped() throws {
+        let scales = try [40, 10, 0.1, 0.001, 0, -1].map { scale in
+            let json = #"{"layers":[{"id":"6F9619FF-8B86-D011-B42D-00CF4FC964FF","kind":"text","text":"A","startMs":0,"endMs":900,"scale":\#(scale)}]}"#
+            return try XCTUnwrap(JSONDecoder().decode(Box.self, from: Data(json.utf8)).layers?.first).scale
+        }
+        XCTAssertEqual(scales, [10, 10, 0.1, 0.1, 1, 1])
+    }
+
     func testRoundTripAndEmptyWindowDropped() throws {
         let l = VideoLayer(kind: .text, text: "Round", centre: CGPoint(x: 0.2, y: 0.9), scale: 1.5, rotation: 0.3, startMs: 10, endMs: 20)
         let data = try JSONEncoder().encode([l])
