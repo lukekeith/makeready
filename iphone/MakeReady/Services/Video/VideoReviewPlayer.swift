@@ -136,7 +136,8 @@ final class VideoReviewPlayer: VideoReviewPlaying {
         layersBox.startSeconds = window.lowerBound
         player.currentItem?.forwardPlaybackEndTime = windowEnd ?? .invalid
         atEnd = false
-        player.seek(to: start)
+        // Exactly: the default tolerance lands on a keyframe, before the window (D20).
+        player.seek(to: start, toleranceBefore: .zero, toleranceAfter: .zero)
     }
 
     func play() {

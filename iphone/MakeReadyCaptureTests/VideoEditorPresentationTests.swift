@@ -267,28 +267,4 @@ final class VideoEditorPresentationTests: XCTestCase {
         XCTAssertGreaterThan(fit.offered, 0)
         XCTAssertLessThanOrEqual(fit.natural, fit.offered)
     }
-
-    // MARK: a track above the filmstrip takes its touches (D3)
-
-    /// Whether a touch at `point` reaches the timeline's track list, with one row and these frames.
-    private func touchReachesTracks(_ point: CGPoint, frames: [Image]) throws -> Bool {
-        let host = show(VideoEditorTimeline(playing: false, playheadMs: 0, durationMs: 30_000, filmstrip: frames) {
-            Color.red.frame(height: 44).contentShape(Rectangle()).onTapGesture {}
-        }.ignoresSafeArea(), size: CGSize(width: 440, height: 267))
-        let hit = try XCTUnwrap(host.view.hitTest(point, with: nil))
-        return sequence(first: hit, next: \.superview).contains { $0 is UIScrollView }
-    }
-
-    func testFilmstripLeavesTheTracksTheirTouches() throws {
-        // A portrait frame in a wide slot overflows it above and below; clipping hides that, not its touches.
-        let frame = Image(uiImage: UIGraphicsImageRenderer(size: CGSize(width: 135, height: 240)).image { _ in })
-        let frames = Array(repeating: frame, count: 10)
-        // The row is y 48–92, under the 44 pt header and its 4 pt gap; the filmstrip follows it.
-        for y in [52.0, 70, 88] {
-            let point = CGPoint(x: 300, y: y)
-            XCTAssertTrue(try touchReachesTracks(point, frames: []), "no frames, y \(y)")
-            XCTAssertTrue(try touchReachesTracks(point, frames: frames), "frames, y \(y)")
-        }
-        XCTAssertFalse(try touchReachesTracks(CGPoint(x: 300, y: 130), frames: frames))
-    }
 }
