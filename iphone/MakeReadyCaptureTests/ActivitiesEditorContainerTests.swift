@@ -453,7 +453,7 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         VideoSaver(drafts: VideoDraftStore(root: recorderDir), queue: queue,
                    nextTitle: { MemoActions.nextDefaultTitle(prefix: "Video", existingTitles: queue.items.map(\.title)) },
                    report: { _, message, _ in XCTFail(message) },
-                   export: { _, _, _, _, url in
+                   export: { _, _, _, _, _, url in
                        if holds { try await Task.sleep(for: .seconds(60)) }
                        return ExportedVideo(url: url, durationSeconds: 3, posterImage: nil)
                    },

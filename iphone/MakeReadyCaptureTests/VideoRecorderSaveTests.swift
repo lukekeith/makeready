@@ -17,6 +17,7 @@ final class QueueSpy: VideoSaveQueue {
         let title: String
         let source: String
         let attach: VideoAttach?
+        let transcript: VideoTranscript?
         let holdsForTranscript: TimeInterval?
         let hasPoster: Bool
     }
@@ -25,14 +26,14 @@ final class QueueSpy: VideoSaveQueue {
     private(set) var items: [Item] = []
     private(set) var supplied: [VideoTranscript?] = []
 
-    func enqueue(_ video: ExportedVideo, localId: String, title: String, source: VideoSource, attach: VideoAttach?,
-                 transcriptHold: TimeInterval) throws -> VideoQueueItem {
+    func enqueue(_ video: ExportedVideo, localId: String, title: String, source: VideoSource, transcript: VideoTranscript?,
+                 attach: VideoAttach?, transcriptHold: TimeInterval?) throws -> VideoQueueItem {
         if let error { throw error }
-        items.append(Item(localId: localId, title: title, source: source.rawValue, attach: attach,
+        items.append(Item(localId: localId, title: title, source: source.rawValue, attach: attach, transcript: transcript,
                           holdsForTranscript: transcriptHold, hasPoster: video.posterImage != nil))
         return VideoQueueItem(
             localId: localId, fileName: "\(localId).mp4", posterFileName: nil, title: title,
-            durationSeconds: video.durationSeconds, source: source, transcript: nil, createdAt: Date(), streamUid: nil,
+            durationSeconds: video.durationSeconds, source: source, transcript: transcript, createdAt: Date(), streamUid: nil,
             serverId: nil, stage: .queued, failures: 0, polls: 0, nextAttemptAt: nil, attach: attach,
             ownerUserId: "u", environment: "test")
     }
@@ -65,15 +66,15 @@ final class ReviewPlayerSpy: VideoReviewPlaying {
 /// What an export was asked for, and what it answers. `gate` holds it until released.
 @MainActor
 private final class ExportSpy {
-    struct Call: Equatable { let clips: [URL]; let window: ClosedRange<Double>?; let filter: VideoFilter; let strength: Double }
+    struct Call: Equatable { let clips: [URL]; let window: ClosedRange<Double>?; let filter: VideoFilter; let strength: Double; let layers: [VideoLayer] }
     private(set) var calls: [Call] = []
     var failures = 0
     var holds = false
     private var waiting: [CheckedContinuation<Void, Never>] = []
 
     func export(_ clips: [URL], _ window: ClosedRange<Double>?, _ filter: VideoFilter, _ strength: Double,
-                _ destination: URL) async throws -> ExportedVideo {
-        calls.append(Call(clips: clips, window: window, filter: filter, strength: strength))
+                _ layers: [VideoLayer], _ destination: URL) async throws -> ExportedVideo {
+        calls.append(Call(clips: clips, window: window, filter: filter, strength: strength, layers: layers))
         if holds { await withCheckedContinuation { waiting.append($0) } }
         if failures > 0 {
             failures -= 1
@@ -140,7 +141,7 @@ final class VideoRecorderSaveTests: XCTestCase {
                 self?.reports.append(message)
                 self?.retries.append(retry)
             },
-            export: { try await exporter.export($0, $1, $2, $3, $4) },
+            export: { try await exporter.export($0, $1, $2, $3, $4, $5) },
             transcribe: { [weak self] _, timeout in
                 self?.transcriptTimeouts.append(timeout)
                 return self?.transcript
@@ -459,7 +460,7 @@ final class VideoRecorderSaveTests: XCTestCase {
         await saver.settled()
         XCTAssertEqual(queue.items.count, 1)
         XCTAssertEqual(queue.items.first?.attach, VideoAttach(versionId: "v", activityId: nil, title: "Video 1"))
-        XCTAssertEqual(exporter.calls, [.init(clips: draft.segments.map(\.url), window: 1...3, filter: .warm, strength: 0.6)])
+        XCTAssertEqual(exporter.calls, [.init(clips: draft.segments.map(\.url), window: 1...3, filter: .warm, strength: 0.6, layers: [])])
         XCTAssertFalse(drafts.exists(draft))
     }
 
@@ -475,7 +476,7 @@ final class VideoRecorderSaveTests: XCTestCase {
         let exporter = exporter!
         let spoken = VideoTranscript(text: "hello", segments: [])
         let saver = VideoSaver(drafts: drafts, queue: queue, nextTitle: { "Video 2" }, report: { _, message, _ in XCTFail(message) },
-                               export: { try await exporter.export($0, $1, $2, $3, $4) }, transcribe: { _, _ in spoken },
+                               export: { try await exporter.export($0, $1, $2, $3, $4, $5) }, transcribe: { _, _ in spoken },
                                waitForForeground: { false })
         saver.resume()
         await saver.settled()
@@ -500,6 +501,58 @@ final class VideoRecorderSaveTests: XCTestCase {
         XCTAssertTrue(queue.items.isEmpty)
         XCTAssertEqual(reports, [])
         XCTAssertEqual(drafts.saving().count, 1)
+    }
+
+    // MARK: layers and the corrected transcript (video-editor D12, D27)
+
+    private let heard = VideoTranscript(text: "Jon", segments: [VideoTranscriptSegment(text: "Jon", startMs: 0, endMs: 3000)])
+
+    private let layers = [
+        VideoLayer(kind: .text, text: "Title", startMs: 0, endMs: 4000),
+        VideoLayer(kind: .caption, text: "John", startMs: 0, endMs: 3000, sourceSegment: 0)
+    ]
+
+    /// A 4 s draft holding a title and, with a transcript, its captions, the first reworded "John".
+    private func edited(_ transcript: VideoTranscript?) throws -> VideoDraft {
+        let draft = try drafts.finalize(segment: tmpURL, duration: 4, in: drafts.begin())
+        return try drafts.save(layers: transcript == nil ? [layers[0]] : layers, transcript: transcript, in: draft)
+    }
+
+    private var plusSave: VideoSave {
+        VideoSave(entry: .plusMenu, source: .recording, filter: .normal, strength: 100, window: nil)
+    }
+
+    private func saved(resumed: Bool) async throws -> (QueueSpy, [VideoLayer]) {
+        let queue = QueueSpy()
+        let saver = makeSaver(queue: queue)
+        let draft = try edited(heard)
+        if resumed {
+            try drafts.markSaving(plusSave, in: draft)
+            saver.resume()
+        } else {
+            _ = try saver.start(plusSave, of: .draft(draft))
+        }
+        await saver.settled()
+        return (queue, layers)
+    }
+
+    func testSaveWithATranscript() async throws {
+        for resumed in [false, true] {
+            exporter = ExportSpy()
+            let (queue, layers) = try await saved(resumed: resumed)
+            XCTAssertEqual(exporter.calls.last?.layers, layers); XCTAssertEqual(queue.items.map(\.transcript?.text), ["John"])
+            XCTAssertNil(queue.items[0].holdsForTranscript); XCTAssertEqual(transcriptTimeouts, []); XCTAssertEqual(queue.supplied, [])
+        }
+    }
+
+    func testSaveWithoutATranscript() async throws {
+        let queue = QueueSpy()
+        transcript = heard
+        let saver = makeSaver(queue: queue)
+        _ = try saver.start(plusSave, of: .draft(try edited(nil)))
+        await saver.settled()
+        XCTAssertEqual(exporter.calls.map(\.layers), [[layers[0]]]); XCTAssertEqual(queue.supplied, [heard])
+        XCTAssertNotNil(queue.items[0].holdsForTranscript); XCTAssertNil(queue.items[0].transcript)
     }
 
     // MARK: a video being saved is listed at once (D12)

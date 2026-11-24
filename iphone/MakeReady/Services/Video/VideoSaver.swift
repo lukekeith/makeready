@@ -57,25 +57,27 @@ protocol VideoSaving: AnyObject {
 /// What the saver needs of `VideoUploadController`.
 @MainActor
 protocol VideoSaveQueue: AnyObject {
-    func enqueue(_ video: ExportedVideo, localId: String, title: String, source: VideoSource, attach: VideoAttach?,
-                 transcriptHold: TimeInterval) throws -> VideoQueueItem
+    /// With a `transcript` the video needs no hold; without one `transcriptHold` is how long to wait for it.
+    func enqueue(_ video: ExportedVideo, localId: String, title: String, source: VideoSource, transcript: VideoTranscript?,
+                 attach: VideoAttach?, transcriptHold: TimeInterval?) throws -> VideoQueueItem
     /// The item the queue holds under `localId`, if any.
     func queued(localId: String) -> VideoQueueItem?
     func supplyTranscript(_ transcript: VideoTranscript?, forLocalId localId: String)
 }
 
 extension VideoUploadController: VideoSaveQueue {
-    func enqueue(_ video: ExportedVideo, localId: String, title: String, source: VideoSource, attach: VideoAttach?,
-                 transcriptHold: TimeInterval) throws -> VideoQueueItem {
-        try enqueue(video, localId: localId, title: title, source: source, transcript: nil, attach: attach, transcriptHold: transcriptHold)
+    func enqueue(_ video: ExportedVideo, localId: String, title: String, source: VideoSource, transcript: VideoTranscript?,
+                 attach: VideoAttach?, transcriptHold: TimeInterval?) throws -> VideoQueueItem {
+        try enqueue(video, localId: localId, title: Optional(title), source: source, transcript: transcript, attach: attach,
+                    transcriptHold: transcriptHold)
     }
 }
 
 @MainActor
 @Observable
 final class VideoSaver: VideoSaving {
-    /// The clips, the window, the filter, its strength (0–1) and the destination.
-    typealias Export = @MainActor ([URL], ClosedRange<Double>?, VideoFilter, Double, URL) async throws -> ExportedVideo
+    /// The clips, the window, the filter, its strength (0–1), the layers and the destination.
+    typealias Export = @MainActor ([URL], ClosedRange<Double>?, VideoFilter, Double, [VideoLayer], URL) async throws -> ExportedVideo
 
     private static let exportName = "export.mp4"
 
@@ -190,6 +192,8 @@ final class VideoSaver: VideoSaving {
     private func work(_ save: VideoSave, _ draft: VideoDraft) async {
         let time = BackgroundTime(name: "video-save")
         defer { time.end() }
+        // The edit is read from the manifest now, so a save resumed after a kill draws the same layers (D27).
+        let edit = drafts.current(draft) ?? draft
         let item: VideoQueueItem
         let timeout: TimeInterval
         do {
@@ -198,15 +202,16 @@ final class VideoSaver: VideoSaving {
                 (item, timeout) = (queued, queued.durationSeconds)
             } else {
                 let video = try await export(draft.segments.map(\.url), save.window, save.filter, save.strength / 100,
-                                             draft.folder.appendingPathComponent(Self.exportName))
+                                             edit.layers, draft.folder.appendingPathComponent(Self.exportName))
                 try Task.checkCancellation()
                 let title = save.title ?? nextTitle()
                 timeout = video.durationSeconds
-                item = try queue.enqueue(video, localId: draft.id.uuidString, title: title, source: save.source,
-                                         attach: save.attach(title: title), transcriptHold: timeout)
+                let spoken = edit.transcript.map { VideoCaptions.corrected($0, with: edit.layers) }
+                item = try queue.enqueue(video, localId: draft.id.uuidString, title: title, source: save.source, transcript: spoken,
+                                         attach: save.attach(title: title), transcriptHold: spoken == nil ? timeout : nil)
             }
             drafts.discard(draft)
-            saving.removeAll { $0.localId == item.localId }
+            saving.removeAll { $0.localId == draft.id.uuidString }
         } catch {
             guard !Task.isCancelled else { return }
             time.end()
@@ -219,6 +224,8 @@ final class VideoSaver: VideoSaving {
             }
             return
         }
+        // With the transcript already sent there is nothing to transcribe (D27).
+        guard edit.transcript == nil else { return }
         let transcript = await transcribe(item.fileURL, .seconds(timeout))
         guard !Task.isCancelled else { return }
         queue.supplyTranscript(transcript, forLocalId: item.localId)
@@ -227,12 +234,12 @@ final class VideoSaver: VideoSaving {
     // MARK: Live
 
     static func liveExport(_ clips: [URL], window: ClosedRange<Double>?, filter: VideoFilter, strength: Double,
-                           to destination: URL) async throws -> ExportedVideo {
+                           layers: [VideoLayer], to destination: URL) async throws -> ExportedVideo {
         let range = window.map {
             CMTimeRange(start: CMTime(seconds: $0.lowerBound, preferredTimescale: 600),
                         end: CMTime(seconds: $0.upperBound, preferredTimescale: 600))
         }
-        return try await VideoExporter.export(segments: clips, timeRange: range, filter: filter, strength: strength, to: destination)
+        return try await VideoExporter.export(segments: clips, timeRange: range, filter: filter, strength: strength, layers: layers, to: destination)
     }
 
     static func liveWaitForForeground() async -> Bool {
