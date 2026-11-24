@@ -1,7 +1,7 @@
 size: lg
 state: building
 next: /builder:resume --path docs/features/video-editor
-head: 52da3079
+head: e614d18b
 ticket: none
 branch: builder/video-editor
 pr: none
@@ -13,7 +13,7 @@ tests: walk=risk review=slice
 target: main
 walk: none
 verify: none
-ready: none
+ready: pending "dev env (fleet walk lane)"
 ui2: none (phase 1 — d2m specs video-editor and the video-recorder Review change from doc source, P2)
 auto: on 2026-11-23
 blocked: none
