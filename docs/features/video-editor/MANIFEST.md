@@ -1,9 +1,9 @@
 size: lg
-state: spec
+state: audited
 next: /builder:resume --path docs/features/video-editor
-head: b087cf8c
+head: 0b769f91
 ticket: none
-branch: main
+branch: builder/video-editor
 pr: none
 apps: iphone
 contract: none
@@ -15,4 +15,5 @@ walk: none
 verify: none
 ready: none
 ui2: none (phase 1 — d2m specs video-editor and the video-recorder Review change from doc source, P2)
-auto: off
+auto: on 2026-11-23
+agent-walk: on 2026-11-23
