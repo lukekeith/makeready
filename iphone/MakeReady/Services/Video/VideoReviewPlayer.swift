@@ -99,14 +99,14 @@ final class VideoReviewPlayer: VideoReviewPlaying {
         let loading = generation
         look.look = shown
         let item = try await VideoExporter.playerItem(segments: clips, look: look, layers: layersBox)
-        let size = try await VideoExporter.frameSize(of: clips)
         guard loading == generation else { return }
         if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
         endObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.reachedEnd() }
         }
-        frame = size
+        // `playerItem` always sets a composition, at the size layers are rasterised for.
+        frame = item.videoComposition?.renderSize
         draw()
         player.replaceCurrentItem(with: item)
         if let window { move(to: window) } else { start = .zero; windowEnd = nil; layersBox.startSeconds = 0; atEnd = false }
@@ -120,9 +120,12 @@ final class VideoReviewPlayer: VideoReviewPlaying {
     func show(layers shown: [VideoLayer]) {
         layers = shown
         draw()
-        // A paused picture is not redrawn by itself.
+        // A paused picture is not redrawn by itself, and a seek to the time it is at is skipped, so
+        // the seek goes one tick aside: the same frame, drawn again.
         if player.currentItem != nil, player.rate == 0 {
-            player.seek(to: player.currentTime(), toleranceBefore: .zero, toleranceAfter: .zero)
+            let now = player.currentTime()
+            let tick = CMTime(value: 1, timescale: 600)
+            player.seek(to: now > start ? now - tick : now + tick, toleranceBefore: .zero, toleranceAfter: .zero)
         }
     }
 
