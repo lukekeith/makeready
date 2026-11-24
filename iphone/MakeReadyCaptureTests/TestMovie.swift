@@ -31,14 +31,20 @@ enum TestMovie {
     private static let sampleRate = 44_100
 
     /// A clip of one colour, or of two halves when `rightHalf` is given, with a tone unless `audio` is
-    /// false. `size` is the stored pixels' size, before `transform`.
+    /// false. `size` is the stored pixels' size, before `transform`. `keyframeEvery` is the most frames
+    /// between keyframes (nil = the encoder's choice).
     static func make(seconds: Int, colour: Colour, size: CGSize, rightHalf: Colour? = nil,
-                     transform: CGAffineTransform = .identity, audio: Bool = true) async throws -> URL {
+                     transform: CGAffineTransform = .identity, audio: Bool = true,
+                     keyframeEvery: Int? = nil) async throws -> URL {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("TestMovie-\(UUID().uuidString).mov")
         let writer = try AVAssetWriter(outputURL: url, fileType: .mov)
-        let video = AVAssetWriterInput(mediaType: .video, outputSettings: [
+        var settings: [String: Any] = [
             AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: size.width, AVVideoHeightKey: size.height
-        ])
+        ]
+        if let keyframeEvery {
+            settings[AVVideoCompressionPropertiesKey] = [AVVideoMaxKeyFrameIntervalKey: keyframeEvery]
+        }
+        let video = AVAssetWriterInput(mediaType: .video, outputSettings: settings)
         video.transform = transform
         let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: video, sourcePixelBufferAttributes: nil)
         let tone = AVAssetWriterInput(mediaType: .audio, outputSettings: [

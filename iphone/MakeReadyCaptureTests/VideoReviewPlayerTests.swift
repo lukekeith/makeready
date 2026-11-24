@@ -73,6 +73,23 @@ final class VideoReviewPlayerTests: XCTestCase {
         try await until { p.currentTime < 1 }
     }
 
+    // MARK: a load starts exactly at its window, far from a keyframe (D20)
+
+    func testLoadStartsAtItsWindow() async throws {
+        let clip = try await TestMovie.make(seconds: 8, colour: .blue, size: CGSize(width: 540, height: 960), keyframeEvery: 240)
+        p.autoplays = false
+        try await p.load(clips: [clip], window: 5.1...7, look: VideoLook())
+        let item = try XCTUnwrap(p.item)
+        try await until { item.status == .readyToPlay }
+        // The item's own time: `currentTime` is clamped to the window.
+        try await until { item.currentTime().seconds > 1 }
+        try await Task.sleep(for: .milliseconds(500))
+        XCTAssertEqual(item.currentTime().seconds, 5.1, accuracy: 0.05)
+        p.move(to: 3.3...7)
+        try await Task.sleep(for: .milliseconds(500))
+        XCTAssertEqual(item.currentTime().seconds, 3.3, accuracy: 0.05)
+    }
+
     // MARK: layers shown before a load are drawn (D23)
 
     func testShowsLayers() async throws {
