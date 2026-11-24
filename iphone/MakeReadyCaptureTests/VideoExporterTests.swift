@@ -11,6 +11,7 @@ import MakeReadyUI
 import XCTest
 @testable import MakeReady
 
+@MainActor
 final class VideoExporterTests: XCTestCase {
     private var dir: URL!
 
@@ -165,6 +166,57 @@ final class VideoExporterTests: XCTestCase {
             let drawn = try XCTUnwrap(copy.outputImage)
             XCTAssertEqual(pixel(drawn), pixel(filter.apply(to: source, strength: 0.6)), filter.rawValue)
         }
+    }
+
+    // MARK: layers (video-editor D2, D20, D23)
+
+    private let area = CGRect(x: 0.45, y: 0.24, width: 0.1, height: 0.02)
+
+    private func red(_ start: Int, _ end: Int) -> VideoLayer {
+        var style = VideoLayerStyle.standard
+        style.colour = "#FF0000"
+        style.size = 60
+        return VideoLayer(kind: .text, text: "████", style: style, centre: CGPoint(x: 0.5, y: 0.25), startMs: start, endMs: end)
+    }
+
+    func testLayersAreDrawnInTheirWindow() async throws {
+        let clip = try await TestMovie.make(seconds: 3, colour: .blue, size: CGSize(width: 540, height: 960))
+        let out = try await VideoExporter.export(segments: [clip], timeRange: nil, filter: .normal, strength: 1,
+                                                 layers: [red(1000, 2000)], to: tmp("layers.mp4"))
+        for (seconds, colour) in [(0.5, TestMovie.Colour.blue), (1.5, .red), (2.5, .blue)] {
+            let shown = try await TestMovie.dominantColour(of: out.url, at: seconds, in: area)
+            XCTAssertEqual(shown, colour, "at \(seconds)")
+        }
+    }
+
+    func testLayerTimesCountFromTheWindow() async throws {
+        let clip = try await TestMovie.make(seconds: 5, colour: .green, size: CGSize(width: 960, height: 540))
+        let range = CMTimeRange(start: .init(seconds: 2, preferredTimescale: 600), duration: .init(seconds: 2, preferredTimescale: 600))
+        let out = try await VideoExporter.export(segments: [clip], timeRange: range, filter: .vivid, strength: 1,
+                                                 layers: [red(0, 1000)], to: tmp("window.mp4"))
+        let early = try await TestMovie.dominantColour(of: out.url, at: 0.5, in: area)
+        let late = try await TestMovie.dominantColour(of: out.url, at: 1.5, in: area)
+        let frame = try await VideoExporter.frameSize(of: [clip])
+        XCTAssertEqual([early, late], [.red, .green]); XCTAssertEqual(frame, CGSize(width: 960, height: 540))
+    }
+
+    func testPlayerItemDrawsTheBox() async throws {
+        let clip = try await TestMovie.make(seconds: 2, colour: .blue, size: CGSize(width: 540, height: 960))
+        let box = VideoLayersBox()
+        let item = try await VideoExporter.playerItem(segments: [clip], look: VideoLookBox(), layers: box)
+        let size = try await VideoExporter.frameSize(of: [clip])
+        let itemColour = { () async throws -> TestMovie.Colour in
+            let generator = AVAssetImageGenerator(asset: item.asset)
+            generator.videoComposition = item.videoComposition
+            generator.requestedTimeToleranceBefore = .zero
+            generator.requestedTimeToleranceAfter = .zero
+            let image = try await generator.image(at: CMTime(seconds: 1, preferredTimescale: 600)).image
+            return try TestMovie.dominantColour(of: image, in: self.area)
+        }
+        let before = try await itemColour()
+        box.drawn = VideoLayerRenderer().drawn([red(0, 2000)], frame: size)
+        let after = try await itemColour()
+        XCTAssertEqual([before, after], [.blue, .red])
     }
 
     // MARK: files

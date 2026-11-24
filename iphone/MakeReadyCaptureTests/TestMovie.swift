@@ -78,6 +78,16 @@ enum TestMovie {
     static func dominantColour(of url: URL, at seconds: Double,
                                in area: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1)) async throws -> Colour {
         let (r, g, b) = try await meanRGB(of: url, at: seconds, in: area)
+        return colour(r, g, b)
+    }
+
+    /// The colour of `area` of a frame already read, as `dominantColour(of:at:in:)` reads one.
+    static func dominantColour(of frame: CGImage, in area: CGRect) throws -> Colour {
+        let (r, g, b) = try meanRGB(of: frame, in: area)
+        return colour(r, g, b)
+    }
+
+    private static func colour(_ r: Int, _ g: Int, _ b: Int) -> Colour {
         let channels = [r, g, b]
         guard let high = channels.max(), let low = channels.min(), high - low > 40 else { return .grey }
         return high == r ? .red : (high == g ? .green : .blue)
@@ -90,6 +100,10 @@ enum TestMovie {
         generator.requestedTimeToleranceBefore = .zero
         generator.requestedTimeToleranceAfter = .zero
         let frame = try await generator.image(at: CMTime(seconds: seconds, preferredTimescale: 600)).image
+        return try meanRGB(of: frame, in: area)
+    }
+
+    private static func meanRGB(of frame: CGImage, in area: CGRect) throws -> (Int, Int, Int) {
         let rect = CGRect(x: area.minX * CGFloat(frame.width), y: area.minY * CGFloat(frame.height),
                           width: area.width * CGFloat(frame.width), height: area.height * CGFloat(frame.height))
         var pixel = [UInt8](repeating: 0, count: 4)
