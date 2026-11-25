@@ -1157,6 +1157,11 @@ struct CaptureComponent: Codable {
     // activities-editor §35 (video-recorder D18). Additive:
     let videoPendingPosterURL: String?         // videoPending's poster frame; nil = neutral ground
     let replaceVideoMenuOpen: Bool?            // the attached video's Replace video menu drawn open
+    // activities-editor §36 (video-activity-basics). Additive:
+    let deleteEverywhereEnabled: Bool?         // the delete confirm's second button
+    let deleteEverywhereNote: String?          // the line under it; "" = none
+    let reviewSaving: Bool?                    // the header's Done is the C-159 check
+    let videoOverlaySeed: String?              // none · menu · confirm — previews only
     let snapIndex: Int?                        // activities-editor §18.8 — the dragged object's index (−1 none)
     // OQ-C-081-6 (restored 2026-11-09): each chip's screenshot URL, parallel to `slideIDs`; "" = none.
     let slideImages: [String]?
@@ -2079,6 +2084,8 @@ struct CaptureUI2Action: Codable {
     let glyph: String
     let label: String
     let tone: String?                          // C-067 §4 — "standard" | "destructive"; absent = standard
+    let enabled: Bool?                         // C-066 Confirmation (video-activity-basics); absent = true
+    let subtitle: String?                      // C-066 Confirmation (video-activity-basics); absent = ""
 }
 
 /// C-042 §4 `indicator: (text: String, tone: positive|negative)?`. A struct only because a

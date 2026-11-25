@@ -33,6 +33,11 @@ struct ActivitiesEditorScreen: View {
 
     /// One §3 state's inputs. Every §3 state is reachable by these alone.
     struct State: Equatable {
+        /// §36.5: which of the attached video's overlays is up.
+        enum VideoOverlaySeed: String {
+            case none, menu, confirm
+        }
+
         /// §3 Modes: `idle` · `editing` · `highlighting` · `manipulating`.
         var editorMode: String
         /// The tool open at first (§3 Tools): a panel — `color` · `font` · `animation` — a sheet —
@@ -154,9 +159,17 @@ struct ActivitiesEditorScreen: View {
         /// §35.2 `videoPending`: the pending video's poster frame (a local file URL the container
         /// seeds into `Ui2ImageCache`); nil = a neutral ground.
         var videoPendingPosterURL: URL? = nil
-        /// §35.3: a preview seed — the attached video's Replace video menu drawn open. Live, the
-        /// menu is the screen's own (a tap on the page opens it).
+        /// §35.3: a preview seed — the attached video's menu drawn open (as `videoOverlaySeed` `.menu`).
         var replaceVideoMenuOpen: Bool = false
+        /// §36.5: a preview seed — the attached video's hold menu or delete confirm drawn open.
+        /// Live, both are the screen's own.
+        var videoOverlaySeed: VideoOverlaySeed = .none
+        /// §36.5: "Delete video everywhere" is tappable; read live while the confirm is open.
+        var deleteEverywhereEnabled: Bool = false
+        /// §36.5: the line under "Delete video everywhere"; "" = none. Read live.
+        var deleteEverywhereNote: String = ""
+        /// §36.6 (D14): Review offers Save — the header's trailing control is the C-159 check.
+        var reviewSaving: Bool = false
         /// §35.1 `videoRecorder` (video-recorder P3): the header and the chips fade out while the
         /// inline recorder records; the layout keeps its place.
         var videoRecorderHidesChrome: Bool = false
@@ -409,15 +422,29 @@ struct ActivitiesEditorScreen: View {
     /// §31.4 (D48): a movable object was dropped on the delete target — its index into
     /// `State.objects`. The container removes it and re-supplies `State.objects`.
     var onDeleteObject: (Int) -> Void = { _ in }
-    /// §35.3: "Replace video" chosen on the attached video's C-066 menu. The container sets
+    /// §36.4: "Replace" chosen on the attached video's C-066 menu. The container sets
     /// `canvasContent = .videoRecorder`; the screen reports nothing further.
     var onReplaceVideo: () -> Void = {}
+    /// §36.3: a tap on the attached video's page; its hold menu opening.
+    var onVideoTap: () -> Void = {}
+    var onVideoMenu: () -> Void = {}
+    /// §36.4: "Delete" chosen on the menu — the confirm opens.
+    var onDelete: () -> Void = {}
+    /// §36.5: the confirm's two buttons.
+    var onRemoveFromLesson: () -> Void = {}
+    var onDeleteEverywhere: () -> Void = {}
+    /// §36.6: the header's check, in place of Done.
+    var onReviewSave: () -> Void = {}
+    /// §36.2: the container's live player layer, over the still; nil draws nothing.
+    private let videoLayer: CALayer?
     /// §35.1 `videoRecorder`: the inline recorder the container supplies (the `video-recorder`
     /// screen, `.lessonInline`) — this screen never draws it.
     private let videoRecorder: AnyView
 
-    // §35.3: the Replace video menu is up, seeded from `State.replaceVideoMenuOpen`.
-    @SwiftUI.State private var replaceVideoMenuPresented: Bool
+    // §36.4 / §36.5: the attached video's menu or confirm, seeded from `State`.
+    @SwiftUI.State private var videoOverlay: State.VideoOverlaySeed
+    // §36.4: Delete was chosen; the confirm opens once the menu has slid out.
+    @SwiftUI.State private var confirmFollowsMenu = false
     // §35.3: C-066's presentation slides in after the first frame, so beneath the capture element
     // map the screen draws it at rest (the MemoDetailScreen stand-in).
     @Environment(\.ui2ElementCollecting) private var captureStandIn
@@ -555,6 +582,13 @@ struct ActivitiesEditorScreen: View {
         onBibleStyleChange: @escaping (BibleStyleChange) -> Void = { _ in },
         onDeleteObject: @escaping (Int) -> Void = { _ in },
         onReplaceVideo: @escaping () -> Void = {},
+        onVideoTap: @escaping () -> Void = {},
+        onVideoMenu: @escaping () -> Void = {},
+        onDelete: @escaping () -> Void = {},
+        onRemoveFromLesson: @escaping () -> Void = {},
+        onDeleteEverywhere: @escaping () -> Void = {},
+        onReviewSave: @escaping () -> Void = {},
+        videoLayer: CALayer? = nil,
         @ViewBuilder videoRecorder: () -> Recorder = { EmptyView() }
     ) {
         self.state = state
@@ -586,8 +620,15 @@ struct ActivitiesEditorScreen: View {
         self.onBibleStyleChange = onBibleStyleChange
         self.onDeleteObject = onDeleteObject
         self.onReplaceVideo = onReplaceVideo
+        self.onVideoTap = onVideoTap
+        self.onVideoMenu = onVideoMenu
+        self.onDelete = onDelete
+        self.onRemoveFromLesson = onRemoveFromLesson
+        self.onDeleteEverywhere = onDeleteEverywhere
+        self.onReviewSave = onReviewSave
+        self.videoLayer = videoLayer
         self.videoRecorder = AnyView(videoRecorder())
-        _replaceVideoMenuPresented = SwiftUI.State(initialValue: state.replaceVideoMenuOpen)
+        _videoOverlay = SwiftUI.State(initialValue: state.replaceVideoMenuOpen ? .menu : state.videoOverlaySeed)
         _bibleStyle = SwiftUI.State(initialValue: BibleStyle(state))
         _shownObjects = SwiftUI.State(initialValue: Self.committedObjects(state))
         let actions = Self.pageActions(state)
@@ -740,14 +781,20 @@ struct ActivitiesEditorScreen: View {
         }
         // §10.3: once the document follows the rail's pick, the derived option rules again.
         .onChange(of: state.backgroundOption) { _, _ in pickedBackgroundOption = nil }
-        // §35.3: the attached video's menu — one row, Replace video, plus C-066's own Done.
-        .actionMenuPresentation(isPresented: replaceVideoMenuPresented && isAttachedVideo && !captureStandIn,
-                                onDismiss: { replaceVideoMenuPresented = false }) {
-            replaceVideoMenu
+        // §36.4: the attached video's hold menu — Replace, Delete, plus C-066's own Done.
+        .actionMenuPresentation(isPresented: videoOverlay == .menu && isAttachedVideo && !captureStandIn,
+                                onDismiss: { videoOverlay = .none },
+                                onHidden: videoMenuHidden) {
+            videoMenu
+        }
+        // §36.5: the delete confirm.
+        .actionMenuPresentation(isPresented: videoOverlay == .confirm && isAttachedVideo && !captureStandIn,
+                                onDismiss: { videoOverlay = .none }) {
+            videoDeleteConfirm
         }
         .overlay {
-            if captureStandIn && replaceVideoMenuPresented && isAttachedVideo {
-                captureReplaceVideoMenu
+            if captureStandIn && videoOverlay != .none && isAttachedVideo {
+                captureVideoOverlay
             }
         }
     }
@@ -875,12 +922,12 @@ struct ActivitiesEditorScreen: View {
             content: {
                 AnyView(
                     VStack(spacing: Self.readOnlyGap) {
-                        // FLAGGED LITERAL — activities-player §2 fallback page: title 700, 24.
-                        CanvasTextObject(text: title, mode: .viewer, font: .sans, weight: .bold,
-                                         size: Self.readOnlyTitleSize, alignment: .center, editing: false)
-                            .ui2Element("C-092 CanvasTextObject")
-                        // §35 supersession: a video page no longer shows the note.
+                        // §36.1: a video page draws neither title nor note.
                         if !isAttachedVideo {
+                            // FLAGGED LITERAL — activities-player §2 fallback page: title 700, 24.
+                            CanvasTextObject(text: title, mode: .viewer, font: .sans, weight: .bold,
+                                             size: Self.readOnlyTitleSize, alignment: .center, editing: false)
+                                .ui2Element("C-092 CanvasTextObject")
                             // FLAGGED LITERAL — activities-player §2 fallback page: body 400, 16.
                             CanvasTextObject(text: Self.readOnlyNote, mode: .viewer, font: .sans, weight: .regular,
                                              size: Self.readOnlyNoteSize, alignment: .center, editing: false)
@@ -895,17 +942,55 @@ struct ActivitiesEditorScreen: View {
         )
         .ui2Element("C-091 ActivityCanvas")
         .allowsHitTesting(false)
-        // §35.3: the attached video is tappable — a tap opens the Replace video menu.
         .overlay {
-            if isAttachedVideo {
-                Color.clear
-                    .contentShape(Rectangle())
-                    .onTapGesture { replaceVideoMenuPresented = true }
-                    .accessibilityElement()
-                    .accessibilityLabel(Self.replaceVideoLabel)
-                    .accessibilityAddTraits(.isButton)
-            }
+            if isAttachedVideo { attachedVideo(named: title) }
         }
+    }
+
+    /// §36.1–36.3: over the attached video's page — "Processing…" while there is no still, the
+    /// container's player layer, and the tap (play) and 0.5 s hold (menu).
+    private func attachedVideo(named name: String) -> some View {
+        ZStack {
+            if state.readOnlyPosterURL.isEmpty {
+                SwiftUI.Text(verbatim: Self.processingLabel)
+                    .designTextStyle(Token.TypeStyle.bodySm)
+                    .foregroundStyle(Token.textSecondary)
+                    .ui2Element("Processing label")
+            }
+            if let videoLayer {
+                VideoLayerHost(layer: videoLayer)
+                    .id(ObjectIdentifier(videoLayer))
+                    .clipped()
+                    .allowsHitTesting(false)
+            }
+            Color.clear
+                .contentShape(Rectangle())
+                // The hold goes first: once it succeeds, the lift is not a tap.
+                .gesture(
+                    LongPressGesture(minimumDuration: Self.videoHold)
+                        .onEnded { _ in openVideoMenu() }
+                        .exclusively(before: TapGesture().onEnded { onVideoTap() })
+                )
+                .accessibilityElement()
+                .accessibilityLabel(name)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction { onVideoTap() }
+                .accessibilityAction(named: Self.videoMenuAction) { openVideoMenu() }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func openVideoMenu() {
+        videoOverlay = .menu
+        onVideoMenu()
+    }
+
+    /// The menu slid out: the confirm takes its place when Delete closed it (one hosted overlay at
+    /// a time).
+    private func videoMenuHidden() {
+        guard confirmFollowsMenu else { return }
+        confirmFollowsMenu = false
+        if isAttachedVideo { videoOverlay = .confirm }
     }
 
     /// §35.1 `videoPending`: the local poster frame full-bleed under §14's page rules, with
@@ -940,26 +1025,56 @@ struct ActivitiesEditorScreen: View {
         .allowsHitTesting(false)
     }
 
-    /// §35.3: C-066 with one row, Replace video, and the menu's own Done.
-    private var replaceVideoMenu: some View {
+    /// §36.4: C-066 with Replace and Delete, and the menu's own Done.
+    private var videoMenu: some View {
         ActionMenuOverlay(
-            actions: [Self.replaceVideoAction],
-            onSelect: { _ in
-                replaceVideoMenuPresented = false
-                onReplaceVideo()
+            actions: [Self.replaceVideoAction, Self.deleteVideoAction],
+            onSelect: { action in
+                videoOverlay = .none
+                if action.id == Self.replaceVideoAction.id {
+                    onReplaceVideo()
+                } else {
+                    confirmFollowsMenu = true
+                    onDelete()
+                }
             },
-            onDone: { replaceVideoMenuPresented = false }
+            onDone: { videoOverlay = .none }
+        )
+        .ui2Element("C-066 ActionMenuOverlay")
+    }
+
+    /// §36.5: C-066's Confirmation form.
+    private var videoDeleteConfirm: some View {
+        ActionMenuOverlay(
+            title: Self.deleteVideoTitle,
+            actions: [
+                Self.removeFromLessonAction,
+                .init(glyph: GlyphName.trash2.rawValue, label: Self.deleteEverywhereLabel, tone: .destructive,
+                      enabled: state.deleteEverywhereEnabled, subtitle: state.deleteEverywhereNote),
+            ],
+            doneLabel: Self.cancelLabel,
+            onSelect: { action in
+                videoOverlay = .none
+                if action.id == Self.removeFromLessonAction.id {
+                    onRemoveFromLesson()
+                } else {
+                    onDeleteEverywhere()
+                }
+            },
+            onDone: { videoOverlay = .none }
         )
         .ui2Element("C-066 ActionMenuOverlay")
     }
 
     /// The capture stand-in: the presented layer at rest, as `actionMenuPresentation` lays it out.
-    private var captureReplaceVideoMenu: some View {
+    private var captureVideoOverlay: some View {
         ZStack(alignment: .bottom) {
             Token.black80
                 .ignoresSafeArea()
                 .ui2Element("Dim")
-            replaceVideoMenu
+            Group {
+                if videoOverlay == .confirm { videoDeleteConfirm } else { videoMenu }
+            }
                 .padding(.horizontal, ActionMenuMotion.edgeInset)
                 .padding(.bottom, ActionMenuMotion.edgeInset)
         }
@@ -973,18 +1088,21 @@ struct ActivitiesEditorScreen: View {
         // trailing Done enabled by `canSave`; Load-failed is back only (§9.4); Editing /
         // Highlighting is `textButtons` Cancel · Done.
         PageHeader(
-            style: isToolMode ? .textButtons : (state.loadFailed ? .default : .backAndLink),
+            style: isToolMode ? .textButtons : (state.loadFailed || showsReviewSave ? .default : .backAndLink),
             title: Self.title,
             showTitle: true,
             showIcons: false,
+            showsDone: showsReviewSave,
             leadingGlyph: .back,
             rightButtons: [],
             trailingEnabled: isToolMode || state.canSave,
             onLeading: onBack,
             onCancel: onCancel,
             // §20.2: Done ends the highlighting mode of a locked object.
-            onDone: highlightingIndex != nil ? onEndHighlighting : onDone
+            onDone: showsReviewSave ? onReviewSave : (highlightingIndex != nil ? onEndHighlighting : onDone)
         )
+        .modifier(ReviewSaveAccessibility(active: showsReviewSave, title: Self.title,
+                                          onBack: onBack, onSave: onReviewSave))
         // OQ-activities-editor-49 (owner, 2026-11-12): the header keeps C-040's `.light`
         // `toolbarTone` default whatever the page tone — its band is opaque, not over the page.
         // §2 deviation 7: the 1px hairline under C-040 is the screen's, not the component's.
@@ -999,6 +1117,33 @@ struct ActivitiesEditorScreen: View {
         // §3 Manipulating: chrome hidden (fades out); the layout keeps its place.
         .opacity(mode == .manipulating ? 0 : 1)
         .modifier(recorderChromeFade)
+    }
+
+    /// §36.6: the header's trailing control is C-040's check, in place of the Done text.
+    private var showsReviewSave: Bool { state.reviewSaving && !isToolMode && !state.loadFailed }
+
+    /// §36.6: C-040 reads its check as "Done"; here VoiceOver reads back, title and "Save".
+    private struct ReviewSaveAccessibility: ViewModifier {
+        let active: Bool
+        let title: String
+        let onBack: () -> Void
+        let onSave: () -> Void
+
+        func body(content: Content) -> some View {
+            if active {
+                content.accessibilityRepresentation {
+                    HStack {
+                        SwiftUI.Button(GlyphButton.Glyph.back.accessibilityLabel, action: onBack)
+                        SwiftUI.Text(title)
+                            .accessibilityAddTraits(.isHeader)
+                            .frame(maxWidth: .infinity)
+                        SwiftUI.Button(ActivitiesEditorScreen.saveLabel, action: onSave)
+                    }
+                }
+            } else {
+                content
+            }
+        }
     }
 
     /// P3: hidden in place, so the recorder's preview never moves.
@@ -3225,14 +3370,26 @@ struct ActivitiesEditorScreen: View {
     private static let readOnlyTitleSize: CGFloat = 24
     private static let readOnlyNoteSize: CGFloat = 16
     private static let readOnlyGap: CGFloat = 16
-    /// §35.1 / §35.3 copy.
+    /// §35.1 / §36 copy.
     private static let uploadingLabel = "Uploading…"
-    private static let replaceVideoLabel = "Replace video"
+    private static let processingLabel = "Processing…"
+    private static let saveLabel = "Save"
+    private static let videoMenuAction = "More actions"
+    private static let deleteVideoTitle = "Delete this video?"
+    private static let deleteEverywhereLabel = "Delete video everywhere"
+    private static let cancelLabel = "Cancel"
+    /// FLAGGED LITERAL — §36.3: the 0.5 s hold.
+    private static let videoHold = 0.5
     /// C-076's own default size.
     private static let uploadingSpinnerSize: CGFloat = 24
     /// §35.3: FLAGGED — the row's glyph is undrawn; `film` until the container's d2m request picks one.
     private static let replaceVideoAction = ActionMenuOverlay.ActionItem(
-        glyph: GlyphName.film.rawValue, label: replaceVideoLabel)
+        glyph: GlyphName.film.rawValue, label: "Replace")
+    private static let deleteVideoAction = ActionMenuOverlay.ActionItem(
+        glyph: GlyphName.trash2.rawValue, label: "Delete", tone: .destructive)
+    /// The Confirmation form ignores the glyph.
+    private static let removeFromLessonAction = ActionMenuOverlay.ActionItem(
+        glyph: GlyphName.trash2.rawValue, label: "Remove from lesson", tone: .destructive)
     private static let shuffleLabel = "Shuffle"
     private static let moreImagesLabel = "More…"
     // §9.4 Load-failed copy and the banner's 2 s before the pop.
@@ -4640,5 +4797,34 @@ struct CanvasManipulation: UIViewRepresentable {
 
         override func canPrevent(_ preventedGestureRecognizer: UIGestureRecognizer) -> Bool { false }
         override func canBePrevented(by preventingGestureRecognizer: UIGestureRecognizer) -> Bool { false }
+    }
+}
+
+/// §36.2: hosts the container's player layer, filling its bounds (VideoDetailScreen's pattern).
+private struct VideoLayerHost: UIViewRepresentable {
+    let layer: CALayer
+
+    func makeUIView(context: Context) -> LayerView { LayerView(layer: layer) }
+    func updateUIView(_ uiView: LayerView, context: Context) {}
+
+    final class LayerView: UIView {
+        private let hosted: CALayer
+
+        init(layer: CALayer) {
+            hosted = layer
+            super.init(frame: .zero)
+            isUserInteractionEnabled = false
+            self.layer.addSublayer(layer)
+        }
+
+        @available(*, unavailable) required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            hosted.frame = bounds
+            CATransaction.commit()
+        }
     }
 }

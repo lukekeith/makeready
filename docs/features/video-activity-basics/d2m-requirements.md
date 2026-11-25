@@ -60,3 +60,28 @@ VoiceOver; a tap fires `onSave` (no-op default). `lessonInline` shows no check, 
 phase shows it. `reviewSlot` stays the app's; it will hold Retake only. The check sits under any sheet's dim.
 
 New state: fullScreen review with the check.
+
+## Delivered
+
+d2m change cmwvr8s3f0001v0njefufle7t. Where its names differ from the above, these win.
+
+- `ActivitiesEditorScreen.State`: `deleteEverywhereEnabled: Bool = false`, `deleteEverywhereNote: String = ""`,
+  `reviewSaving: Bool = false`, and `videoOverlaySeed: State.VideoOverlaySeed` (`none` / `menu` / `confirm`,
+  a capture-only seed). `replaceVideoMenuOpen` is kept (seeds `.menu`). The page image is `readOnlyPosterURL`;
+  empty draws "Processing…".
+- `ActivitiesEditorScreen` init: callbacks `onVideoTap`, `onVideoMenu` (fires as the hold menu opens),
+  `onReplaceVideo` (kept), `onDelete` (fires when Delete is chosen, as the confirm opens),
+  `onRemoveFromLesson`, `onDeleteEverywhere`, `onReviewSave`, all default no-ops; `videoLayer: CALayer? = nil`
+  is an init parameter after `onReviewSave` (before the `videoRecorder` builder).
+- Delete: the menu closes, then the confirm opens ("Delete this video?", `doneLabel` "Cancel"). Choosing a
+  confirm button closes the confirm itself before firing its callback. The screen holds the menu and confirm.
+- Header check: `reviewSaving` true swaps Done for the C-159 check (VoiceOver "Save"); tap fires
+  `onReviewSave`, not `onDone`. Not shown in tool mode or load-failed.
+- `VideoRecorderScreen`: `onSave: () -> Void = {}` (init parameter, last); the C-159 check shows only in
+  `layout: fullScreen`, phase `review`.
+- `ActionMenuOverlay.ActionItem`: `enabled: Bool = true`, `subtitle: String = ""` (Confirmation form only).
+- Fixture keys (`CaptureFixture`): `deleteEverywhereEnabled`, `deleteEverywhereNote`, `reviewSaving`,
+  `videoOverlaySeed`; action items take `enabled`, `subtitle`.
+- The app containers do not wire the new callbacks yet (Tasks 5-9).
+- Captures: activities-editor (8 previews); C-066 Confirmation and Confirmation disabled; video-recorder
+  Review - full screen.

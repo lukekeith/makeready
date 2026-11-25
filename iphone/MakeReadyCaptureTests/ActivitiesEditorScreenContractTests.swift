@@ -125,4 +125,14 @@ final class ActivitiesEditorScreenContractTests: XCTestCase {
                                                          unit: 1, engaged: .init())
         XCTAssertEqual(result.position.x, 54, accuracy: 0.01)
     }
+
+    /// video-activity-basics (D5, D6, D14): the new inputs are off by default, so every existing
+    /// state and menu row is unchanged.
+    func testVideoPageDefaultsLeaveExistingStatesAlone() {
+        let state = ActivitiesEditorScreen.State.idleEmpty
+        XCTAssertFalse(state.deleteEverywhereEnabled || state.reviewSaving)
+        XCTAssertEqual(state.deleteEverywhereNote, "")
+        let item = ActionMenuOverlay.ActionItem(glyph: "", label: "Delete", tone: .destructive)
+        XCTAssertTrue(item.enabled && item.subtitle.isEmpty)
+    }
 }
