@@ -195,3 +195,17 @@ lessons; Save from the header check in a lesson and full screen.
 | F5 | build-time risk — d2m's shape for the player slot, press gesture and C-066 fields is known only once its request completes (settled by the d2m task; wiring follows the delivered signatures) | the d2m task |
 | F6 | build-time risk — the walk env has no Cloudflare: inline playback of fixture HLS depends on the network and Stream deletion fails softly (`routes/videos.ts` continues to the database delete) | the walk; playback owed to a real iPhone |
 | F7 | Auth: GET and DELETE use the same org check (`canManageOrgContent`), so a leader who can open the confirm can delete; a 403/404 on the read disables the row (D11) | no change |
+
+## Plan
+
+The plan, task by task: `docs/features/video-activity-basics/PLAN.md` (§PLAN.md).
+
+- Phase 1 · Task 1 · Lesson thumbnails fall back to the video's still
+- Phase 1 · Task 2 · `GET /api/videos/:id` returns `versionUseCount`
+- Phase 1 · Task 3 · The posterless fixture video, and the freeze
+- Phase 2 · Task 4 · d2m changes the editor, the recorder and C-066
+- Phase 3 · Task 5 · The video page's picture, and following one that is still arriving
+- Phase 3 · Task 6 · Tap to play inline
+- Phase 4 · Task 7 · May this video be deleted everywhere?
+- Phase 4 · Task 8 · Remove from lesson and Delete video everywhere
+- Phase 4 · Task 9 · Review saves with the purple check

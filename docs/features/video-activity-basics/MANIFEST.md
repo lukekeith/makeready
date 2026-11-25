@@ -1,7 +1,7 @@
 size: lg
-state: audited
+state: planned
 next: /builder:resume --path docs/features/video-activity-basics
-head: 348448a7
+head: ab97f6f1
 ticket: none
 branch: builder/video-activity-basics
 pr: none
