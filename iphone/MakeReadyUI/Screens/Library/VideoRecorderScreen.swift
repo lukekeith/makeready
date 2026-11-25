@@ -704,6 +704,9 @@ struct VideoRecorderScreen: View {
                 contentInset: mountedSheet == .filters ? 0 : Token.Space.pageMargin,
                 bottomInset: sheetBottomInset,
                 coversScreen: state.layout == .fullScreen,
+                // Owner 2026-11-24 (video-polish D1, in part): Filters draws no dim, so the look can
+                // be judged on the live picture.
+                dims: mountedSheet != .filters,
                 onDismiss: { sheet = .none },
                 onHidden: sheetHidden,
                 aboveDim: {

@@ -34,6 +34,9 @@ struct VideoRecorderPanelSheet<AboveDim: View, Content: View>: View {
     /// True: the dim reaches under the safe areas (fullScreen); false: it stays on the recorder's
     /// area and the sheet is clipped to it (lessonInline).
     let coversScreen: Bool
+    /// False: no dim is drawn (the Filters sheet — the live picture must stay readable, owner
+    /// 2026-11-24); a tap outside the sheet still dismisses it.
+    let dims: Bool
     let onDismiss: () -> Void
     let onHidden: () -> Void
     /// Drawn between the dim and the sheet (the Countdown sheet's rail).
@@ -55,6 +58,7 @@ struct VideoRecorderPanelSheet<AboveDim: View, Content: View>: View {
         contentInset: CGFloat,
         bottomInset: CGFloat,
         coversScreen: Bool,
+        dims: Bool = true,
         onDismiss: @escaping () -> Void,
         onHidden: @escaping () -> Void,
         @ViewBuilder aboveDim: () -> AboveDim,
@@ -64,6 +68,7 @@ struct VideoRecorderPanelSheet<AboveDim: View, Content: View>: View {
         self.contentInset = contentInset
         self.bottomInset = bottomInset
         self.coversScreen = coversScreen
+        self.dims = dims
         self.onDismiss = onDismiss
         self.onHidden = onHidden
         self.aboveDim = aboveDim()
@@ -73,8 +78,9 @@ struct VideoRecorderPanelSheet<AboveDim: View, Content: View>: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            Token.black80
-                .opacity(shown ? 1 : 0)
+            // A clear layer still takes the dismissing tap; a 0-opacity one would not hit-test.
+            (dims ? Token.black80 : Color.clear)
+                .opacity(dims && !shown ? 0 : 1)
                 .ignoresSafeArea(edges: coversScreen ? .all : [])
                 .contentShape(Rectangle())
                 .onTapGesture(perform: dismiss)
