@@ -792,6 +792,83 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         XCTAssertEqual(actions.reloads, 1)
     }
 
+    // MARK: - video-activity-basics D3, D12: tap to play inline
+
+    @MainActor
+    private final class FakeInlinePlayer: VideoPlaying {
+        var elapsed: Double = 0
+        var isPlaying = false
+        var isReady = true
+        let layer: CALayer? = CALayer()
+        private(set) var loads = 0
+        private(set) var stops = 0
+        func load(url: URL, duration: Double) { loads += 1 }
+        func play() { isPlaying = true }
+        func pause() { isPlaying = false }
+        func seek(to seconds: Double) { elapsed = seconds }
+        func skip(by seconds: Double) { elapsed += seconds }
+        func stop() { stops += 1; isPlaying = false }
+    }
+
+    /// An editor on video page vi1 (of vi1, vi2) whose player is `player`; `playback` is the stream vid1 has.
+    private func playing(_ player: FakeInlinePlayer, playback: String? = "https://x/v.m3u8")
+        -> (AppState, ActivitiesEditorContainer.Model) {
+        let app = appWithDraft([videoActivity("vi1", version: "ver1"), videoActivity("vi2", version: "ver1", position: 1)])
+        app.mergeMedia(["vid1": MediaMapEntry(url: "https://x/v", width: nil, height: nil, kind: "video", playbackUrl: playback,
+                                              posterUrl: "https://x/still", durationSeconds: nil, uploaderName: nil)])
+        let model = videoEditor(app: app, actions: ScriptedActivityActions())
+        model.makePlayer = { player }
+        model.makeRecorder = { self.makeRecorderModel(entry: $0, queue: QueueSpy()) }
+        return (app, model)
+    }
+
+    func testATapPlaysAndPausesTheVideo() {
+        let player = FakeInlinePlayer()
+        let (app, model) = playing(player)
+        XCTAssertEqual(player.loads, 0)
+        model.videoTapped(app: app)
+        XCTAssertTrue(player.isPlaying)
+        XCTAssertTrue(model.videoLayer === player.layer)
+        model.videoTapped(app: app)
+        XCTAssertFalse(player.isPlaying)
+        model.videoTapped(app: app)
+        XCTAssertTrue(player.isPlaying)
+        XCTAssertEqual(player.loads, 1)
+    }
+
+    func testATapWithNoStreamDoesNothing() {
+        for playback in [nil, ""] {
+            let player = FakeInlinePlayer()
+            let (app, model) = playing(player, playback: playback)
+            model.videoTapped(app: app)
+            XCTAssertFalse(player.isPlaying)
+            XCTAssertNil(model.videoLayer)
+        }
+    }
+
+    func testLeavingOrBackgroundingStopsTheVideo() async {
+        let leaving: [(ActivitiesEditorContainer.Model, AppState) async -> Void] = [
+            { m, app in await m.selectSlide("vi2", app: app) },
+            { m, _ in await m.addActivity() },
+            { m, _ in await m.back() },
+            { m, app in m.replaceVideo(app: app) }
+        ]
+        for leave in leaving {
+            let player = FakeInlinePlayer()
+            let (app, model) = playing(player)
+            model.videoTapped(app: app)
+            await leave(model, app)
+            XCTAssertEqual(player.stops, 1)
+            XCTAssertNil(model.videoLayer)
+        }
+        let player = FakeInlinePlayer()
+        let (app, model) = playing(player)
+        model.videoTapped(app: app)
+        model.pauseVideo()
+        XCTAssertFalse(player.isPlaying)
+        XCTAssertNotNil(model.videoLayer)
+    }
+
     /// Replace video is reachable in a lesson whose only activity is a video.
     private func assertReplaceVideoOpens(app: AppState, on id: String) {
         let queue = QueueSpy()

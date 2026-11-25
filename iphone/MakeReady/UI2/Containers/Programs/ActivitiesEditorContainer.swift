@@ -32,6 +32,7 @@ struct ActivitiesEditorContainer: View {
     static let loadContext = "ActivitiesEditorContainer.load"
 
     @Environment(\.ui2Navigator) private var navigator
+    @Environment(\.scenePhase) private var scenePhase
     /// This page's veto on the shell's edge swipe: leaving always runs `back()` (save or D16 delete).
     @Environment(\.ui2BackSwipeGuard) private var backSwipe
     @Environment(AuthManager.self) private var authManager: AuthManager?
@@ -80,6 +81,9 @@ struct ActivitiesEditorContainer: View {
             // D48: a text dropped on the trash circle is deleted and saved.
             onDeleteObject: { index in Task { await model.dropDelete(objectIndex: index) } },
             onReplaceVideo: { model.replaceVideo() },
+            onVideoTap: { model.videoTapped() },
+            onVideoMenu: { model.pauseVideo() },
+            videoLayer: model.videoLayer,
             videoRecorder: { inlineRecorder }
         )
         // The screen seeds its sheets' buffers and its alert from `State` once, at init; a new
@@ -124,6 +128,11 @@ struct ActivitiesEditorContainer: View {
         .onChange(of: model.bibleGrid?.pendingFlowId.flatMap { BiblePassagePick.shared.pending[$0] }) { _, pick in
             if pick != nil { Task { await model.bibleGrid?.receiveBiblePick() } }
         }
+        // D3: the video stops when the app goes to the background and when the page goes.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background { model.pauseVideo() }
+        }
+        .onDisappear { model.closeVideo() }
         .task { await model.load() }
         .task { await model.loadImages() }
         // Round 6: the chips' screenshots — rendered thumbnails for canvas kinds, posters and stills otherwise.
@@ -986,6 +995,7 @@ struct ActivitiesEditorContainer: View {
         /// Back: unsaved changes save first (an open edit commits), and a failed save stays on the page with
         /// the alert. No activity is ever deleted on the way out (D16, superseded round 5).
         func back() async {
+            closeVideo()
             if closeRecorder(then: { [weak self] in await self?.back() }) { return }
             guard await leave() else { return }
             navigator?.pop()
@@ -1022,6 +1032,7 @@ struct ActivitiesEditorContainer: View {
             let pendingVideo = pending.first { $0.id == id }
             guard pendingVideo != nil || app.activities[id] != nil else { return }
             guard id != activityId || [.typeGrid, .videoRecorder].contains(canvasContent) else { return }
+            closeVideo()
             if closeRecorder(then: { [weak self] in await self?.selectSlide(id, app: app) }) { return }
             guard await leave() else { return }
             if let pendingVideo { return show(pendingVideo) }
@@ -1033,6 +1044,7 @@ struct ActivitiesEditorContainer: View {
         /// Shows `target` in place: its document is the buffer, a kind the editor can't edit shows read-only (D28).
         func open(_ target: ContentActivity) {
             let editable = ActivityEntry.canvasKinds.contains(target.kind) && ActivitiesEditorMapper.isEditable(target.document)
+            closeVideo()
             activityId = target.id
             activityKey = target.activityKey
             lessonVersionId = target.lessonVersionId
@@ -1053,6 +1065,7 @@ struct ActivitiesEditorContainer: View {
         /// D27: ＋ shows the type grid in place of the canvas, once the current activity has saved.
         func addActivity() async {
             guard canvasContent != .typeGrid else { return }
+            closeVideo()
             if closeRecorder(then: { [weak self] in await self?.addActivity() }) { return }
             guard await leave() else { return }
             recorder = nil
@@ -1105,6 +1118,39 @@ struct ActivitiesEditorContainer: View {
             }
         }
 
+        // MARK: Inline video (video-activity-basics D3, D12)
+
+        /// Builds the inline player: aspect-fill like the still, muted under capture and tests by its own default.
+        var makePlayer: () -> VideoPlaying = { AVVideoPlayer(videoGravity: .resizeAspectFill) }
+        private var videoPlayer: VideoPlaying?
+        /// The layer the video page shows over its still; nil until the first play on this page.
+        private(set) var videoLayer: CALayer?
+
+        /// A tap plays or pauses the video page's stream; the first one loads it. No stream, no player.
+        func videoTapped(app: AppState? = nil) {
+            guard canvasContent == .readOnly, case .video(let video) = document.renderable else { return }
+            if videoPlayer == nil {
+                let entry = (app ?? .shared).mediaMap[video.videoId]
+                guard let playback = entry?.playbackUrl, !playback.isEmpty, let url = URL(string: playback) else { return }
+                let opened = makePlayer()
+                opened.load(url: url, duration: entry?.durationSeconds ?? 0)
+                videoPlayer = opened
+                videoLayer = opened.layer
+            }
+            guard let videoPlayer else { return }
+            if videoPlayer.isPlaying { videoPlayer.pause() } else { videoPlayer.play() }
+        }
+
+        /// The hold menu opened or the app went to the background.
+        func pauseVideo() { videoPlayer?.pause() }
+
+        /// Leaving the page: stops the video and drops the player.
+        func closeVideo() {
+            videoPlayer?.stop()
+            videoPlayer = nil
+            videoLayer = nil
+        }
+
         // MARK: Video recorder (video-recorder D18)
 
         /// The inline recorder, while `canvasContent` is `.videoRecorder`.
@@ -1135,6 +1181,7 @@ struct ActivitiesEditorContainer: View {
         /// The attached video's menu: Replace video.
         func replaceVideo(app: AppState? = nil) {
             guard canvasContent == .readOnly, kind == "video" else { return }
+            closeVideo()
             _ = openRecorder(activityId: activityId, app: app ?? .shared)
         }
 
@@ -1178,6 +1225,7 @@ struct ActivitiesEditorContainer: View {
         }
 
         private func show(_ pending: ActivitiesEditorMapper.PendingVideoActivity) {
+            closeVideo()
             recorder = nil
             activityId = pending.id
             activityKey = ""
