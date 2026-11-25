@@ -280,6 +280,55 @@ final class VideoRecorderSaveTests: XCTestCase {
         XCTAssertEqual(player.looks.last, VideoLook(filter: .mono, strength: 0.4))
     }
 
+    // MARK: video-polish D9 — Review plays once, taps play and pause, scrubs
+
+    func testReviewStopsAtTheEndAndATapThereReplays() async {
+        let m = makeModel()
+        m.open()
+        record(m)
+        m.done()
+        await m.settled()
+        await m.playerSettled()
+        XCTAssertFalse(player.loops)
+        XCTAssertTrue(m.reviewPlaying)
+        m.reviewTapped()
+        XCTAssertFalse(m.reviewPlaying); XCTAssertEqual(player.pauses, 1)
+        m.reviewTapped()
+        XCTAssertTrue(m.reviewPlaying)
+        player.onEnd?()
+        XCTAssertFalse(m.reviewPlaying)
+        XCTAssertEqual(m.reviewElapsed, m.reviewDuration)
+        let plays = player.plays
+        m.reviewTapped()
+        XCTAssertTrue(m.reviewPlaying); XCTAssertEqual(player.plays, plays + 1)
+    }
+
+    func testScrubbingHoldsPlaybackAndSeeks() async {
+        let m = makeModel()
+        m.open()
+        record(m)
+        m.done()
+        await m.settled()
+        await m.playerSettled()
+        m.setReviewScrubbing(true)
+        XCTAssertFalse(m.reviewPlaying)
+        m.reviewSeek(to: 2)
+        XCTAssertEqual(player.seeks.last, 2); XCTAssertEqual(m.reviewElapsed, 2)
+        m.setReviewScrubbing(false)
+        XCTAssertTrue(m.reviewPlaying)
+    }
+
+    func testTrimStillLoops() async {
+        let m = makeModel()
+        m.imported(url: tmpURL, duration: 180)
+        await m.settled()
+        await m.playerSettled()
+        XCTAssertTrue(player.loops)
+        m.trimmed(range: 30...150)
+        XCTAssertFalse(player.loops)
+        XCTAssertEqual(m.reviewDuration, 120)
+    }
+
     func testReviewOfATrimmedClipPlaysItsWindow() async {
         let m = makeModel()
         m.imported(url: tmpURL, duration: 180)

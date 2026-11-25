@@ -149,7 +149,13 @@ final class VideoRecorderModel {
     private var countdownSound: Bool
     private var filter: VideoFilter = .normal
     private var filterStrength = 100
-    private var teleprompterOn = false
+    /// On exactly when the script has text (video-polish D3).
+    private var teleprompterOn: Bool { !script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    /// Review's playback, for the screen's play state and scrub bar (video-polish D9).
+    private(set) var reviewPlaying = false
+    private(set) var reviewElapsed: TimeInterval = 0
+    private(set) var reviewScrubbing = false
+    @ObservationIgnored private var playingBeforeScrub = false
     private var script: String
     private var speed: Int
     private var textSizeStep: Int
@@ -289,7 +295,8 @@ final class VideoRecorderModel {
         guard opened, !isClosed else { return }
         switch phase {
         case .permissionDenied: prepare()
-        case .review, .trim: if editor == nil { player.play() }
+        case .review, .trim:
+            if editor == nil, phase == .trim || reviewPlaying { player.play() }
         case .ready, .preRoll, .recording, .endCountdown, .paused: break
         }
     }
@@ -407,7 +414,8 @@ final class VideoRecorderModel {
         case .countdown, .length, .filters, .edit:
             break
         case .teleprompter:
-            teleprompterOn = true
+            // video-polish D3: the tap opens the sheet; text turns the teleprompter on.
+            break
         }
     }
 
@@ -467,7 +475,6 @@ final class VideoRecorderModel {
     func setScript(_ text: String) {
         script = text
         settings.script = text
-        teleprompterOn = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     func setSpeed(_ step: Int) {
@@ -699,6 +706,7 @@ final class VideoRecorderModel {
         guard phase == .trim else { return }
         moveTrim(to: range)
         phase = .review
+        player.loops = false
     }
 
     func trimCancelled() {
@@ -737,6 +745,11 @@ final class VideoRecorderModel {
         guard !clips.isEmpty else { return }
         let window = trimWindow
         let look = look
+        // video-polish D9: Review plays once and stops at the end; Trim keeps looping its window.
+        player.loops = phase == .trim
+        player.onEnd = { [weak self] in self?.reviewEnded() }
+        reviewPlaying = player.autoplays
+        reviewElapsed = 0
         player.show(layers: layers)
         playerWork = Task { [player, report] in
             do {
@@ -755,6 +768,58 @@ final class VideoRecorderModel {
         playerWork?.cancel()
         playerWork = nil
         player.stop()
+        reviewPlaying = false
+        reviewElapsed = 0
+    }
+
+    /// The length Review's scrub bar spans: the trim window, the import, or the takes.
+    var reviewDuration: TimeInterval {
+        if let trimWindow { return trimWindow.upperBound - trimWindow.lowerBound }
+        return importedClip?.duration ?? timeline.total
+    }
+
+    /// A tap on Review's video: plays or pauses; at the end, plays from the start (video-polish D9).
+    func reviewTapped() {
+        guard phase == .review, editor == nil else { return }
+        if reviewPlaying {
+            player.pause()
+            reviewPlaying = false
+        } else {
+            player.play()
+            reviewPlaying = true
+        }
+    }
+
+    /// The scrub bar moved the playhead.
+    func reviewSeek(to seconds: TimeInterval) {
+        guard phase == .review else { return }
+        let clamped = min(max(seconds, 0), reviewDuration)
+        player.seek(to: clamped)
+        reviewElapsed = clamped
+    }
+
+    /// Held while scrubbing; playback resumes as it was on release (video-polish D9).
+    func setReviewScrubbing(_ on: Bool) {
+        guard phase == .review, on != reviewScrubbing else { return }
+        reviewScrubbing = on
+        if on {
+            playingBeforeScrub = reviewPlaying
+            if reviewPlaying { player.pause(); reviewPlaying = false }
+        } else if playingBeforeScrub {
+            player.play()
+            reviewPlaying = true
+        }
+    }
+
+    /// The scrub bar follows the player while Review plays.
+    func reviewTick() {
+        guard phase == .review, reviewPlaying, !reviewScrubbing else { return }
+        reviewElapsed = player.currentTime
+    }
+
+    private func reviewEnded() {
+        reviewPlaying = false
+        reviewElapsed = reviewDuration
     }
 
     func requestRetake() {
@@ -982,6 +1047,13 @@ extension VideoRecorderModel {
         view.script = shown.script
         view.speed = shown.speed
         view.textSize = TeleprompterBand.TextSize.allCases[shown.textSizeStep - 1].label
+        view.lengthMode = lengthMode.rawValue
+        view.endCountdown = endCountdownSeconds
+        if lengthMode == .any { view.length = Double(RecordingTimeline.maxLength) }
+        view.reviewPlaying = reviewPlaying
+        view.reviewElapsed = reviewElapsed
+        view.reviewDuration = reviewDuration
+        view.reviewScrubbing = reviewScrubbing
         return view
     }
 

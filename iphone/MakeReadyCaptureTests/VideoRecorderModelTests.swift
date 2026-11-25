@@ -448,8 +448,9 @@ final class VideoRecorderModelTests: XCTestCase {
     func testTheScriptPersistsAndANoteReplacesIt() {
         let m = makeModel()
         m.rail(.teleprompter)
-        XCTAssertTrue(m.screenState.teleprompterOn)
+        XCTAssertFalse(m.screenState.teleprompterOn, "video-polish D3: the tap opens the sheet; it never turns it on")
         m.setScript("Typed")
+        XCTAssertTrue(m.screenState.teleprompterOn)
         XCTAssertEqual(settings.script, "Typed")
         m.openNotePicker()
         XCTAssertTrue(m.notePickerOpen)
@@ -457,6 +458,33 @@ final class VideoRecorderModelTests: XCTestCase {
         XCTAssertFalse(m.notePickerOpen)
         XCTAssertEqual(m.screenState.script, "Welcome\nGood morning")
         XCTAssertEqual(settings.script, "Welcome\nGood morning")
+    }
+
+    // MARK: video-polish D3 — on only with text
+
+    func testSavedScriptTurnsTheTeleprompterOn() {
+        settings.script = "Welcome"
+        let m = makeModel()
+        XCTAssertTrue(m.screenState.teleprompterOn)
+    }
+
+    func testClearingTheScriptTurnsTheTeleprompterOff() {
+        settings.script = "Welcome"
+        let m = makeModel()
+        m.setScript("   \n")
+        XCTAssertFalse(m.screenState.teleprompterOn)
+        m.setScript("")
+        XCTAssertFalse(m.viewState(layout: .fullScreen).teleprompterOn)
+    }
+
+    func testTheLengthPanelStateReachesTheScreen() {
+        let m = makeModel(length: 30, endCountdown: 3)
+        XCTAssertEqual(m.viewState(layout: .fullScreen).lengthMode, "specify")
+        XCTAssertEqual(m.viewState(layout: .fullScreen).endCountdown, 3)
+        XCTAssertEqual(m.viewState(layout: .fullScreen).length, 30)
+        m.setLengthMode(.any)
+        XCTAssertEqual(m.viewState(layout: .fullScreen).lengthMode, "any")
+        XCTAssertEqual(m.viewState(layout: .fullScreen).length, 120)
     }
 
     func testTheBandScrollsOnlyWhileRecordingAndASpeedChangeKeepsTheLine() async {
