@@ -48,19 +48,20 @@ taught the phone's slide strips to fall back to the video's still.[^8]
 
 | App | In scope | What changes | Section |
 |---|---|---|---|
-| server | ✅ | The lesson thumbnail falls back to the video's Cloudflare still | §server |
-| client | ⬜ | No change — the web's lesson rails read the same `thumbnailUrl` and simply start showing video stills; nothing else on the web touches the video page, hold menu or recorder | — |
+| server | ✅ | The lesson thumbnail falls back to the video's Cloudflare still; `GET /api/videos/:id` gains `versionUseCount` (D11); one posterless fixture video | §server |
+| client | ⬜ | No change — re-derived at audit: no web code reads either `thumbnailFromDocument` endpoint's activity thumbnails (its rails read `activity.video.thumbnailUrl`), and no web code deletes or counts lesson uses through `GET /api/videos/:id` | — |
 | iphone | ✅ | The lesson editor's video page (picture, inline player, hold menu, two-scope Delete), the Save check in both recorder layouts (d2m first) | §iphone |
 
-**Sequencing:** server (the one-line fallback, tested) → d2m changes the iPhone views, owner approves
+**Sequencing:** server (thumbnail fallback and `versionUseCount`, tested) → d2m changes the iPhone views, owner approves
 → iPhone wiring.
 
 **Backward compatibility:** the iPhone app is a released artifact. An old build reads the same
-`thumbnailUrl` and shows the video still where it showed nothing — additive. No field is renamed or
-removed.
+`thumbnailUrl` and shows the video still where it showed nothing — additive. `versionUseCount` is additive; an old build ignores it. The new
+build decodes it as Optional (cached videos lack it) and treats a missing value as unknown: Delete
+video everywhere stays disabled. No field is renamed or removed.
 
 **Blast radius:** `thumbnailUrl` from `thumbnailFromDocument` feeds the group and enrollment lesson
-rails on iPhone and web.
+rails on iPhone (`enrollments.ts:976` next-study, `enrollment-directory.service.ts:419` home).
 
 ## Decisions
 
@@ -81,14 +82,22 @@ rails on iPhone and web.
 
 | # | Decision | Ruling | Who / date |
 |---|---|---|---|
-| D1 | Video page preview | The lesson editor's video page shows the video's Cloudflare still (`media[videoId].posterUrl`, else the poster media's `posterUrl`), fetched into the image cache by the container; no activity title is drawn over a video page. While the still is missing (still processing), the page shows the canvas background and a centred "Processing…" line. Rejected: the title over a blank canvas (it hides what the video is) | Luke 2026-11-24 (PROGRAM P1) |
+| D1 | Video page preview | The lesson editor's video page shows the video's Cloudflare still (`media[videoId].posterUrl`, else the poster media's `posterUrl ?? url`, an image), fetched into the image cache by the container; no activity title is drawn over a video page. While the still is missing (still processing), the page shows the canvas background and a centred "Processing…" line. Rejected: the title over a blank canvas (it hides what the video is) | Luke 2026-11-24 (PROGRAM P1) |
 | D2 | Tap and hold | On the video page a tap plays or pauses the video inline (D3); a press held 0.5 s opens the house C-066 action menu with Replace (renamed from "Replace video") and Delete, in that order. Edit joins between them in child 2. Rejected: a tap that opens a one-row menu (no way to play the video) | Luke 2026-11-24 (PROGRAM P2) |
 | D3 | Inline playback | The video plays in the page's frame, aspect-fill like the still. It starts paused on the still, plays with sound, and stops at the end; a tap there replays from the start. Leaving the page, opening a menu, or the app going to the background pauses it. Rejected: autoplay (sound starts unasked) | (assumed at brainstorm) 2026-11-24 (PROGRAM P9) |
 | D4 | Delete confirm | Delete opens a second C-066 menu titled "Delete this video?" with two destructive rows, "Remove from lesson" and "Delete video everywhere", and Cancel. Remove from lesson deletes the activity only (the existing activity delete). Delete video everywhere deletes the activity, then the library video. Rejected: one fixed scope (the owner wants to choose each time) | Luke 2026-11-24 (PROGRAM P4) |
 | D5 | Delete everywhere when used elsewhere | "Delete video everywhere" is enabled only when `lessonUseCount` from `GET /api/videos/:id` is 1 or less (this activity only). Otherwise it is disabled and its subtitle reads "Used in N other lessons" (N = lessonUseCount − 1). The count is read when the confirm opens; while it loads, the row is disabled. Rejected: deleting every activity that uses it (irreversible, other lessons change); removing here and keeping it silently (the user learns after tapping) | Luke 2026-11-25 |
 | D6 | Save on Review | Review's Save is the purple check (C-159) in the header. In a lesson, the "Edit lesson" header's trailing Done becomes the check while the recorder is in Review, and it saves the video; everywhere else that header keeps its Done text. Full screen shows the check top-right, inset `space-page-margin`, opposite the ✕. Retake stays on the bottom row, and the bottom row no longer has Save. Rejected: full screen only (two save styles for one action) | Luke 2026-11-24 (PROGRAM P5) |
 | D7 | Delete order and failure | Delete video everywhere removes the activity first, then calls `DELETE /api/videos/:id`. If that fails (including a 409 IN_USE race), the activity stays removed and the error banner reads "Removed from the lesson, but couldn't delete the video". Rejected: video first (a failed activity delete would leave a broken page) | (assumed at brainstorm) 2026-11-25 |
-| D8 | Server thumbnail | `thumbnailFromDocument` returns, in order: the background image's url, the poster media's url, then the video's still (`media[content.videoId].posterUrl`); never a video's `url` (its stream). Rejected: iPhone only (group and enrollment rails would stay blank) | Luke 2026-11-24 (PROGRAM P6) |
+| D11 | Published lessons and Delete everywhere | `GET /api/videos/:id` returns `versionUseCount`: the number of activity rows, in every lesson version of any status (program or enrollment), whose document names the video by its id or by a Media row linked to it. Supplements D5: "Delete video everywhere" is enabled only when `lessonUseCount` ≤ 1 AND `versionUseCount` ≤ 1. Disabled subtitle: `lessonUseCount` > 1 → "Used in 1 other lesson" / "Used in N other lessons"; else `versionUseCount` > 1 → "Used in a published lesson"; loading → "Checking where it's used…"; failed read or a missing count → "Couldn't check where it's used". Why: a published version keeps the same `activityKey`, so `lessonUseCount` reads 1 while DELETE still answers 409 after the draft's activity is gone. Rejected: `lessonUseCount` alone (the enabled button would always fail on a published lesson, after removing the activity); letting DELETE through (members' published lessons would lose the video) | auto (recommended) 2026-11-25 |
+| D12 | Inline player type | The lesson editor plays through `AVVideoPlayer` (`VideoPlaying`), constructed with `videoGravity: .resizeAspectFill`; default gravity stays `.resizeAspect` for the video detail page. Source: `media[videoId].playbackUrl` when a non-empty URL; without one a tap does nothing. Play after the end seeks to 0 whatever the known duration (an at-end flag, since `durationSeconds` can be missing). Rejected: `VideoReviewPlayer` (it composes local clip files; an HLS stream has no composable tracks) | auto (recommended) 2026-11-25 |
+| D13 | Mute hook | `AVVideoPlayer` takes `muted: Bool`, defaulting to `UserDefaults.standard.bool(forKey: "muteVideoPlayback")`; muted sets `AVPlayer.isMuted` and never activates the audio session. Agent walks launch with `-muteVideoPlayback YES`; unit tests use a fake `VideoPlaying`; captures pass no player layer. Enforces D9. Rejected: detecting XCTest in app code (a UI-tested app process is not under XCTest) | auto (recommended) 2026-11-25 |
+| D14 | Confirm rows | The Delete confirm is C-066's Confirmation form (title, full-width C-048 buttons). d2m adds to `ActionItem`: `enabled: Bool = true` (C-048's existing disabled look) and `subtitle: String = ""` drawn under that button, defaults leaving every existing menu unchanged. Cancel is the `doneLabel`. Rejected: putting the reason in `message` (reads as about both buttons) | auto (recommended) 2026-11-25 |
+| D15 | After a removal | When the activity delete succeeds the editor opens the activity now at the removed one's position, else the previous one, else the type grid, without saving the removed document. Activity delete on 409 NOT_DRAFT or a gone row reloads the draft, retries once by `activityKey`; a key absent from the reloaded draft counts as removed. Any other failure keeps the page, deletes no video, and shows the banner "Couldn't remove the video". While a delete runs, further menu choices are ignored. Rejected: always the first activity (loses the leader's place) | auto (recommended) 2026-11-25 |
+| D16 | Still arriving | While a video page is open with no still, the container follows the video with `VideoActions.waitForVideoReady` (its 15 × 2 s limit), then reloads the draft's media; leaving the page cancels it; failures are console-only. Status `error` or the limit leaves "Processing…" until the lesson is reopened. Rejected: no poll (the editor opens cache-first, so a fresh recording would stay on "Processing…") | auto (recommended) 2026-11-25 |
+| D17 | View approval in an unattended build | The d2m request's completed result, with held items settled through `approve_project_change` against this spec, stands for D10's approval in an agent build; the captures are listed in the hand-off for the owner to review. Binds activities-editor, video-recorder and C-066 only. Rejected: stopping mid-build (the owner handed the feature to agents) | auto (recommended) 2026-11-25 |
+| D18 | When the header check shows | In a lesson: recorder phase is `review`, no text editor is open over it, and it is not closed. Trim, recording and saving keep the Done text (disabled). Full screen: phase `review` only. A second tap while saving does nothing (the model's `isSaving` guard). Rejected: showing it whenever the recorder is open (nothing to save) | auto (recommended) 2026-11-25 |
+| D8 | Server thumbnail | `thumbnailFromDocument` returns, in order: the background image's url, the poster media's url, then the video's still (`media[content.videoId].posterUrl`); never a video's `url` (its stream): a background or poster id that names a `kind: 'video'` entry yields that entry's `posterUrl`. Rejected: iPhone only (group and enrollment rails would stay blank) | Luke 2026-11-24 (PROGRAM P6) |
 | D9 | No audio in automated runs | Captures, tests and agent walks never play the inline video's sound; the player is muted under capture and in tests; sound is walked on the owner's phone | owner 2026-11-24 (PROGRAM P11) |
 | D10 | d2m designs the views | The activities-editor video page (still, player slot, hold, menus, header check) and the video-recorder full-screen header check change through d2m from this spec; the owner approves before wiring | (assumed at spec) 2026-11-25 |
 
@@ -96,8 +105,8 @@ rails on iPhone and web.
 
 | Contract | Producer | Consumers | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|---|
-| Lesson activity `thumbnailUrl` (existing field, value widened) | server (`thumbnailFromDocument`) | iphone (EnrollmentHomeMapper, GroupDetailMapper), client (lesson rails) | as today | unchanged | `thumbnailUrl: string \| null` — now also the video's still for a video page with no poster (D8) | unchanged |
-| `GET /api/videos/:id` (existing, unchanged) | server | iphone (Delete confirm, D5) | session; as today | — | `data.lessonUseCount: number` (already returned) | 404, 403 as today |
+| Lesson activity `thumbnailUrl` (existing field, value widened) | server (`thumbnailFromDocument`) | iphone (EnrollmentHomeMapper, GroupDetailMapper) | as today | unchanged | `thumbnailUrl: string \| null` — now also the video's still for a video page with no poster (D8) | unchanged |
+| `GET /api/videos/:id` (existing, one additive field) | server | iphone (Delete confirm, D5, D11) | session; as today | — | `data.lessonUseCount: number` (already returned); **new** `data.versionUseCount: number` (D11) | 404, 403 as today |
 | `DELETE /api/videos/:id` (existing, unchanged) | server | iphone (Delete video everywhere, D7) | session; as today | — | as today | 409 IN_USE, 404, 403 as today |
 
 ## Schema & API changes
@@ -108,6 +117,14 @@ No schema change (established 2026-11-25).
 
 `server/src/services/next-study-thumbnail.ts` — `thumbnailFromDocument` adds the video still fallback
 (D8), reading `content.videoId` and `media[videoId].posterUrl`. Unit test beside the existing one.
+
+`content-media.service.ts` — `videoVersionUseCount(db, videoId)` (D11), counting `contentActivity` rows
+whose `documentMediaRefs` name the video or its Media ids, among the activity keys that hold ACTIVITY
+usage of it; exposed through `videos.service.ts`, returned by `routes/videos.ts` GET with its OpenAPI text.
+
+Fixtures — `screens/activities-editor.ts` gains a second video activity in the draft, with its own Video
+and Media rows, no poster, a still, and a draft-only use (so Delete video everywhere is enabled there).
+The `base.ts` videos stay published (disabled case).
 
 ## iphone
 
@@ -123,10 +140,11 @@ No schema change (established 2026-11-25).
 
 **Wiring (phase 3):**
 - ActivitiesEditorContainer: fetch the still into the image cache (D1); an inline player
-  (VideoReviewPlayer, loops false) for the attached video's playback URL, paused on leave/background
-  (D3); the hold menu; the Delete confirm reading `lessonUseCount` through a VideoActions method that
-  writes nothing to the view (D5); Remove from lesson through the existing activity delete;
-  Delete video everywhere per D7 through VideoActions.
+  (`AVVideoPlayer`, D12) for the attached video's playback URL, paused on leave/background
+  (D3); the hold menu; the Delete confirm reading both counts through a VideoActions method (D5, D11);
+  the still poll (D16); what opens after a removal (D15); Remove from lesson through the existing activity delete;
+  Delete video everywhere per D7 through `VideoActions.deleteOrRemove(id:decision: .delete)`, which also
+  drops it from the Library stores.
 - VideoRecorderContainer/Model: Save leaves `VideoReviewActions`; the full-screen check and the
   lesson header check both call `model.save()` (D6); the lesson host learns the recorder is in
   Review.
@@ -135,16 +153,26 @@ No schema change (established 2026-11-25).
 ## Testing
 
 **server (vitest):** `thumbnailFromDocument` — background wins; poster next; video still next;
-a video with no still returns null; never the stream url.
+a video with no still returns null; never the stream url. `versionUseCount`: draft only 1; draft plus
+published 2 with `lessonUseCount` 1; a published version whose document names another video not counted;
+after the draft row is deleted DELETE answers 200 for the first case and 409 for the second.
 
 **iphone (XCTest):**
 - the activities-editor mapper: a video page's still URL from `media[videoId].posterUrl`; no title.
-- the Delete confirm state: lessonUseCount 1 → enabled; 3 → disabled, "Used in 2 other lessons";
-  loading → disabled.
+- the Delete confirm state: counts 1/1 → enabled; lessonUseCount 3 → disabled, "Used in 2 other lessons";
+  2 → "Used in 1 other lesson"; 1 with versionUseCount 2 → "Used in a published lesson"; loading, failed,
+  missing → disabled (D11).
+- after a removal: next activity, else previous, else the grid; an activity-delete failure deletes no video.
 - Delete everywhere order: activity delete first, then the video; a video-delete failure leaves the
   activity removed and reports the banner text.
 - Review: the bottom row has no Save; the header check saves.
+- `AVVideoPlayer`: muted never activates the session; play after the end starts at 0 with no duration.
 - The inline player pauses on background and on leaving the page.
+
+**E2E walk (agents, muted, D13):** on the fixture lesson, the posterless video page shows its still and no
+title; hold shows Replace · Delete; Delete everywhere removes the activity and the Library video; a
+published lesson's video shows it disabled with "Used in a published lesson"; the rails show stills.
+Playback, sound and recording (Review's check) are owed to a real iPhone.
 
 **Human verification (owner's phone):** the still on the video page and on every rail; tap to play
 and pause, with sound; hold for Replace · Delete; both Delete paths, including a video used in two
@@ -155,3 +183,15 @@ lessons; Save from the header check in a lesson and full screen.
 - Edit on a saved video (child 2, video-activity-edit).
 - The hold menu on the program home.
 - Any web change beyond the thumbnails it now receives.
+
+## Findings & risks
+
+| # | Finding | Resolution |
+|---|---|---|
+| F1 | contract: DELETE /api/videos counts usage over every version (`content-media.service.ts` mediaIdsForKey), `lessonUseCount` counts distinct keys: a published lesson reads 1 and still answers 409 | D11, additive field; consequence for the owner: Delete everywhere is available only for a video never published in a lesson |
+| F2 | `VideoReviewPlayer.load` composes local clips (`VideoExporter.playerItem`) and cannot play HLS | D12 |
+| F3 | The editor opens cache-first, so a fresh recording's missing still never refreshes | D16 |
+| F4 | C-066's Confirmation form has no disabled row or subtitle | D14, in the d2m request |
+| F5 | build-time risk — d2m's shape for the player slot, press gesture and C-066 fields is known only once its request completes (settled by the d2m task; wiring follows the delivered signatures) | the d2m task |
+| F6 | build-time risk — the walk env has no Cloudflare: inline playback of fixture HLS depends on the network and Stream deletion fails softly (`routes/videos.ts` continues to the database delete) | the walk; playback owed to a real iPhone |
+| F7 | Auth: GET and DELETE use the same org check (`canManageOrgContent`), so a leader who can open the confirm can delete; a 403/404 on the read disables the row (D11) | no change |

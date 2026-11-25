@@ -1,9 +1,9 @@
 size: lg
-state: spec
+state: audited
 next: /builder:resume --path docs/features/video-activity-basics
-head: 4a11595d
+head: 348448a7
 ticket: none
-branch: main
+branch: builder/video-activity-basics
 pr: none
 apps: server+iphone
 contract: open
@@ -15,4 +15,5 @@ walk: none
 verify: none
 ready: none
 ui2: none (d2m changes activities-editor and video-recorder from this spec, D10)
-auto: off
+auto: on 2026-11-25
+agent-walk: on 2026-11-25
