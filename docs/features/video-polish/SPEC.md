@@ -225,4 +225,11 @@ The plan, task by task: `docs/features/video-polish/PLAN.md` (§PLAN.md).
 - [x] iphone — Filters sheet: no dark overlay over the preview (D1 superseded in part, owner 2026-11-24)
 - [x] iphone — Size line (C-093) in the video and Activities editors: placed by layout, centred vertically on the trailing edge of the free space between the header and the tools (shortened to fit when the space is shorter than the line); the touch maps to the line's real on-screen frame so the dot follows the finger (owner walk 2026-11-24)
 - [x] iphone — Activity slides (lesson editor strip, program home rail): a video activity with no poster shows its video's Cloudflare thumbnail (`media[videoId].posterUrl`), never the stream URL (owner walk 2026-11-24)
+- [ ] iphone — Exported video is upright in its pixels: the export always draws (track transform identity), never leaves the camera's rotation/mirror as track metadata, which played upside down after Cloudflare's transcode (owner walk 2026-11-25)
+- [ ] iphone — Review: Retake is an icon button (refresh glyph), top centre between the ✕ and the purple check (owner walk 2026-11-25; d2m-walk2-fixes.md 1)
+- [ ] iphone — Review: the scrubber sits at the bottom of the video frame, with Edit and Filters directly above it (owner walk 2026-11-25; d2m 2–3)
+- [ ] iphone — Camera phases: the ✕ is vertically centred with the red timecode (owner walk 2026-11-25; d2m 4)
+- [ ] iphone — Delete-last-clip sits where the photo-library button sits, mirroring the check's inset from the trailing edge (owner walk 2026-11-25; d2m 5)
+- [ ] iphone — Lesson editor video page (video-activity-basics follow-up): a semi-transparent play glyph centred while paused, and a scrubber at the bottom of the page frame, visible above the activity nav while playing (owner walk 2026-11-25; d2m 6–7)
+- [ ] iphone — Delete this video? (video-activity-basics follow-up): "Delete video everywhere" is a toggle, off by default, above one destructive Delete; disabled when not allowed; the where-it's-used note sits under the title, left-aligned (owner walk 2026-11-25; d2m 8–9)
 
