@@ -162,7 +162,10 @@ struct ActivitiesEditorContainer: View {
             onVideoTap: { model.videoTapped() },
             onVideoMenu: { model.pauseVideo() },
             onDelete: { Task { await model.openDeleteConfirm() } },
-            onDeleteConfirmed: { Task { await model.removeVideo(everywhere: false) } },
+            onDeleteEverywhereToggle: { model.setDeleteEverywhere($0) },
+            onDeleteConfirmed: { Task { await model.confirmVideoDelete() } },
+            onVideoSeek: { model.seekVideo(to: $0) },
+            onVideoScrubbingChange: { model.setVideoScrubbing($0) },
             onReviewSave: { Task { await model.saveReview() } },
             videoLayer: model.videoLayer,
             videoRecorder: { inlineRecorder }
@@ -312,6 +315,11 @@ struct ActivitiesEditorContainer: View {
         // D5, D11: the Delete confirm's second row follows what the counts allow.
         state.deleteEverywhereEnabled = model.deleteEverywhereState.enabled
         state.deleteEverywhereNote = model.deleteEverywhereState.note
+        state.deleteEverywhereOn = model.deleteEverywhereOn
+        state.videoPlaying = model.videoPlaying
+        state.videoElapsed = model.videoElapsed
+        state.videoDuration = model.videoDuration
+        state.videoScrubberVisible = model.videoScrubberVisible
         // Owner 2026-11-08: the Idle Done is muted until there is something to save.
         state.canSave = model.phase == .ready && model.document != model.savedDocument
         return state
@@ -1171,6 +1179,7 @@ struct ActivitiesEditorContainer: View {
                 guard let playback = entry?.playbackUrl, !playback.isEmpty, let url = URL(string: playback) else { return }
                 let opened = makePlayer()
                 opened.load(url: url, duration: entry?.durationSeconds ?? 0)
+                videoDuration = entry?.durationSeconds ?? 0
                 videoPlayer = opened
                 playerVideoId = video.videoId
                 videoLayer = opened.layer
@@ -1182,12 +1191,36 @@ struct ActivitiesEditorContainer: View {
         /// The hold menu opened or the app went to the background.
         func pauseVideo() { videoPlayer?.pause() }
 
+        /// Owner walk 2026-11-25: the play glyph hides while this is true.
+        var videoPlaying: Bool { videoPlayer?.isPlaying ?? false }
+        /// The scrubber shows once the video has been loaded on this page.
+        var videoScrubberVisible: Bool { videoPlayer != nil }
+        var videoElapsed: TimeInterval { videoPlayer?.elapsed ?? 0 }
+        private(set) var videoDuration: TimeInterval = 0
+        /// The video was playing when the finger went down on the scrubber; it resumes on lift.
+        private var resumeAfterScrub = false
+
+        func seekVideo(to seconds: TimeInterval) { videoPlayer?.seek(to: seconds) }
+
+        func setVideoScrubbing(_ scrubbing: Bool) {
+            guard let videoPlayer else { return }
+            if scrubbing {
+                resumeAfterScrub = videoPlayer.isPlaying
+                videoPlayer.pause()
+            } else if resumeAfterScrub {
+                resumeAfterScrub = false
+                videoPlayer.play()
+            }
+        }
+
         /// Leaving the page: stops the video, drops the player and forgets the Delete confirm's answer (D11).
         func closeVideo() {
             videoPlayer?.stop()
             videoPlayer = nil
             videoLayer = nil
             playerVideoId = nil
+            videoDuration = 0
+            resumeAfterScrub = false
             deleteCheckedVideoId = nil
             deleteCheck += 1
             deleteEverywhereState = .checking
@@ -1207,7 +1240,19 @@ struct ActivitiesEditorContainer: View {
         }
 
         /// What the confirm's "Delete video everywhere" row shows; `checking` until the read answers.
-        private(set) var deleteEverywhereState = VideoDeleteEverywhere.checking
+        private(set) var deleteEverywhereState = VideoDeleteEverywhere.checking {
+            didSet { if !deleteEverywhereState.enabled { deleteEverywhereOn = false } }
+        }
+        /// Owner walk 2026-11-25: the confirm's "Delete video everywhere" toggle; off each time it opens,
+        /// and only on while deleting everywhere is allowed.
+        private(set) var deleteEverywhereOn = false
+
+        func setDeleteEverywhere(_ on: Bool) { deleteEverywhereOn = on && deleteEverywhereState.enabled }
+
+        /// The confirm's one Delete: everywhere when the toggle is on, else from the lesson only.
+        func confirmVideoDelete(app: AppState? = nil) async {
+            await removeVideo(everywhere: deleteEverywhereOn && deleteEverywhereState.enabled, app: app)
+        }
         /// True while a removal runs: Replace, Delete, both confirm choices and a tap are ignored.
         private(set) var isDeleting = false
         /// Names the read in flight, so an answer that arrives after the page was left is dropped.
@@ -1225,6 +1270,7 @@ struct ActivitiesEditorContainer: View {
             pauseVideo()
             let versionId = lessonVersionId
             deleteEverywhereState = .checking
+            deleteEverywhereOn = false
             deleteCheckedVideoId = video.videoId
             deleteCheck += 1
             let check = deleteCheck

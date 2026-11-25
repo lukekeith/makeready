@@ -1065,6 +1065,41 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         XCTAssertEqual(d.model.canvasContent, .typeGrid)
     }
 
+    // MARK: - Owner walk 2026-11-25: the confirm's "Delete video everywhere" toggle
+
+    func testTheEverywhereToggleStartsOffAndDecidesTheDelete() async {
+        let d = deleting(["a", "b"])
+        var deleted: [String] = []
+        d.model.deleteVideo = { deleted.append($0) }
+        await d.model.openDeleteConfirm(app: d.app)
+        XCTAssertFalse(shown(d).deleteEverywhereOn)
+        d.model.setDeleteEverywhere(true)
+        XCTAssertTrue(shown(d).deleteEverywhereOn)
+        await d.model.confirmVideoDelete(app: d.app)
+        XCTAssertEqual(d.actions.deletedIds, ["a"])
+        XCTAssertEqual(deleted, ["vid1"])
+    }
+
+    func testTheEverywhereToggleOffRemovesFromTheLessonOnly() async {
+        let d = deleting(["a", "b"])
+        await d.model.openDeleteConfirm(app: d.app)
+        await d.model.confirmVideoDelete(app: d.app)
+        XCTAssertEqual(d.actions.deletedIds, ["a"])
+    }
+
+    func testTheEverywhereToggleStaysOffWhenNotAllowedAndResetsOnReopen() async {
+        let d = deleting(["a", "b"])
+        await d.model.openDeleteConfirm(app: d.app)
+        d.model.setDeleteEverywhere(true)
+        d.model.readDeleteEverywhere = { _ in .otherLessons(2) }
+        await d.model.openDeleteConfirm(app: d.app)
+        XCTAssertFalse(shown(d).deleteEverywhereOn)
+        d.model.setDeleteEverywhere(true)
+        XCTAssertFalse(shown(d).deleteEverywhereOn)
+        await d.model.confirmVideoDelete(app: d.app)
+        XCTAssertEqual(d.actions.deletedIds, ["a"])
+    }
+
     // MARK: - video-activity-basics D3, D12: tap to play inline
 
     @MainActor
@@ -1094,6 +1129,29 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         model.makePlayer = { player }
         model.makeRecorder = { self.makeRecorderModel(entry: $0, queue: QueueSpy()) }
         return (app, model)
+    }
+
+    /// Owner walk 2026-11-25: the play glyph hides while playing; the scrubber shows once loaded and scrubbing pauses.
+    func testTheInlineScrubberAndPlayGlyphFollowThePlayer() {
+        let player = FakeInlinePlayer()
+        let (app, model) = playing(player)
+        var shown = ActivitiesEditorContainer.screenState(model, app: app)
+        XCTAssertFalse(shown.videoScrubberVisible)
+        XCTAssertFalse(shown.videoPlaying)
+        model.videoTapped(app: app)
+        shown = ActivitiesEditorContainer.screenState(model, app: app)
+        XCTAssertTrue(shown.videoScrubberVisible)
+        XCTAssertTrue(shown.videoPlaying)
+        model.setVideoScrubbing(true)
+        XCTAssertFalse(player.isPlaying)
+        model.seekVideo(to: 3)
+        XCTAssertEqual(ActivitiesEditorContainer.screenState(model, app: app).videoElapsed, 3)
+        model.setVideoScrubbing(false)
+        XCTAssertTrue(player.isPlaying)
+        model.videoTapped(app: app)
+        model.setVideoScrubbing(true)
+        model.setVideoScrubbing(false)
+        XCTAssertFalse(player.isPlaying)
     }
 
     func testATapPlaysAndPausesTheVideo() {
