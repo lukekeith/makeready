@@ -120,6 +120,9 @@ struct LibraryHomeScreen: View {
             /// §2: "`recordedAt` for a memo and for a video" — the interleave key.
             var recordedAt: Date
             var preview: Preview
+            /// Owner 2026-11-25: the video's still, shown on the row's avatar in place of the video
+            /// glyph; "" = none (the glyph).
+            var thumbnailURL: String = ""
         }
 
         /// §3 `coming-soon`. Kept because the app's `LibraryHomeContainer` (UI2/Containers) still
@@ -737,7 +740,8 @@ private struct LibraryVideoRow: View {
             // C-006's house list-row band: avatar, then the text column, 16 between, vertical inset
             // 16, 8 between the lines (FLAGGED as C-006: `space-card-padding`, value-equal).
             HStack(alignment: .center, spacing: Token.Space.cardPadding) {
-                Avatar(imageURL: nil, initials: nil, size: NoteListRow.avatarSize, fallbackGlyph: .video)
+                Avatar(imageURL: video.thumbnailURL.isEmpty ? nil : URL(string: video.thumbnailURL), initials: nil,
+                       size: NoteListRow.avatarSize, fallbackGlyph: .video)
                     .accessibilityHidden(true)
                     .ui2Element("Leading")
                 VStack(alignment: .leading, spacing: Token.Space.elementGap) {

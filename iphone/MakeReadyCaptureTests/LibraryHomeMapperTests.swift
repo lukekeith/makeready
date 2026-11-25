@@ -177,6 +177,20 @@ final class LibraryHomeMapperTests: XCTestCase {
         XCTAssertEqual(LibraryHomeMapper.videoLine2(.stored(videoSummary(status: "ready", transcriptStatus: "failed"))), "")
     }
 
+    /// Owner 2026-11-25: a stored video with a still shows it on the row; a queued one, or one with none, shows the glyph.
+    func testAVideoRowShowsItsThumbnail() {
+        var stored = videoSummary(status: "ready", transcriptStatus: "ready")
+        stored.thumbnailUrl = "https://x/still.jpg"
+        let bare = videoSummary(status: "ready", transcriptStatus: "ready")
+        XCTAssertEqual(LibraryHomeMapper.videoThumbnail(.stored(stored)), "https://x/still.jpg")
+        XCTAssertEqual(LibraryHomeMapper.videoThumbnail(.stored(bare)), bare.thumbnailUrl ?? "")
+        XCTAssertEqual(LibraryHomeMapper.videoThumbnail(.queued), "")
+        let source = LibraryHomeMapper.VideoSource(id: "v1", title: "Video 1", durationMs: 45_000, recordedAt: now, state: .stored(stored))
+        let rows = LibraryHomeMapper.rows(notes: [], searchIds: nil, memos: [], videos: [source], videosHaveMore: false)
+        let state = LibraryHomeMapper.state(rows: rows, phase: .list, query: "", now: now, calendar: chicago)
+        XCTAssertEqual(state.videos.first?.thumbnailURL, "https://x/still.jpg")
+    }
+
     /// A video that failed is never "Transcribing…": its transcript's line, else what happened.
     func testAVideoThatFailedIsNeverTranscribing() {
         let failed = videoSummary(status: "error", transcriptStatus: "pending")

@@ -130,6 +130,12 @@ enum LibraryHomeMapper {
     }
 
     /// The screen's preview slot for a video's second line.
+    /// Owner 2026-11-25: a stored video's still for the row's avatar; "" while it has none (the glyph).
+    static func videoThumbnail(_ state: VideoSource.State) -> String {
+        guard case .stored(let video) = state else { return "" }
+        return video.thumbnailUrl ?? ""
+    }
+
     private static func videoPreview(_ state: VideoSource.State) -> LibraryHomeScreen.State.VideoRowInput.Preview {
         switch state {
         case .queued: return .uploading
@@ -205,7 +211,7 @@ enum LibraryHomeMapper {
         state.videos = rows.videos.map { video in
             .init(id: video.id, title: video.title, durationLabel: durationLabel(ms: video.durationMs),
                   dateLabel: NotesSectioning.dateLabel(video.recordedAt, now: now, calendar: calendar),
-                  recordedAt: video.recordedAt, preview: videoPreview(video.state))
+                  recordedAt: video.recordedAt, preview: videoPreview(video.state), thumbnailURL: videoThumbnail(video.state))
         }
         return state
     }

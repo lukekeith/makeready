@@ -232,4 +232,5 @@ The plan, task by task: `docs/features/video-polish/PLAN.md` (§PLAN.md).
 - [x] iphone — Delete-last-clip sits where the photo-library button sits, mirroring the check's inset from the trailing edge (owner walk 2026-11-25; d2m 5)
 - [x] iphone — Lesson editor video page (video-activity-basics follow-up): a semi-transparent play glyph centred while paused, and a scrubber at the bottom of the page frame, visible above the activity nav while playing (owner walk 2026-11-25; d2m 6–7)
 - [x] iphone — Delete this video? (video-activity-basics follow-up): "Delete video everywhere" is a toggle, off by default, above one destructive Delete; disabled when not allowed; the where-it's-used note sits under the title, left-aligned (owner walk 2026-11-25; d2m 8–9)
+- [x] iphone — Library: a video row with a thumbnail shows it on the row's avatar in place of the video glyph (owner 2026-11-25)
 
