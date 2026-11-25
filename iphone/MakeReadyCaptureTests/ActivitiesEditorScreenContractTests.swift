@@ -133,6 +133,7 @@ final class ActivitiesEditorScreenContractTests: XCTestCase {
         XCTAssertFalse(state.deleteEverywhereEnabled || state.reviewSaving)
         XCTAssertEqual(state.deleteEverywhereNote, "")
         let item = ActionMenuOverlay.ActionItem(glyph: "", label: "Delete", tone: .destructive)
-        XCTAssertTrue(item.enabled && item.subtitle.isEmpty)
+        XCTAssertTrue(item.enabled)
+        XCTAssertFalse(state.deleteEverywhereOn || state.videoPlaying || state.videoScrubberVisible)
     }
 }

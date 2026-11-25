@@ -1162,6 +1162,17 @@ struct CaptureComponent: Codable {
     let deleteEverywhereNote: String?          // the line under it; "" = none
     let reviewSaving: Bool?                    // the header's Done is the C-159 check
     let videoOverlaySeed: String?              // none · menu · confirm — previews only
+    // activities-editor, owner walk 2026-11-25. Additive:
+    let deleteEverywhereOn: Bool?
+    let videoPlaying: Bool?
+    let videoElapsed: Double?
+    let videoDuration: Double?
+    let videoScrubberVisible: Bool?
+    // C-066 Confirmation, owner walk 2026-11-25. Additive:
+    let toggleLabel: String?
+    let toggleOn: Bool?
+    let toggleEnabled: Bool?
+    let note: String?
     let snapIndex: Int?                        // activities-editor §18.8 — the dragged object's index (−1 none)
     // OQ-C-081-6 (restored 2026-11-09): each chip's screenshot URL, parallel to `slideIDs`; "" = none.
     let slideImages: [String]?
@@ -2085,7 +2096,6 @@ struct CaptureUI2Action: Codable {
     let label: String
     let tone: String?                          // C-067 §4 — "standard" | "destructive"; absent = standard
     let enabled: Bool?                         // C-066 Confirmation (video-activity-basics); absent = true
-    let subtitle: String?                      // C-066 Confirmation (video-activity-basics); absent = ""
 }
 
 /// C-042 §4 `indicator: (text: String, tone: positive|negative)?`. A struct only because a

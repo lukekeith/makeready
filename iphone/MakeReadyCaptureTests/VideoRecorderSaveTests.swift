@@ -202,10 +202,6 @@ final class VideoRecorderSaveTests: XCTestCase {
         XCTAssertFalse(m.showsSaveCheck)
     }
 
-    func testTheReviewRowIsRetakeAlone() {
-        XCTAssertEqual(VideoReviewActions.labels, ["Retake"])
-    }
-
     // MARK: a clip over 2:00 opens trim; one at or under goes to Review (D8)
 
     func testImportRouting() {

@@ -327,6 +327,7 @@
 		3D08B3A49484E4566D1C6FB1 /* CameraPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0857F6F2AEC5FF568ACB8A4D /* CameraPreview.swift */; };
 		3D2005DB297EE2498DEA8E65 /* InviteMemberScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE698C12540E4C979111EFA4 /* InviteMemberScreen.swift */; };
 		3D2F8E5046929CE3E8387391 /* GroupsScreensEditTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44D3B06D536A0B04E3AB3494 /* GroupsScreensEditTests.swift */; };
+		3D70FF936025874491435131 /* RowSwitchStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DC17045FD8FAFD01926DC84 /* RowSwitchStyle.swift */; };
 		3DDA485F0182DFC996351BBB /* LocalPortHealer.swift in Sources */ = {isa = PBXBuildFile; fileRef = LPHL0002000000000000001 /* LocalPortHealer.swift */; };
 		3DE525989C89C003306FA635 /* ViewerVideoHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA6FD5D239C675D47EC97DD9 /* ViewerVideoHost.swift */; };
 		3E06B9ABF647718F0BA0700E /* StudyProgramsContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C15615D92C3CAC08FCA02B31 /* StudyProgramsContainer.swift */; };
@@ -1111,6 +1112,7 @@
 		CB947622F4814FC4CE396FFF /* RecordingTimelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 147BEF2FBF2A3B1766B37C58 /* RecordingTimelineTests.swift */; };
 		CBA6E822EF1EDE6C26592A91 /* GroupPatchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83258CB074CE451E434761D2 /* GroupPatchTests.swift */; };
 		CBBC766D9D836D6FFED5383B /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPDEL0002000000000001 /* AppDelegate.swift */; };
+		CC66DE39B17C98DF079AA439 /* RowSwitchStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DC17045FD8FAFD01926DC84 /* RowSwitchStyle.swift */; };
 		CC89EF2BAA06EB92E43C64C7 /* InviteHomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CF5FCCA1E4B00460E8794A2 /* InviteHomeScreen.swift */; };
 		CCC76D1315436A92E02CE805 /* ProgramPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82C14315E68265AD1CFADEAA /* ProgramPatch.swift */; };
 		CCDD5F8E34A30442E4AAD8E2 /* ImageFramingMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6C597A7D6222978BCC8BE1 /* ImageFramingMath.swift */; };
@@ -1386,6 +1388,7 @@
 		IMGVAR0001000000000001 /* String+ImageVariants.swift in Sources */ = {isa = PBXBuildFile; fileRef = IMGVAR0002000000000001 /* String+ImageVariants.swift */; };
 		INVA0001000000000001 /* InviteActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = INVA0002000000000001 /* InviteActions.swift */; };
 		KBST0001000000000000001 /* KeyboardState.swift in Sources */ = {isa = PBXBuildFile; fileRef = KBST0002000000000000001 /* KeyboardState.swift */; };
+		L1BH0AVT0000000000000002 /* AVVideoPlayerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0AVT0000000000000001 /* AVVideoPlayerTests.swift */; };
 		L1BH0MAP0000000000000002 /* LibraryHomeMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MAP0000000000000001 /* LibraryHomeMapper.swift */; };
 		L1BH0MAP0000000000000004 /* LibraryHomeMapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MAP0000000000000003 /* LibraryHomeMapperTests.swift */; };
 		L1BH0MAP0000000000000012 /* LibraryHomeSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0MAP0000000000000011 /* LibraryHomeSearch.swift */; };
@@ -1404,7 +1407,6 @@
 		L1BH0VDM0000000000000002 /* VideoDetailModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VDM0000000000000001 /* VideoDetailModel.swift */; };
 		L1BH0VDP0000000000000002 /* VideoDetailPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VDP0000000000000001 /* VideoDetailPlayer.swift */; };
 		L1BH0VDT0000000000000002 /* VideoDetailModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VDT0000000000000001 /* VideoDetailModelTests.swift */; };
-		L1BH0AVT0000000000000002 /* AVVideoPlayerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0AVT0000000000000001 /* AVVideoPlayerTests.swift */; };
 		L1BH0VFL0000000000000002 /* LibraryHomeVideoFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VFL0000000000000001 /* LibraryHomeVideoFlow.swift */; };
 		L1BH0VFL0000000000000004 /* LibraryHomeVideoFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VFL0000000000000003 /* LibraryHomeVideoFlowTests.swift */; };
 		L1BH0VFL0000000000000005 /* LibraryHomeVideoFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VFL0000000000000001 /* LibraryHomeVideoFlow.swift */; };
@@ -1706,6 +1708,7 @@
 		4D1E313165BA70E1A56B608F /* EnrollmentBrowseActionsTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnrollmentBrowseActionsTests.swift; sourceTree = "<group>"; };
 		4D973D317D77D9643E832D99 /* ChartIntroLedger.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChartIntroLedger.swift; sourceTree = "<group>"; };
 		4DB8BF575CABAA62353707C1 /* UI2MembersComponentTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UI2MembersComponentTests.swift; sourceTree = "<group>"; };
+		4DC17045FD8FAFD01926DC84 /* RowSwitchStyle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RowSwitchStyle.swift; sourceTree = "<group>"; };
 		4DFA85A3C1CB013F77883FEC /* CaptureEnvironment.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CaptureEnvironment.swift; sourceTree = "<group>"; };
 		4E8B672C41C1922CC793EB5E /* CalendarEmptyState.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CalendarEmptyState.swift; sourceTree = "<group>"; };
 		4EAB4C5352A695EC32E293C2 /* MediaHomeMapper.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MediaHomeMapper.swift; path = Containers/Media/MediaHomeMapper.swift; sourceTree = "<group>"; };
@@ -2311,6 +2314,7 @@
 		KBST0002000000000000001 /* KeyboardState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardState.swift; sourceTree = "<group>"; };
 		KBTB0002000000000000001 /* KeyboardToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardToolbar.swift; sourceTree = "<group>"; };
 		KPI00002000000000000001 /* Kpi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Kpi.swift; sourceTree = "<group>"; };
+		L1BH0AVT0000000000000001 /* AVVideoPlayerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AVVideoPlayerTests.swift; sourceTree = "<group>"; };
 		L1BH0MAP0000000000000001 /* LibraryHomeMapper.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LibraryHomeMapper.swift; path = Containers/Library/LibraryHomeMapper.swift; sourceTree = "<group>"; };
 		L1BH0MAP0000000000000003 /* LibraryHomeMapperTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LibraryHomeMapperTests.swift; sourceTree = "<group>"; };
 		L1BH0MAP0000000000000011 /* LibraryHomeSearch.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LibraryHomeSearch.swift; path = Containers/Library/LibraryHomeSearch.swift; sourceTree = "<group>"; };
@@ -2329,7 +2333,6 @@
 		L1BH0VDM0000000000000001 /* VideoDetailModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = VideoDetailModel.swift; path = Containers/Video/VideoDetailModel.swift; sourceTree = "<group>"; };
 		L1BH0VDP0000000000000001 /* VideoDetailPlayer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = VideoDetailPlayer.swift; path = Containers/Video/VideoDetailPlayer.swift; sourceTree = "<group>"; };
 		L1BH0VDT0000000000000001 /* VideoDetailModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VideoDetailModelTests.swift; sourceTree = "<group>"; };
-		L1BH0AVT0000000000000001 /* AVVideoPlayerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AVVideoPlayerTests.swift; sourceTree = "<group>"; };
 		L1BH0VFL0000000000000001 /* LibraryHomeVideoFlow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LibraryHomeVideoFlow.swift; path = Containers/Library/LibraryHomeVideoFlow.swift; sourceTree = "<group>"; };
 		L1BH0VFL0000000000000003 /* LibraryHomeVideoFlowTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LibraryHomeVideoFlowTests.swift; sourceTree = "<group>"; };
 		LDPC0001000000000000001 /* LessonDetailPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonDetailPage.swift; sourceTree = "<group>"; };
@@ -3594,6 +3597,7 @@
 				D33B783D88E502F57BF99532 /* LengthEntry.swift */,
 				9D0C676DC1A3FBBA6333188B /* VideoRecorderLengthPanel.swift */,
 				14F43B0C15B21439B8EC9D8A /* VideoRecorderPanelSheet.swift */,
+				4DC17045FD8FAFD01926DC84 /* RowSwitchStyle.swift */,
 			);
 			path = MakeReadyUI;
 			sourceTree = "<group>";
@@ -5048,6 +5052,7 @@
 				3787B7DFA21067999BE07351 /* LengthEntry.swift in Sources */,
 				2EAEC392F29AFBB4198DD849 /* VideoRecorderLengthPanel.swift in Sources */,
 				C105BFD79BDC580E70DDE22D /* VideoRecorderPanelSheet.swift in Sources */,
+				CC66DE39B17C98DF079AA439 /* RowSwitchStyle.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -5265,6 +5270,7 @@
 				7BD8214BA3AAF6CF6F5CF69D /* LengthEntry.swift in Sources */,
 				8E37E4C3286D57010A53564D /* VideoRecorderLengthPanel.swift in Sources */,
 				DE53DA0B8D6E53AC72599D48 /* VideoRecorderPanelSheet.swift in Sources */,
+				3D70FF936025874491435131 /* RowSwitchStyle.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

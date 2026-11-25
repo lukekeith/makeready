@@ -49,8 +49,6 @@ struct ActionMenuOverlay: View {
         /// video-activity-basics: in the Confirmation form, `false` is C-048's disabled look and the
         /// button fires nothing. The rows ignore it.
         var enabled: Bool = true
-        /// video-activity-basics: in the Confirmation form, a line under the button. "" = none.
-        var subtitle: String = ""
 
         var id: String { "\(glyph)|\(label)" }
     }
@@ -88,6 +86,16 @@ struct ActionMenuOverlay: View {
     /// program-day-rail-sticky (owner 2026-11-06): one centred line naming what the menu acts on.
     /// Unlike `title` it keeps the normal rows. Default nil keeps the frozen C-066 snapshot.
     var menuTitle: String? = nil
+    /// Owner walk 2026-11-25, Confirmation form only: a line under the title, left-aligned. "" = none.
+    var note: String = ""
+    /// Owner walk 2026-11-25, Confirmation form only: a switch row above the buttons. "" = none.
+    var toggleLabel: String = ""
+    /// Controlled; a disabled toggle always draws off.
+    var toggleOn: Bool = false
+    var toggleEnabled: Bool = true
+    var onToggleChange: (Bool) -> Void = { _ in }
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         // §2: "internal gap 16" — between the actions list and the Done button.
@@ -108,22 +116,13 @@ struct ActionMenuOverlay: View {
             if let confirmLabel {
                 PageActionButton(label: confirmLabel, role: Self.confirmRole, onTap: onConfirm).ui2Element("Confirm")
             } else if isConfirmation {
+                if !toggleLabel.isEmpty { toggleRow }
                 // §3 Confirmation (revised 2026-10-29): each action is a full-width C-048, label
                 // centred, no glyph, no chevron, no hairline — stacked with the card's 16 gap.
                 ForEach(Array(actions.enumerated()), id: \.element.id) { index, action in
-                    VStack(spacing: Token.Space.elementGap) {
-                        PageActionButton(label: action.label, role: Self.confirmationRole(action.tone),
-                                         enabled: action.enabled) { onSelect(action) }
-                            .ui2Element("Action \(index + 1)")
-                        if !action.subtitle.isEmpty {
-                            Text(action.subtitle)
-                                .designTextStyle(Token.TypeStyle.bodySm)
-                                .foregroundStyle(Token.textSecondary)
-                                .multilineTextAlignment(.center)
-                                .frame(maxWidth: .infinity)
-                                .ui2Element("Subtitle \(index + 1)")
-                        }
-                    }
+                    PageActionButton(label: action.label, role: Self.confirmationRole(action.tone),
+                                     enabled: action.enabled) { onSelect(action) }
+                        .ui2Element("Action \(index + 1)")
                 }
             } else {
                 actionsList.ui2Element("Actions list")
@@ -186,8 +185,25 @@ struct ActionMenuOverlay: View {
                     .foregroundStyle(Token.white50)
                     .ui2Element("Message")
             }
+            if !note.isEmpty {
+                Text(note)
+                    .designTextStyle(Token.TypeStyle.bodySm)
+                    .foregroundStyle(Token.textSecondary)
+                    .ui2Element("Note")
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var toggleRow: some View {
+        Toggle(isOn: Binding(get: { toggleOn && toggleEnabled }, set: onToggleChange)) {
+            Text(toggleLabel)
+                .designTextStyle(Token.TypeStyle.bodySm)
+                .foregroundStyle(toggleEnabled ? Token.textPrimary : Token.white50)
+        }
+        .toggleStyle(RowSwitchStyle(animation: reduceMotion ? nil : Token.Motion.chipSelect))
+        .disabled(!toggleEnabled)
+        .ui2Element("Toggle")
     }
 
     private var hairline: some View {

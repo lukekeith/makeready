@@ -232,39 +232,4 @@ final class VideoEditorPresentationTests: XCTestCase {
             AnyView(content.environment(\.ui2HostsOverlays, false).ignoresSafeArea(.keyboard))
         }
     }
-
-    // MARK: - Review's row fit (F8)
-
-    private final class Widths { var offered: CGFloat = 0 }
-
-    /// The width the screen offers Review's slot beside Edit and Filters at `width`, and the natural
-    /// width of the real Retake + Save content.
-    private func slotFit(width: CGFloat, layout: VideoRecorderScreen.State.Layout) async -> (offered: CGFloat, natural: CGFloat) {
-        let m = await reviewModel()
-        let widths = Widths()
-        show(VideoRecorderScreen(
-            state: .init(layout: layout, phase: .review, segments: [4]),
-            reviewSlot: {
-                AnyView(VideoReviewActions(model: m)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { widths.offered = $0 })
-            },
-            onEdit: {}
-        ), size: CGSize(width: width, height: 956))
-        let natural = UIHostingController(rootView: VideoReviewActions(model: m).fixedSize())
-            .sizeThatFits(in: CGSize(width: 10_000, height: 100)).width
-        return (widths.offered, natural)
-    }
-
-    func testReviewRowFitsAt440() async throws {
-        let fit = await slotFit(width: 440, layout: .fullScreen)
-        XCTAssertGreaterThan(fit.offered, 0)
-        XCTAssertLessThanOrEqual(fit.natural, fit.offered)
-    }
-
-    func testReviewRowFitsAtTheLessonsInlineWidth() async throws {
-        let fit = await slotFit(width: 343, layout: .lessonInline)
-        XCTAssertGreaterThan(fit.offered, 0)
-        XCTAssertLessThanOrEqual(fit.natural, fit.offered)
-    }
 }

@@ -162,8 +162,7 @@ struct ActivitiesEditorContainer: View {
             onVideoTap: { model.videoTapped() },
             onVideoMenu: { model.pauseVideo() },
             onDelete: { Task { await model.openDeleteConfirm() } },
-            onRemoveFromLesson: { Task { await model.removeVideo(everywhere: false) } },
-            onDeleteEverywhere: { Task { await model.removeVideo(everywhere: true) } },
+            onDeleteConfirmed: { Task { await model.removeVideo(everywhere: false) } },
             onReviewSave: { Task { await model.saveReview() } },
             videoLayer: model.videoLayer,
             videoRecorder: { inlineRecorder }

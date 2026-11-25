@@ -164,10 +164,18 @@ struct ActivitiesEditorScreen: View {
         /// §36.5: a preview seed — the attached video's hold menu or delete confirm drawn open.
         /// Live, both are the screen's own.
         var videoOverlaySeed: VideoOverlaySeed = .none
-        /// §36.5: "Delete video everywhere" is tappable; read live while the confirm is open.
+        /// §36.5: the "Delete video everywhere" toggle is enabled; read live while the confirm is open.
         var deleteEverywhereEnabled: Bool = false
-        /// §36.5: the line under "Delete video everywhere"; "" = none. Read live.
+        /// §36.5: the line under the confirm's title; "" = none. Read live.
         var deleteEverywhereNote: String = ""
+        /// Owner walk 2026-11-25: the toggle's value; drawn off while not enabled.
+        var deleteEverywhereOn: Bool = false
+        /// Owner walk 2026-11-25: the attached video is playing — the play glyph hides.
+        var videoPlaying: Bool = false
+        /// Owner walk 2026-11-25: the attached video's scrubber, above the activity nav.
+        var videoElapsed: TimeInterval = 0
+        var videoDuration: TimeInterval = 0
+        var videoScrubberVisible: Bool = false
         /// §36.6 (D14): Review offers Save — the header's trailing control is the C-159 check.
         var reviewSaving: Bool = false
         /// §35.1 `videoRecorder` (video-recorder P3): the header and the chips fade out while the
@@ -430,9 +438,12 @@ struct ActivitiesEditorScreen: View {
     var onVideoMenu: () -> Void = {}
     /// §36.4: "Delete" chosen on the menu — the confirm opens.
     var onDelete: () -> Void = {}
-    /// §36.5: the confirm's two buttons.
-    var onRemoveFromLesson: () -> Void = {}
-    var onDeleteEverywhere: () -> Void = {}
+    /// §36.5: the confirm's toggle, and its Delete (the container decides which delete runs).
+    var onDeleteEverywhereToggle: (Bool) -> Void = { _ in }
+    var onDeleteConfirmed: () -> Void = {}
+    /// The attached video's scrubber.
+    var onVideoSeek: (TimeInterval) -> Void = { _ in }
+    var onVideoScrubbingChange: (Bool) -> Void = { _ in }
     /// §36.6: the header's check, in place of Done.
     var onReviewSave: () -> Void = {}
     /// §36.2: the container's live player layer, over the still; nil draws nothing.
@@ -443,6 +454,8 @@ struct ActivitiesEditorScreen: View {
 
     // §36.4 / §36.5: the attached video's menu or confirm, seeded from `State`.
     @SwiftUI.State private var videoOverlay: State.VideoOverlaySeed
+    /// A finger is on the attached video's scrubber (C-004 `dragging`).
+    @SwiftUI.State private var videoScrubbing = false
     // §36.4: Delete was chosen; the confirm opens once the menu has slid out.
     @SwiftUI.State private var confirmFollowsMenu = false
     // §35.3: C-066's presentation slides in after the first frame, so beneath the capture element
@@ -583,8 +596,10 @@ struct ActivitiesEditorScreen: View {
         onVideoTap: @escaping () -> Void = {},
         onVideoMenu: @escaping () -> Void = {},
         onDelete: @escaping () -> Void = {},
-        onRemoveFromLesson: @escaping () -> Void = {},
-        onDeleteEverywhere: @escaping () -> Void = {},
+        onDeleteEverywhereToggle: @escaping (Bool) -> Void = { _ in },
+        onDeleteConfirmed: @escaping () -> Void = {},
+        onVideoSeek: @escaping (TimeInterval) -> Void = { _ in },
+        onVideoScrubbingChange: @escaping (Bool) -> Void = { _ in },
         onReviewSave: @escaping () -> Void = {},
         videoLayer: CALayer? = nil,
         @ViewBuilder videoRecorder: () -> Recorder = { EmptyView() }
@@ -621,8 +636,10 @@ struct ActivitiesEditorScreen: View {
         self.onVideoTap = onVideoTap
         self.onVideoMenu = onVideoMenu
         self.onDelete = onDelete
-        self.onRemoveFromLesson = onRemoveFromLesson
-        self.onDeleteEverywhere = onDeleteEverywhere
+        self.onDeleteEverywhereToggle = onDeleteEverywhereToggle
+        self.onDeleteConfirmed = onDeleteConfirmed
+        self.onVideoSeek = onVideoSeek
+        self.onVideoScrubbingChange = onVideoScrubbingChange
         self.onReviewSave = onReviewSave
         self.videoLayer = videoLayer
         self.videoRecorder = AnyView(videoRecorder())
@@ -851,6 +868,23 @@ struct ActivitiesEditorScreen: View {
                     .opacity(editedIndex != nil ? Self.editDimOpacity : 1)
                     .animation(Self.editTransition, value: editedIndex)
             }
+            if state.videoScrubberVisible && isAttachedVideo {
+                ScrubTrack(
+                    elapsed: state.videoElapsed,
+                    duration: state.videoDuration,
+                    dragging: videoScrubbing,
+                    onSeek: onVideoSeek,
+                    onDraggingChange: {
+                        videoScrubbing = $0
+                        onVideoScrubbingChange($0)
+                    }
+                )
+                .ui2Element("C-004 ScrubTrack")
+                .padding(.horizontal, Token.Space.pageMargin)
+                .padding(.vertical, Token.Space.step8)
+                // Reads over any picture ("fully visible", owner walk 2026-11-25).
+                .background(Token.black50)
+            }
             if mode != .manipulating {
                 railStack
                     .transition(.opacity)
@@ -961,6 +995,14 @@ struct ActivitiesEditorScreen: View {
                     .clipped()
                     .allowsHitTesting(false)
             }
+            if !state.readOnlyPosterURL.isEmpty && !state.videoPlaying {
+                Glyph(.playFilledAltCarbon, size: .lg, tint: Token.white100)
+                    .frame(width: Self.playDisc, height: Self.playDisc)
+                    .background(Token.black50, in: Circle())
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+                    .ui2Element("Play glyph")
+            }
             Color.clear
                 .contentShape(Rectangle())
                 // The hold goes first: once it succeeds, the lift is not a tap.
@@ -1045,21 +1087,18 @@ struct ActivitiesEditorScreen: View {
     private var videoDeleteConfirm: some View {
         ActionMenuOverlay(
             title: Self.deleteVideoTitle,
-            actions: [
-                Self.removeFromLessonAction,
-                .init(glyph: GlyphName.trash2.rawValue, label: Self.deleteEverywhereLabel, tone: .destructive,
-                      enabled: state.deleteEverywhereEnabled, subtitle: state.deleteEverywhereNote),
-            ],
+            actions: [Self.deleteVideoAction],
             doneLabel: Self.cancelLabel,
-            onSelect: { action in
+            onSelect: { _ in
                 videoOverlay = .none
-                if action.id == Self.removeFromLessonAction.id {
-                    onRemoveFromLesson()
-                } else {
-                    onDeleteEverywhere()
-                }
+                onDeleteConfirmed()
             },
-            onDone: { videoOverlay = .none }
+            onDone: { videoOverlay = .none },
+            note: state.deleteEverywhereNote,
+            toggleLabel: Self.deleteEverywhereLabel,
+            toggleOn: state.deleteEverywhereOn,
+            toggleEnabled: state.deleteEverywhereEnabled,
+            onToggleChange: onDeleteEverywhereToggle
         )
         .ui2Element("C-066 ActionMenuOverlay")
     }
@@ -3353,6 +3392,8 @@ struct ActivitiesEditorScreen: View {
     private static let cancelLabel = "Cancel"
     /// FLAGGED LITERAL — §36.3: the 0.5 s hold.
     private static let videoHold = 0.5
+    /// FLAGGED LITERAL — owner walk 2026-11-25: the play glyph's ~64 pt disc.
+    private static let playDisc: CGFloat = 64
     /// C-076's own default size.
     private static let uploadingSpinnerSize: CGFloat = 24
     /// §35.3: FLAGGED — the row's glyph is undrawn; `film` until the container's d2m request picks one.
@@ -3360,9 +3401,6 @@ struct ActivitiesEditorScreen: View {
         glyph: GlyphName.film.rawValue, label: "Replace")
     private static let deleteVideoAction = ActionMenuOverlay.ActionItem(
         glyph: GlyphName.trash2.rawValue, label: "Delete", tone: .destructive)
-    /// The Confirmation form ignores the glyph.
-    private static let removeFromLessonAction = ActionMenuOverlay.ActionItem(
-        glyph: GlyphName.trash2.rawValue, label: "Remove from lesson", tone: .destructive)
     private static let shuffleLabel = "Shuffle"
     private static let moreImagesLabel = "More…"
     // §9.4 Load-failed copy and the banner's 2 s before the pop.

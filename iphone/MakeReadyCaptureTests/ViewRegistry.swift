@@ -561,11 +561,14 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
                             glyph: $0.glyph,
                             label: $0.label,
                             tone: $0.tone == "destructive" ? .destructive : .standard,
-                            enabled: $0.enabled ?? true,
-                            subtitle: $0.subtitle ?? ""
+                            enabled: $0.enabled ?? true
                         )
                     },
-                    doneLabel: c.doneLabel ?? "Done"
+                    doneLabel: c.doneLabel ?? "Done",
+                    note: c.note ?? "",
+                    toggleLabel: c.toggleLabel ?? "",
+                    toggleOn: c.toggleOn ?? false,
+                    toggleEnabled: c.toggleEnabled ?? true
                 )
                 // OQ-PB-1 default: the contract's master width. §2 — "432pt wide in the
                 // frame (content 384)" — and §1 deviation 3 makes only the HEIGHT
@@ -5408,6 +5411,11 @@ private func buildScreenActivitiesEditor(_ fixture: CaptureFixture) throws -> An
                 ?? sample.videoOverlaySeed,
             deleteEverywhereEnabled: c.deleteEverywhereEnabled ?? sample.deleteEverywhereEnabled,
             deleteEverywhereNote: c.deleteEverywhereNote ?? sample.deleteEverywhereNote,
+            deleteEverywhereOn: c.deleteEverywhereOn ?? sample.deleteEverywhereOn,
+            videoPlaying: c.videoPlaying ?? sample.videoPlaying,
+            videoElapsed: c.videoElapsed ?? sample.videoElapsed,
+            videoDuration: c.videoDuration ?? sample.videoDuration,
+            videoScrubberVisible: c.videoScrubberVisible ?? sample.videoScrubberVisible,
             reviewSaving: c.reviewSaving ?? sample.reviewSaving,
             snapIndex: c.snapIndex ?? sample.snapIndex,
             objectLocks: c.objectLocks ?? sample.objectLocks,

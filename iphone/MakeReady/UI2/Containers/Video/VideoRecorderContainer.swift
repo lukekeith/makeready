@@ -55,8 +55,6 @@ struct VideoRecorderContainer: View {
     @State private var pickerOpen = false
     @State private var pick: PhotosPickerItem?
     @State private var thumbnails: [FilterStrip.Look: Image] = [:]
-    /// The record row's width, for delete-last's place (video-polish D8).
-    @State private var rowWidth: CGFloat = 0
 
     private var shown: VideoRecorderModel.ScreenState { model.screenState }
 
@@ -135,7 +133,8 @@ struct VideoRecorderContainer: View {
             onReviewTap: model.reviewTapped,
             onReviewSeek: model.reviewSeek(to:),
             onReviewScrubbingChange: model.setReviewScrubbing,
-            onSave: { Task { await model.save() } }
+            onSave: { Task { await model.save() } },
+            onRetake: model.requestRetake
         )
     }
 
@@ -159,8 +158,6 @@ struct VideoRecorderContainer: View {
         static let importLeading: CGFloat = 17
         /// GAP — video-recorder §2d: C-105's 36 pt pill in the same row: 6 + (80 − 36) / 2.
         static let reviewButtonBottom: CGFloat = 28
-        /// GAP — video-recorder §2c: the record disc is 80 pt wide, centred.
-        static let recordDisc: CGFloat = 80
         /// C-021 §2: a 24 pt glyph in a 44 pt target.
         static let hitTarget: CGFloat = 44
     }
@@ -169,8 +166,9 @@ struct VideoRecorderContainer: View {
     @ViewBuilder private var closeButton: some View {
         if layout == .fullScreen, shown.showsClose {
             glyphButton(.x, label: "Close", size: Geometry.hitTarget, action: model.closeTapped)
-                // The glyph, not its target, is inset by the page margin.
-                .padding(Token.Space.pageMargin - (Geometry.hitTarget - GlyphSize.visual) / 2)
+                // The glyph, not its target, is inset by the page margin; centred on the timecode's row.
+                .padding(.leading, Token.Space.pageMargin - (Geometry.hitTarget - GlyphSize.visual) / 2)
+                .padding(.top, VideoRecorderScreen.topRowCentre - Geometry.hitTarget / 2)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
     }
@@ -190,7 +188,7 @@ struct VideoRecorderContainer: View {
             if shown.showsDeleteLast {
                 glyphButton(.undo2, label: "Delete last clip", size: Geometry.rowButton, action: model.requestDeleteLast)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.leading, max(Self.deleteLastCentreX(width: rowWidth) - Geometry.rowButton / 2, 0))
+                    .padding(.leading, Geometry.importLeading)
             }
             if shown.canFinish {
                 glyphButton(.check, label: "Review", size: Geometry.rowButton, action: model.done)
@@ -199,12 +197,6 @@ struct VideoRecorderContainer: View {
             }
         }
         .padding(.bottom, Geometry.rowButtonBottom)
-        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { rowWidth = $0 }
-    }
-
-    /// video-polish D8: delete-last centred halfway between the leading edge and the record disc.
-    static func deleteLastCentreX(width: CGFloat) -> CGFloat {
-        (width / 2 - Geometry.recordDisc / 2) / 2
     }
 
     /// Review's elapsed time, followed while it plays.
@@ -228,7 +220,7 @@ struct VideoRecorderContainer: View {
         }
     }
 
-    /// §2d: Retake beside the Filters tool; Trim's window above Cancel and Next.
+    /// §2d: Trim's window above Cancel and Next.
     @ViewBuilder private var reviewRow: some View {
         if shown.phase == .trim, let clip = model.importedClip, let window = model.trimWindow {
             VStack(spacing: Token.Space.stackGap) {
@@ -242,11 +234,6 @@ struct VideoRecorderContainer: View {
             }
             .padding(.horizontal, Token.Space.pageMargin)
             .padding(.bottom, Geometry.reviewButtonBottom)
-        } else if shown.phase == .review {
-            // F8: the screen leaves this the width beside Edit and Filters and margins the row itself.
-            VideoReviewActions(model: model)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .padding(.bottom, Geometry.reviewButtonBottom)
         }
     }
 
@@ -318,18 +305,6 @@ struct VideoRecorderContainer: View {
         withAnimation(.easeOut(duration: duration)) {
             keyboardHeight = hiding ? 0 : max(0, screenHeight - frame.minY)
         }
-    }
-}
-
-/// Review's bottom row beside Edit and Filters: Retake alone. Save is the purple check (D6).
-struct VideoReviewActions: View {
-    let model: VideoRecorderModel
-
-    /// The row's button labels, in order.
-    static let labels = ["Retake"]
-
-    var body: some View {
-        Button(label: Self.labels[0], onTap: model.requestRetake)
     }
 }
 

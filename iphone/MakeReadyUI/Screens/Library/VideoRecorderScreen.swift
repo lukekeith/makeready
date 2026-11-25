@@ -21,10 +21,9 @@ import UIKit
 /// C-145 SegmentedProgressBar, C-146 CameraRail (→ C-147 RailTool), C-147 RailTool (Review's
 /// Edit and Filters), C-148 CountdownNumerals, C-149 LengthSlider, C-150 FilterStrip, C-151
 /// TeleprompterBand, C-159 DoneCheck, C-004 ScrubTrack, C-047 RadioOptionRow, C-132 EmptyState, and the lessonInline host chrome C-040 PageHeader and
-/// C-081 ActivityNavBar (deviation 3). §2's C-021 GlyphButton roles (close, import, undo, ✓) and
-/// C-105 Button roles (Retake, Save) are NOT in §4's roll-call (§4: "they join the roll-call
-/// with drawings once a frame draws them"), so this build draws none of them — a spec gap,
-/// reported, never improvised. Standalone: `identifiedFrom` is null, so no D7 template applies.
+/// C-081 ActivityNavBar (deviation 3). §2's C-021 GlyphButton roles (close, import, undo, ✓) are
+/// NOT in §4's roll-call (§4: "it joins the roll-call with drawings once a frame draws them"), so
+/// the app draws them in the slots; Review's Retake icon is this screen's (§2d). Standalone: `identifiedFrom` is null, so no D7 template applies.
 struct VideoRecorderScreen: View {
 
     /// One §3 state's inputs. Every §3 state is reachable by these alone.
@@ -134,6 +133,8 @@ struct VideoRecorderScreen: View {
     var onReviewScrubbingChange: (Bool) -> Void = { _ in }
     /// fullScreen Review: the C-159 check, "Save" to VoiceOver.
     var onSave: () -> Void = {}
+    /// §3 Review: the top-centre Retake icon — the container confirms (D9).
+    var onRetake: () -> Void = {}
 
     // Host inputs (every default renders as captured).
     /// The live feed: the capture engine's display layer, or Review's player layer. nil = the
@@ -154,8 +155,7 @@ struct VideoRecorderScreen: View {
     var previewSlot: () -> AnyView
     /// Laid over the record row, bottom-aligned; hidden with it (§2c import, undo, ✓).
     var recordRowSlot: () -> AnyView
-    /// The bottom row of `review` (trailing of Edit + Filters, sized to the width left) and `trim`
-    /// (§2d Retake, Save; Cancel, Next).
+    /// The bottom row of `trim` (§2d Cancel, Next). Review does not use it.
     var reviewSlot: () -> AnyView
     /// §3: Review's Edit — the container opens the video editor. nil hides the control.
     var onEdit: (() -> Void)?
@@ -207,7 +207,8 @@ struct VideoRecorderScreen: View {
         onReviewTap: @escaping () -> Void = {},
         onReviewSeek: @escaping (TimeInterval) -> Void = { _ in },
         onReviewScrubbingChange: @escaping (Bool) -> Void = { _ in },
-        onSave: @escaping () -> Void = {}
+        onSave: @escaping () -> Void = {},
+        onRetake: @escaping () -> Void = {}
     ) {
         self.state = state
         self.onRecord = onRecord
@@ -240,6 +241,7 @@ struct VideoRecorderScreen: View {
         self.onReviewSeek = onReviewSeek
         self.onReviewScrubbingChange = onReviewScrubbingChange
         self.onSave = onSave
+        self.onRetake = onRetake
         _sheet = SwiftUI.State(initialValue: state.sheet)
         _mountedSheet = SwiftUI.State(initialValue: state.sheet)
         _mountedAtRest = SwiftUI.State(initialValue: state.sheet != .none)
@@ -257,9 +259,10 @@ struct VideoRecorderScreen: View {
         static let pauseLeading: CGFloat = 18
         /// GAP — video-recorder §2c: C-013 pause "bottom 20"; no spacing token.
         static let pauseBottom: CGFloat = 20
-        /// GAP — video-recorder §2d Review: the Filters C-147 tool sits "on the record row" — its
-        /// 50 pt slot centred on the 80 pt record row at bottom 6: 6 + (80 − 50) / 2.
-        static let reviewToolBottom: CGFloat = 21
+        /// GAP — video-recorder §2c: C-144 TimerPill's 33 pt height; no size token.
+        static let timerHeight: CGFloat = 33
+        /// GAP — video-recorder §2d Review: Retake in the ✕'s 44 pt target; no size token.
+        static let hitTarget: CGFloat = 44
         /// GAP — video-recorder §2d Review: Edit and Filters "10 pt gap"; no spacing token.
         static let reviewToolGap: CGFloat = 10
         /// GAP — video-recorder §2a: the host's "hairline divider"; no stroke token.
@@ -275,6 +278,9 @@ struct VideoRecorderScreen: View {
         /// The 0.2 s fade-in, then 2.0 s.
         static let tapHold = Duration.seconds(2.2)
     }
+
+    /// §2b / §2d: the top row's centre below the preview's top — C-144 TimerPill's (36.5).
+    static let topRowCentre: CGFloat = Geometry.timerTop + Geometry.timerHeight / 2
 
     // MARK: - Derived (§3)
 
@@ -535,8 +541,17 @@ struct VideoRecorderScreen: View {
                 // C-159 names itself "Done"; here it is Save.
                 .accessibilityRepresentation { SwiftUI.Button("Save", action: onSave) }
                 .ui2Element("C-159 DoneCheck")
-                .padding(Token.Space.pageMargin)
+                .frame(height: Geometry.hitTarget)
+                .padding(.top, Self.topRowCentre - Geometry.hitTarget / 2)
+                .padding(.trailing, Token.Space.pageMargin)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+        }
+
+        // §2d Review: Retake, top centre, in both layouts.
+        if phase == .review {
+            retakeButton
+                .padding(.top, Self.topRowCentre - Geometry.hitTarget / 2)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
 
         // Top: bar, timer, teleprompter band (§2c).
@@ -622,8 +637,9 @@ struct VideoRecorderScreen: View {
         if showsRecordRow {
             recordRow
         } else if phase == .review {
-            // §2d Review: C-004 directly above the bottom row.
+            // §2d Review: Edit and Filters directly above C-004, on the frame's bottom edge.
             VStack(spacing: Token.Space.elementGap) {
+                reviewTools
                 ScrubTrack(
                     elapsed: state.reviewElapsed,
                     duration: state.reviewDuration,
@@ -633,8 +649,8 @@ struct VideoRecorderScreen: View {
                 )
                 .ui2Element("C-004 ScrubTrack")
                 .padding(.horizontal, Token.Space.pageMargin)
-                reviewRow
             }
+            .padding(.bottom, Token.Space.step8)
         } else if phase == .trim {
             reviewSlot()
         }
@@ -658,35 +674,35 @@ struct VideoRecorderScreen: View {
         }
     }
 
-    /// §2d Review: Edit + Filters (C-147 tools) leading, the app's row trailing (Retake / Save: C-105,
-    /// not in §4 — not drawn). Without `onEdit`, Filters alone "exactly as before".
-    @ViewBuilder private var reviewRow: some View {
-        if let onEdit {
-            HStack(alignment: .bottom, spacing: Token.Space.metaGap) {
-                // OQ-video-recorder-45: the labels stay, so each tool takes its natural width.
-                HStack(spacing: Geometry.reviewToolGap) {
-                    RailTool(tool: .edit, onTap: onEdit)
-                        .fixedSize(horizontal: true, vertical: false)
-                        .ui2Element("C-147 RailTool")
-                    filtersTool
-                        .fixedSize(horizontal: true, vertical: false)
-                        .ui2Element("C-147 RailTool 2")
-                }
-                .padding(.bottom, Geometry.reviewToolBottom)
-                reviewSlot()
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, Token.Space.pageMargin)
-        } else {
-            ZStack(alignment: .bottom) {
-                filtersTool
+    /// §2d Review: Edit + Filters (C-147 tools) leading; without `onEdit`, Filters alone.
+    /// OQ-video-recorder-45: the labels stay, so each tool takes its natural width.
+    private var reviewTools: some View {
+        HStack(spacing: Geometry.reviewToolGap) {
+            if let onEdit {
+                RailTool(tool: .edit, onTap: onEdit)
+                    .fixedSize(horizontal: true, vertical: false)
                     .ui2Element("C-147 RailTool")
-                    .padding(.trailing, Token.Space.pageMargin)
-                    .padding(.bottom, Geometry.reviewToolBottom)
-                reviewSlot()
             }
+            filtersTool
+                .fixedSize(horizontal: true, vertical: false)
+                .ui2Element(onEdit == nil ? "C-147 RailTool" : "C-147 RailTool 2")
         }
+        .padding(.horizontal, Token.Space.pageMargin)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// §2d Review: the refresh glyph in the ✕'s style.
+    private var retakeButton: some View {
+        SwiftUI.Button(action: onRetake) {
+            Glyph(.rotateCcw, size: .md, tint: Token.textPrimary)
+                // Reads over any camera image, as C-147's label does.
+                .designShadow(Token.Elevation.thumb)
+                .frame(width: Geometry.hitTarget, height: Geometry.hitTarget)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Retake")
+        .ui2Element("Retake")
     }
 
     private var filtersTool: some View {
@@ -813,51 +829,9 @@ struct VideoRecorderScreen: View {
                     .foregroundStyle(enabled ? Token.textSecondary : Token.white50)
             }
         }
-        .toggleStyle(SoundSwitchStyle(animation: reduceMotion ? nil : Token.Motion.chipSelect))
+        .toggleStyle(RowSwitchStyle(animation: reduceMotion ? nil : Token.Motion.chipSelect))
         .disabled(!enabled)
         .ui2Element("Sound")
-    }
-
-    /// §2d Sound switch: the iOS switch's geometry in tokens — the system control's knob is drawn
-    /// by the render server and comes out missing in a capture.
-    private struct SoundSwitchStyle: ToggleStyle {
-        let animation: Animation?
-
-        /// GAP — video-recorder §2d: the iOS switch, 51 × 31 with a 27 pt knob inset 2; no size token.
-        private static let track = CGSize(width: 51, height: 31)
-        private static let knob: CGFloat = 27
-        private static let knobInset: CGFloat = 2
-
-        @Environment(\.isEnabled) private var isEnabled
-
-        func makeBody(configuration: Configuration) -> some View {
-            SwiftUI.Button { configuration.isOn.toggle() } label: {
-                HStack(spacing: Token.Space.stackGap) {
-                    configuration.label
-                        .multilineTextAlignment(.leading)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Capsule()
-                        .fill(configuration.isOn ? Token.accent : Token.white20)
-                        .frame(width: Self.track.width, height: Self.track.height)
-                        .overlay(alignment: configuration.isOn ? .trailing : .leading) {
-                            Circle()
-                                .fill(Token.textPrimary)
-                                .frame(width: Self.knob, height: Self.knob)
-                                .padding(Self.knobInset)
-                        }
-                        // §2d "dimmed", at C-147's disabled 50 % (`color-white-50`).
-                        .opacity(isEnabled ? 1 : 0.5)
-                        .animation(animation, value: configuration.isOn)
-                        .ui2Element("Switch")
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            // One switch to VoiceOver: its own label, value and on/off action.
-            .accessibilityRepresentation {
-                Toggle(isOn: configuration.$isOn) { configuration.label }
-            }
-        }
     }
 }
 
