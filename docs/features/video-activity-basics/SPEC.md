@@ -100,6 +100,7 @@ rails on iPhone (`enrollments.ts:976` next-study, `enrollment-directory.service.
 | D8 | Server thumbnail | `thumbnailFromDocument` returns, in order: the background image's url, the poster media's url, then the video's still (`media[content.videoId].posterUrl`); never a video's `url` (its stream): a background or poster id that names a `kind: 'video'` entry yields that entry's `posterUrl`. Rejected: iPhone only (group and enrollment rails would stay blank) | Luke 2026-11-24 (PROGRAM P6) |
 | D9 | No audio in automated runs | Captures, tests and agent walks never play the inline video's sound; the player is muted under capture and in tests; sound is walked on the owner's phone | owner 2026-11-24 (PROGRAM P11) |
 | D10 | d2m designs the views | The activities-editor video page (still, player slot, hold, menus, header check) and the video-recorder full-screen header check change through d2m from this spec; the owner approves before wiring | (assumed at spec) 2026-11-25 |
+| D19 | A published version open with no draft yet | Supplements D11, whose counts read 1/1 here: "Delete video everywhere" is also disabled, subtitle "Used in a published lesson", when the lesson version the editor has open is not a draft (`status` ≠ draft) at the moment the Delete confirm opens. It applies after D11's `lessonUseCount` > 1 text and before enabling; loading, failed and missing keep D11's texts. Read from the `LessonVersion` already in `AppState`; `GET /api/videos/:id` and §Contract do not change. "Remove from this lesson" stays enabled. Why: the delete removes the activity from a new draft, the published row keeps the video, and DELETE answers 409. Rejected: a server count of published rows (re-opens the frozen contract) | auto (recommended) 2026-11-25 (agent walk round 1) |
 
 ## Contract
 
@@ -209,3 +210,9 @@ The plan, task by task: `docs/features/video-activity-basics/PLAN.md` (§PLAN.md
 - Phase 4 · Task 7 · May this video be deleted everywhere?
 - Phase 4 · Task 8 · Remove from lesson and Delete video everywhere
 - Phase 4 · Task 9 · Review saves with the purple check
+
+## Fixes
+
+- [ ] iphone: Delete confirm on a published lesson's video with no draft yet (versionUseCount 1) — expected "Delete video everywhere" disabled with "Used in a published lesson" (D19), saw it enabled; tapping it removed the activity, then "Removed from the lesson, but couldn't delete the video" (agent walk round 1). Ships a container test: published version open, 1/1 → disabled; draft open, 1/1 → enabled
+- [ ] server: `versionUseCount` counts every activity row whose document names the video — expected D11's count from the documents alone, saw `videoVersionUseCount` read only keys holding a `media_usages` ACTIVITY row and return 0 for a video without a Media row or usage row (agent walk round 1). `lessonUseCount` unchanged; the field's shape is unchanged. Ships a test
+- [ ] server: fixture data for published videos (Activity Player Samples "Video", Foundations of Faith "Watch") — expected the Media row (kind video, with a still) and `media_usages` ACTIVITY rows a real save writes, so counts are not 0 and the enrollment rail and editor page show the still; saw 0/0, a blank enrollment rail and "Processing…" (agent walk round 1). Update the fixture counts and their tests with it
