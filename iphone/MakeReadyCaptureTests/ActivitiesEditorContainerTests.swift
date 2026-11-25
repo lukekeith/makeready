@@ -748,6 +748,46 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         return app
     }
 
+    private func videoEntry(poster: String? = nil, playback: String = "https://x/v.m3u8") -> MediaMapEntry {
+        MediaMapEntry(url: playback, width: nil, height: nil, kind: "video", playbackUrl: playback, posterUrl: poster,
+                      durationSeconds: nil, uploaderName: nil)
+    }
+
+    /// A Model on lesson l1, version ver1, with a silent log, opened on the video activity `at`.
+    private func videoEditor(app: AppState, actions: ScriptedActivityActions, at id: String = "vi1") -> ActivitiesEditorContainer.Model {
+        let model = ActivitiesEditorContainer.Model(activityId: "", activityKey: "", lessonId: "l1", lessonVersionId: "ver1",
+                                                    actions: actions, log: { _, _ in })
+        model.open(app.activities[id]!)
+        return model
+    }
+
+    func testAVideoPageShowsItsStillAndNoTitle() async {
+        let app = appWithDraft([videoActivity("vi1", version: "ver1")])
+        app.mergeMedia(["vid1": videoEntry(poster: "https://x/still")])
+        let model = ActivitiesEditorContainer.Model.resolving(activityId: "vi1", app: app)
+        let state = ActivitiesEditorContainer.screenState(model, app: app)
+        XCTAssertEqual([state.readOnlyPosterURL, state.readOnlyTitle], ["https://x/still", ""])
+        XCTAssertNil(model.missingStillVideoId(app: app))
+    }
+
+    func testAMissingStillIsFollowedThenTheDraftReloads() async {
+        let app = appWithDraft([videoActivity("vi1", version: "ver1")])
+        let actions = ScriptedActivityActions()
+        let model = videoEditor(app: app, actions: actions)
+        XCTAssertEqual(model.missingStillVideoId(app: app), "vid1")
+        model.waitForVideo = { _ in false }
+        await model.followMissingStill(app: app)
+        model.waitForVideo = { _ in throw URLError(.timedOut) }
+        await model.followMissingStill(app: app)
+        model.waitForVideo = { _ in true }
+        let cancelled = Task { await model.followMissingStill(app: app) }
+        cancelled.cancel()
+        await cancelled.value
+        XCTAssertEqual(actions.reloads, 0)
+        await model.followMissingStill(app: app)
+        XCTAssertEqual(actions.reloads, 1)
+    }
+
     /// Replace video is reachable in a lesson whose only activity is a video.
     private func assertReplaceVideoOpens(app: AppState, on id: String) {
         let queue = QueueSpy()
@@ -837,6 +877,7 @@ final class ScriptedActivityActions: ActivityActionsProtocol {
     private(set) var savedIds: [String] = []
     private(set) var savedDocuments: [ActivityDocument] = []
     private(set) var deletedIds: [String] = []
+    private(set) var reloads = 0
 
     init(save: [Step] = [], draft: [ContentActivity] = [], reloadFails: Bool = false, saveDelayNanoseconds: UInt64 = 0) {
         steps = save
@@ -846,6 +887,7 @@ final class ScriptedActivityActions: ActivityActionsProtocol {
     }
 
     func reloadDraft(lessonId: String) async throws -> [ContentActivity] {
+        reloads += 1
         if reloadFails { throw Other() }
         return draft
     }

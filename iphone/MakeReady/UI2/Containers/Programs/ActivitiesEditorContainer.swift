@@ -142,6 +142,10 @@ struct ActivitiesEditorContainer: View {
         .task(id: posterURLs(of: state, pending: pendingVideos)) {
             if await Self.seedPosters(posterURLs(of: state, pending: pendingVideos)) { imagesSeeded += 1 }
         }
+        // D16: a video page with no still follows the video; leaving the page cancels the wait.
+        .task(id: model.missingStillVideoId(app: AppState.shared)) {
+            await model.followMissingStill()
+        }
         .task(id: state.pageImageURL) {
             if await UI2ImageLoader.seed([state.pageImageURL], context: "ActivitiesEditorContainer") { imagesSeeded += 1 }
         }
@@ -272,9 +276,12 @@ struct ActivitiesEditorContainer: View {
                 state.videoPendingPosterURL = replacement.posterURL
             }
             state.readOnlyKind = activity.kind
-            state.readOnlyTitle = activity.title
+            // D1: a video page draws its still and no title.
             if case .video(let video) = activity.document.renderable {
-                state.readOnlyPosterURL = ActivityViewerMapper.videoEntry(video, media: app.mediaMap)?.posterUrl ?? ""
+                state.readOnlyTitle = ""
+                state.readOnlyPosterURL = ActivitiesEditorMapper.videoStillURL(video, media: app.mediaMap)
+            } else {
+                state.readOnlyTitle = activity.title
             }
         }
         // Owner 2026-11-08: the Idle Done is muted until there is something to save.
@@ -1014,6 +1021,11 @@ struct ActivitiesEditorContainer: View {
             if let pendingVideo { return show(pendingVideo) }
             guard let target = app.activities[id] else { return }
             recorder = nil
+            open(target)
+        }
+
+        /// Shows `target` in place: its document is the buffer, a kind the editor can't edit shows read-only (D28).
+        func open(_ target: ContentActivity) {
             let editable = ActivityEntry.canvasKinds.contains(target.kind) && ActivitiesEditorMapper.isEditable(target.document)
             activityId = target.id
             activityKey = target.activityKey
@@ -1056,6 +1068,35 @@ struct ActivitiesEditorContainer: View {
             grid.onCreated = { [weak self] id in Task { await self?.selectSlide(id) } }
             bibleGrid = grid
             grid.selectBible()
+        }
+
+        // MARK: Still arriving (video-activity-basics D16)
+
+        /// Waits for a video to be ready; live over `VideoActions.waitUntilReady`.
+        var waitForVideo: (String) async throws -> Bool = { try await VideoActions().waitUntilReady(id: $0) }
+
+        /// The open video page's video id when it has no still and no replacement is uploading.
+        func missingStillVideoId(app: AppState) -> String? {
+            guard canvasContent == .readOnly, let activity = app.activities[activityId],
+                  case .video(let video) = activity.document.renderable,
+                  ActivitiesEditorMapper.videoStillURL(video, media: app.mediaMap).isEmpty,
+                  ActivitiesEditorMapper.pendingReplacement(
+                    queued: app.videoUploads?.pendingItems ?? [], saving: app.videoSaves?.saving ?? [],
+                    versionId: lessonVersionId, activityId: activityId) == nil else { return nil }
+            return video.videoId
+        }
+
+        /// Follows the missing still: once the video is ready the draft reloads (and merges its media). Not ready, a
+        /// failure or a cancel leaves the page as it is; failures are console-only (nobody asked for this work).
+        func followMissingStill(app: AppState? = nil) async {
+            guard let videoId = missingStillVideoId(app: app ?? .shared) else { return }
+            do {
+                guard try await waitForVideo(videoId), !Task.isCancelled else { return }
+                _ = try await actions.reloadDraft(lessonId: lessonId)
+            } catch {
+                if UI2ImageLoader.isCancellation(error) { return }
+                log(error, "ActivitiesEditorContainer.followMissingStill")
+            }
         }
 
         // MARK: Video recorder (video-recorder D18)

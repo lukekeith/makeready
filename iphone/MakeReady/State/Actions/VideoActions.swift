@@ -364,6 +364,13 @@ private let api: APIClientProtocol
         return video
     }
 
+    /// D16: reads the video, then follows it at `waitForVideoReady`'s limits; true is status `ready`.
+    @MainActor
+    func waitUntilReady(id: String) async throws -> Bool {
+        let video = try await getVideo(id: id)
+        return await waitForVideoReady(video: video).videoStatus == .ready
+    }
+
     // MARK: - Complete Upload Flow
 
     /// Upload a video from a local URL, create database record, and wait for processing

@@ -228,6 +228,15 @@ final class VideoActionsLibraryTests: XCTestCase {
         XCTAssertEqual(api.recordedCalls(method: "PATCH").first?.body?["title"] as? String, "Sunday")
     }
 
+    // MARK: - Following a video that is still arriving (video-activity-basics D16)
+
+    func testWaitUntilReadyIsTrueForAReadyVideo() async throws {
+        api.stub("GET", "/api/videos/r", json: #"{"success":true,"data":\#(videoJSON(id: "r"))}"#)
+        api.stub("GET", "/api/videos/e", json: #"{"success":true,"data":\#(videoJSON(id: "e").replacingOccurrences(of: #""status":"ready""#, with: #""status":"error""#))}"#)
+        let answers = [try await actions.waitUntilReady(id: "r"), try await actions.waitUntilReady(id: "e")]
+        XCTAssertEqual(answers, [true, false])
+    }
+
     // MARK: - Titles (D14)
 
     func testNextVideoTitleCountsLibraryTitles() {
