@@ -29,7 +29,8 @@ final class QueueSpy: VideoSaveQueue {
     private(set) var supplied: [VideoTranscript?] = []
 
     func enqueue(_ video: ExportedVideo, localId: String, title: String, source: VideoSource, transcript: VideoTranscript?,
-                 attach: VideoAttach?, transcriptHold: TimeInterval?) throws -> VideoQueueItem {
+                 attach: VideoAttach?, transcriptHold: TimeInterval?, description: String?,
+                 namingHold: Bool) throws -> VideoQueueItem {
         if let error { throw error }
         items.append(Item(localId: localId, title: title, source: source.rawValue, attach: attach, transcript: transcript,
                           holdsForTranscript: transcriptHold, hasPoster: video.posterImage != nil))
@@ -45,6 +46,10 @@ final class QueueSpy: VideoSaveQueue {
     func supplyTranscript(_ transcript: VideoTranscript?, forLocalId localId: String) {
         supplied.append(transcript)
     }
+
+    func endNamingHold(localId: String, title: String?, description: String?) throws {}
+    var heldIds: [String] { [] }
+    func remove(localId: String) throws {}
 }
 
 @MainActor

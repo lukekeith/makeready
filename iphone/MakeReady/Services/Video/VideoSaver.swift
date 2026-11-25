@@ -59,17 +59,24 @@ protocol VideoSaving: AnyObject {
 protocol VideoSaveQueue: AnyObject {
     /// With a `transcript` the video needs no hold; without one `transcriptHold` is how long to wait for it.
     func enqueue(_ video: ExportedVideo, localId: String, title: String, source: VideoSource, transcript: VideoTranscript?,
-                 attach: VideoAttach?, transcriptHold: TimeInterval?) throws -> VideoQueueItem
+                 attach: VideoAttach?, transcriptHold: TimeInterval?, description: String?,
+                 namingHold: Bool) throws -> VideoQueueItem
     /// The item the queue holds under `localId`, if any.
     func queued(localId: String) -> VideoQueueItem?
     func supplyTranscript(_ transcript: VideoTranscript?, forLocalId localId: String)
+    /// Ends a naming hold with the leader's details; `title` nil keeps the item's. Throws when the manifest cannot be written.
+    func endNamingHold(localId: String, title: String?, description: String?) throws
+    /// The local ids still held for naming.
+    var heldIds: [String] { get }
+    func remove(localId: String) throws
 }
 
 extension VideoUploadController: VideoSaveQueue {
     func enqueue(_ video: ExportedVideo, localId: String, title: String, source: VideoSource, transcript: VideoTranscript?,
-                 attach: VideoAttach?, transcriptHold: TimeInterval?) throws -> VideoQueueItem {
+                 attach: VideoAttach?, transcriptHold: TimeInterval?, description: String?,
+                 namingHold: Bool) throws -> VideoQueueItem {
         try enqueue(video, localId: localId, title: Optional(title), source: source, transcript: transcript, attach: attach,
-                    transcriptHold: transcriptHold)
+                    transcriptHold: transcriptHold, description: description, namingHold: namingHold)
     }
 }
 
@@ -208,7 +215,8 @@ final class VideoSaver: VideoSaving {
                 timeout = video.durationSeconds
                 let spoken = edit.transcript.map { VideoCaptions.corrected($0, with: edit.layers) }
                 item = try queue.enqueue(video, localId: draft.id.uuidString, title: title, source: save.source, transcript: spoken,
-                                         attach: save.attach(title: title), transcriptHold: spoken == nil ? timeout : nil)
+                                         attach: save.attach(title: title), transcriptHold: spoken == nil ? timeout : nil,
+                                         description: nil, namingHold: false)
             }
             drafts.discard(draft)
             saving.removeAll { $0.localId == item.localId }

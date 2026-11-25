@@ -117,6 +117,8 @@ final class VideoUploadControllerTests: XCTestCase {
         dir = root.appendingPathComponent("queue")
         source = root.appendingPathComponent("exported")
         try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+        api = FakeVideoAPI()
+        c = makeController(api: api)
     }
 
     override func tearDown() {
@@ -143,6 +145,88 @@ final class VideoUploadControllerTests: XCTestCase {
 
     private func drain(_ controller: VideoUploadController) async {
         for _ in 0..<60 where await controller.processNext() != .idle {}
+    }
+
+    private let spoken = VideoTranscript(text: "hello there", segments: [VideoTranscriptSegment(text: "hello there", startMs: 0, endMs: 900)])
+
+    /// Queues "H" as "Video 1" under a naming hold.
+    @discardableResult
+    private func held(transcriptHold: TimeInterval? = nil) throws -> VideoQueueItem {
+        try c.enqueue(exported(), localId: "H", title: "Video 1", attach: nil, transcriptHold: transcriptHold, namingHold: true)
+    }
+
+    // MARK: - The naming hold (D4, D7, D13, D15)
+
+    func testAHeldItemUploadsItsFileButIsNotCreated() async throws {
+        try held()
+        let other = try c.enqueue(exported(), title: "Other", attach: nil)
+        await c.flush()
+        XCTAssertEqual(api.uploads.count, 2)
+        XCTAssertEqual(api.created.map(\.title), ["Other"])
+        XCTAssertNil(c.queued(localId: other.localId))
+        XCTAssertEqual(c.heldIds, ["H"])
+    }
+
+    func testEndingTheHoldCreatesWithTheDetails() async throws {
+        try held(); await drain(c)
+        try c.endNamingHold(localId: "H", title: "Hope", description: "On hope"); await drain(c)
+        XCTAssertEqual(api.created.map(\.title), ["Hope"])
+        XCTAssertEqual(api.created.first?.description, "On hope")
+        XCTAssertEqual(api.uploads.count, 1)
+    }
+
+    func testAReleaseAndATranscriptDuringTheTransferAreKept() async throws {
+        try held(transcriptHold: 600)
+        api.onUpload = { _ in
+            self.c.supplyTranscript(self.spoken, forLocalId: "H")
+            try self.c.endNamingHold(localId: "H", title: "Hope", description: nil)
+        }
+        await drain(c)
+        XCTAssertEqual(api.created.map(\.title), ["Hope"])
+        XCTAssertEqual(api.created.first?.transcript, spoken)
+        XCTAssertNil(api.created.first?.description)
+    }
+
+    func testAReleaseDuringAFailingTransferIsKept() async throws {
+        api = FakeVideoAPI(failUploads: 1)
+        c = makeController(api: api)
+        try held()
+        api.onUpload = { _ in try self.c.endNamingHold(localId: "H", title: "Hope", description: nil) }
+        _ = await c.processNext()
+        XCTAssertEqual(c.queued(localId: "H")?.title, "Hope")
+        XCTAssertEqual(c.heldIds, [])
+        XCTAssertEqual(c.queued(localId: "H")?.failures, 1)
+    }
+
+    func testAManifestWithoutTheNewKeysDecodes() throws {
+        let item = try c.enqueue(exported(), localId: "H", title: "Video 1", attach: nil)
+        let url = dir.appendingPathComponent("\(item.localId).json")
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        json.removeValue(forKey: "description")
+        json.removeValue(forKey: "namingHold")
+        try JSONSerialization.data(withJSONObject: json).write(to: url)
+        XCTAssertNotNil(c.queued(localId: "H"))
+        XCTAssertNil(c.queued(localId: "H")?.description)
+        XCTAssertEqual(c.heldIds, [])
+    }
+
+    func testAHeldItemWaitingForItsNameWakesNothingAndTheTranscriptWaitDoesNotDelayItsUpload() async throws {
+        try held(transcriptHold: 600)
+        _ = await c.processNext()
+        XCTAssertEqual(api.uploads.count, 1)
+        XCTAssertEqual(c.queued(localId: "H")?.stage, .uploading)
+        XCTAssertNotNil(c.queued(localId: "H")?.transcriptDue)
+        let again = await c.processNext()
+        XCTAssertEqual(again, .idle)
+        XCTAssertEqual(api.created.count, 0)
+    }
+
+    func testEndingAnUnknownOrReleasedHoldChangesNothing() async throws {
+        try c.endNamingHold(localId: "nope", title: "X", description: "Y")
+        let item = try c.enqueue(exported(), localId: "U", title: "Video 1", attach: nil)
+        try c.endNamingHold(localId: item.localId, title: "X", description: "Y")
+        XCTAssertEqual(c.queued(localId: "U")?.title, "Video 1")
+        XCTAssertNil(c.queued(localId: "U")?.description)
     }
 
     // MARK: - The stage machine (D12, D23)
