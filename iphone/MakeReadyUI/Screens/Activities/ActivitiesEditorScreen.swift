@@ -546,10 +546,8 @@ struct ActivitiesEditorScreen: View {
     @SwiftUI.State private var snapEngaged = SnapEngaged()
     @SwiftUI.State private var rotationEngaged: Double?
     @SwiftUI.State private var liveGuides: [ActivityCanvasGuideSegment] = []
-    // §15.2 (round 8): the slider drag in flight — its touch-down reference in the global space —
-    // and the track's on-screen frame.
-    @SwiftUI.State private var sliderDrag: SliderDrag?
-    @SwiftUI.State private var sliderFrame: CGRect = .zero
+    // §15.2 (round 8): the size before the slider drag in flight; nil while none is.
+    @SwiftUI.State private var sizeBeforeDrag: CGFloat?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init<Recorder: View>(
@@ -764,7 +762,7 @@ struct ActivitiesEditorScreen: View {
         // §9.1: `State.objects` is the source — a new State from the container re-seeds the display.
         // §9.1a: never while a gesture is in flight, so a late echo cannot snap the object back.
         .onChange(of: state) { _, next in
-            guard dragged == nil, sliderDrag == nil else { return }
+            guard dragged == nil, sizeBeforeDrag == nil else { return }
             shownObjects = Self.committedObjects(next)
             deletedIndex = nil
             if !bibleSliding { bibleStyle = BibleStyle(next) }
@@ -772,7 +770,7 @@ struct ActivitiesEditorScreen: View {
         // §10.6 (round 2): a text edit opens with no rail open, and ending it closes every rail —
         // a page rail closing through `setOpenTool`, so `onPageRailsClosed` fires (D19).
         .onChange(of: mode) { previous, next in
-            if next == .editing && previous != .editing { sliderDrag = nil }
+            if next == .editing && previous != .editing { sizeBeforeDrag = nil }
             let wasEditing = previous == .editing || previous == .highlighting
             let isEditing = next == .editing || next == .highlighting
             guard wasEditing != isEditing, openTool != nil else { return }
@@ -1166,7 +1164,6 @@ struct ActivitiesEditorScreen: View {
     private func canvas(unit: CGFloat, viewport: CGFloat, safeTop: CGFloat) -> some View {
         let objects = shownObjects
         let headerBottom = (safeTop + Self.headerHeight) / unit
-        let containerTop = viewport - (containerHeight + keyboardOverlap) / unit
         let pinned = actions.contains { $0.placement == .pinned }
         // §21.1 (D26): a tall page states its own height — C-091 sizes the page from it — else
         // §2: fixed at drag start, so neither the page nor any object re-places under the finger.
@@ -1225,58 +1222,43 @@ struct ActivitiesEditorScreen: View {
             if mode == .editing && !editedIsPageLaidOut {
                 // §2 item 3 handle / thumb separation (1): C-091 draws its handles above its slot,
                 // so the slider sits over the canvas — above them in hit order, and fixed to the
-                // viewport. Centred on the edit slot, clamped between the header and the container.
-                // C-093's own `onChange` now only carries its accessibility adjustable action (one
-                // edit per step); the drag is the screen's gesture below.
-                TextSizeSlider(value: sliderValue, onChange: { value in
-                    if let editedIndex { apply(.init(index: editedIndex, size: CGFloat(Self.size(forSlider: value)))) }
-                })
-                    .ui2Element("C-093 TextSizeSlider")
-                    // ONE gesture owns the slider's touch, measured in the global space; each frame
-                    // is display-only (§9.1a) with one ObjectEdit on lift.
-                    .highPriorityGesture(
-                        // pan-ok: vertical slider — tracks the finger on C-093's strip
-                        DragGesture(minimumDistance: 0, coordinateSpace: .global)
-                            .onChanged { drag in dragSlider(drag) }
-                            .onEnded { _ in endSliderDrag() }
-                    )
-                    // Fixed at the trailing edge (owner 2026-11-24, video-polish D11; retires D30).
-                    .offset(x: Self.sliderX,
-                            y: max(min(Self.editSlotY + offset - Self.sliderHeight / 2, containerTop - Self.sliderHeight),
-                                   headerBottom))
-                    .scaleEffect(unit, anchor: .topLeading)
-                    // The line's on-screen frame, for a touch-down.
-                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { sliderFrame = $0 }
+                // viewport.
+                sizeLine(viewport: viewport * unit, top: safeTop + Self.headerHeight)
             }
         }
     }
 
     // MARK: - The size line
 
-    /// §15.2 (round 8): one slider frame. Touch-down jumps the dot to the touch, as C-093 does
-    /// (OQ-C-093-002), and fixes the reference. Display only — no report.
-    private func dragSlider(_ drag: DragGesture.Value) {
+    /// C-093 §2: placed by layout — trailing edge, centred in the free space between the header's
+    /// bottom and the top of the rail stack (above the keyboard). Its gesture is its own; each
+    /// frame is display-only (§9.1a), with one ObjectEdit from `onEnded`. All lengths are pt.
+    private func sizeLine(viewport: CGFloat, top: CGFloat) -> some View {
+        let free = max(viewport - top - containerHeight - keyboardOverlap, 0)
+        return TextSizeSlider(value: sliderValue,
+                              length: max(min(Self.sliderLength, free - Self.sliderClearance), 0),
+                              onChange: changeSize, onEnded: commitSize)
+            .ui2Element("C-093 TextSizeSlider")
+            // Fixed at the trailing edge (owner 2026-11-24, video-polish D11; retires D30).
+            .padding(.trailing, Self.sliderInset)
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            .frame(height: free)
+            .padding(.top, top)
+    }
+
+    /// §9.1a: one slider frame — display only, no report.
+    private func changeSize(_ value: CGFloat) {
         guard let editedIndex else { return }
-        if sliderDrag == nil {
-            let height = max(sliderFrame.height, 1)
-            let start = min(max(1 - (drag.startLocation.y - sliderFrame.minY) / height, 0), 1)
-            sliderDrag = SliderDrag(startY: drag.startLocation.y, startValue: start,
-                                    height: height, startSize: draftSize)
-        }
-        guard let reference = sliderDrag else { return }
-        let value = min(max(reference.startValue + (reference.startY - drag.location.y) / reference.height, 0), 1)
-        let size = CGFloat(Self.size(forSlider: value))
-        if size != shownObjects[editedIndex].size {
-            apply(.init(index: editedIndex, size: size), report: false)
-        }
+        if sizeBeforeDrag == nil { sizeBeforeDrag = draftSize }
+        apply(.init(index: editedIndex, size: CGFloat(Self.size(forSlider: value))), report: false)
     }
 
     /// §9.1a parity: the lift reports the size once.
-    private func endSliderDrag() {
-        if let reference = sliderDrag, let editedIndex, draftSize != reference.startSize {
+    private func commitSize() {
+        if let before = sizeBeforeDrag, let editedIndex, draftSize != before {
             apply(.init(index: editedIndex, size: draftSize))
         }
-        sliderDrag = nil
+        sizeBeforeDrag = nil
     }
 
     /// C-091's `content` slot, laid out in wu: the committed objects at their transforms, the
@@ -2723,15 +2705,6 @@ struct ActivitiesEditorScreen: View {
     private var washHex: String { state.pageWashHex.isEmpty ? Self.defaultWashHex : state.pageWashHex }
     private var washColor: Color { Self.hexColor(washHex) ?? Token.black }
 
-    /// §15.2 (round 8): a slider drag's touch-down reference — the finger's global y, the value
-    /// it starts from, the track's on-screen height, and the size before the drag (for the lift).
-    private struct SliderDrag {
-        var startY: CGFloat
-        var startValue: CGFloat
-        var height: CGFloat
-        var startSize: CGFloat
-    }
-
     /// One committed C-092, resolved from `State` with §3's defaults. Lengths are wu.
     private struct CommittedObject {
         var text: String
@@ -3463,10 +3436,12 @@ struct ActivitiesEditorScreen: View {
     private static let editSlotY: CGFloat = 478
     /// FLAGGED LITERAL — C-092 §2: the 80 wu minimum layout width.
     private static let minObjectWidth: CGFloat = 80
-    /// FLAGGED LITERAL — activities-editor §2 item 3: the slider 263.5 tall; its column is the
+    /// FLAGGED LITERAL — activities-editor §2 item 3: the slider up to 263.5 tall; its column is the
     /// trailing 38 wu. video-polish D11: C-093's 20 wu frame sits 11 from the trailing edge.
-    private static let sliderX: CGFloat = referenceWidth - 11 - 20
-    private static let sliderHeight: CGFloat = 263.5
+    private static let sliderInset: CGFloat = 11
+    private static let sliderLength: CGFloat = 263.5
+    /// FLAGGED LITERAL — C-093 §4: `min(263.5, freeHeight − 32)`.
+    private static let sliderClearance: CGFloat = 32
     private static let sliderColumn: CGFloat = 38
     /// FLAGGED LITERAL — D40 (owner 2026-11-11): the gap between a width handle's bar and the text.
     private static let handleGap: CGFloat = 6

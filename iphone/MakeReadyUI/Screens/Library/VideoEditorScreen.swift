@@ -942,8 +942,6 @@ private struct VideoEditorTextTool: View {
     @SwiftUI.State private var style: Style
     @SwiftUI.State private var openTool: Tool
     @SwiftUI.State private var palettePage = 0
-    @SwiftUI.State private var sliderStart: (value: CGFloat, height: CGFloat)?
-    @SwiftUI.State private var sliderFrame: CGRect = .zero
     @Environment(\.self) private var environment
 
     init(
@@ -971,6 +969,9 @@ private struct VideoEditorTextTool: View {
         static let maxSize: CGFloat = 64
         /// FLAGGED LITERAL — video-editor §2 (video-polish D11): C-093 fixed 11 from the trailing edge.
         static let sliderInset: CGFloat = 11
+        /// FLAGGED LITERAL — C-093 §4: `min(263.5, freeHeight − 32)`.
+        static let sliderLength: CGFloat = 263.5
+        static let sliderClearance: CGFloat = 32
         /// FLAGGED LITERAL — activities-editor §15.1: 32 pt tools, 4 padding, 8 radius, 16 gap.
         static let tool: CGFloat = 32
         static let toolPadding: CGFloat = 4
@@ -1037,7 +1038,7 @@ private struct VideoEditorTextTool: View {
             .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
             // §2: whenever text is being edited — never on a caption, whose Edit has header, text
             // and keyboard only (§2; captions carry no style panels).
-            .overlay(alignment: .trailing) { if stylePanels { slider(unit: unit) } }
+            .overlay { if stylePanels { slider(free: proxy.size) } }
         }
     }
 
@@ -1050,29 +1051,15 @@ private struct VideoEditorTextTool: View {
         style.size = Double(Geometry.minSize + clamped * (Geometry.maxSize - Geometry.minSize))
     }
 
-    /// One gesture owns the touch: it jumps to the finger, then tracks the same drag.
-    private func slider(unit: CGFloat) -> some View {
-        TextSizeSlider(value: sliderValue, onChange: setSlider)
+    /// C-093 §2: placed by layout — trailing edge, centred in the free space between the header and
+    /// the tool stack, which is the slot. Its gesture is its own.
+    private func slider(free: CGSize) -> some View {
+        TextSizeSlider(value: sliderValue,
+                       length: max(min(Geometry.sliderLength, free.height - Geometry.sliderClearance), 0),
+                       onChange: setSlider)
             .ui2Element("C-093 TextSizeSlider")
-            .highPriorityGesture(
-                // pan-ok: vertical slider — tracks the finger on C-093's strip
-                DragGesture(minimumDistance: 0, coordinateSpace: .global)
-                    .onChanged(dragSlider)
-                    .onEnded { _ in sliderStart = nil }
-            )
-            .offset(x: -Geometry.sliderInset)
-            .scaleEffect(unit, anchor: .trailing)
-            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { sliderFrame = $0 }
-    }
-
-    private func dragSlider(_ drag: DragGesture.Value) {
-        if sliderStart == nil {
-            let height = max(sliderFrame.height, 1)
-            let value = 1 - (drag.startLocation.y - sliderFrame.minY) / height
-            sliderStart = (min(max(value, 0), 1), height)
-        }
-        guard let begun = sliderStart else { return }
-        setSlider(begun.value + (drag.startLocation.y - drag.location.y) / begun.height)
+            .padding(.trailing, Geometry.sliderInset)
+            .frame(width: free.width, height: free.height, alignment: .trailing)
     }
 
     // MARK: Tool row

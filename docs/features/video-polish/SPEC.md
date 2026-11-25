@@ -222,7 +222,7 @@ The plan, task by task: `docs/features/video-polish/PLAN.md` (§PLAN.md).
 
 ## Fixes
 
-- [ ] iphone — Filters sheet: no dark overlay over the preview (D1 superseded in part, owner 2026-11-24)
-- [ ] iphone — Size line (C-093) in the video and Activities editors: placed by layout, centred vertically on the trailing edge of the free space between the header and the tools (shortened to fit when the space is shorter than the line); the touch maps to the line's real on-screen frame so the dot follows the finger (owner walk 2026-11-24)
-- [ ] iphone — Activity slides (lesson editor strip, program home rail): a video activity with no poster shows its video's Cloudflare thumbnail (`media[videoId].posterUrl`), never the stream URL (owner walk 2026-11-24)
+- [x] iphone — Filters sheet: no dark overlay over the preview (D1 superseded in part, owner 2026-11-24)
+- [x] iphone — Size line (C-093) in the video and Activities editors: placed by layout, centred vertically on the trailing edge of the free space between the header and the tools (shortened to fit when the space is shorter than the line); the touch maps to the line's real on-screen frame so the dot follows the finger (owner walk 2026-11-24)
+- [x] iphone — Activity slides (lesson editor strip, program home rail): a video activity with no poster shows its video's Cloudflare thumbnail (`media[videoId].posterUrl`), never the stream URL (owner walk 2026-11-24)
 
