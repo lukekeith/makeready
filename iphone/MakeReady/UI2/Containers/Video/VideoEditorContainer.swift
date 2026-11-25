@@ -57,6 +57,8 @@ struct VideoEditorContainer: View {
             }
             .task { await readFrames() }
             .task(id: model.isPlaying) { await follow() }
+            // video-polish D12: one selection tick per new snap, as the canvas's own snaps give.
+            .sensoryFeedback(.selection, trigger: session.snappedTo) { _, new in new != nil }
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) {
                 followKeyboard($0)
             }
@@ -77,7 +79,7 @@ struct VideoEditorContainer: View {
             onPlayPause: model.playTapped,
             onScrub: model.scrub(toMs:),
             onSelect: { id in session.select(UUID(uuidString: id)) },
-            onDeselect: { session.select(nil) },
+            onDeselect: model.tapEmpty,
             onText: model.textTapped,
             onCaptions: model.captionsTapped,
             onRemoveCaptions: model.removeCaptionsConfirmed,

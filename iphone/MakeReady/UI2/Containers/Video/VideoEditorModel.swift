@@ -132,6 +132,13 @@ final class VideoEditorModel {
         if load == .ready { player.play() }
     }
 
+    /// A tap on the video away from every layer: deselects the selected layer, else plays or
+    /// pauses (video-polish D10).
+    func tapEmpty() {
+        if session.selectedId != nil { return session.select(nil) }
+        playTapped()
+    }
+
     /// The playhead follows the player while it plays.
     func tick() {
         guard isPlaying, load == .ready else { return }
