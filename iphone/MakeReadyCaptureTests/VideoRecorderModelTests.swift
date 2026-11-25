@@ -141,9 +141,11 @@ final class VideoRecorderModelTests: XCTestCase {
         defaults.removePersistentDomain(forName: suiteName)
     }
 
-    private func makeModel(entry: VideoRecorderEntry = .plusMenu, length: Int = 60, preRoll: PreRoll = .off, recovered: VideoDraft? = nil) -> VideoRecorderModel {
+    private func makeModel(entry: VideoRecorderEntry = .plusMenu, length: Int = 60, preRoll: PreRoll = .off,
+                           endCountdown: Int = 0, recovered: VideoDraft? = nil) -> VideoRecorderModel {
         settings.length = length
         settings.preRoll = preRoll
+        settings.endCountdownSeconds = endCountdown
         let clock = clock!
         return VideoRecorderModel(
             entry: entry, engine: engine, settings: settings, player: VideoReviewPlayer(), saver: UnusedSaver(),
@@ -234,7 +236,7 @@ final class VideoRecorderModelTests: XCTestCase {
     // MARK: the end countdown and auto-stop open Review (D4)
 
     func testAutoStopOpensReview() async {
-        let m = makeModel(length: 30, preRoll: .off)
+        let m = makeModel(length: 30, preRoll: .off, endCountdown: 10)
         m.recordTapped()
         m.tick(recorded: 21)
         XCTAssertEqual(m.screenState.phase, .endCountdown(9))
@@ -243,7 +245,7 @@ final class VideoRecorderModelTests: XCTestCase {
     }
 
     func testEndCountdownShowsTheNumeralOnTheScreen() {
-        let m = makeModel(length: 30)
+        let m = makeModel(length: 30, endCountdown: 10)
         m.recordTapped()
         m.tick(recorded: 21)
         let shown = m.viewState(layout: .fullScreen)
@@ -391,6 +393,36 @@ final class VideoRecorderModelTests: XCTestCase {
         m.setLength(30)
         XCTAssertEqual(m.screenState.length, 90)
         XCTAssertEqual(settings.length, 90)
+    }
+
+    // MARK: video-polish D4, D6 — length mode and the opt-in end countdown
+
+    func testEndCountdownIsOffByDefault() {
+        let m = makeModel(length: 30)
+        m.recordTapped()
+        m.tick(recorded: 25)
+        XCTAssertEqual(m.screenState.phase, .recording)
+    }
+
+    func testAnyLengthStopsAtTheTwoMinuteCap() {
+        let m = makeModel(length: 30)
+        m.setLengthMode(.any)
+        XCTAssertEqual(settings.lengthMode, .any)
+        m.recordTapped()
+        m.tick(recorded: 60)
+        XCTAssertEqual(m.screenState.phase, .recording)
+        m.tick(recorded: 120)
+        XCTAssertEqual(m.screenState.phase, .review)
+    }
+
+    func testEndCountdownChoicePersists() {
+        let m = makeModel(length: 30)
+        m.setEndCountdown(3)
+        XCTAssertEqual(m.endCountdownSeconds, 3)
+        XCTAssertEqual(settings.endCountdownSeconds, 3)
+        m.recordTapped()
+        m.tick(recorded: 27.5)
+        XCTAssertEqual(m.screenState.phase, .endCountdown(3))
     }
 
     // MARK: a new filter pick resets strength to 100 (D6)

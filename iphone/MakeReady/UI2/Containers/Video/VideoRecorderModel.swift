@@ -201,7 +201,8 @@ final class VideoRecorderModel {
         self.now = now
         self.sleep = sleep
         self.makeEditor = makeEditor ?? Self.liveEditor(report: report)
-        timeline = RecordingTimeline(lengthSeconds: settings.length)
+        timeline = RecordingTimeline(lengthSeconds: settings.length, mode: settings.lengthMode,
+                                     endCountdownSeconds: settings.endCountdownSeconds)
         preRoll = settings.preRoll
         countdownSound = settings.countdownSound
         script = settings.script
@@ -253,7 +254,8 @@ final class VideoRecorderModel {
         opened = true
         if let draft = recoverDraft() {
             engine.restore(draft)
-            timeline = RecordingTimeline(lengthSeconds: draft.settings.lengthSeconds)
+            timeline = RecordingTimeline(lengthSeconds: draft.settings.lengthSeconds, mode: timeline.mode,
+                                         endCountdownSeconds: timeline.endCountdownSeconds)
             filter = draft.settings.filter.flatMap(VideoFilter.init(rawValue:)) ?? .normal
             filterStrength = Int(draft.settings.filterStrength)
             layers = draft.layers
@@ -385,7 +387,7 @@ final class VideoRecorderModel {
     /// `recorded` is the total recorded time, across segments (D4).
     func tick(recorded total: TimeInterval) {
         guard isCapturing else { return }
-        recorded = min(total, Double(timeline.lengthSeconds))
+        recorded = min(total, Double(timeline.effectiveLength))
         guard !timeline.shouldAutoStop(atRecorded: recorded) else {
             endSegment()
             openReview()
@@ -427,6 +429,23 @@ final class VideoRecorderModel {
         timeline.setLength(Int(seconds))
         settings.length = timeline.lengthSeconds
     }
+
+    /// The Length panel's Any length / Specify length; ignored once a segment exists (video-polish D4).
+    func setLengthMode(_ mode: LengthMode) {
+        guard phase == .ready, timeline.canChangeLength else { return }
+        timeline.setMode(mode)
+        settings.lengthMode = mode
+    }
+
+    /// The Length panel's End countdown: 0 (off), 3 or 10 seconds (video-polish D6).
+    func setEndCountdown(_ seconds: Int) {
+        timeline.setEndCountdown(seconds)
+        settings.endCountdownSeconds = timeline.endCountdownSeconds
+    }
+
+    /// The Length panel's current choices, for the screen.
+    var lengthMode: LengthMode { timeline.mode }
+    var endCountdownSeconds: Int { timeline.endCountdownSeconds }
 
     /// A new pick starts at full strength (D6).
     func pickFilter(_ look: VideoFilter) {
@@ -624,7 +643,7 @@ final class VideoRecorderModel {
 
     private func syncTimeline() {
         guard let draft = engine.draft, draft.source == .recording else { return }
-        var synced = RecordingTimeline(lengthSeconds: timeline.lengthSeconds)
+        var synced = timeline.withoutSegments
         draft.segments.forEach { synced.append($0.duration) }
         timeline = synced
         recorded = timeline.total
@@ -755,7 +774,7 @@ final class VideoRecorderModel {
         dropImport()
         layers = []
         transcript = nil
-        timeline = RecordingTimeline(lengthSeconds: timeline.lengthSeconds)
+        timeline = timeline.withoutSegments
         recorded = 0
         teleprompterShift = 0
         phase = .ready

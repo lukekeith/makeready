@@ -11,6 +11,8 @@ import Foundation
 struct RecorderSettings {
     private enum Key {
         static let length = "videoRecorder.lengthSeconds"
+        static let lengthMode = "videoRecorder.lengthMode"
+        static let endCountdown = "videoRecorder.endCountdownSeconds"
         static let preRoll = "videoRecorder.preRollSeconds"
         static let countdownSound = "videoRecorder.countdownSound"
         static let script = "videoRecorder.teleprompterScript"
@@ -29,13 +31,33 @@ struct RecorderSettings {
         self.defaults = defaults
     }
 
-    /// 1:00 until the leader picks another stop (D3).
+    /// 1:00 until the leader types or drags another; any second in 0:05…2:00 (video-polish D13).
     var length: Int {
         get {
             guard let stored = defaults.object(forKey: Key.length) as? Int else { return RecordingTimeline.defaultLength }
-            return RecordingTimeline.snappedLength(Double(stored))
+            return RecordingTimeline.clampedLength(stored)
         }
-        nonmutating set { defaults.set(RecordingTimeline.snappedLength(Double(newValue)), forKey: Key.length) }
+        nonmutating set { defaults.set(RecordingTimeline.clampedLength(newValue), forKey: Key.length) }
+    }
+
+    /// Any length for a new leader; Specify length for one who already saved a length (video-polish D4).
+    var lengthMode: LengthMode {
+        get {
+            if let raw = defaults.string(forKey: Key.lengthMode), let mode = LengthMode(rawValue: raw) { return mode }
+            return defaults.object(forKey: Key.length) == nil ? .any : .specify
+        }
+        nonmutating set { defaults.set(newValue.rawValue, forKey: Key.lengthMode) }
+    }
+
+    /// The end countdown: off until the leader picks 3 s or 10 s (video-polish D6).
+    var endCountdownSeconds: Int {
+        get {
+            let stored = defaults.integer(forKey: Key.endCountdown)
+            return RecordingTimeline.endCountdownChoices.contains(stored) ? stored : 0
+        }
+        nonmutating set {
+            defaults.set(RecordingTimeline.endCountdownChoices.contains(newValue) ? newValue : 0, forKey: Key.endCountdown)
+        }
     }
 
     /// Off until the leader turns a countdown on (D2).

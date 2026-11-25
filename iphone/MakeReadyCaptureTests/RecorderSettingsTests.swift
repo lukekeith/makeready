@@ -19,6 +19,26 @@ final class RecorderSettingsTests: XCTestCase {
         XCTAssertEqual(s.speedStep, 3)
         XCTAssertEqual(s.sizeStep, 2)
         XCTAssertFalse(s.countdownSound, "countdown-sound S3: silent until the leader turns it on")
+        XCTAssertEqual(s.lengthMode, .any, "video-polish D4: a new leader starts on Any length")
+        XCTAssertEqual(s.endCountdownSeconds, 0, "video-polish D6: the end countdown is off by default")
+    }
+
+    func testSavedLengthOpensAsSpecify() {
+        let defaults = freshDefaults()
+        defaults.set(90, forKey: "videoRecorder.lengthSeconds")
+        let s = RecorderSettings(defaults: defaults)
+        XCTAssertEqual(s.lengthMode, .specify)
+        XCTAssertEqual(s.length, 90)
+        s.lengthMode = .any
+        XCTAssertEqual(RecorderSettings(defaults: defaults).lengthMode, .any)
+    }
+
+    func testEndCountdownPersistsAndRejectsOtherValues() {
+        let defaults = freshDefaults()
+        RecorderSettings(defaults: defaults).endCountdownSeconds = 3
+        XCTAssertEqual(RecorderSettings(defaults: defaults).endCountdownSeconds, 3)
+        RecorderSettings(defaults: defaults).endCountdownSeconds = 7
+        XCTAssertEqual(RecorderSettings(defaults: defaults).endCountdownSeconds, 0)
     }
 
     func testValuesPersistAcrossInstancesAndSnapToTheirRanges() {
@@ -26,7 +46,7 @@ final class RecorderSettingsTests: XCTestCase {
         let s = RecorderSettings(defaults: defaults)
         s.length = 94; s.preRoll = .ten; s.script = "In the beginning"; s.speedStep = 9; s.sizeStep = 0
         let reread = RecorderSettings(defaults: defaults)
-        XCTAssertEqual(reread.length, 90)
+        XCTAssertEqual(reread.length, 94, "video-polish D13: no snapping")
         XCTAssertEqual(reread.preRoll, .ten)
         XCTAssertEqual(reread.script, "In the beginning")
         XCTAssertEqual(reread.speedStep, 5)

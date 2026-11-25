@@ -28,25 +28,42 @@ enum PreRoll: CaseIterable, Equatable {
     }
 }
 
+/// Any length records until stopped or the 2:00 cap; Specify length stops at the chosen length
+/// (video-polish D4).
+enum LengthMode: String, Equatable {
+    case any, specify
+}
+
 struct RecordingTimeline: Equatable {
-    static let minLength = 10
+    static let minLength = 5
     static let maxLength = 120
-    static let lengthStep = 10
     static let defaultLength = 60
-    /// The end countdown shows over the last this-many seconds (D4).
-    static let endCountdownSeconds = 10
+    /// The end countdown's choices: Off, 3 s, 10 s (video-polish D6).
+    static let endCountdownChoices = [0, 3, 10]
 
     private(set) var lengthSeconds: Int
+    private(set) var mode: LengthMode
+    /// Seconds the end countdown shows over; 0 = off (video-polish D6).
+    private(set) var endCountdownSeconds: Int
     private(set) var segments: [TimeInterval] = []
 
-    init(lengthSeconds: Int = RecordingTimeline.defaultLength) {
-        self.lengthSeconds = Self.snappedLength(Double(lengthSeconds))
+    init(lengthSeconds: Int = RecordingTimeline.defaultLength, mode: LengthMode = .specify, endCountdownSeconds: Int = 0) {
+        self.lengthSeconds = Self.clampedLength(lengthSeconds)
+        self.mode = mode
+        self.endCountdownSeconds = Self.endCountdownChoices.contains(endCountdownSeconds) ? endCountdownSeconds : 0
     }
 
-    /// The slider's value to its nearest stop: 10 s steps, 10…120 — 12 stops (D3).
-    static func snappedLength(_ raw: Double) -> Int {
-        let stepped = Int((raw / Double(lengthStep)).rounded()) * lengthStep
-        return min(max(stepped, minLength), maxLength)
+    /// Any whole second in 0:05…2:00 — no snapping (video-polish D13).
+    static func clampedLength(_ seconds: Int) -> Int {
+        min(max(seconds, minLength), maxLength)
+    }
+
+    /// The length recording stops at: the 2:00 cap under Any length, else the chosen length (D4).
+    var effectiveLength: Int { mode == .any ? Self.maxLength : lengthSeconds }
+
+    /// The same choices with no segments — a fresh take.
+    var withoutSegments: RecordingTimeline {
+        RecordingTimeline(lengthSeconds: lengthSeconds, mode: mode, endCountdownSeconds: endCountdownSeconds)
     }
 
     var total: TimeInterval { segments.reduce(0, +) }
@@ -55,12 +72,23 @@ struct RecordingTimeline: Equatable {
     var canChangeLength: Bool { segments.isEmpty }
 
     /// Each segment's share of the progress bar's full width, which is the chosen length.
-    var segmentFractions: [Double] { segments.map { $0 / Double(lengthSeconds) } }
+    var segmentFractions: [Double] { segments.map { $0 / Double(effectiveLength) } }
 
-    /// Changes the length for the next recording; ignored once a segment exists. Snaps to a stop.
+    /// Changes the length for the next recording; ignored once a segment exists (D3, D13).
     mutating func setLength(_ seconds: Int) {
         guard canChangeLength else { return }
-        lengthSeconds = Self.snappedLength(Double(seconds))
+        lengthSeconds = Self.clampedLength(seconds)
+    }
+
+    /// Any or Specify length; ignored once a segment exists (video-polish D4).
+    mutating func setMode(_ next: LengthMode) {
+        guard canChangeLength else { return }
+        mode = next
+    }
+
+    /// Off, 3 s or 10 s (video-polish D6).
+    mutating func setEndCountdown(_ seconds: Int) {
+        endCountdownSeconds = Self.endCountdownChoices.contains(seconds) ? seconds : 0
     }
 
     mutating func append(_ duration: TimeInterval) { segments.append(duration) }
@@ -68,16 +96,18 @@ struct RecordingTimeline: Equatable {
     /// Removes the last segment only (D5).
     mutating func deleteLast() { _ = segments.popLast() }
 
-    /// The numeral for the end countdown at `t` seconds recorded in total (D4): 10 at length − 10 s
-    /// down to 1 in the last second; nil outside that window.
+    /// The numeral for the end countdown at `t` seconds recorded in total (video-polish D6): the
+    /// whole seconds left once fewer than the setting remain, from the start when the length is
+    /// shorter; nil when off, under Any length, or outside that window.
     func endCountdown(atRecorded t: TimeInterval) -> Int? {
+        guard mode == .specify, endCountdownSeconds > 0 else { return nil }
         let length = Double(lengthSeconds)
-        guard t > length - Double(Self.endCountdownSeconds), t < length else { return nil }
+        guard t > length - Double(endCountdownSeconds), t < length else { return nil }
         return Int(ceil(length - t))
     }
 
-    /// Recording stops by itself at the chosen length (D4).
+    /// Recording stops by itself at the chosen length, or the 2:00 cap under Any length (D4).
     func shouldAutoStop(atRecorded t: TimeInterval) -> Bool {
-        t >= Double(lengthSeconds)
+        t >= Double(effectiveLength)
     }
 }
