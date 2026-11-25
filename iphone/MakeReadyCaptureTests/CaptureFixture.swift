@@ -1712,6 +1712,16 @@ struct CaptureComponent: Codable {
     let textTool: CaptureUI2EditorTextTool?
     let confirm: String?                       // none | removeCaptions | cancel
     let manipulatingID: String?
+    // C-078 SuggestionRows `pairs` (2026-11-25) — title and description pairs.
+    let pairs: [CaptureUI2SuggestionPair]?
+    // ── screen video-naming ── (`title`, `description`, `aiState`, `promptCopy` and `pairs` are reused above)
+    let titlePlaceholder: String?
+}
+
+/// C-078 §4 `SuggestionRows.Pair`.
+struct CaptureUI2SuggestionPair: Codable {
+    let title: String
+    let description: String
 }
 
 /// video-editor §5 `style`.

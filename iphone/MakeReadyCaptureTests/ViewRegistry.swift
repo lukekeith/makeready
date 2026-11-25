@@ -1276,15 +1276,14 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-051: missing state.component")
         }
-        // C-051 §4 gives none of its three render-bearing props a default — `state`,
-        // `promptCopy` and `suggestions` are all **Required** (R-07) — so a nil is a fixture
-        // bug, not a value to guess. `state` enumerates its values (rule 5's one-owner rule):
+        // C-051 §4: `state`, `promptCopy` and `suggestions` are **Required**, so a nil is a
+        // fixture bug, not a value to guess; `pairs` defaults to empty. `state` enumerates its values (rule 5's one-owner rule):
         // an unrecognised one must throw rather than render a plausible body.
         guard let ui2C051StateRaw = c.state else {
             throw ViewRegistryError.unknownView("component.ui2.C-051: props.state is required")
         }
         guard let ui2C051State = MakeReadyUI.AISuggestionsBlock.State(rawValue: ui2C051StateRaw) else {
-            throw ViewRegistryError.unknownView("component.ui2.C-051: props.state must be prompt|generating|list|regenerating")
+            throw ViewRegistryError.unknownView("component.ui2.C-051: props.state must be prompt|generating|list|regenerating|empty")
         }
         guard let ui2C051PromptCopy = c.promptCopy else {
             throw ViewRegistryError.unknownView("component.ui2.C-051: props.promptCopy is required")
@@ -1296,7 +1295,8 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
             MakeReadyUI.AISuggestionsBlock(
                 state: ui2C051State,
                 promptCopy: ui2C051PromptCopy,
-                suggestions: ui2C051Suggestions
+                suggestions: ui2C051Suggestions,
+                pairs: (c.pairs ?? []).map { .init(title: $0.title, description: $0.description) }
             ),
             // OQ-PB-1: C-051 §2 — "full container width (deviation 1)": every designed frame
             // is 408 wide, the page's content width at the design viewport, so the call site
@@ -1314,7 +1314,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-050: props.title is required")
         }
         return declareCase(
-            MakeReadyUI.SuggestionRow(title: ui2C050Title),
+            MakeReadyUI.SuggestionRow(title: ui2C050Title, description: c.description),
             // OQ-PB-1: C-050 §1 deviation 1 — "Width is container-driven … the three consumed
             // instances in `3860:8334` are 408 (the page's content width)". The sheet symbol
             // is 304, but the consumer is what the row is for, so the call site fixes the
@@ -1332,7 +1332,10 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-078: props.suggestions is required")
         }
         return declareCase(
-            MakeReadyUI.SuggestionRows(suggestions: ui2C078Suggestions),
+            MakeReadyUI.SuggestionRows(
+                suggestions: ui2C078Suggestions,
+                pairs: (c.pairs ?? []).map { .init(title: $0.title, description: $0.description) }
+            ),
             // OQ-PB-1: C-078 §1 deviation 1 — "Width is container-driven. Both designed
             // instances are 408 wide — the page's content width." The call site fixes that
             // master width (C-051's own) and supplies the margin and the ground (R-16).
@@ -4609,9 +4612,15 @@ private func buildCaptureViewPart13(_ fixture: CaptureFixture, authManager: Auth
             MakeReadyUI.DoneCheck(),
             PreviewFrame(alignment: .leading, intrinsic: true)
         )
+    case "component.ui2.C-160":
+        // C-160 §4: no props — nothing to decode. §1 deviation 2: container-driven width, 408
+        // is the designed width, so the call site fixes it.
+        return declareCase(MakeReadyUI.AIProcessing(), PreviewFrame(width: 408))
     case "screen.2.0.video-editor":
         // Out of line for the same stack-frame reason as C-083.
         return try buildScreenVideoEditor(fixture)
+    case "screen.2.0.video-naming":
+        return try buildScreenVideoNaming(fixture)
     default:
         return nil
     }
@@ -7996,6 +8005,31 @@ private func buildScreenBibleVerses(_ fixture: CaptureFixture) throws -> AnyView
             verseCount: c.verseCount ?? sample.verseCount,
             usedVerses: c.usedVerses ?? sample.usedVerses,
             loading: c.loading ?? sample.loading
+        )
+    ))
+}
+
+/// `screen.2.0.video-naming` — the Video naming screen preview. See the case in
+/// `buildCaptureViewPart13`.
+@MainActor @inline(never)
+private func buildScreenVideoNaming(_ fixture: CaptureFixture) throws -> AnyView {
+    guard let c = fixture.state?.component else {
+        throw ViewRegistryError.unknownView("screen.2.0.video-naming: missing state.component")
+    }
+    // A missing field takes this build's `generating` sample (§3 1), single-sourced on the
+    // screen's State. The canvas is the harness's (CaptureRunner's `screen.*` branch).
+    let sample = MakeReadyUI.VideoNamingScreen.State.generating
+    guard let aiState = MakeReadyUI.AISuggestionsBlock.State(rawValue: c.aiState ?? sample.aiState.rawValue) else {
+        throw ViewRegistryError.unknownView("screen.2.0.video-naming: props.aiState is not a known value")
+    }
+    return AnyView(MakeReadyUI.VideoNamingScreen(
+        state: .init(
+            title: c.title ?? sample.title,
+            titlePlaceholder: c.titlePlaceholder ?? sample.titlePlaceholder,
+            description: c.description ?? sample.description,
+            aiState: aiState,
+            promptCopy: c.promptCopy ?? sample.promptCopy,
+            pairs: c.pairs?.map { .init(title: $0.title, description: $0.description) } ?? sample.pairs
         )
     ))
 }

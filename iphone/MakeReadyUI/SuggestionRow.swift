@@ -10,16 +10,20 @@ import SwiftUI
 
 /// C-050 SuggestionRow — "one AI-generated suggestion with an add affordance".
 ///
-/// §2: "A horizontal row: **title** (leading, flexible) + **C-021 GlyphButton `add`**
+/// §2: "A horizontal row: **text column** (leading, flexible) + **C-021 GlyphButton `add`**
 /// (trailing, fixed). Nothing else — no background, no border, no separator (deviation 2)."
 /// The inter-row hairline is C-051's, so a row rendered alone shows no line, and that is
 /// correct against the source. Chrome-free and width-driven (R-16): it fills the width it
-/// is given and states its own height — 56 at one title line, +24 per wrapped line.
+/// is given and states its own height — 56 at one title line, +24 per wrapped line, plus 4
+/// and the description's wrapped height when there is one.
 struct SuggestionRow: View {
 
     /// C-050 §4: `title` — "the suggestion text (Figma text prop `title` on the symbol);
     /// wraps per OQ-C-050-2". Required: the design shows no default for it (R-07).
     let title: String
+    /// C-050 §4: `description` — "optional second line under the title. nil (the default)
+    /// renders exactly as the row did before this prop existed."
+    var description: String?
     /// C-050 §4: `onAdd` — "invoked when the suggestion is chosen … Forwarded to C-021
     /// `action`". Interaction-bearing with no render effect, so it is emitted as a defaulted
     /// no-op closure (R-03) and the promoted view keeps its real signature.
@@ -29,26 +33,42 @@ struct SuggestionRow: View {
     // flagged literals: no row-padding token exists; they sit on the same scale step as
     // `space-card-padding` / `space-page-margin`.)"
     private static let rowPadding: CGFloat = 16
-    // FLAGGED LITERAL — C-050 §2: "Gap title↔glyph **16**" — the second of the two.
+    // FLAGGED LITERAL — C-050 §2: "Gap text column↔glyph **16**" — the second of the two.
     private static let rowGap: CGFloat = 16
 
     var body: some View {
         HStack(alignment: .center, spacing: Self.rowGap) {         // §2: "items centred vertically"
-            Text(title)
-                // §2: "**Title** (`3526:30717`): `type-input` — SF Pro Regular 14/24 … colour
-                // `color-text-primary`." OQ-C-050-4 (ruled 2026-09-19) aliases this value as
-                // `type-body`; that row has not landed in the register yet, so the §2 symbol
-                // is what generates.
-                .designTextStyle(Token.TypeStyle.input)
-                .foregroundStyle(Token.textPrimary)
-                // §2: "Flexible (`flex 1 0 0`, min-width 1), word-wrapping, no line limit" —
-                // OQ-C-050-2 (ruled 2026-09-19): "the title wraps, +24pt per line, no cap and
-                // no truncation". The line box is the style's own 24pt leading, so one line
-                // makes the row 16 + 24 + 16 = 56 (§2 "Height"); fixedSize sits OUTSIDE the
-                // minHeight frame so a wrapped title grows the frame instead of clipping.
-                .frame(maxWidth: .infinity, minHeight: Self.lineBox(Token.TypeStyle.input), alignment: .leading)
-                .fixedSize(horizontal: false, vertical: true)
-                .ui2Element("Title")
+            // §2: "**Text column:** vertical stack, leading-aligned, flexible … Holds the title and,
+            // only when `description` is non-nil, the description below it with `space-meta-gap`
+            // (4pt) between them."
+            VStack(alignment: .leading, spacing: Token.Space.metaGap) {
+                Text(title)
+                    // §2: "**Title** (`3526:30717`): `type-input` — SF Pro Regular 14/24 … colour
+                    // `color-text-primary`." OQ-C-050-4 (ruled 2026-09-19) aliases this value as
+                    // `type-body`; that row has not landed in the register yet, so the §2 symbol
+                    // is what generates.
+                    .designTextStyle(Token.TypeStyle.input)
+                    .foregroundStyle(Token.textPrimary)
+                    // §2: "Flexible (`flex 1 0 0`, min-width 1), word-wrapping, no line limit" —
+                    // OQ-C-050-2 (ruled 2026-09-19): "the title wraps, +24pt per line, no cap and
+                    // no truncation". The line box is the style's own 24pt leading, so one line
+                    // makes the row 16 + 24 + 16 = 56 (§2 "Height"); fixedSize sits OUTSIDE the
+                    // minHeight frame so a wrapped title grows the frame instead of clipping.
+                    .frame(maxWidth: .infinity, minHeight: Self.lineBox(Token.TypeStyle.input), alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .ui2Element("Title")
+                // §2: "**Description** … `type-body-sm`, colour `color-text-secondary`,
+                // word-wrapping, **no line limit**. Absent when `description` is nil: no view, no
+                // gap, no height."
+                if let description {
+                    Text(description)
+                        .designTextStyle(Token.TypeStyle.bodySm)
+                        .foregroundStyle(Token.textSecondary)
+                        .frame(maxWidth: .infinity, minHeight: Self.lineBox(Token.TypeStyle.bodySm), alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .ui2Element("Description")
+                }
+            }
             // §2: "**Add glyph:** C-021 GlyphButton, `glyph = add` (instance of `3499:27601`),
             // 24×24, does not shrink, tint `color-accent` per C-021 §2." §4: "the trailing
             // glyph is always C-021 `glyph = add`" — fixed, not a prop. C-021 owns the size,
@@ -71,9 +91,15 @@ struct SuggestionRow: View {
         // R-17: the row is the interactive element (OQ-C-050-1), so it carries the label and
         // the button trait; the glyph inside is the affordance, not a second control.
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(title)
+        .accessibilityLabel(accessibilityText)
         .accessibilityAddTraits(.isButton)
         .ui2Element("SuggestionRow")                              // capture element map — UI2Element.swift
+    }
+
+    /// R-17: the title, and "title, description" when the row has a description (C-078 §2).
+    private var accessibilityText: String {
+        guard let description else { return title }
+        return "\(title), \(description)"
     }
 
     /// The designed line box of a text style — its leading, or its size when none is designed.
