@@ -16,6 +16,9 @@ final class VideoEditSession {
     private(set) var layers: [VideoLayer]
     private(set) var selectedId: UUID?
     private(set) var playheadMs = 0
+    /// The edge the live trim or slide is held to; nil when none. A new value is one snap, for the
+    /// haptic (video-polish D12).
+    private(set) var snappedTo: Int?
 
     let clipMs: Int
 
@@ -130,21 +133,50 @@ final class VideoEditSession {
     // MARK: Gestures — live until `endGesture`
 
     func trimStart(_ id: UUID, to ms: Int) {
+        let snapped = snapEdge(ms, excluding: id)
         live(id) { layer, all in
-            VideoLayerTiming.trimStart(layer, to: ms, in: VideoLayerTiming.bounds(of: layer, among: all, clipMs: clipMs))
+            VideoLayerTiming.trimStart(layer, to: snapped, in: VideoLayerTiming.bounds(of: layer, among: all, clipMs: clipMs))
         }
     }
 
     func trimEnd(_ id: UUID, to ms: Int) {
+        let snapped = snapEdge(ms, excluding: id)
         live(id) { layer, all in
-            VideoLayerTiming.trimEnd(layer, to: ms, in: VideoLayerTiming.bounds(of: layer, among: all, clipMs: clipMs))
+            VideoLayerTiming.trimEnd(layer, to: snapped, in: VideoLayerTiming.bounds(of: layer, among: all, clipMs: clipMs))
         }
     }
 
+    /// The nearer of the bar's two edges snaps; the bar keeps its length (video-polish D12).
     func slide(_ id: UUID, to ms: Int) {
-        live(id) { layer, all in
-            VideoLayerTiming.slide(layer, to: ms, in: VideoLayerTiming.bounds(of: layer, among: all, clipMs: clipMs))
+        guard let layer = layers.first(where: { $0.id == id }) else { return }
+        let length = layer.endMs - layer.startMs
+        let targets = snapTargets(excluding: id)
+        let start = VideoLayerTiming.snap(ms, targets: targets, current: snappedTo)
+        let end = VideoLayerTiming.snap(ms + length, targets: targets, current: snappedTo)
+        let next: Int
+        switch (start.target, end.target) {
+        case (.some, .some):
+            let startPull = abs(start.ms - ms), endPull = abs(end.ms - (ms + length))
+            next = startPull <= endPull ? start.ms : end.ms - length
+            snappedTo = startPull <= endPull ? start.target : end.target
+        case (.some, nil): next = start.ms; snappedTo = start.target
+        case (nil, .some): next = end.ms - length; snappedTo = end.target
+        case (nil, nil): next = ms; snappedTo = nil
         }
+        live(id) { layer, all in
+            VideoLayerTiming.slide(layer, to: next, in: VideoLayerTiming.bounds(of: layer, among: all, clipMs: clipMs))
+        }
+    }
+
+    /// The clip's ends, the playhead and every other layer's edges (video-polish D12).
+    func snapTargets(excluding id: UUID) -> [Int] {
+        [0, clipMs, playheadMs] + layers.filter { $0.id != id }.flatMap { [$0.startMs, $0.endMs] }
+    }
+
+    private func snapEdge(_ ms: Int, excluding id: UUID) -> Int {
+        let snapped = VideoLayerTiming.snap(ms, targets: snapTargets(excluding: id), current: snappedTo)
+        snappedTo = snapped.target
+        return snapped.ms
     }
 
     /// A caption is never moved, scaled or rotated (D24).
@@ -161,6 +193,7 @@ final class VideoEditSession {
 
     /// The finger lifted: the gesture is one history entry and one write, if it changed anything.
     func endGesture() {
+        snappedTo = nil
         guard let start = gestureStart else { return }
         gestureStart = nil
         guard layers != start else { return }

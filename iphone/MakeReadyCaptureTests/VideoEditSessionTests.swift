@@ -89,4 +89,56 @@ final class VideoEditSessionTests: XCTestCase {
         s.select(s.layers[0].id); s.seek(500); XCTAssertTrue(s.canSplit)
         s.seek(99_999); XCTAssertEqual(s.playheadMs, 10_000)
     }
+
+    // MARK: video-polish D12 — snapping
+
+    private func text(_ start: Int, _ end: Int) -> VideoLayer {
+        VideoLayer(kind: .text, text: "T", startMs: start, endMs: end)
+    }
+
+    private func make(clipMs: Int, _ layers: [VideoLayer]) -> VideoEditSession {
+        VideoEditSession(layers: layers, clipMs: clipMs) { _ in }
+    }
+
+    func testTrimSnapsToOtherLayerEdgeAndPlayhead() {
+        let s = make(clipMs: 20_000, [text(0, 4_000), text(6_000, 9_000)])
+        s.seek(12_000)
+        let id = s.layers[1].id
+        s.trimEnd(id, to: 11_880)
+        XCTAssertEqual(s.layers[1].endMs, 12_000)
+        XCTAssertEqual(s.snappedTo, 12_000)
+        s.endGesture()
+        XCTAssertNil(s.snappedTo)
+        s.trimStart(id, to: 4_120)
+        XCTAssertEqual(s.layers[1].startMs, 4_000)
+    }
+
+    func testSnapHoldsUntilRelease() {
+        let s = make(clipMs: 20_000, [text(0, 4_000), text(6_000, 9_000)])
+        let id = s.layers[1].id
+        s.trimStart(id, to: 4_150)
+        XCTAssertEqual(s.layers[1].startMs, 4_000)
+        s.trimStart(id, to: 4_280)
+        XCTAssertEqual(s.layers[1].startMs, 4_000, "held within 300 ms")
+        s.trimStart(id, to: 4_320)
+        XCTAssertEqual(s.layers[1].startMs, 4_320)
+        XCTAssertNil(s.snappedTo)
+    }
+
+    func testSlideSnapsNearerEdge() {
+        let s = make(clipMs: 20_000, [text(0, 4_000), text(10_000, 13_000)])
+        let id = s.layers[1].id
+        s.slide(id, to: 4_150)
+        XCTAssertEqual(s.layers[1].startMs, 4_000)
+        XCTAssertEqual(s.layers[1].endMs, 7_000)
+        s.endGesture()
+        s.slide(id, to: 16_900)
+        XCTAssertEqual(s.layers[1].endMs, 20_000, "the end edge snaps to the clip's end")
+    }
+
+    func testTrimNeverPassesClipStart() {
+        let s = make(clipMs: 20_000, [text(1_000, 4_000)])
+        s.trimStart(s.layers[0].id, to: -800)
+        XCTAssertEqual(s.layers[0].startMs, 0)
+    }
 }

@@ -73,4 +73,26 @@ final class VideoLayerTests: XCTestCase {
         let bad = #"{"layers":[{"id":"6F9619FF-8B86-D011-B42D-00CF4FC964FF","kind":"text","text":"A","startMs":900,"endMs":900}]}"#
         XCTAssertEqual(try JSONDecoder().decode(Box.self, from: Data(bad.utf8)).layers, [])
     }
+
+    // MARK: video-polish D12 — the snap function
+
+    func testSnapEngagesWithin200ms() {
+        XCTAssertEqual(VideoLayerTiming.snap(5_150, targets: [5_000], current: nil).ms, 5_000)
+        XCTAssertEqual(VideoLayerTiming.snap(5_250, targets: [5_000], current: nil).ms, 5_250)
+        XCTAssertNil(VideoLayerTiming.snap(5_250, targets: [5_000], current: nil).target)
+    }
+
+    func testSnapHoldsUntil300ms() {
+        XCTAssertEqual(VideoLayerTiming.snap(5_280, targets: [5_000], current: 5_000).ms, 5_000)
+    }
+
+    func testSnapReleasesPast300ms() {
+        let r = VideoLayerTiming.snap(5_320, targets: [5_000], current: 5_000)
+        XCTAssertEqual(r.ms, 5_320)
+        XCTAssertNil(r.target)
+    }
+
+    func testSnapPicksTheNearestTarget() {
+        XCTAssertEqual(VideoLayerTiming.snap(5_100, targets: [4_950, 5_150], current: nil).ms, 5_150)
+    }
 }

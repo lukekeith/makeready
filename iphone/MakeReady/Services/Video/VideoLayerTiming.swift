@@ -49,6 +49,20 @@ enum VideoLayerTiming {
         return lower...max(lower, upper)
     }
 
+    /// A snap engages within 200 ms (8 pt at the timeline's 40 pt/s) and lets go past 300 ms (12 pt)
+    /// — the canvas's hysteresis (video-polish D12).
+    static let snapEngageMs = 200
+    static let snapReleaseMs = 300
+
+    /// `ms` pulled to the nearest target within the engage distance, or held to `current` while
+    /// still within the release distance; otherwise `ms` itself and no target (video-polish D12).
+    static func snap(_ ms: Int, targets: [Int], current: Int?) -> (ms: Int, target: Int?) {
+        if let current, targets.contains(current), abs(ms - current) <= snapReleaseMs { return (current, current) }
+        guard let nearest = targets.min(by: { abs($0 - ms) < abs($1 - ms) }),
+              abs(nearest - ms) <= snapEngageMs else { return (ms, nil) }
+        return (nearest, nearest)
+    }
+
     static func canSplit(_ layer: VideoLayer, at ms: Int) -> Bool {
         ms - layer.startMs >= minimumMs && layer.endMs - ms >= minimumMs
     }
