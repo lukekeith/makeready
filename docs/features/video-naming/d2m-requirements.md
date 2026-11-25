@@ -63,7 +63,12 @@ The owner approves the captures before any wiring.
 
 ## As built
 
-Built by d2m in 446c5b1e; the owner approved the captures (D12). Names that differ from the plan:
+Built by d2m in 446c5b1e. Owner approval of the captures (D12): recorded in that commit's message,
+"Owner approved the captures 2026-11-25 (D12) — wire it up." Capture outputs (d2m's render lane,
+`iphone/capture/capture.sh ztmp-ui2 <key>`, untracked) are in
+`iphone/capture/fixtures/ztmp-ui2/screenshots/iphone-16-pro-max/`: `capture.video-naming-{generating,list,
+regenerating,filled,empty,prompt}.png`, `capture.C-051-{generating,list,list-pairs,regenerating,prompt,empty-copy,set}.png`
+and `capture.C-160-processing.png` (each with a `.elements.json`). Names that differ from the plan:
 
 - Path: `iphone/MakeReadyUI/Screens/Fields/VideoNamingScreen.swift` (Fields, not Library).
 - `VideoNamingScreen(state:onTitleChange:onDescriptionChange:onPick:onRegenerate:onSave:onBack:)`.
