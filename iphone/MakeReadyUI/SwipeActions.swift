@@ -22,8 +22,8 @@ struct SwipeActionsAction: Identifiable {
     var fullSwipe: Bool = false
     /// §4 — "whether running the action removes the row from its list; nil resolves to true for a
     /// destructive action — one tinted `Token.error` — and false otherwise; a `true` action
-    /// collapses the row's height and then fires `onAction`, and never springs back; only `false`
-    /// springs back to 0".
+    /// fills the row, collapses its height and then fires `onAction`, and never springs back toward
+    /// the edge; only `false` springs back to 0".
     var removesRow: Bool?
     /// §4 (R-03) — "the action's closure; the component never decides what it means".
     var onAction: () -> Void = {}
@@ -111,7 +111,7 @@ private enum SwipeGeometry {
 ///
 /// Controlled (R-01): which side rests open is the caller's `openSide`, reported back through
 /// `onOpenSideChange`, so the screen keeps one row open per list and closes it on scroll
-/// (deviation 4). The drag offset, the armed flag and the collapse are ephemeral gesture state
+/// (deviation 4). The drag offset, the armed flag, the fill and the collapse are ephemeral gesture state
 /// (R-02). `posedOffset` and `posedCollapse` draw a mid-gesture phase from props alone, for captures.
 ///
 /// Chrome-free and width-driven (R-16): the content fills the width it is given and sets the
@@ -129,7 +129,7 @@ struct SwipeActions<Content: View>: View {
     /// §4 #4 — "Reports a rest-open or close the user caused (R-01, R-33)".
     let onOpenSideChange: (Side?) -> Void
     /// §4 #5 — "Pose override: when set, the row is drawn at this signed offset as if mid-drag
-    /// (armed when past the threshold) and the gesture is off."
+    /// (armed when past the threshold; filled when |offset| ≥ the row width) and the gesture is off."
     let posedOffset: CGFloat?
     /// §4 #6 — "Pose override: when set (0–1), the row is drawn with its height collapsed by this
     /// fraction (0.5 = half height), clipped and top-anchored."
@@ -147,9 +147,11 @@ struct SwipeActions<Content: View>: View {
     @State private var dragStart: CGFloat = 0
     /// §2 "Armed (|offset| ≥ 0.55 × row width)" — ephemeral (R-02).
     @State private var armed = false
-    /// §2 release rules: an armed release has run — the row holds the armed pose (collapsing, or
-    /// waiting to spring back) and takes no gesture.
+    /// §2 release rules: an armed release has run — the row fills and collapses, or springs back —
+    /// and takes no gesture.
     @State private var released = false
+    /// §2 Fill: the card is off the row and the capsule fills it (ephemeral, R-02).
+    @State private var filled = false
     /// §2 Collapse: the fraction of the row's height collapsed (0 = full height, 1 = gone).
     @State private var collapse: CGFloat = 0
     /// The side being swiped while armed or released.
@@ -227,10 +229,12 @@ struct SwipeActions<Content: View>: View {
     private var cardOffset: CGFloat {
         if let posed = posedOffset {
             let side: Side = posed < 0 ? .trailing : .leading
-            return isArmable(side) && abs(posed) >= SwipeGeometry.armFraction * width && width > 0
-                ? side.sign * SwipeGeometry.armedMagnitude(width: width)
-                : posed
+            guard isArmedPose else { return posed }
+            // §3: "A posedOffset whose magnitude is at least the row width draws the filled pose."
+            return side.sign * (abs(posed) >= width ? width : SwipeGeometry.armedMagnitude(width: width))
         }
+        // §2 Fill: "|offset| → row width, no 48 pt sliver left".
+        if filled { return activeSide.sign * width }
         if armed { return activeSide.sign * SwipeGeometry.armedMagnitude(width: width) }
         return liveOffset
     }
@@ -316,16 +320,21 @@ struct SwipeActions<Content: View>: View {
         }
     }
 
-    /// §2 "Armed release: nothing moves sideways. The card stays in the armed pose." Then, per the
-    /// edge action's `removesRow`: true → "the row collapses, then the edge action's onAction fires
-    /// (on the collapse's completion). The view never springs back, and reports no
-    /// onOpenSideChange"; false → "onAction fires at release, then the row reports closed and
-    /// springs to 0 on motion-swipe-settle, with the capsule back to a circle".
+    /// §2 Release rules, per the edge action's `removesRow`: true → "the row fills (§2 Fill), then
+    /// collapses (§2 Collapse), and the edge action's onAction fires on the collapse's completion.
+    /// The view never springs back toward the edge and reports no onOpenSideChange"; false →
+    /// "onAction fires at release, then the row reports closed and springs to 0 on
+    /// motion-swipe-settle, with the capsule back to a circle. No fill, no collapse".
     private func fullSwipe(_ side: Side) {
         guard let edge = actions(side).first else { return }
         released = true
         if edge.resolvedRemovesRow {
-            collapseRow(then: edge.onAction)
+            // §2 Fill: "on one motion-swipe-settle spring … With Reduce Motion the fill is instant."
+            withAnimation(reduceMotion ? nil : Token.Motion.swipeSettle) {
+                filled = true
+            } completion: {
+                collapseRow(then: edge.onAction)
+            }
             return
         }
         edge.onAction()
@@ -339,7 +348,7 @@ struct SwipeActions<Content: View>: View {
     }
 
     /// §2 Collapse — "0.25 s ease-in-out … With Reduce Motion the collapse is instant" — then the
-    /// action fires. The capsule, glyph, circles and sliver stay exactly where they were.
+    /// action fires. The filled capsule, glyph and dimmed circles stay exactly where the fill left them.
     private func collapseRow(then action: @escaping () -> Void) {
         released = true
         withAnimation(reduceMotion ? nil : SwipeGeometry.collapse) {
@@ -349,20 +358,21 @@ struct SwipeActions<Content: View>: View {
         }
     }
 
-    /// §2 / §4: "Drag offset, the armed flag, the collapse and the reveal phase … reset when the
+    /// §2 / §4: "Drag offset, the armed flag, the fill, the collapse and the reveal phase … reset when the
     /// view reappears or its actions change" — the row comes back closed and at full height (or at
     /// its caller-owned rest).
     private func resetGesture() {
         dragging = false
         released = false
         armed = false
+        filled = false
         collapse = 0
         liveOffset = Self.restOffset(openSide, trailing: trailing, leading: leading)
     }
 
     /// §2 While open: "a tap on a circle fires its onAction, then calls onOpenSideChange(nil) (no
-    /// capsule on tap). For a removesRow action the row then collapses as above" — collapse first,
-    /// then onAction and the close report, as the armed release does. An action with `onTap` calls
+    /// capsule on tap, no fill). For a removesRow action the row then collapses as above" — collapse first,
+    /// then onAction and the close report. An action with `onTap` calls
     /// it instead and stays open: the caller closes the row through `openSide` (library-home's
     /// delete confirmation keeps the row open while it is up).
     private func tapCircle(_ action: Action) {
@@ -484,8 +494,9 @@ private struct SwipeLayers<Content: View>: View, Animatable {
             let actions = side == .trailing ? trailing : leading
             ZStack(alignment: side == .trailing ? .trailing : .leading) {
                 Color.clear
-                // Edge action last, so a stretched capsule draws over its siblings.
-                ForEach(Array(actions.enumerated().reversed()), id: \.element.id) { index, action in
+                // Edge action first, so the siblings stay visible at their slots over a stretched
+                // or filled capsule (§3 filled: "three actions so the dimmed siblings show").
+                ForEach(Array(actions.enumerated()), id: \.element.id) { index, action in
                     actionView(action, index: index, count: actions.count, side: side)
                 }
             }
