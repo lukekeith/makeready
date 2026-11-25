@@ -146,9 +146,15 @@ struct ActivitiesEditorContainer: View {
         .task(id: model.missingStillVideoId(app: AppState.shared)) {
             await model.followMissingStill()
         }
-        .task(id: state.pageImageURL) {
-            if await UI2ImageLoader.seed([state.pageImageURL], context: "ActivitiesEditorContainer") { imagesSeeded += 1 }
+        // The page's own pictures: its background image, or a video page's still (which a reload can bring).
+        .task(id: Self.pageImageURLs(of: state)) {
+            if await UI2ImageLoader.seed(Self.pageImageURLs(of: state), context: "ActivitiesEditorContainer") { imagesSeeded += 1 }
         }
+    }
+
+    /// The pictures the page on screen needs in the image cache: its background image and a video page's still.
+    static func pageImageURLs(of state: ActivitiesEditorScreen.State) -> [String] {
+        [state.pageImageURL, state.readOnlyPosterURL].filter { !$0.isEmpty }
     }
 
     /// P3: the recorder over the page area, whole on any phone: its preview states its own height for its width.

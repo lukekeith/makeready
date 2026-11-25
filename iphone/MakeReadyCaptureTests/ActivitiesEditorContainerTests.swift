@@ -754,9 +754,10 @@ final class ActivitiesEditorContainerTests: XCTestCase {
     }
 
     /// A Model on lesson l1, version ver1, with a silent log, opened on the video activity `at`.
-    private func videoEditor(app: AppState, actions: ScriptedActivityActions, at id: String = "vi1") -> ActivitiesEditorContainer.Model {
+    private func videoEditor(app: AppState, actions: ScriptedActivityActions, at id: String = "vi1",
+                             log: @escaping (Error, String) -> Void = { _, _ in }) -> ActivitiesEditorContainer.Model {
         let model = ActivitiesEditorContainer.Model(activityId: "", activityKey: "", lessonId: "l1", lessonVersionId: "ver1",
-                                                    actions: actions, log: { _, _ in })
+                                                    actions: actions, log: log)
         model.open(app.activities[id]!)
         return model
     }
@@ -768,12 +769,14 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         let state = ActivitiesEditorContainer.screenState(model, app: app)
         XCTAssertEqual([state.readOnlyPosterURL, state.readOnlyTitle], ["https://x/still", ""])
         XCTAssertNil(model.missingStillVideoId(app: app))
+        XCTAssertTrue(ActivitiesEditorContainer.pageImageURLs(of: state).contains("https://x/still"))
     }
 
     func testAMissingStillIsFollowedThenTheDraftReloads() async {
         let app = appWithDraft([videoActivity("vi1", version: "ver1")])
         let actions = ScriptedActivityActions()
-        let model = videoEditor(app: app, actions: actions)
+        var logged: [String] = []
+        let model = videoEditor(app: app, actions: actions, log: { _, context in logged.append(context) })
         XCTAssertEqual(model.missingStillVideoId(app: app), "vid1")
         model.waitForVideo = { _ in false }
         await model.followMissingStill(app: app)
@@ -784,6 +787,7 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         cancelled.cancel()
         await cancelled.value
         XCTAssertEqual(actions.reloads, 0)
+        XCTAssertEqual(logged, ["ActivitiesEditorContainer.followMissingStill"])
         await model.followMissingStill(app: app)
         XCTAssertEqual(actions.reloads, 1)
     }
