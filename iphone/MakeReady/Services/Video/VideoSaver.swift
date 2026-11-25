@@ -22,6 +22,10 @@ struct VideoSave: Codable, Equatable {
     let window: ClosedRange<Double>?
     /// Given when the save starts, and kept through a relaunch.
     var title: String?
+    /// The leader's description once naming has ended; nil when none (D4).
+    var description: String?
+    /// True while the naming page is open: the queue holds the video until the check (D13).
+    var namingHold: Bool?
 
     func attach(title: String) -> VideoAttach? {
         switch entry {
@@ -52,6 +56,16 @@ protocol VideoSaving: AnyObject {
     /// Returns once the recording is safely marked; the work goes on in the task. Throws, changing
     /// nothing, when it cannot be marked.
     func start(_ save: VideoSave, of clip: VideoClip) throws -> Task<Void, Never>
+    /// The title a held save would get unnamed ("Video N"); nil when `localId` is not being named.
+    func automaticTitle(_ localId: String) -> String?
+    /// The kept clip's words: the editor's with its corrections, else the one transcription of the clip. Nil when
+    /// there are none (D5, D15).
+    func namingTranscript(_ localId: String) async -> VideoTranscript?
+    /// The check: trims both, saves under them and releases the hold. Throws with the hold kept.
+    func finishNaming(_ localId: String, title: String, description: String) throws
+    /// Back: no video is kept; the draft, its layers and its transcript stay as they were. Throws, changing nothing,
+    /// when the save mark cannot be cleared.
+    func cancelNaming(_ localId: String) throws
 }
 
 /// What the saver needs of `VideoUploadController`.
@@ -85,6 +99,24 @@ extension VideoUploadController: VideoSaveQueue {
 final class VideoSaver: VideoSaving {
     /// The clips, the window, the filter, its strength (0–1), the layers and the destination.
     typealias Export = @MainActor ([URL], ClosedRange<Double>?, VideoFilter, Double, [VideoLayer], URL) async throws -> ExportedVideo
+    /// The clips, the window kept and the timeout; the shape of `VideoTranscriber.transcribe(clips:window:timeout:)`.
+    typealias TranscribeClips = @MainActor ([URL], ClosedRange<Double>?, Duration) async -> VideoTranscript?
+
+    /// A save whose naming page has been opened (D13); it lasts until naming, the enqueue and the clip's
+    /// transcription have all ended, then the draft goes.
+    private struct Naming {
+        let draft: VideoDraft
+        let automaticTitle: String?
+        /// False once the check has been made.
+        var open = true
+        /// The queue has the video.
+        var enqueued = false
+        /// The kept clip's transcription (D15) is still running; there is none when the editor had a transcript.
+        var clipPending = false
+        var clip: Task<VideoTranscript?, Never>?
+        /// What the transcription landed with, once it has.
+        var landed: VideoTranscript?
+    }
 
     private static let exportName = "export.mp4"
 
@@ -94,8 +126,16 @@ final class VideoSaver: VideoSaving {
     private let report: (Error, String, @escaping () -> Void) -> Void
     private let export: Export
     private let transcribe: @MainActor (URL, Duration) async -> VideoTranscript?
+    private let transcribeClips: TranscribeClips
     private let waitForForeground: @MainActor () async -> Bool
     @ObservationIgnored private var jobs: [UUID: Task<Void, Never>] = [:]
+    /// Which run `jobs` holds, so a job that ends late never removes its successor.
+    @ObservationIgnored private var tokens: [UUID: UUID] = [:]
+    /// A cancelled job still ending; a save started again waits for it.
+    @ObservationIgnored private var retired: [UUID: (token: UUID, task: Task<Void, Never>)] = [:]
+    /// The save mark as it is now, which a retry and the enqueue use (D13).
+    @ObservationIgnored private var marks: [UUID: VideoSave] = [:]
+    @ObservationIgnored private var namings: [UUID: Naming] = [:]
     @ObservationIgnored private var isCancelled = false
 
     /// Oldest save first (D12: a saved video shows at once). An item leaves as the queue takes it.
@@ -109,6 +149,9 @@ final class VideoSaver: VideoSaving {
          transcribe: @escaping @MainActor (URL, Duration) async -> VideoTranscript? = {
              await VideoTranscriber().transcribe(video: $0, timeout: $1)
          },
+         transcribeClips: @escaping TranscribeClips = {
+             await VideoTranscriber().transcribe(clips: $0, window: $1, timeout: $2)
+         },
          waitForForeground: @escaping @MainActor () async -> Bool = VideoSaver.liveWaitForForeground) {
         self.drafts = drafts
         self.queue = queue
@@ -116,6 +159,7 @@ final class VideoSaver: VideoSaving {
         self.report = report
         self.export = export
         self.transcribe = transcribe
+        self.transcribeClips = transcribeClips
         self.waitForForeground = waitForForeground
     }
 
@@ -124,12 +168,12 @@ final class VideoSaver: VideoSaving {
         switch clip {
         case let .draft(draft):
             try drafts.markSaving(save, in: draft)
-            return run(save, draft)
+            return launch(save, draft)
         case let .file(url, duration):
             let draft = drafts.begin()
             do {
                 try drafts.markSaving(save, in: draft)
-                return run(save, try drafts.finalize(segment: url, duration: duration, in: draft))
+                return launch(save, try drafts.finalize(segment: url, duration: duration, in: draft))
             } catch {
                 let moved = draft.folder.appendingPathComponent(url.lastPathComponent)
                 if !FileManager.default.fileExists(atPath: url.path), FileManager.default.fileExists(atPath: moved.path) {
@@ -141,15 +185,33 @@ final class VideoSaver: VideoSaving {
         }
     }
 
-    /// Launch: finishes every save a kill cut off.
+    /// Launch: finishes every save a kill cut off. A held save, and any queue item still held that this saver did
+    /// not start, ends its hold and goes up as "Video N" (D8, D13).
     func resume() {
-        for cut in drafts.saving() { _ = run(cut.save, cut.draft) }
+        for cut in drafts.saving() where namings[cut.draft.id] == nil {
+            var save = cut.save
+            if save.namingHold == true {
+                save.namingHold = nil
+                release(cut.draft.id.uuidString)
+                do {
+                    try drafts.markSaving(save, in: cut.draft)
+                } catch {
+                    // Recovered: the next launch ends the hold again.
+                    Log.media.error("video save mark not rewritten: \(error.localizedDescription, privacy: .public)")
+                }
+            }
+            _ = run(save, cut.draft)
+        }
+        for localId in queue.heldIds where !namings.keys.contains(where: { $0.uuidString == localId }) { release(localId) }
     }
 
     /// Sign-out and environment switch. The recordings stay, for the next `resume`.
     func cancel() {
         isCancelled = true
         jobs.values.forEach { $0.cancel() }
+        namings.values.forEach { $0.clip?.cancel() }
+        namings = [:]
+        marks = [:]
         saving = []
     }
 
@@ -158,10 +220,138 @@ final class VideoSaver: VideoSaving {
         guard saving.contains(where: { $0.localId == localId }) else { return false }
         for cut in drafts.saving() where cut.draft.id.uuidString == localId {
             jobs[cut.draft.id]?.cancel()
+            namings[cut.draft.id]?.clip?.cancel()
+            namings[cut.draft.id] = nil
+            marks[cut.draft.id] = nil
             drafts.discard(cut.draft)
         }
         saving.removeAll { $0.localId == localId }
         return true
+    }
+
+    // MARK: Naming (D13, D15)
+
+    func automaticTitle(_ localId: String) -> String? {
+        UUID(uuidString: localId).flatMap { namings[$0]?.automaticTitle }
+    }
+
+    func namingTranscript(_ localId: String) async -> VideoTranscript? {
+        guard let id = UUID(uuidString: localId), let naming = namings[id] else { return nil }
+        let edit = drafts.current(naming.draft) ?? naming.draft
+        let heard: VideoTranscript?
+        if let edited = edit.transcript {
+            heard = VideoCaptions.corrected(edited, with: edit.layers)
+        } else {
+            heard = await naming.clip?.value
+        }
+        return Self.spoken(heard)
+    }
+
+    func finishNaming(_ localId: String, title: String, description: String) throws {
+        guard let id = UUID(uuidString: localId), var naming = namings[id], naming.open, let was = marks[id] else { return }
+        var mark = was
+        let name = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let details = description.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !name.isEmpty { mark.title = name }
+        mark.description = details.isEmpty ? nil : details
+        mark.namingHold = nil
+        try drafts.markSaving(mark, in: naming.draft)
+        if naming.enqueued {
+            do {
+                try queue.endNamingHold(localId: localId, title: name.isEmpty ? nil : name, description: mark.description)
+            } catch {
+                do {
+                    try drafts.markSaving(was, in: naming.draft)
+                } catch {
+                    Log.media.error("video save mark not restored: \(error.localizedDescription, privacy: .public)")
+                }
+                throw error
+            }
+        }
+        marks[id] = mark
+        naming.open = false
+        namings[id] = naming
+        if let title = mark.title, let row = saving.firstIndex(where: { $0.localId == localId }) {
+            let old = saving[row]
+            saving[row] = VideoSavingItem(localId: localId, title: title, durationSeconds: old.durationSeconds, savedAt: old.savedAt,
+                                          attach: mark.attach(title: title))
+        }
+        settle(id)
+    }
+
+    func cancelNaming(_ localId: String) throws {
+        guard let id = UUID(uuidString: localId), let naming = namings[id] else { return }
+        try drafts.clearSaving(naming.draft)
+        naming.clip?.cancel()
+        if let job = jobs[id], let token = tokens[id] {
+            job.cancel()
+            retired[id] = (token, job)
+            jobs[id] = nil
+            tokens[id] = nil
+        }
+        if naming.enqueued {
+            do {
+                try queue.remove(localId: localId)
+            } catch {
+                // Silent: the queue no longer has it, which is what Back wants.
+            }
+        }
+        namings[id] = nil
+        marks[id] = nil
+        saving.removeAll { $0.localId == localId }
+    }
+
+    /// Ends a queue item's hold as "Video N" (D8): the item keeps its own title.
+    private func release(_ localId: String) {
+        do {
+            try queue.endNamingHold(localId: localId, title: nil, description: nil)
+        } catch {
+            // Recovered: the item stays held and the next launch ends it again.
+            Log.media.error("video naming hold not ended: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    private static func spoken(_ transcript: VideoTranscript?) -> VideoTranscript? {
+        transcript.flatMap { $0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 }
+    }
+
+    /// Opens the naming of a held save and starts the one transcription of its clip when the editor made none (D15).
+    private func open(_ save: VideoSave, _ draft: VideoDraft) {
+        guard namings[draft.id] == nil else { return }
+        var naming = Naming(draft: draft, automaticTitle: save.title)
+        if (drafts.current(draft) ?? draft).transcript == nil {
+            let kept = keptSeconds(save, draft)
+            naming.clipPending = true
+            naming.clip = Task {
+                let heard = Self.spoken(await transcribeClips(draft.segments.map(\.url), save.window, .seconds(kept)))
+                guard !Task.isCancelled else { return nil }
+                landed(draft.id, heard)
+                return heard
+            }
+        }
+        namings[draft.id] = naming
+    }
+
+    /// The clip's words are in: they go along with the enqueue, or reach the item it already made.
+    private func landed(_ id: UUID, _ transcript: VideoTranscript?) {
+        guard var naming = namings[id] else { return }
+        naming.clipPending = false
+        naming.landed = transcript
+        namings[id] = naming
+        if naming.enqueued { queue.supplyTranscript(transcript, forLocalId: id.uuidString) }
+        settle(id)
+    }
+
+    /// Once naming, the enqueue and the transcription (which reads the draft's files) have all ended, the draft goes.
+    private func settle(_ id: UUID) {
+        guard let naming = namings[id], !naming.open, naming.enqueued, !naming.clipPending else { return }
+        drafts.discard(naming.draft)
+        namings[id] = nil
+        marks[id] = nil
+    }
+
+    private func keptSeconds(_ save: VideoSave, _ draft: VideoDraft) -> Double {
+        save.window.map { $0.upperBound - $0.lowerBound } ?? draft.segments.reduce(0) { $0 + $1.duration }
     }
 
     private func titled(_ save: VideoSave) -> VideoSave {
@@ -173,26 +363,43 @@ final class VideoSaver: VideoSaving {
     /// Returns once nothing is being saved.
     func settled() async {
         for job in Array(jobs.values) { await job.value }
+        for clip in namings.values.compactMap(\.clip) { _ = await clip.value }
+    }
+
+    private func launch(_ save: VideoSave, _ draft: VideoDraft) -> Task<Void, Never> {
+        if save.namingHold == true { open(save, draft) }
+        return run(save, draft)
     }
 
     private func run(_ save: VideoSave, _ draft: VideoDraft) -> Task<Void, Never> {
         if let job = jobs[draft.id] { return job }
         guard !isCancelled, drafts.exists(draft) else { return Task {} }
         let save = titled(save)
+        marks[draft.id] = save
         list(save, draft)
+        // A job Back cancelled may still be ending: this one starts after it.
+        let predecessor = retired[draft.id]?.task
+        let token = UUID()
         let job = Task {
-            await work(save, draft)
-            jobs[draft.id] = nil
+            await predecessor?.value
+            if !Task.isCancelled { await work(save, draft) }
+            if tokens[draft.id] == token {
+                jobs[draft.id] = nil
+                tokens[draft.id] = nil
+            } else if retired[draft.id]?.token == token {
+                retired[draft.id] = nil
+            }
         }
         jobs[draft.id] = job
+        tokens[draft.id] = token
+        retired[draft.id] = nil
         return job
     }
 
     private func list(_ save: VideoSave, _ draft: VideoDraft) {
         let localId = draft.id.uuidString
         guard let title = save.title, !saving.contains(where: { $0.localId == localId }) else { return }
-        let duration = save.window.map { $0.upperBound - $0.lowerBound } ?? draft.segments.reduce(0) { $0 + $1.duration }
-        saving.append(VideoSavingItem(localId: localId, title: title, durationSeconds: duration, savedAt: Date(),
+        saving.append(VideoSavingItem(localId: localId, title: title, durationSeconds: keptSeconds(save, draft), savedAt: Date(),
                                       attach: save.attach(title: title)))
     }
 
@@ -211,14 +418,25 @@ final class VideoSaver: VideoSaving {
                 let video = try await export(draft.segments.map(\.url), save.window, save.filter, save.strength / 100,
                                              edit.layers, draft.folder.appendingPathComponent(Self.exportName))
                 try Task.checkCancellation()
-                let title = save.title ?? nextTitle()
+                // The mark as it is now: naming may have ended during the export (D13).
+                let latest = marks[draft.id] ?? save
+                let title = latest.title ?? nextTitle()
                 timeout = video.durationSeconds
-                let spoken = edit.transcript.map { VideoCaptions.corrected($0, with: edit.layers) }
-                item = try queue.enqueue(video, localId: draft.id.uuidString, title: title, source: save.source, transcript: spoken,
-                                         attach: save.attach(title: title), transcriptHold: spoken == nil ? timeout : nil,
-                                         description: nil, namingHold: false)
+                let naming = namings[draft.id]
+                var spoken = edit.transcript.map { VideoCaptions.corrected($0, with: edit.layers) }
+                if spoken == nil { spoken = naming?.landed }
+                let waits = spoken == nil && (naming == nil || naming?.clipPending == true)
+                item = try queue.enqueue(video, localId: draft.id.uuidString, title: title, source: latest.source, transcript: spoken,
+                                         attach: latest.attach(title: title), transcriptHold: waits ? timeout : nil,
+                                         description: latest.description, namingHold: latest.namingHold == true)
             }
-            drafts.discard(draft)
+            // A named save keeps its draft until naming and the clip's transcription have ended (D13, D15).
+            if namings[draft.id] != nil {
+                namings[draft.id]?.enqueued = true
+            } else {
+                drafts.discard(draft)
+                marks[draft.id] = nil
+            }
             saving.removeAll { $0.localId == item.localId }
         } catch {
             guard !Task.isCancelled else { return }
@@ -228,8 +446,16 @@ final class VideoSaver: VideoSaving {
                 guard !Task.isCancelled else { return }
                 await work(save, draft)
             } else {
-                report(error, "Couldn't save your video") { [weak self] in _ = self?.run(save, draft) }
+                report(error, "Couldn't save your video") { [weak self] in
+                    guard let self, let latest = self.marks[draft.id] else { return }
+                    _ = self.run(latest, draft)
+                }
             }
+            return
+        }
+        // A named save's transcript came with the naming (D15); a held one never transcribes the video again.
+        if namings[draft.id] != nil {
+            settle(draft.id)
             return
         }
         // With the transcript already sent there is nothing to transcribe (D27).
