@@ -83,7 +83,10 @@ enum StudyProgramHomeMapper {
         if !rendered.isEmpty { return rendered }
         switch activity.document.renderable {
         case .video(let video):
-            return video.posterMediaId.flatMap { media[$0]?.posterUrl ?? media[$0]?.url } ?? ""
+            if let poster = video.posterMediaId.flatMap({ media[$0]?.posterUrl ?? media[$0]?.url }) { return poster }
+            // video-polish fix: no poster of its own → the video's Cloudflare still. Never its `url`:
+            // for a video that is the playback stream, not an image.
+            return media[video.videoId]?.posterUrl ?? ""
         case .youtube(let clip):
             return "https://img.youtube.com/vi/\(clip.youtubeVideoId)/hqdefault.jpg"
         default:

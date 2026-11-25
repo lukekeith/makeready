@@ -85,6 +85,27 @@ final class StudyProgramHomeMapperTests: XCTestCase {
         XCTAssertEqual(s.lessonSlideEnabled, [[false, true, true], []])
     }
 
+    /// video-polish fix (owner walk 2026-11-24): a video slide with no poster shows its video's
+    /// Cloudflare still from the media map — never the playback stream.
+    func testAVideoSlideFallsBackToItsVideosThumbnail() {
+        let video = summary("v1", position: 0, kind: "video", title: "Video 1",
+            document: #"{"schemaVersion":1,"kind":"video","content":{"type":"video","videoId":"vid1"}}"#)
+        let streamOnly = summary("v2", position: 1, kind: "video", title: "Video 2",
+            document: #"{"schemaVersion":1,"kind":"video","content":{"type":"video","videoId":"vid2"}}"#)
+        let media = [
+            "vid1": MediaMapEntry(url: "https://stream/vid1.m3u8", width: nil, height: nil, kind: "video",
+                                  playbackUrl: "https://stream/vid1.m3u8", posterUrl: "https://videodelivery.net/vid1/thumbnails/thumbnail.jpg",
+                                  durationSeconds: 60, uploaderName: nil),
+            "vid2": MediaMapEntry(url: "https://stream/vid2.m3u8", width: nil, height: nil, kind: "video",
+                                  playbackUrl: "https://stream/vid2.m3u8", posterUrl: nil,
+                                  durationSeconds: 60, uploaderName: nil)
+        ]
+        XCTAssertEqual(StudyProgramHomeMapper.slideImage(video, media: media),
+                       "https://videodelivery.net/vid1/thumbnails/thumbnail.jpg")
+        XCTAssertEqual(StudyProgramHomeMapper.slideImage(streamOnly, media: media), "",
+                       "a video's url is its stream, not an image")
+    }
+
     /// The estimate shows in whole minutes, rounded up.
     func testMinutesRoundUp() {
         XCTAssertNil(StudyProgramHomeMapper.minutes(fromSeconds: nil))
