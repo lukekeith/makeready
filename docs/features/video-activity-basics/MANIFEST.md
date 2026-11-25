@@ -1,7 +1,7 @@
 size: lg
-state: planned
+state: building
 next: /builder:resume --path docs/features/video-activity-basics
-head: 9a7c3485
+head: 6f0dd81c
 ticket: none
 branch: builder/video-activity-basics
 pr: none
@@ -13,7 +13,7 @@ tests: walk=risk review=slice
 target: main
 walk: none
 verify: none
-ready: none
+ready: pending "dev env (fleet walk lane)"
 ui2: none (d2m changes activities-editor and video-recorder from this spec, D10)
 auto: on 2026-11-25
 agent-walk: on 2026-11-25
