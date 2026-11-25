@@ -119,11 +119,6 @@ struct VideoRecorderContainer: View {
             onTextSizeChange: { model.setTextSize(named: $0) },
             onPreRollChange: { model.setPreRoll(PreRoll(panel: $0)) },
             onCountdownSoundChange: model.setCountdownSound,
-            onLengthModeChange: { model.setLengthMode(LengthMode(rawValue: $0) ?? .any) },
-            onEndCountdownChange: model.setEndCountdown,
-            onReviewTap: model.reviewTapped,
-            onReviewSeek: model.reviewSeek(to:),
-            onReviewScrubbingChange: model.setReviewScrubbing,
             feed: feed,
             hostChrome: false,
             teleprompterOffset: shown.teleprompterOffset,
@@ -134,7 +129,12 @@ struct VideoRecorderContainer: View {
             recordRowSlot: { AnyView(recordRowButtons) },
             reviewSlot: { AnyView(reviewRow) },
             // D7: the screen has no disabled Edit; while `canEdit` is false the tap does nothing.
-            onEdit: { Task { await model.editTapped() } }
+            onEdit: { Task { await model.editTapped() } },
+            onLengthModeChange: { model.setLengthMode(LengthMode(rawValue: $0) ?? .any) },
+            onEndCountdownChange: model.setEndCountdown,
+            onReviewTap: model.reviewTapped,
+            onReviewSeek: model.reviewSeek(to:),
+            onReviewScrubbingChange: model.setReviewScrubbing
         )
     }
 
