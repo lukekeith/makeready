@@ -102,6 +102,23 @@ final class VideoExporterTests: XCTestCase {
         }
     }
 
+    /// The turn is drawn into the pixels, never left to the file's track transform: Cloudflare's
+    /// transcode does not apply a stored rotation or mirror the way AVFoundation does, so a
+    /// transform-only file played back upside down there (owner walk 2026-11-25).
+    func testOrientationIsDrawnIntoThePixelsNotTheTrackTransform() async throws {
+        let turned = try await TestMovie.make(seconds: 1, colour: .red, size: sensor, rightHalf: .blue, transform: quarterTurn)
+        let mirrored = try await TestMovie.make(seconds: 1, colour: .red, size: CGSize(width: 360, height: 640), rightHalf: .blue,
+                                                transform: CGAffineTransform(a: -1, b: 0, c: 0, d: 1, tx: 360, ty: 0))
+        for (name, clip) in [("turned", turned), ("mirrored", mirrored)] {
+            let out = try await VideoExporter.export(segments: [clip], timeRange: nil, filter: .normal, strength: 1,
+                                                     to: tmp("\(name).mp4"))
+            let track = try await XCTUnwrap(AVURLAsset(url: out.url).loadTracks(withMediaType: .video).first)
+            let (stored, transform) = try await track.load(.naturalSize, .preferredTransform)
+            XCTAssertEqual(transform, .identity, name)
+            XCTAssertEqual(stored, CGSize(width: 360, height: 640), name)
+        }
+    }
+
     /// Flip between segments: each segment has its own rotation and mirroring.
     func testEachSegmentKeepsItsOwnOrientation() async throws {
         let turned = try await TestMovie.make(seconds: 1, colour: .red, size: sensor, rightHalf: .blue, transform: quarterTurn)

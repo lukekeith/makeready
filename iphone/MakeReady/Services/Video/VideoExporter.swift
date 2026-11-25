@@ -194,17 +194,11 @@ enum VideoExporter {
 
     // MARK: Drawing
 
-    /// Nil when the export needs no drawing: Normal, no layers, and every segment stored the same way. Segments
-    /// recorded with different cameras or rotations are turned upright here, since one track has only
-    /// one `preferredTransform`.
+    /// Always drawn, so every segment is turned upright in the pixels and the file's track transform
+    /// is identity. A transform-only file (the camera's rotation and front-camera mirror left as track
+    /// metadata) played back upside down after Cloudflare's transcode (owner walk 2026-11-25).
     private static func videoComposition(for joined: Joined, filter: VideoFilter, strength: Double,
-                                      layers: [DrawnLayer], windowStart: Double) async throws -> AVVideoComposition? {
-        guard let first = joined.placements.first else { throw VideoExportError.nothingToExport }
-        let alike = joined.placements.allSatisfy { $0.storedSize == first.storedSize && $0.transform == first.transform }
-        if filter == .normal && alike && layers.isEmpty {
-            joined.videoTrack.preferredTransform = first.transform
-            return nil
-        }
+                                      layers: [DrawnLayer], windowStart: Double) async throws -> AVVideoComposition {
         let look = VideoLook(filter: filter, strength: strength)
         return try await drawing(of: joined, look: { look }, layers: { (layers, windowStart) })
     }
