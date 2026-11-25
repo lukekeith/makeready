@@ -14,7 +14,7 @@ import Foundation
 enum ActivityActionsError: Error, Equatable {
     /// 409 `NOT_DRAFT`: another leader published, so the version is frozen (D46).
     case notDraft
-    /// 404 on a draft write: a publish with no changes deleted the draft and its activities (D46).
+    /// 404 on a draft write or delete: a publish with no changes deleted the draft and its activities (D46, D15).
     case gone
 }
 
@@ -154,14 +154,14 @@ struct ActivityActions {
     }
 
     /// The status-keeping request, with a 409 `NOT_DRAFT` turned into `ActivityActionsError.notDraft` and a
-    /// 404 on a PUT into `.gone`. Every other failure (a 409 `CONFLICT`, a 413) is thrown as the status error.
+    /// 404 on a PUT or DELETE into `.gone`. Every other failure (a 409 `CONFLICT`, a 413) is thrown as the status error.
     @MainActor
     private func send(_ endpoint: String, method: String, body: [String: Any]?) async throws -> Data {
         do {
             return try await api.requestWithStatus(endpoint: endpoint, method: method, body: body)
         } catch let error as APIHTTPError where error.status == 409 && error.details["code"] == "NOT_DRAFT" {
             throw ActivityActionsError.notDraft
-        } catch let error as APIHTTPError where error.status == 404 && method == "PUT" {
+        } catch let error as APIHTTPError where error.status == 404 && (method == "PUT" || method == "DELETE") {
             throw ActivityActionsError.gone
         }
     }

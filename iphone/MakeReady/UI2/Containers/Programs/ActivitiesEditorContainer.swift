@@ -83,6 +83,9 @@ struct ActivitiesEditorContainer: View {
             onReplaceVideo: { model.replaceVideo() },
             onVideoTap: { model.videoTapped() },
             onVideoMenu: { model.pauseVideo() },
+            onDelete: { Task { await model.openDeleteConfirm() } },
+            onRemoveFromLesson: { Task { await model.removeVideo(everywhere: false) } },
+            onDeleteEverywhere: { Task { await model.removeVideo(everywhere: true) } },
             videoLayer: model.videoLayer,
             videoRecorder: { inlineRecorder }
         )
@@ -299,6 +302,9 @@ struct ActivitiesEditorContainer: View {
                 state.readOnlyTitle = activity.title
             }
         }
+        // D5, D11: the Delete confirm's second row follows what the counts allow.
+        state.deleteEverywhereEnabled = model.deleteEverywhereState.enabled
+        state.deleteEverywhereNote = model.deleteEverywhereState.note
         // Owner 2026-11-08: the Idle Done is muted until there is something to save.
         state.canSave = model.phase == .ready && model.document != model.savedDocument
         return state
@@ -1128,7 +1134,7 @@ struct ActivitiesEditorContainer: View {
 
         /// A tap plays or pauses the video page's stream; the first one loads it. No stream, no player.
         func videoTapped(app: AppState? = nil) {
-            guard canvasContent == .readOnly, case .video(let video) = document.renderable else { return }
+            guard canvasContent == .readOnly, !isDeleting, case .video(let video) = document.renderable else { return }
             if videoPlayer == nil {
                 let entry = (app ?? .shared).mediaMap[video.videoId]
                 guard let playback = entry?.playbackUrl, !playback.isEmpty, let url = URL(string: playback) else { return }
@@ -1144,11 +1150,97 @@ struct ActivitiesEditorContainer: View {
         /// The hold menu opened or the app went to the background.
         func pauseVideo() { videoPlayer?.pause() }
 
-        /// Leaving the page: stops the video and drops the player.
+        /// Leaving the page: stops the video, drops the player and forgets the Delete confirm's answer (D11).
         func closeVideo() {
             videoPlayer?.stop()
             videoPlayer = nil
             videoLayer = nil
+            deleteCheck += 1
+            deleteEverywhereState = .checking
+        }
+
+        // MARK: Delete a video (video-activity-basics D4, D5, D7, D11, D15)
+
+        /// Reads whether the video may be deleted everywhere; live over `VideoActions`.
+        var readDeleteEverywhere: (String) async throws -> VideoDeleteEverywhere = { try await VideoActions().deleteEverywhere(id: $0) }
+        /// Deletes the library video; live over `VideoActions`.
+        var deleteVideo: (String) async throws -> Void = { try await VideoActions().deleteOrRemove(id: $0, decision: .delete) }
+        /// Shows a user-initiated failure as the banner (/ios-error-surface).
+        var report: (Error, String) -> Void = { error, text in
+            AppState.shared.recordError(error, context: "ActivitiesEditorContainer.removeVideo", surface: true, friendlyMessage: text)
+        }
+
+        /// What the confirm's "Delete video everywhere" row shows; `checking` until the read answers.
+        private(set) var deleteEverywhereState = VideoDeleteEverywhere.checking
+        /// True while a removal runs: Replace, Delete, both confirm choices and a tap are ignored.
+        private(set) var isDeleting = false
+        /// Names the read in flight, so an answer that arrives after the page was left is dropped.
+        private var deleteCheck = 0
+
+        /// Delete was chosen: the video pauses and the confirm reads where the video is used. A failed read is
+        /// `unknown` (console-only: the leader asked to delete, not to check).
+        func openDeleteConfirm(app: AppState? = nil) async {
+            guard canvasContent == .readOnly, !isDeleting, case .video(let video) = document.renderable else { return }
+            pauseVideo()
+            deleteEverywhereState = .checking
+            deleteCheck += 1
+            let check = deleteCheck
+            do {
+                let answer = try await readDeleteEverywhere(video.videoId)
+                if check == deleteCheck { deleteEverywhereState = answer }
+            } catch {
+                guard check == deleteCheck else { return }
+                log(error, "ActivitiesEditorContainer.openDeleteConfirm")
+                deleteEverywhereState = .unknown
+            }
+        }
+
+        /// Remove from lesson deletes the activity; everywhere deletes the video after it (D7). The activity delete
+        /// retries once by key when the draft was frozen or deleted (D15); then the editor opens the activity now at
+        /// the removed one's place, else the previous, else the type grid. The removed document is never saved.
+        func removeVideo(everywhere: Bool, app: AppState? = nil) async {
+            let app = app ?? .shared
+            guard canvasContent == .readOnly, case .video(let video) = document.renderable, !isDeleting,
+                  !everywhere || deleteEverywhereState.enabled else { return }
+            isDeleting = true
+            defer { isDeleting = false }
+            let key = activityKey
+            var index = app.activities(forVersion: lessonVersionId).firstIndex { $0.id == activityId } ?? 0
+            closeVideo()
+            await waitForSaves()
+            do {
+                try await deleteActivity(key: key, index: &index)
+            } catch {
+                report(error, "Couldn't remove the video")
+                return
+            }
+            let remaining = app.activities(forVersion: lessonVersionId).filter { $0.activityKey != key }
+            if remaining.indices.contains(index) {
+                open(remaining[index])
+            } else if let last = remaining.last {
+                open(last)
+            } else {
+                showTypeGrid()
+            }
+            guard everywhere else { return }
+            do { try await deleteVideo(video.videoId) } catch {
+                report(error, "Removed from the lesson, but couldn't delete the video")
+            }
+        }
+
+        /// The activity delete: once, and once more on the draft's row with the same key after a frozen or deleted draft.
+        private func deleteActivity(key: String, index: inout Int) async throws {
+            do {
+                try await actions.delete(activityId: activityId)
+            } catch ActivityActionsError.notDraft, ActivityActionsError.gone {
+                let rows = try await actions.reloadDraft(lessonId: lessonId)
+                if let first = rows.first { lessonVersionId = first.lessonVersionId }
+                // A key gone from the new draft was removed already.
+                guard let at = rows.firstIndex(where: { $0.activityKey == key }) else { return }
+                activityId = rows[at].id
+                index = at
+                try await actions.delete(activityId: rows[at].id)
+            }
         }
 
         // MARK: Video recorder (video-recorder D18)
@@ -1180,7 +1272,7 @@ struct ActivitiesEditorContainer: View {
 
         /// The attached video's menu: Replace video.
         func replaceVideo(app: AppState? = nil) {
-            guard canvasContent == .readOnly, kind == "video" else { return }
+            guard canvasContent == .readOnly, kind == "video", !isDeleting else { return }
             closeVideo()
             _ = openRecorder(activityId: activityId, app: app ?? .shared)
         }
@@ -1261,11 +1353,16 @@ struct ActivitiesEditorContainer: View {
             if let first = app.activities(forVersion: lessonVersionId).first {
                 await selectSlide(first.id, app: app)
             } else {
-                activityId = ""
-                insertAfterID = nil
-                canvasContent = .typeGrid
-                screenGeneration += 1
+                showTypeGrid()
             }
+        }
+
+        /// The type grid with no insert point: the lesson has no activity to follow.
+        private func showTypeGrid() {
+            activityId = ""
+            insertAfterID = nil
+            canvasContent = .typeGrid
+            screenGeneration += 1
         }
 
         /// D27: a type picked on the grid. Text and Bible can be created today (the others are unavailable tiles);

@@ -128,6 +128,12 @@ final class ActivityActionsTests: XCTestCase {
         }
     }
 
+    /// D15: the row was already deleted (a no-change publish), so the DELETE is a 404.
+    func testDeletingAGoneActivityThrowsGone() async {
+        api.errorFor = { _, _ in APIHTTPError(status: 404, message: "Not found", details: ["code": "NOT_FOUND"]) }
+        do { try await actions.delete(activityId: "a"); XCTFail("no throw") } catch { XCTAssertEqual(error as? ActivityActionsError, .gone) }
+    }
+
     func testSaveReplacesTheActivityAndOmitsAnUnchangedTitle() async throws {
         try seed("a1", position: 0)
         api.stub("PUT", "/api/content-activities/a1", json: Fixture.createResponse.replacingOccurrences(of: #""title":"Text""#, with: #""title":"Renamed""#))
