@@ -226,6 +226,9 @@ final class VideoRecorderModel {
     /// Review, with nothing saving and no editor open (D7).
     var canEdit: Bool { phase == .review && !isSaving && editor == nil }
 
+    /// The purple check: Review with no text editor open over it, and not closed (D18).
+    var showsSaveCheck: Bool { phase == .review && editor == nil && !isClosed }
+
     var screenState: ScreenState {
         ScreenState(
             phase: phase, segments: timeline.segments,

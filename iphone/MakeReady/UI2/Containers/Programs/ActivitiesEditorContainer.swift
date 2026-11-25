@@ -84,6 +84,7 @@ struct ActivitiesEditorContainer: View {
             onVideoTap: { model.videoTapped() },
             onVideoMenu: { model.pauseVideo() },
             onDelete: { Task { await model.openDeleteConfirm() } },
+            onReviewSave: { Task { await model.saveReview() } },
             onRemoveFromLesson: { Task { await model.removeVideo(everywhere: false) } },
             onDeleteEverywhere: { Task { await model.removeVideo(everywhere: true) } },
             videoLayer: model.videoLayer,
@@ -276,6 +277,8 @@ struct ActivitiesEditorContainer: View {
             // No page is open: none of its tools show.
             state.isBible = false
             state.videoRecorderHidesChrome = model.recorder.map { $0.isCapturing || $0.isCountingDown } ?? false
+            // D6, D18: Done becomes the purple check while the recorder is in Review.
+            state.reviewSaving = model.recorder?.showsSaveCheck ?? false
             // The server appends the new activity.
             if model.recordingActivityId == nil { state = withPlaceholder(state, after: nil) }
         }
@@ -1268,6 +1271,12 @@ struct ActivitiesEditorContainer: View {
         func openPendingRecorder(app: AppState? = nil) {
             guard canvasContent == .videoRecorder, recorder == nil else { return }
             if !openRecorder(activityId: nil, app: app ?? .shared) { navigator?.pop() }
+        }
+
+        /// D6: the header's purple check saves the inline recording; nothing once Review has gone.
+        func saveReview() async {
+            guard let recorder, recorder.showsSaveCheck else { return }
+            await recorder.save()
         }
 
         /// The attached video's menu: Replace video.

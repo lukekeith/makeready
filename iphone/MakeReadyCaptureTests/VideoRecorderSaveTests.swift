@@ -167,18 +167,43 @@ final class VideoRecorderSaveTests: XCTestCase {
     }
 
     private func makeModel(entry: VideoRecorderEntry = .plusMenu, queue: QueueSpy? = nil, existingTitles: [String] = [],
-                           saver: VideoSaver? = nil) -> VideoRecorderModel {
+                           saver: VideoSaver? = nil, makeEditor: VideoRecorderModel.MakeEditor? = nil) -> VideoRecorderModel {
         VideoRecorderModel(
             entry: entry,
             engine: VideoCaptureEngine(session: session, drafts: drafts, freeBytes: { nil }, notificationCenter: NotificationCenter()),
             settings: RecorderSettings(defaults: UserDefaults(suiteName: suiteName)!),
             player: player, saver: saver ?? makeSaver(queue: queue ?? QueueSpy(), existingTitles: existingTitles),
             recoverDraft: { [drafts] in drafts!.recoverable().last }, beep: { _ in },
-            report: { [weak self] _, message in self?.reports.append(message) }, loadNotes: {}, now: { 0 })
+            report: { [weak self] _, message in self?.reports.append(message) }, loadNotes: {}, makeEditor: makeEditor, now: { 0 })
+    }
+
+    /// An editor on a spy player, so Edit opens one.
+    private func editorDouble() -> VideoRecorderModel.MakeEditor {
+        { clip, layers, transcript, save in
+            VideoEditorModel(clip: clip, layers: layers, transcript: transcript, player: ReviewPlayerSpy(),
+                             transcribe: { nil }, save: save, report: { _ in })
+        }
     }
 
     private func record(_ m: VideoRecorderModel, seconds: TimeInterval = 4) {
         m.recordTapped(); m.tick(recorded: seconds); m.recordTapped()
+    }
+
+    // MARK: Review saves with the purple check (D6, D18)
+
+    func testTheSaveCheckShowsOnlyInReview() async {
+        let m = makeModel(makeEditor: editorDouble())
+        record(m)
+        XCTAssertFalse(m.showsSaveCheck)
+        m.done()
+        XCTAssertTrue(m.showsSaveCheck)
+        await m.editTapped()
+        XCTAssertNotNil(m.editor)
+        XCTAssertFalse(m.showsSaveCheck)
+    }
+
+    func testTheReviewRowIsRetakeAlone() {
+        XCTAssertEqual(VideoReviewActions.labels, ["Retake"])
     }
 
     // MARK: a clip over 2:00 opens trim; one at or under goes to Review (D8)

@@ -491,6 +491,24 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         return model
     }
 
+    func testTheHeaderCheckSavesTheInlineRecording() async throws {
+        let app = appWithLesson([("a1", "text")]), queue = QueueSpy()
+        let model = editor(app: app, at: "a1", queue: queue)
+        await model.addActivity()
+        await model.pickType("video", app: app)
+        let recorder = try XCTUnwrap(model.recorder)
+        func check() -> Bool { ActivitiesEditorContainer.screenState(model, app: app).reviewSaving }
+        recorder.recordTapped(); recorder.tick(recorded: 3); recorder.recordTapped()
+        XCTAssertFalse(check())
+        recorder.done()
+        XCTAssertTrue(check())
+        async let first: Void = model.saveReview()
+        async let second: Void = model.saveReview()
+        _ = await (first, second)
+        XCTAssertEqual(queue.items.count, 1)
+        XCTAssertFalse(check())
+    }
+
     func testPendingVideoActivity() {
         let q = [queued(localId: "L1", attach: VideoAttach(versionId: "ver1", activityId: nil, title: "Video 3")),
                  queued(localId: "L2", attach: VideoAttach(versionId: "other", activityId: nil, title: "Video 4"))]
