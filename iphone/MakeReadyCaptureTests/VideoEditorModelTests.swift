@@ -183,6 +183,25 @@ final class VideoEditorModelTests: XCTestCase {
         let m = make(); m.textTapped(); m.doneTapped()
         XCTAssertNil(m.textTool); XCTAssertFalse(m.offersRemoveCaptions)
     }
+
+    // MARK: video-polish D10 — a tap on the video
+
+    func testEmptyTapDeselectsFirst() {
+        let m = make([VideoLayer(kind: .text, text: "A", startMs: 0, endMs: 10_000)])
+        m.open()
+        m.session.select(m.session.layers[0].id)
+        m.tapEmpty()
+        XCTAssertNil(m.session.selectedId)
+        XCTAssertFalse(m.isPlaying)
+    }
+
+    func testEmptyTapTogglesPlayWhenNothingSelected() {
+        let m = make()
+        m.open()
+        m.tapEmpty(); XCTAssertTrue(m.isPlaying)
+        m.tapEmpty(); XCTAssertFalse(m.isPlaying)
+    }
+
 }
 
 /// A player whose load fails unless `fails` is off, at once or (`holds`) when `finish` is called.
@@ -214,21 +233,4 @@ private final class LoadingPlayerSpy: VideoReviewPlaying {
     func seek(to seconds: Double) { seeks.append(seconds) }
     func stop() { }
 
-    // MARK: video-polish D10 — a tap on the video
-
-    func testEmptyTapDeselectsFirst() {
-        let m = make([VideoLayer(kind: .text, text: "A", startMs: 0, endMs: 10_000)])
-        m.open()
-        m.session.select(m.session.layers[0].id)
-        m.tapEmpty()
-        XCTAssertNil(m.session.selectedId)
-        XCTAssertFalse(m.isPlaying)
-    }
-
-    func testEmptyTapTogglesPlayWhenNothingSelected() {
-        let m = make()
-        m.open()
-        m.tapEmpty(); XCTAssertTrue(m.isPlaying)
-        m.tapEmpty(); XCTAssertFalse(m.isPlaying)
-    }
 }
