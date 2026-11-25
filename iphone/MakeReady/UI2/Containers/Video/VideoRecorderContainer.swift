@@ -177,7 +177,7 @@ struct VideoRecorderContainer: View {
         static let visual: CGFloat = 24
     }
 
-    /// §2c: undo and ✓, on the record row (D5).
+    /// §2c: undo and the forward arrow, on the record row (D5).
     private var recordRowButtons: some View {
         ZStack {
             if shown.canImport {
@@ -191,7 +191,8 @@ struct VideoRecorderContainer: View {
                     .padding(.leading, Geometry.importLeading)
             }
             if shown.canFinish {
-                glyphButton(.check, label: "Review", size: Geometry.rowButton, action: model.done)
+                // Owner 2026-11-25: a forward arrow — the step on to Review, not the final save.
+                glyphButton(.arrowRight, label: "Review", size: Geometry.rowButton, action: model.done)
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .padding(.trailing, Token.Space.pageMargin)
             }

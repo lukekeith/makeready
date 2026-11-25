@@ -23,7 +23,7 @@ import UIKit
 /// TeleprompterBand, C-159 DoneCheck, C-004 ScrubTrack, C-047 RadioOptionRow, C-132 EmptyState, and the lessonInline host chrome C-040 PageHeader and
 /// C-081 ActivityNavBar (deviation 3). §2's C-021 GlyphButton roles (close, import, undo, ✓) are
 /// NOT in §4's roll-call (§4: "it joins the roll-call with drawings once a frame draws them"), so
-/// the app draws them in the slots; Review's Retake icon is this screen's (§2d). Standalone: `identifiedFrom` is null, so no D7 template applies.
+/// the app draws them in the slots; Review's Retake and Save icons are this screen's (§2d). Standalone: `identifiedFrom` is null, so no D7 template applies.
 struct VideoRecorderScreen: View {
 
     /// One §3 state's inputs. Every §3 state is reachable by these alone.
@@ -131,7 +131,7 @@ struct VideoRecorderScreen: View {
     var onReviewTap: () -> Void = {}
     var onReviewSeek: (TimeInterval) -> Void = { _ in }
     var onReviewScrubbingChange: (Bool) -> Void = { _ in }
-    /// fullScreen Review: the C-159 check, "Save" to VoiceOver.
+    /// fullScreen Review: the trailing check glyph, "Save" to VoiceOver.
     var onSave: () -> Void = {}
     /// §3 Review: the top-centre Retake icon — the container confirms (D9).
     var onRetake: () -> Void = {}
@@ -261,8 +261,10 @@ struct VideoRecorderScreen: View {
         static let pauseBottom: CGFloat = 20
         /// GAP — video-recorder §2c: C-144 TimerPill's 33 pt height; no size token.
         static let timerHeight: CGFloat = 33
-        /// GAP — video-recorder §2d Review: Retake in the ✕'s 44 pt target; no size token.
+        /// GAP — video-recorder §2d Review: Retake and Save in the ✕'s 44 pt target; no size token.
         static let hitTarget: CGFloat = 44
+        /// GAP — video-recorder §2b / §2d Review: the ✕'s "24 pt glyph", Save's too; no size token.
+        static let glyph: CGFloat = 24
         /// GAP — video-recorder §2d Review: Edit and Filters "10 pt gap"; no spacing token.
         static let reviewToolGap: CGFloat = 10
         /// GAP — video-recorder §2a: the host's "hairline divider"; no stroke token.
@@ -537,13 +539,10 @@ struct VideoRecorderScreen: View {
 
         // video-activity-basics: fullScreen Review's Save, opposite the app's ✕.
         if phase == .review && state.layout == .fullScreen {
-            DoneCheck(onTap: onSave)
-                // C-159 names itself "Done"; here it is Save.
-                .accessibilityRepresentation { SwiftUI.Button("Save", action: onSave) }
-                .ui2Element("C-159 DoneCheck")
-                .frame(height: Geometry.hitTarget)
+            saveButton
                 .padding(.top, Self.topRowCentre - Geometry.hitTarget / 2)
-                .padding(.trailing, Token.Space.pageMargin)
+                // The glyph, not its target, is inset by the page margin — as the app's ✕ is.
+                .padding(.trailing, Token.Space.pageMargin - (Geometry.hitTarget - Geometry.glyph) / 2)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
         }
 
@@ -689,6 +688,20 @@ struct VideoRecorderScreen: View {
         }
         .padding(.horizontal, Token.Space.pageMargin)
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// §2d Review: the check glyph in the ✕'s style — C-021 `check`, not C-159.
+    private var saveButton: some View {
+        SwiftUI.Button(action: onSave) {
+            Glyph(.check, size: .md, tint: Token.textPrimary)
+                // Reads over any camera image, as C-147's label does.
+                .designShadow(Token.Elevation.thumb)
+                .frame(width: Geometry.hitTarget, height: Geometry.hitTarget)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Save")
+        .ui2Element("Save")
     }
 
     /// §2d Review: the refresh glyph in the ✕'s style.
