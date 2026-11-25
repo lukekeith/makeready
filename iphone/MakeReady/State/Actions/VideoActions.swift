@@ -88,12 +88,12 @@ private let api: APIClientProtocol
         state.persist()
     }
 
-    /// Only `GET /api/videos/:id` carries `lessonUseCount`: any other answer keeps the count already known.
+    /// Only `GET /api/videos/:id` carries the use counts: any other answer keeps the counts already known.
     @MainActor
     private func countingKnownUses(_ video: Video) -> Video {
-        guard video.lessonUseCount == nil else { return video }
         var counted = video
-        counted.lessonUseCount = state.videos[video.id]?.lessonUseCount
+        if video.lessonUseCount == nil { counted.lessonUseCount = state.videos[video.id]?.lessonUseCount }
+        if video.versionUseCount == nil { counted.versionUseCount = state.videos[video.id]?.versionUseCount }
         return counted
     }
 
@@ -242,6 +242,13 @@ private let api: APIClientProtocol
         return count > 0 ? .removeFromLibrary(lessonCount: count) : .delete
     }
 
+    /// Whether the video may be deleted everywhere (D5, D11): decided by the fresh answer's counts only,
+    /// never a cached one. A failed read throws for the caller's error banner.
+    @MainActor
+    func deleteEverywhere(id: String) async throws -> VideoDeleteEverywhere {
+        VideoDeleteEverywhere(try await getVideo(id: id))
+    }
+
     /// Runs the call the decision names; the id leaves both stores and the window in the same Action (D27).
     @MainActor
     func deleteOrRemove(id: String, decision: VideoDeleteDecision) async throws {
@@ -362,6 +369,13 @@ private let api: APIClientProtocol
 
         NSLog("⚠️ VideoActions: Timeout waiting for video processing")
         return video
+    }
+
+    /// D16: reads the video, then follows it at `waitForVideoReady`'s limits; true is status `ready`.
+    @MainActor
+    func waitUntilReady(id: String) async throws -> Bool {
+        let video = try await getVideo(id: id)
+        return await waitForVideoReady(video: video).videoStatus == .ready
     }
 
     // MARK: - Complete Upload Flow

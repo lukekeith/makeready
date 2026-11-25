@@ -47,6 +47,15 @@ final class VideoActionsLibraryTests: XCTestCase {
         videoJSON(id: id).replacingOccurrences(of: #","lessonUseCount":0"#, with: "")
     }
 
+    /// `videoJSON` with both counts, as `GET /api/videos/:id` answers (D11).
+    private func countedJSON(_ id: String, lessons: Int, versions: Int) -> String {
+        String(videoJSON(id: id, lessonUseCount: lessons).dropLast()) + #","versionUseCount":\#(versions)}"#
+    }
+
+    private func stub(_ videoJSON: String) {
+        api.stub("GET", "/api/videos/a", json: #"{"success":true,"data":\#(videoJSON)}"#)
+    }
+
     private func page(_ ids: [String], next: String?, titles: [String: String] = [:]) -> String {
         let rows = ids.map { summaryJSON($0, title: titles[$0] ?? "Video 1") }.joined(separator: ",")
         let cursor = next.map { #""\#($0)""# } ?? "null"
@@ -59,6 +68,43 @@ final class VideoActionsLibraryTests: XCTestCase {
             state.videos.upsert(try! JSONDecoder.apiDecoder.decode(Video.self, from: Data(videoJSON(id: id).utf8)))
         }
         state.videoLibraryWindow = VideoLibraryWindow(ids: ids, nextCursor: nil, hasMore: false, query: nil)
+    }
+
+    // MARK: - Delete everywhere (D5, D11)
+
+    func testDeleteEverywhereStates() async throws {
+        let cases: [(Int, Int, VideoDeleteEverywhere, String)] = [
+            (1, 1, .allowed, ""), (0, 0, .allowed, ""), (3, 1, .otherLessons(2), "Used in 2 other lessons"),
+            (2, 4, .otherLessons(1), "Used in 1 other lesson"), (1, 2, .published, "Used in a published lesson")
+        ]
+        for (lessons, versions, expected, note) in cases {
+            stub(countedJSON("a", lessons: lessons, versions: versions))
+            let state = try await actions.deleteEverywhere(id: "a")
+            XCTAssertEqual(state, expected)
+            XCTAssertEqual(state.enabled, expected == .allowed)
+            XCTAssertEqual(state.note, note)
+        }
+        XCTAssertFalse(VideoDeleteEverywhere.checking.enabled)
+    }
+
+    func testAMissingCountIsUnknownEvenWhenOneIsCached() async throws {
+        stub(countedJSON("a", lessons: 1, versions: 1))
+        _ = try await actions.deleteEverywhere(id: "a")
+        stub(videoJSON(id: "a", lessonUseCount: 1))
+        let second = try await actions.deleteEverywhere(id: "a")
+        XCTAssertEqual(second, .unknown)
+        XCTAssertFalse(second.enabled)
+        XCTAssertEqual(second.note, "Couldn't check where it's used")
+        XCTAssertEqual(state.videos["a"]?.versionUseCount, 1)
+    }
+
+    func testDeleteEverywherePropagatesAFailedRead() async {
+        let result = try? await actions.deleteEverywhere(id: "never-stubbed")
+        XCTAssertNil(result)
+    }
+
+    func testCheckingNoteReads() {
+        XCTAssertEqual(VideoDeleteEverywhere.checking.note, "Checking where it's used…")
     }
 
     // MARK: - Delete or remove (D17)
@@ -226,6 +272,15 @@ final class VideoActionsLibraryTests: XCTestCase {
         XCTAssertEqual(state.videos["a"]?.title, "Sunday")
         XCTAssertEqual(state.libraryVideos["a"]?.title, "Sunday")
         XCTAssertEqual(api.recordedCalls(method: "PATCH").first?.body?["title"] as? String, "Sunday")
+    }
+
+    // MARK: - Following a video that is still arriving (video-activity-basics D16)
+
+    func testWaitUntilReadyIsTrueForAReadyVideo() async throws {
+        api.stub("GET", "/api/videos/r", json: #"{"success":true,"data":\#(videoJSON(id: "r"))}"#)
+        api.stub("GET", "/api/videos/e", json: #"{"success":true,"data":\#(videoJSON(id: "e").replacingOccurrences(of: #""status":"ready""#, with: #""status":"error""#))}"#)
+        let answers = [try await actions.waitUntilReady(id: "r"), try await actions.waitUntilReady(id: "e")]
+        XCTAssertEqual(answers, [true, false])
     }
 
     // MARK: - Titles (D14)

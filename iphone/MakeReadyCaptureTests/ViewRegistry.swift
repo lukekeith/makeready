@@ -560,7 +560,9 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
                         MakeReadyUI.ActionMenuOverlay.ActionItem(
                             glyph: $0.glyph,
                             label: $0.label,
-                            tone: $0.tone == "destructive" ? .destructive : .standard
+                            tone: $0.tone == "destructive" ? .destructive : .standard,
+                            enabled: $0.enabled ?? true,
+                            subtitle: $0.subtitle ?? ""
                         )
                     },
                     doneLabel: c.doneLabel ?? "Done"
@@ -5401,6 +5403,12 @@ private func buildScreenActivitiesEditor(_ fixture: CaptureFixture) throws -> An
             readOnlyPosterURL: readOnlyPosterURL,
             videoPendingPosterURL: videoPendingPosterURL,
             replaceVideoMenuOpen: c.replaceVideoMenuOpen ?? sample.replaceVideoMenuOpen,
+            videoOverlaySeed: c.videoOverlaySeed
+                .flatMap(MakeReadyUI.ActivitiesEditorScreen.State.VideoOverlaySeed.init(rawValue:))
+                ?? sample.videoOverlaySeed,
+            deleteEverywhereEnabled: c.deleteEverywhereEnabled ?? sample.deleteEverywhereEnabled,
+            deleteEverywhereNote: c.deleteEverywhereNote ?? sample.deleteEverywhereNote,
+            reviewSaving: c.reviewSaving ?? sample.reviewSaving,
             snapIndex: c.snapIndex ?? sample.snapIndex,
             objectLocks: c.objectLocks ?? sample.objectLocks,
             objectIDs: c.objectIDs ?? sample.objectIDs,

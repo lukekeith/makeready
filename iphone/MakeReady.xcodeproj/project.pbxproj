@@ -1404,6 +1404,7 @@
 		L1BH0VDM0000000000000002 /* VideoDetailModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VDM0000000000000001 /* VideoDetailModel.swift */; };
 		L1BH0VDP0000000000000002 /* VideoDetailPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VDP0000000000000001 /* VideoDetailPlayer.swift */; };
 		L1BH0VDT0000000000000002 /* VideoDetailModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VDT0000000000000001 /* VideoDetailModelTests.swift */; };
+		L1BH0AVT0000000000000002 /* AVVideoPlayerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0AVT0000000000000001 /* AVVideoPlayerTests.swift */; };
 		L1BH0VFL0000000000000002 /* LibraryHomeVideoFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VFL0000000000000001 /* LibraryHomeVideoFlow.swift */; };
 		L1BH0VFL0000000000000004 /* LibraryHomeVideoFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VFL0000000000000003 /* LibraryHomeVideoFlowTests.swift */; };
 		L1BH0VFL0000000000000005 /* LibraryHomeVideoFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = L1BH0VFL0000000000000001 /* LibraryHomeVideoFlow.swift */; };
@@ -2328,6 +2329,7 @@
 		L1BH0VDM0000000000000001 /* VideoDetailModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = VideoDetailModel.swift; path = Containers/Video/VideoDetailModel.swift; sourceTree = "<group>"; };
 		L1BH0VDP0000000000000001 /* VideoDetailPlayer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = VideoDetailPlayer.swift; path = Containers/Video/VideoDetailPlayer.swift; sourceTree = "<group>"; };
 		L1BH0VDT0000000000000001 /* VideoDetailModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VideoDetailModelTests.swift; sourceTree = "<group>"; };
+		L1BH0AVT0000000000000001 /* AVVideoPlayerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AVVideoPlayerTests.swift; sourceTree = "<group>"; };
 		L1BH0VFL0000000000000001 /* LibraryHomeVideoFlow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LibraryHomeVideoFlow.swift; path = Containers/Library/LibraryHomeVideoFlow.swift; sourceTree = "<group>"; };
 		L1BH0VFL0000000000000003 /* LibraryHomeVideoFlowTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LibraryHomeVideoFlowTests.swift; sourceTree = "<group>"; };
 		LDPC0001000000000000001 /* LessonDetailPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonDetailPage.swift; sourceTree = "<group>"; };
@@ -3094,6 +3096,7 @@
 				L1BH0MAP0000000000000013 /* LibraryHomeSearchTests.swift */,
 				L1BH0VFL0000000000000003 /* LibraryHomeVideoFlowTests.swift */,
 				L1BH0VDT0000000000000001 /* VideoDetailModelTests.swift */,
+				L1BH0AVT0000000000000001 /* AVVideoPlayerTests.swift */,
 				L1BH0MAP0000000000000023 /* MemoDetailMapperTests.swift */,
 				L1BH0MDM0000000000000005 /* MemoDetailModelTests.swift */,
 				L1BH0RSE0000000000000005 /* RecorderSessionTests.swift */,
@@ -4520,6 +4523,7 @@
 				L1BH0MAP0000000000000014 /* LibraryHomeSearchTests.swift in Sources */,
 				L1BH0VFL0000000000000004 /* LibraryHomeVideoFlowTests.swift in Sources */,
 				L1BH0VDT0000000000000002 /* VideoDetailModelTests.swift in Sources */,
+				L1BH0AVT0000000000000002 /* AVVideoPlayerTests.swift in Sources */,
 				L1BH0MAP0000000000000024 /* MemoDetailMapperTests.swift in Sources */,
 				L1BH0MDM0000000000000006 /* MemoDetailModelTests.swift in Sources */,
 				L1BH0RSE0000000000000006 /* RecorderSessionTests.swift in Sources */,

@@ -46,6 +46,11 @@ struct ActionMenuOverlay: View {
         /// ui2-groups-edit D13: C-067 §4 `tone`. Default `.standard` keeps the frozen C-066 snapshot.
         // GAP — C-066 §4 lists no `tone` on ActionItem; routed to /ui2-resolve C-066 (ui2-groups-edit F4).
         var tone: ActionMenuRow.Tone = .standard
+        /// video-activity-basics: in the Confirmation form, `false` is C-048's disabled look and the
+        /// button fires nothing. The rows ignore it.
+        var enabled: Bool = true
+        /// video-activity-basics: in the Confirmation form, a line under the button. "" = none.
+        var subtitle: String = ""
 
         var id: String { "\(glyph)|\(label)" }
     }
@@ -106,8 +111,19 @@ struct ActionMenuOverlay: View {
                 // §3 Confirmation (revised 2026-10-29): each action is a full-width C-048, label
                 // centred, no glyph, no chevron, no hairline — stacked with the card's 16 gap.
                 ForEach(Array(actions.enumerated()), id: \.element.id) { index, action in
-                    PageActionButton(label: action.label, role: Self.confirmationRole(action.tone)) { onSelect(action) }
-                        .ui2Element("Action \(index + 1)")
+                    VStack(spacing: Token.Space.elementGap) {
+                        PageActionButton(label: action.label, role: Self.confirmationRole(action.tone),
+                                         enabled: action.enabled) { onSelect(action) }
+                            .ui2Element("Action \(index + 1)")
+                        if !action.subtitle.isEmpty {
+                            Text(action.subtitle)
+                                .designTextStyle(Token.TypeStyle.bodySm)
+                                .foregroundStyle(Token.textSecondary)
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: .infinity)
+                                .ui2Element("Subtitle \(index + 1)")
+                        }
+                    }
                 }
             } else {
                 actionsList.ui2Element("Actions list")

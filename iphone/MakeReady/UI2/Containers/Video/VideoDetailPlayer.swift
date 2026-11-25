@@ -21,28 +21,40 @@ protocol VideoPlaying: AnyObject {
 }
 
 /// video-recorder D16: AVPlayer over the video's HLS `playbackUrl`. Playback uses the memo player's audio
-/// session (`.playback`, restored on stop), so the video plays with the ringer switch off.
+/// session (`.playback`, restored on stop), so the video plays with the ringer switch off. A muted player
+/// (D13: tests, captures and agent walks) sets `AVPlayer.isMuted` and never touches the session.
 @MainActor
 @Observable
 final class AVVideoPlayer: VideoPlaying {
     private(set) var elapsed: Double = 0
     private(set) var isPlaying = false
     private(set) var isReady = false
+    /// D13: set at construction; a muted player never activates or restores the audio session.
+    let isMuted: Bool
+    /// D12: the video played through to its end and has not been seeked or loaded since, so play starts over
+    /// even when the duration is not known.
+    private(set) var isAtEnd = false
 
     @ObservationIgnored private let player = AVPlayer()
     @ObservationIgnored private let playerLayer: AVPlayerLayer
     @ObservationIgnored private let session: MemoPlaybackSessionControlling
     @ObservationIgnored private var duration: Double = 0
+    /// The loaded stream, kept so a play after a failure loads it again instead of playing nothing.
+    @ObservationIgnored private var loadedURL: URL?
+    @ObservationIgnored private var didFail = false
     @ObservationIgnored private var timeObserver: Any?
     @ObservationIgnored private var statusObservation: NSKeyValueObservation?
     @ObservationIgnored private var endObserver: NSObjectProtocol?
 
     var layer: CALayer? { playerLayer }
 
-    init(session: MemoPlaybackSessionControlling? = nil) {
+    init(session: MemoPlaybackSessionControlling? = nil, videoGravity: AVLayerVideoGravity = .resizeAspect,
+         muted: Bool = UserDefaults.standard.bool(forKey: "muteVideoPlayback")) {
         self.session = session ?? MemoPlaybackSession()
+        isMuted = muted
+        player.isMuted = muted
         playerLayer = AVPlayerLayer(player: player)
-        playerLayer.videoGravity = .resizeAspect
+        playerLayer.videoGravity = videoGravity
         timeObserver = player.addPeriodicTimeObserver(
             forInterval: CMTime(seconds: 0.25, preferredTimescale: 600), queue: .main) { [weak self] time in
             MainActor.assumeIsolated {
@@ -59,9 +71,12 @@ final class AVVideoPlayer: VideoPlaying {
 
     func load(url: URL, duration: Double) {
         self.duration = duration
+        loadedURL = url
+        didFail = false
         elapsed = 0
         isPlaying = false
         isReady = false
+        isAtEnd = false
         let item = AVPlayerItem(url: url)
         statusObservation = item.observe(\.status, options: [.new]) { [weak self] item, _ in
             Task { @MainActor in
@@ -81,12 +96,15 @@ final class AVVideoPlayer: VideoPlaying {
     }
 
     func play() {
-        // A video that has ended starts over.
-        if duration > 0, elapsed >= duration { seek(to: 0) }
-        do {
-            try session.activatePlayback()
-        } catch {
-            Log.memo.error("video playback session not activated: \(error.localizedDescription)")
+        if didFail, let loadedURL { load(url: loadedURL, duration: duration) }
+        // A video that has ended starts over, whether or not its duration is known.
+        if isAtEnd || (duration > 0 && elapsed >= duration) { seek(to: 0) }
+        if !isMuted {
+            do {
+                try session.activatePlayback()
+            } catch {
+                Log.memo.error("video playback session not activated: \(error.localizedDescription)")
+            }
         }
         isPlaying = true
         player.play()
@@ -99,6 +117,7 @@ final class AVVideoPlayer: VideoPlaying {
 
     func seek(to seconds: Double) {
         let target = min(max(seconds, 0), duration > 0 ? duration : max(seconds, 0))
+        isAtEnd = false
         elapsed = target
         player.seek(to: CMTime(seconds: target, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero)
     }
@@ -109,15 +128,19 @@ final class AVVideoPlayer: VideoPlaying {
 
     func stop() {
         pause()
-        session.restore()
+        if !isMuted { session.restore() }
     }
 
-    private func playedToEnd() {
-        isPlaying = false
-        elapsed = duration
+    /// The video reached its end: it stops, and the next play starts over. With no known duration `elapsed` keeps
+    /// the last value it had.
+    func playedToEnd() {
+        if duration > 0 { elapsed = duration }
+        stop()
+        isAtEnd = true
     }
 
     private func failed(_ error: Error?) {
+        didFail = true
         isPlaying = false
         isReady = false
         AppState.shared.recordError(error ?? CancellationError(), context: "AVVideoPlayer", surface: true,

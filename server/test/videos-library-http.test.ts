@@ -44,6 +44,7 @@ describe('Video Library routes', () => {
     expect((await request(app).get('/api/videos/not-a-uuid').set('Authorization', bearer(owner.token))).status).toBe(404)
     const one = await request(app).get(`/api/videos/${someId}`).set('Authorization', bearer(owner.token))
     expect(one.body.data).toHaveProperty('lessonUseCount', 0)
+    expect(one.body.data).toHaveProperty('versionUseCount', 0)
   })
 
   it('removes from the Library once, owner only, and /me drops the row', async () => {

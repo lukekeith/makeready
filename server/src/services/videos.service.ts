@@ -5,7 +5,7 @@ import type { Video } from '../generated/prisma/index.js'
 import { getVideo as getCloudflareVideo } from './cloudflare.js'
 import { TRANSCRIPT_MAX_ATTEMPTS } from './transcription.service.js'
 import { decodeLibraryCursor, encodeLibraryCursor, getUserOrgId, syncVideoStatus } from './media-library.js'
-import { videoActivityUseCount } from './content-media.service.js'
+import { videoActivityUseCount, videoVersionUseCount } from './content-media.service.js'
 import { deriveVideoMetadata } from './media-metadata.js'
 import { trackActivity } from './activity.js'
 
@@ -208,6 +208,11 @@ export async function removeFromLibrary(userId: string, id: string): Promise<{ i
 /** Distinct lesson activities that use this video, the count behind DELETE's 409 guard (F2, D17). */
 export function lessonUseCount(videoId: string): Promise<number> {
   return videoActivityUseCount(prisma, videoId)
+}
+
+/** Activity rows, in versions of every status, that name this video: what a published lesson keeps after its draft's activity goes (D11). */
+export function versionUseCount(videoId: string): Promise<number> {
+  return videoVersionUseCount(prisma, videoId)
 }
 
 /** Pulls the video's latest state from Stream into its row and the Media library (D23). Throws a 500 VideoServiceError when Stream cannot be read. */

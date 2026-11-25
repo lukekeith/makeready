@@ -143,6 +143,23 @@ export function videoActivityUseCount(db: Pick<Tx, 'mediaUsage'>, videoId: strin
   return activityUseCount(db, { videoId })
 }
 
+/**
+ * Activity rows, in versions of every status, whose document names the video by id or by a Media row linked to
+ * it (D11). The documents alone decide: a row may name a video that has no Media or usage row. The text match
+ * only narrows the rows read; `documentMediaRefs` decides.
+ */
+export async function videoVersionUseCount(db: Pick<Tx, 'media' | '$queryRaw'>, videoId: string): Promise<number> {
+  const linked = new Set((await db.media.findMany({ where: { videoId }, select: { id: true } })).map((m) => m.id))
+  const ids = [videoId, ...linked]
+  const rows = await db.$queryRaw<{ document: unknown }[]>`
+    SELECT a."document" FROM "content_activities" a
+    WHERE EXISTS (SELECT 1 FROM unnest(${ids}::text[]) AS named(id) WHERE strpos(a."document"::text, named.id) > 0)`
+  return rows.filter(({ document }) => {
+    const refs = documentMediaRefs(document)
+    return refs.videoIds.includes(videoId) || refs.mediaIds.some((id) => linked.has(id))
+  }).length
+}
+
 /** Whether an `ACTIVITY` usage row names any of `mediaIds` (D34's delete guard). */
 export async function isUsedByActivity(db: Pick<Tx, 'mediaUsage'>, mediaIds: string[]): Promise<boolean> {
   if (!mediaIds.length) return false

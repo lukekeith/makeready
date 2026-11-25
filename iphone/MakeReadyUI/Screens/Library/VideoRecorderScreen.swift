@@ -132,6 +132,8 @@ struct VideoRecorderScreen: View {
     var onReviewTap: () -> Void = {}
     var onReviewSeek: (TimeInterval) -> Void = { _ in }
     var onReviewScrubbingChange: (Bool) -> Void = { _ in }
+    /// fullScreen Review: the C-159 check, "Save" to VoiceOver.
+    var onSave: () -> Void = {}
 
     // Host inputs (every default renders as captured).
     /// The live feed: the capture engine's display layer, or Review's player layer. nil = the
@@ -204,7 +206,8 @@ struct VideoRecorderScreen: View {
         onEndCountdownChange: @escaping (Int) -> Void = { _ in },
         onReviewTap: @escaping () -> Void = {},
         onReviewSeek: @escaping (TimeInterval) -> Void = { _ in },
-        onReviewScrubbingChange: @escaping (Bool) -> Void = { _ in }
+        onReviewScrubbingChange: @escaping (Bool) -> Void = { _ in },
+        onSave: @escaping () -> Void = {}
     ) {
         self.state = state
         self.onRecord = onRecord
@@ -236,6 +239,7 @@ struct VideoRecorderScreen: View {
         self.onReviewTap = onReviewTap
         self.onReviewSeek = onReviewSeek
         self.onReviewScrubbingChange = onReviewScrubbingChange
+        self.onSave = onSave
         _sheet = SwiftUI.State(initialValue: state.sheet)
         _mountedSheet = SwiftUI.State(initialValue: state.sheet)
         _mountedAtRest = SwiftUI.State(initialValue: state.sheet != .none)
@@ -523,6 +527,16 @@ struct VideoRecorderScreen: View {
                 .accessibilityAddTraits(.isButton)
                 .accessibilityAction { onReviewTap() }
                 .ui2Element("Review video")
+        }
+
+        // video-activity-basics: fullScreen Review's Save, opposite the app's ✕.
+        if phase == .review && state.layout == .fullScreen {
+            DoneCheck(onTap: onSave)
+                // C-159 names itself "Done"; here it is Save.
+                .accessibilityRepresentation { SwiftUI.Button("Save", action: onSave) }
+                .ui2Element("C-159 DoneCheck")
+                .padding(Token.Space.pageMargin)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
         }
 
         // Top: bar, timer, teleprompter band (§2c).
@@ -894,6 +908,16 @@ struct VideoRecorderScreen: View {
 #Preview("Review") {
     VideoRecorderScreen(
         state: .init(phase: .review, segments: [7.8, 7.0], reviewElapsed: 4, reviewDuration: 14.8),
+        onEdit: {}
+    )
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
+
+#Preview("Review — full screen") {
+    VideoRecorderScreen(
+        state: .init(layout: .fullScreen, phase: .review, segments: [7.8, 7.0], reviewElapsed: 4, reviewDuration: 14.8),
         onEdit: {}
     )
         .padding(.top, 59)

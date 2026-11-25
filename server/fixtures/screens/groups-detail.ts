@@ -18,8 +18,8 @@
  * Creates no org, user or group.
  */
 import { textDocument, textObject, videoDocument, youtubeDocument } from '../activity-documents.js'
-import { lessonId, lessonVersionId, scheduleId, videoActivityKey } from '../base.js'
-import { customizeLessons, seedImageMedia } from '../lesson-content.js'
+import { PROGRAMS, lessonId, lessonVersionId, scheduleId, videoActivityKey } from '../base.js'
+import { customizeLessons, seedActivityUsages, seedImageMedia } from '../lesson-content.js'
 import type { FixtureContext } from '../context.js'
 import { FIXTURE_ENROLLMENT_IDS, FIXTURE_GROUP_IDS, FIXTURE_MEMBER_IDS, FIXTURE_ORG_ID, FIXTURE_USER_ID, fixtureId } from '../ids.js'
 
@@ -47,6 +47,8 @@ export const YOUTUBE_THUMBNAIL_URL = 'https://picsum.photos/seed/makeready-fixtu
 export const VIDEO_THUMBNAIL_URL = 'https://picsum.photos/seed/makeready-fixture-video/640/360'
 export const READ_IMAGE_URL = 'https://picsum.photos/seed/makeready-fixture-read/640/360'
 const VIDEO_ID = fixtureId('video', 1)
+/** The Media row a capture writes for the base lessons' video: its still is the posterless pages' picture. */
+const VIDEO_MEDIA_N = 400_100
 const VIDEO_PLAYBACK_URL = 'https://videodelivery.net/fixture-video-1/manifest/video.m3u8'
 
 export async function full(ctx: FixtureContext): Promise<void> {
@@ -136,6 +138,23 @@ export async function full(ctx: FixtureContext): Promise<void> {
       createdAt: ctx.daysAgo(30),
     },
   })
+  await prisma.media.create({
+    data: {
+      id: fixtureId('media', VIDEO_MEDIA_N),
+      title: 'A welcome from your leader',
+      url: VIDEO_PLAYBACK_URL,
+      thumbnailUrl: VIDEO_THUMBNAIL_URL,
+      type: 'video',
+      mimeType: 'video/mp4',
+      duration: 180,
+      videoId: VIDEO_ID,
+      organizationId: FIXTURE_ORG_ID,
+      uploadedBy: FIXTURE_USER_ID,
+      source: 'auto_capture',
+      visibility: 'members',
+      createdAt: ctx.daysAgo(30),
+    },
+  })
   const items = []
   for (const [k, day] of NEXT_LESSON_DAYS.entries()) {
     const media = (order: number) => 400_000 + (k + 1) * 10 + order
@@ -161,4 +180,5 @@ export async function full(ctx: FixtureContext): Promise<void> {
     })
   }
   await customizeLessons(ctx, ENROLLMENT_4_ID, items)
+  await seedActivityUsages(ctx, PROGRAMS.map((p) => p.id), VIDEO_MEDIA_N)
 }

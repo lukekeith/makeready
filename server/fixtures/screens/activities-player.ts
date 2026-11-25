@@ -9,7 +9,7 @@ import { lessonId } from '../base.js'
 import type { FixtureContext } from '../context.js'
 import { sampleActivities, seedSampleMedia } from '../activity-samples.js'
 import { ACTIVITIES_PLAYER_IDS as IDS, FIXTURE_ORG_ID, FIXTURE_USER_ID, fixtureId } from '../ids.js'
-import { publishProgramVersion, writeVersions } from '../lesson-content.js'
+import { publishProgramVersion, seedActivityUsages, writeVersions } from '../lesson-content.js'
 
 const MEDIA_BASE = 2_110_000
 const PUBLISHED_ACTIVITY_BASE = 2_110_000
@@ -64,4 +64,5 @@ export async function full(ctx: FixtureContext): Promise<void> {
     ],
     ctx.daysAgo(1)
   )
+  await seedActivityUsages(ctx, [IDS.programId], MEDIA_BASE + 10)
 }

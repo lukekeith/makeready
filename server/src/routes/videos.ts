@@ -15,6 +15,7 @@ import {
   listLibraryVideos,
   refreshFromStream,
   removeFromLibrary,
+  versionUseCount,
   VideoServiceError,
 } from '../services/videos.service.js'
 import { canManageOrgContent } from '../services/permission.js'
@@ -626,7 +627,9 @@ router.get('/library', requireAuth, async (req, res) => {
  *     tags: [Videos]
  *     summary: Get a specific video by ID
  *     description: |
- *       Returns details for a specific video, plus `lessonUseCount` (the distinct lesson activities that use it).
+ *       Returns details for a specific video, plus `lessonUseCount` (the distinct lesson activities that use it) and
+ *       `versionUseCount` (the activity rows, in lesson versions of any status, that name it; a published version
+ *       keeps its row after the draft's activity is deleted, so DELETE still answers 409 while this is above 0).
  *       Only the video owner, or someone who can manage the owning org's content, can view it.
  *     security:
  *       - userSession: []
@@ -733,7 +736,11 @@ router.get('/:videoId', requireAuth, async (req, res) => {
 
     res.json({
       success: true,
-      data: { ...video, lessonUseCount: await lessonUseCount(video.id) },
+      data: {
+        ...video,
+        lessonUseCount: await lessonUseCount(video.id),
+        versionUseCount: await versionUseCount(video.id),
+      },
     })
   } catch (error) {
     console.error('Error fetching video:', error)

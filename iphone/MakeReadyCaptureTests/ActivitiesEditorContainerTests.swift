@@ -491,6 +491,24 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         return model
     }
 
+    func testTheHeaderCheckSavesTheInlineRecording() async throws {
+        let app = appWithLesson([("a1", "text")]), queue = QueueSpy()
+        let model = editor(app: app, at: "a1", queue: queue)
+        await model.addActivity()
+        await model.pickType("video", app: app)
+        let recorder = try XCTUnwrap(model.recorder)
+        func check() -> Bool { ActivitiesEditorContainer.screenState(model, app: app).reviewSaving }
+        recorder.recordTapped(); recorder.tick(recorded: 3); recorder.recordTapped()
+        XCTAssertFalse(check())
+        recorder.done()
+        XCTAssertTrue(check())
+        async let first: Void = model.saveReview()
+        async let second: Void = model.saveReview()
+        _ = await (first, second)
+        XCTAssertEqual(queue.items.count, 1)
+        XCTAssertFalse(check())
+    }
+
     func testPendingVideoActivity() {
         let q = [queued(localId: "L1", attach: VideoAttach(versionId: "ver1", activityId: nil, title: "Video 3")),
                  queued(localId: "L2", attach: VideoAttach(versionId: "other", activityId: nil, title: "Video 4"))]
@@ -748,6 +766,383 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         return app
     }
 
+    private func videoEntry(poster: String? = nil, playback: String = "https://x/v.m3u8") -> MediaMapEntry {
+        MediaMapEntry(url: playback, width: nil, height: nil, kind: "video", playbackUrl: playback, posterUrl: poster,
+                      durationSeconds: nil, uploaderName: nil)
+    }
+
+    /// A Model on lesson l1, version ver1, with a silent log, opened on the video activity `at`.
+    private func videoEditor(app: AppState, actions: ScriptedActivityActions, at id: String = "vi1",
+                             log: @escaping (Error, String) -> Void = { _, _ in }) -> ActivitiesEditorContainer.Model {
+        let model = ActivitiesEditorContainer.Model(activityId: "", activityKey: "", lessonId: "l1", lessonVersionId: "ver1",
+                                                    actions: actions, log: log)
+        model.open(app.activities[id]!)
+        return model
+    }
+
+    func testAVideoPageShowsItsStillAndNoTitle() async {
+        let app = appWithDraft([videoActivity("vi1", version: "ver1")])
+        app.mergeMedia(["vid1": videoEntry(poster: "https://x/still")])
+        let model = ActivitiesEditorContainer.Model.resolving(activityId: "vi1", app: app)
+        let state = ActivitiesEditorContainer.screenState(model, app: app)
+        XCTAssertEqual([state.readOnlyPosterURL, state.readOnlyTitle], ["https://x/still", ""])
+        XCTAssertNil(model.missingStillVideoId(app: app))
+        XCTAssertTrue(ActivitiesEditorContainer.pageImageURLs(of: state).contains("https://x/still"))
+    }
+
+    func testAMissingStillIsFollowedThenTheDraftReloads() async {
+        let app = appWithDraft([videoActivity("vi1", version: "ver1")])
+        let actions = ScriptedActivityActions()
+        var logged: [String] = []
+        let model = videoEditor(app: app, actions: actions, log: { _, context in logged.append(context) })
+        XCTAssertEqual(model.missingStillVideoId(app: app), "vid1")
+        model.waitForVideo = { _ in false }
+        await model.followMissingStill(app: app)
+        model.waitForVideo = { _ in throw URLError(.timedOut) }
+        await model.followMissingStill(app: app)
+        model.waitForVideo = { _ in true }
+        let cancelled = Task { await model.followMissingStill(app: app) }
+        cancelled.cancel()
+        await cancelled.value
+        XCTAssertEqual(actions.reloads, 0)
+        XCTAssertEqual(logged, ["ActivitiesEditorContainer.followMissingStill"])
+        await model.followMissingStill(app: app)
+        XCTAssertEqual(actions.reloads, 1)
+    }
+
+    // MARK: - video-activity-basics D4, D5, D7, D11, D15: remove from the lesson, delete everywhere
+
+    private var a2: ContentActivity { videoActivity("a2", key: "k-a", version: "ver2") }
+    private var z: ContentActivity { videoActivity("z", key: "k-z", version: "ver2", position: 1) }
+
+    /// One video activity per id (key `k-<id>`, all of vid1, in ver1), the editor on `at`. Confirm reads answer allowed, draft;
+    /// a video delete or a banner fails the test unless the test swaps it.
+    private func deleting(_ ids: [String], at: String = "a", draft: [ContentActivity] = [],
+                          steps: [ScriptedActivityActions.Step] = [])
+        -> (app: AppState, model: ActivitiesEditorContainer.Model, actions: ScriptedActivityActions) {
+        let app = appWithDraft(ids.enumerated().map { videoActivity($1, key: "k-\($1)", version: "ver1", position: $0) })
+        let actions = ScriptedActivityActions(deleteSteps: steps, draft: draft)
+        let model = videoEditor(app: app, actions: actions, at: at)
+        model.readDeleteEverywhere = { _ in .allowed }
+        model.readVersionStatus = { _ in .draft }
+        model.deleteVideo = { id in XCTFail("deleted video \(id)") }
+        model.report = { _, text in XCTFail("banner \(text)") }
+        return (app, model, actions)
+    }
+
+    private func remove(_ d: (app: AppState, model: ActivitiesEditorContainer.Model, actions: ScriptedActivityActions),
+                        everywhere: Bool = false) async {
+        await d.model.openDeleteConfirm(app: d.app)
+        await d.model.removeVideo(everywhere: everywhere, app: d.app)
+    }
+
+    private func shown(_ d: (app: AppState, model: ActivitiesEditorContainer.Model, actions: ScriptedActivityActions))
+        -> ActivitiesEditorScreen.State {
+        ActivitiesEditorContainer.screenState(d.model, app: d.app)
+    }
+
+    func testRemoveOpensTheNextThenThePreviousThenTheGrid() async {
+        for (ids, at, next) in [(["a", "b", "c"], "b", "c"), (["a", "b"], "b", "a"), (["a"], "a", "")] {
+            let d = deleting(ids, at: at)
+            await remove(d)
+            XCTAssertEqual(d.actions.deletedIds + [d.model.activityId], [at, next])
+            XCTAssertEqual(d.model.canvasContent, next.isEmpty ? .typeGrid : .readOnly)
+            XCTAssertEqual(d.actions.savedIds, [])
+        }
+    }
+
+    func testEverywhereDeletesTheActivityThenTheVideo() async {
+        let d = deleting(["a", "b"])
+        var order: [String] = [], banners: [String] = []
+        d.actions.onDelete = { order.append("activity") }
+        d.model.deleteVideo = { order.append($0); throw URLError(.badServerResponse) }
+        d.model.report = { banners.append($1) }
+        await remove(d, everywhere: true)
+        XCTAssertEqual(order, ["activity", "vid1"])
+        XCTAssertEqual(banners, ["Removed from the lesson, but couldn't delete the video"])
+        XCTAssertEqual(d.model.activityId, "b")
+    }
+
+    func testAFailedRemovalKeepsThePageAndTheVideo() async {
+        let steps: [[ScriptedActivityActions.Step]] = [[.failure(.other)], [.failure(.notDraft), .failure(.notDraft)]]
+        for (failing, id) in zip(steps, ["a", "a2"]) {
+            let d = deleting(["a", "b"], draft: [a2], steps: failing)
+            var banners: [String] = []
+            d.model.report = { banners.append($1) }
+            await remove(d, everywhere: true)
+            XCTAssertEqual(banners, ["Couldn't remove the video"])
+            XCTAssertEqual(d.model.activityId, id)
+            XCTAssertFalse(d.model.isDeleting)
+        }
+    }
+
+    func testAFrozenDraftRetriesOnceByKey() async {
+        for failure in [ScriptedActivityActions.Failure.notDraft, .gone] {
+            let d = deleting(["a"], draft: [a2], steps: [.failure(failure)])
+            await remove(d)
+            XCTAssertEqual(d.actions.deletedIds, ["a", "a2"])
+            XCTAssertEqual(d.model.lessonVersionId, "ver2")
+        }
+        let absent = deleting(["a"], draft: [z], steps: [.failure(.gone)])
+        absent.app.activities.upsert(z)
+        await remove(absent)
+        XCTAssertEqual(absent.actions.deletedIds + [absent.model.activityId], ["a", "z"])
+    }
+
+    func testTheConfirmReadsTheCounts() async {
+        let d = deleting(["a", "b"])
+        XCTAssertEqual(shown(d).deleteEverywhereNote, "Checking where it's used…")
+        d.model.readDeleteEverywhere = { _ in .published }
+        await d.model.openDeleteConfirm(app: d.app)
+        XCTAssertEqual(shown(d).deleteEverywhereNote, "Used in a published lesson")
+        XCTAssertFalse(shown(d).deleteEverywhereEnabled)
+        await remove(d, everywhere: true)
+        XCTAssertEqual(d.actions.deletedIds, [])
+        d.model.readDeleteEverywhere = { _ in throw URLError(.timedOut) }
+        await d.model.openDeleteConfirm(app: d.app)
+        XCTAssertEqual(d.model.deleteEverywhereState, .unknown)
+        d.model.readDeleteEverywhere = { _ in await d.model.selectSlide("b", app: d.app); return .allowed }
+        await d.model.openDeleteConfirm(app: d.app)
+        XCTAssertEqual(d.model.deleteEverywhereState, .checking)
+    }
+
+    /// D19, D20: once the counts allow, the server's status of the open version decides, not the cached one.
+    func testAPublishedVersionCannotDeleteEverywhere() async {
+        let d = deleting(["a", "b"])
+        var read: [String] = []
+        d.model.readVersionStatus = { read.append($0); return .published }
+        XCTAssertEqual(d.app.lessonVersions["ver1"]?.status, .draft)
+        await d.model.openDeleteConfirm(app: d.app)
+        XCTAssertEqual(read, ["ver1"])
+        XCTAssertEqual(shown(d).deleteEverywhereNote, "Used in a published lesson")
+        XCTAssertFalse(shown(d).deleteEverywhereEnabled)
+        await d.model.removeVideo(everywhere: true, app: d.app)
+        XCTAssertEqual(d.actions.deletedIds, [])
+        for answer in [VideoDeleteEverywhere.otherLessons(2), .unknown] {
+            d.model.readDeleteEverywhere = { _ in answer }
+            await d.model.openDeleteConfirm(app: d.app)
+            XCTAssertEqual(d.model.deleteEverywhereState, answer)
+        }
+        await d.model.removeVideo(everywhere: false, app: d.app)
+        XCTAssertEqual(d.actions.deletedIds, ["a"])
+    }
+
+    func testAServerDraftCanDeleteEverywhereWhateverTheCacheHolds() async {
+        let d = deleting(["a", "b"])
+        d.app.lessonVersions.upsert(LessonVersion(id: "ver1", lessonId: "l1", enrollmentId: nil, number: 1, status: .published,
+                                                  title: nil, estimatedSeconds: nil, publishedAt: nil))
+        await d.model.openDeleteConfirm(app: d.app)
+        XCTAssertTrue(shown(d).deleteEverywhereEnabled)
+        XCTAssertEqual(shown(d).deleteEverywhereNote, "")
+    }
+
+    func testAFailedStatusReadCannotDeleteEverywhere() async {
+        for failure in [URLError(.timedOut), APIHTTPError(status: 404, message: "x", details: [:])] as [Error] {
+            let d = deleting(["a", "b"])
+            d.model.readVersionStatus = { _ in throw failure }
+            await d.model.openDeleteConfirm(app: d.app)
+            XCTAssertEqual(shown(d).deleteEverywhereNote, "Couldn't check where it's used")
+            XCTAssertFalse(shown(d).deleteEverywhereEnabled)
+            await d.model.removeVideo(everywhere: false, app: d.app)
+            XCTAssertEqual(d.actions.deletedIds, ["a"])
+        }
+    }
+
+    /// Checking until both answers are in; one that comes after the page was left is dropped.
+    func testALateStatusIsDropped() async {
+        for answer in [LessonVersion.Status.draft, .published] {
+            let d = deleting(["a", "b"])
+            d.model.readVersionStatus = { _ in
+                XCTAssertEqual(d.model.deleteEverywhereState, .checking)
+                await d.model.selectSlide("b", app: d.app)
+                return answer
+            }
+            await d.model.openDeleteConfirm(app: d.app)
+            XCTAssertEqual(d.model.deleteEverywhereState, .checking)
+        }
+    }
+
+    func testTheStatusReadLeavesUnsavedEditsAndTheStoresAlone() async {
+        let d = deleting(["a", "b"])
+        let api = StubAPIClient()
+        api.stub("GET", "/api/lesson-versions/ver1", json: #"{"version":{"id":"ver1","lessonId":"l1","enrollmentId":null,"number":1,"status":"PUBLISHED","title":null,"estimatedSeconds":null,"publishedAt":null},"activities":[],"media":{}}"#)
+        let live = ActivityActions(api: api, state: d.app)
+        d.model.readVersionStatus = { try await live.versionStatus(id: $0) }
+        d.model.changeBackground(.colour("#123456"), app: d.app)
+        let unsaved = d.model.document
+        XCTAssertNotEqual(unsaved, d.app.activities["a"]?.document)
+        await d.model.openDeleteConfirm(app: d.app)
+        XCTAssertEqual(shown(d).deleteEverywhereNote, "Used in a published lesson")
+        XCTAssertEqual(d.model.document, unsaved)
+        XCTAssertTrue(shown(d).canSave)
+        XCTAssertEqual(d.app.activities(forVersion: "ver1").map(\.id), ["a", "b"])
+        XCTAssertEqual(d.app.lessonVersions["ver1"]?.status, .draft)
+    }
+
+    func testChoicesAreIgnoredWhileDeleting() async {
+        let d = deleting(["a", "b"])
+        d.model.makeRecorder = { _ in XCTFail("deleting"); return nil }
+        d.model.makePlayer = { XCTFail("deleting"); return FakeInlinePlayer() }
+        d.app.mergeMedia(["vid1": videoEntry()])
+        d.actions.onDelete = {
+            d.model.replaceVideo(app: d.app)
+            d.model.videoTapped(app: d.app)
+            await d.model.removeVideo(everywhere: false, app: d.app)
+        }
+        await remove(d)
+        XCTAssertEqual(d.actions.deletedIds, ["a"])
+    }
+
+    // MARK: - final review: the page's video follows the store, and a removal holds the page still
+
+    /// The open page's activity, its document replaced by one of video `videoId` (what a Replace's save or a reload does).
+    private func replaceVideo(of activity: ContentActivity, with videoId: String, in app: AppState) {
+        app.activities.upsert(ContentActivity(id: activity.id, lessonVersionId: activity.lessonVersionId, activityKey: activity.activityKey,
+                                              position: activity.position, kind: "video", title: "Video",
+                                              document: LiveVideoUploadAPI.videoDocument(videoId: videoId, title: "Video"),
+                                              estimatedSeconds: nil))
+    }
+
+    func testAReplacedVideoIsTheOneTappedConfirmedAndDeleted() async {
+        let d = deleting(["a", "b"])
+        d.app.mergeMedia(["vid1": videoEntry(playback: "https://x/old.m3u8"), "vid2": videoEntry(playback: "https://x/new.m3u8")])
+        var players: [FakeInlinePlayer] = []
+        d.model.makePlayer = { let p = FakeInlinePlayer(); players.append(p); return p }
+        d.model.videoTapped(app: d.app)
+        replaceVideo(of: d.app.activities["a"]!, with: "vid2", in: d.app)
+        d.model.videoTapped(app: d.app)
+        XCTAssertEqual(players.map { $0.urls.map(\.absoluteString) }, [["https://x/old.m3u8"], ["https://x/new.m3u8"]])
+        XCTAssertEqual(players.map(\.stops), [1, 0])
+        var read: [String] = [], deleted: [String] = []
+        d.model.readDeleteEverywhere = { read.append($0); return .allowed }
+        d.model.deleteVideo = { deleted.append($0) }
+        await remove(d, everywhere: true)
+        XCTAssertEqual(read + deleted, ["vid2", "vid2"])
+    }
+
+    func testAConfirmReadForAnotherVideoDeletesNothing() async {
+        let d = deleting(["a", "b"])
+        await d.model.openDeleteConfirm(app: d.app)
+        replaceVideo(of: d.app.activities["a"]!, with: "vid2", in: d.app)
+        await d.model.removeVideo(everywhere: true, app: d.app)
+        XCTAssertEqual(d.actions.deletedIds, [])
+        XCTAssertEqual(d.model.activityId, "a")
+    }
+
+    func testNavigationIsIgnoredWhileDeleting() async {
+        let d = deleting(["a", "b"])
+        var seen: [(String, ActivitiesEditorContainer.Model.CanvasContent, String?)] = []
+        d.actions.onDelete = {
+            await d.model.selectSlide("b", app: d.app)
+            await d.model.addActivity()
+            await d.model.back()
+            await d.model.done()
+            seen.append((d.model.activityId, d.model.canvasContent, d.model.insertAfterID))
+        }
+        await remove(d)
+        XCTAssertEqual(seen.count, 1)
+        XCTAssertEqual(seen[0].0, "a")
+        XCTAssertEqual(seen[0].1, .readOnly)
+        XCTAssertNil(seen[0].2)
+        XCTAssertEqual(d.model.activityId, "b")
+    }
+
+    func testAMissingStillFollowsTheNewDraftsRow() async {
+        let d = deleting(["a"], draft: [a2])
+        d.app.mergeMedia(["vid1": videoEntry()])
+        d.model.waitForVideo = { _ in true }
+        d.app.activities.upsert(a2)
+        await d.model.followMissingStill(app: d.app)
+        XCTAssertEqual([d.model.activityId, d.model.lessonVersionId], ["a2", "ver2"])
+    }
+
+    func testAnEmptyNewDraftIsFollowedByVersion() async {
+        let d = deleting(["a"], steps: [.failure(.gone)])
+        d.app.lessonVersions.upsert(LessonVersion(id: "ver2", lessonId: "l1", enrollmentId: nil, number: 2, status: .draft,
+                                                  title: nil, estimatedSeconds: nil, publishedAt: nil))
+        await remove(d)
+        XCTAssertEqual(d.model.lessonVersionId, "ver2")
+        XCTAssertEqual(d.model.canvasContent, .typeGrid)
+    }
+
+    // MARK: - video-activity-basics D3, D12: tap to play inline
+
+    @MainActor
+    private final class FakeInlinePlayer: VideoPlaying {
+        var elapsed: Double = 0
+        var isPlaying = false
+        var isReady = true
+        let layer: CALayer? = CALayer()
+        private(set) var loads = 0
+        private(set) var stops = 0
+        private(set) var urls: [URL] = []
+        func load(url: URL, duration: Double) { loads += 1; urls.append(url) }
+        func play() { isPlaying = true }
+        func pause() { isPlaying = false }
+        func seek(to seconds: Double) { elapsed = seconds }
+        func skip(by seconds: Double) { elapsed += seconds }
+        func stop() { stops += 1; isPlaying = false }
+    }
+
+    /// An editor on video page vi1 (of vi1, vi2) whose player is `player`; `playback` is the stream vid1 has.
+    private func playing(_ player: FakeInlinePlayer, playback: String? = "https://x/v.m3u8")
+        -> (AppState, ActivitiesEditorContainer.Model) {
+        let app = appWithDraft([videoActivity("vi1", version: "ver1"), videoActivity("vi2", version: "ver1", position: 1)])
+        app.mergeMedia(["vid1": MediaMapEntry(url: "https://x/v", width: nil, height: nil, kind: "video", playbackUrl: playback,
+                                              posterUrl: "https://x/still", durationSeconds: nil, uploaderName: nil)])
+        let model = videoEditor(app: app, actions: ScriptedActivityActions())
+        model.makePlayer = { player }
+        model.makeRecorder = { self.makeRecorderModel(entry: $0, queue: QueueSpy()) }
+        return (app, model)
+    }
+
+    func testATapPlaysAndPausesTheVideo() {
+        let player = FakeInlinePlayer()
+        let (app, model) = playing(player)
+        XCTAssertEqual(player.loads, 0)
+        model.videoTapped(app: app)
+        XCTAssertTrue(player.isPlaying)
+        XCTAssertTrue(model.videoLayer === player.layer)
+        model.videoTapped(app: app)
+        XCTAssertFalse(player.isPlaying)
+        model.videoTapped(app: app)
+        XCTAssertTrue(player.isPlaying)
+        XCTAssertEqual(player.loads, 1)
+    }
+
+    func testATapWithNoStreamDoesNothing() {
+        for playback in [nil, ""] {
+            let player = FakeInlinePlayer()
+            let (app, model) = playing(player, playback: playback)
+            model.videoTapped(app: app)
+            XCTAssertFalse(player.isPlaying)
+            XCTAssertNil(model.videoLayer)
+        }
+    }
+
+    func testLeavingOrBackgroundingStopsTheVideo() async {
+        let leaving: [(ActivitiesEditorContainer.Model, AppState) async -> Void] = [
+            { m, app in await m.selectSlide("vi2", app: app) },
+            { m, _ in await m.addActivity() },
+            { m, _ in await m.back() },
+            { m, app in m.replaceVideo(app: app) }
+        ]
+        for leave in leaving {
+            let player = FakeInlinePlayer()
+            let (app, model) = playing(player)
+            model.videoTapped(app: app)
+            await leave(model, app)
+            XCTAssertEqual(player.stops, 1)
+            XCTAssertNil(model.videoLayer)
+        }
+        let player = FakeInlinePlayer()
+        let (app, model) = playing(player)
+        model.videoTapped(app: app)
+        model.pauseVideo()
+        XCTAssertFalse(player.isPlaying)
+        XCTAssertNotNil(model.videoLayer)
+    }
+
     /// Replace video is reachable in a lesson whose only activity is a video.
     private func assertReplaceVideoOpens(app: AppState, on id: String) {
         let queue = QueueSpy()
@@ -829,6 +1224,9 @@ final class ScriptedActivityActions: ActivityActionsProtocol {
     private struct Other: Error {}
 
     private var steps: [Step]
+    private var deleteSteps: [Step]
+    /// Runs inside `delete`, after the id is recorded and before its step.
+    var onDelete: () async -> Void = {}
     private let draft: [ContentActivity]
     private let reloadFails: Bool
     private let saveDelayNanoseconds: UInt64
@@ -837,15 +1235,19 @@ final class ScriptedActivityActions: ActivityActionsProtocol {
     private(set) var savedIds: [String] = []
     private(set) var savedDocuments: [ActivityDocument] = []
     private(set) var deletedIds: [String] = []
+    private(set) var reloads = 0
 
-    init(save: [Step] = [], draft: [ContentActivity] = [], reloadFails: Bool = false, saveDelayNanoseconds: UInt64 = 0) {
+    init(save: [Step] = [], deleteSteps: [Step] = [], draft: [ContentActivity] = [], reloadFails: Bool = false,
+         saveDelayNanoseconds: UInt64 = 0) {
         steps = save
+        self.deleteSteps = deleteSteps
         self.draft = draft
         self.reloadFails = reloadFails
         self.saveDelayNanoseconds = saveDelayNanoseconds
     }
 
     func reloadDraft(lessonId: String) async throws -> [ContentActivity] {
+        reloads += 1
         if reloadFails { throw Other() }
         return draft
     }
@@ -865,7 +1267,16 @@ final class ScriptedActivityActions: ActivityActionsProtocol {
         }
     }
 
-    func delete(activityId: String) async throws { deletedIds.append(activityId) }
+    func delete(activityId: String) async throws {
+        deletedIds.append(activityId)
+        await onDelete()
+        switch deleteSteps.isEmpty ? .success : deleteSteps.removeFirst() {
+        case .success: return
+        case .failure(.notDraft): throw ActivityActionsError.notDraft
+        case .failure(.gone): throw ActivityActionsError.gone
+        case .failure(.other): throw Other()
+        }
+    }
 }
 
 extension Array where Element == ContentActivity {

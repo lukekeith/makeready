@@ -4,7 +4,12 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { parseActivityDocument } from '../../src/services/activity-document.js'
-import { FIXTURE_IDS as ids } from '../ids.js'
+import { buildMediaMap, videoActivityUseCount, videoVersionUseCount } from '../../src/services/content-media.service.js'
+import { thumbnailFromDocument } from '../../src/services/next-study-thumbnail.js'
+import { SAMPLE_POSTER_URL } from '../activity-samples.js'
+import { VIDEO_THUMBNAIL_URL } from '../screens/groups-detail.js'
+import { videoActivityKey } from '../base.js'
+import { FIXTURE_IDS as ids, fixtureId } from '../ids.js'
 import { type FixturesDb, TEST_DB_URL, openFixturesDb } from './db-harness.js'
 
 describe.skipIf(!TEST_DB_URL)('activities screens (text-activity Task 17)', () => {
@@ -43,6 +48,34 @@ describe.skipIf(!TEST_DB_URL)('activities screens (text-activity Task 17)', () =
     await runScenario('activities-editor', 'full')
     const acts = await db.prisma.contentActivity.findMany({ where: { lessonVersionId: ids.activitiesEditor.lessonVersionId } })
     expect(new Set(acts.map((a) => a.kind))).toEqual(new Set(['text', 'bible', 'video', 'youtube', 'write', 'quiz']))
+  }, 180_000)
+
+  it('the editor draft ends with a posterless, draft-only video', async () => {
+    await runScenario('activities-editor', 'full')
+    const acts = await db.prisma.contentActivity.findMany({
+      where: { lessonVersionId: ids.activitiesEditor.lessonVersionId }, orderBy: { position: 'asc' },
+    })
+    const last = acts.at(-1)!, doc = last.document as any, id = doc.content.videoId
+    expect([last.activityKey, last.kind, doc.content.posterMediaId]).toEqual(['fixture-editor-8', 'video', null])
+    const map = await db.prisma.$transaction((tx: any) => buildMediaMap(tx, [doc]))
+    expect(thumbnailFromDocument(doc, map)).toBe(SAMPLE_POSTER_URL)
+    expect(await Promise.all([videoActivityUseCount(db.prisma, id), videoVersionUseCount(db.prisma, id)])).toEqual([1, 1])
+  }, 180_000)
+
+  it('the published videos have the Media and usage rows a save writes', async () => {
+    await runScenario('activities-player', 'full')
+    const player = await db.prisma.contentActivity.findFirstOrThrow({ where: { lessonVersionId: ids.activitiesPlayer.lessonVersionId, kind: 'video' } })
+    const playerVideo = (player.document as any).content.videoId
+    const counts = (id: string) => Promise.all([videoActivityUseCount(db.prisma, id), videoVersionUseCount(db.prisma, id)])
+    expect(await counts(playerVideo)).toEqual([1, 2])
+    // Foundations of Faith and Walking Through John: 21 + 30 lessons, plus enrollment 4's two customized versions.
+    const watch = fixtureId('video', 1)
+    expect(await counts(watch)).toEqual([51, 53])
+    const media = await db.prisma.media.findMany({ where: { videoId: watch } })
+    expect(media.map((m) => [m.type, m.thumbnailUrl])).toEqual([['video', VIDEO_THUMBNAIL_URL]])
+    const row = await db.prisma.contentActivity.findFirstOrThrow({ where: { activityKey: videoActivityKey(1, 1) } })
+    const map = await db.prisma.$transaction((tx: any) => buildMediaMap(tx, [row.document]))
+    expect(thumbnailFromDocument(row.document, map)).toBe(VIDEO_THUMBNAIL_URL)
   }, 180_000)
 
   it('every fixture document validates except the fallback row', async () => {

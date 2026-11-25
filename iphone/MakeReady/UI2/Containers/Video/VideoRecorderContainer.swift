@@ -134,7 +134,8 @@ struct VideoRecorderContainer: View {
             onEndCountdownChange: model.setEndCountdown,
             onReviewTap: model.reviewTapped,
             onReviewSeek: model.reviewSeek(to:),
-            onReviewScrubbingChange: model.setReviewScrubbing
+            onReviewScrubbingChange: model.setReviewScrubbing,
+            onSave: { Task { await model.save() } }
         )
     }
 
@@ -158,7 +159,6 @@ struct VideoRecorderContainer: View {
         static let importLeading: CGFloat = 17
         /// GAP — video-recorder §2d: C-105's 36 pt pill in the same row: 6 + (80 − 36) / 2.
         static let reviewButtonBottom: CGFloat = 28
-        /// GAP — video-recorder §2d: Retake and Save side by side, as Edit and Filters are (10 pt).
         /// GAP — video-recorder §2c: the record disc is 80 pt wide, centred.
         static let recordDisc: CGFloat = 80
         /// C-021 §2: a 24 pt glyph in a 44 pt target.
@@ -228,7 +228,7 @@ struct VideoRecorderContainer: View {
         }
     }
 
-    /// §2d: Retake and Save beside the Filters tool; Trim's window above Cancel and Next.
+    /// §2d: Retake beside the Filters tool; Trim's window above Cancel and Next.
     @ViewBuilder private var reviewRow: some View {
         if shown.phase == .trim, let clip = model.importedClip, let window = model.trimWindow {
             VStack(spacing: Token.Space.stackGap) {
@@ -321,19 +321,15 @@ struct VideoRecorderContainer: View {
     }
 }
 
-/// Review's Retake and Save, side by side as Edit and Filters are.
+/// Review's bottom row beside Edit and Filters: Retake alone. Save is the purple check (D6).
 struct VideoReviewActions: View {
     let model: VideoRecorderModel
 
-    /// GAP — video-recorder §2d: Retake and Save side by side, as Edit and Filters are (10 pt).
-    static let gap: CGFloat = 10
+    /// The row's button labels, in order.
+    static let labels = ["Retake"]
 
     var body: some View {
-        HStack(spacing: Self.gap) {
-            Button(label: "Retake", onTap: model.requestRetake)
-            // The model outlives the recorder until its save is done.
-            Button(label: "Save", onTap: { Task { await model.save() } })
-        }
+        Button(label: Self.labels[0], onTap: model.requestRetake)
     }
 }
 

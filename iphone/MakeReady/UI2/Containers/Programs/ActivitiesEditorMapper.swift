@@ -310,6 +310,16 @@ enum ActivitiesEditorMapper {
         return state
     }
 
+    /// video-activity-basics D1: a video page's still ("" = none) — the video's own `posterUrl`, else the poster
+    /// media's `posterUrl`, else its `url` when that entry is an image. An empty string is missing.
+    static func videoStillURL(_ video: VideoContent, media: [String: MediaMapEntry]) -> String {
+        func present(_ value: String?) -> String? { value.flatMap { $0.isEmpty ? nil : $0 } }
+        if let still = present(media[video.videoId]?.posterUrl) { return still }
+        guard let poster = video.posterMediaId.flatMap({ media[$0] }) else { return "" }
+        if let still = present(poster.posterUrl) { return still }
+        return poster.kind == "image" ? (present(poster.url) ?? "") : ""
+    }
+
     /// A video activity's `content.videoId`.
     static func videoId(of activity: ContentActivity) -> String? {
         if case .video(let video) = activity.document.renderable { return video.videoId }
