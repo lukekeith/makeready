@@ -1,7 +1,7 @@
 size: lg
-state: built
-next: /builder:agent-walk --path docs/features/video-activity-basics
-head: a156ee54
+state: signed-off
+next: /builder:resume --path docs/features/video-activity-basics
+head: e234dd9e
 ticket: none
 branch: builder/video-activity-basics
 pr: none
@@ -11,7 +11,7 @@ hold: none
 go-ahead: auto (recommended) 2026-11-25
 tests: walk=risk review=slice
 target: main
-walk: none
+walk: agent-pass 2026-11-25 e234dd9e
 verify: none
 ready: yes 2026-11-25 a156ee54
 ui2: none (d2m changes activities-editor and video-recorder from this spec, D10)
