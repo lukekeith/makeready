@@ -1215,17 +1215,21 @@ struct ActivitiesEditorContainer: View {
         private var deleteCheckedVideoId: String?
 
         /// Delete was chosen: the video pauses and the confirm reads where the video is used. A failed read is
-        /// `unknown` (console-only: the leader asked to delete, not to check).
+        /// `unknown` (console-only: the leader asked to delete, not to check). An open version that is not a draft
+        /// turns `allowed` into `published`: the removal's new draft leaves the published row naming the video (D19).
         func openDeleteConfirm(app: AppState? = nil) async {
-            guard !isDeleting, let video = openVideo(app: app ?? .shared) else { return }
+            let app = app ?? .shared
+            guard !isDeleting, let video = openVideo(app: app) else { return }
             pauseVideo()
+            let version = app.lessonVersions[lessonVersionId]
+            let isPublished = version.map { $0.status != .draft } ?? false
             deleteEverywhereState = .checking
             deleteCheckedVideoId = video.videoId
             deleteCheck += 1
             let check = deleteCheck
             do {
                 let answer = try await readDeleteEverywhere(video.videoId)
-                if check == deleteCheck { deleteEverywhereState = answer }
+                if check == deleteCheck { deleteEverywhereState = answer == .allowed && isPublished ? .published : answer }
             } catch {
                 guard check == deleteCheck else { return }
                 log(error, "ActivitiesEditorContainer.openDeleteConfirm")

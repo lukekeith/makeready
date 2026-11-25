@@ -905,6 +905,27 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         XCTAssertEqual(d.model.deleteEverywhereState, .checking)
     }
 
+    /// D19: the open version decides after the counts allow.
+    func testAPublishedVersionWithNoDraftCannotDeleteEverywhere() async {
+        let d = deleting(["a", "b"])
+        await d.model.openDeleteConfirm(app: d.app)
+        XCTAssertTrue(shown(d).deleteEverywhereEnabled)
+        d.app.lessonVersions.upsert(LessonVersion(id: "ver1", lessonId: "l1", enrollmentId: nil, number: 1, status: .published,
+                                                  title: nil, estimatedSeconds: nil, publishedAt: nil))
+        await d.model.openDeleteConfirm(app: d.app)
+        XCTAssertEqual(shown(d).deleteEverywhereNote, "Used in a published lesson")
+        XCTAssertFalse(shown(d).deleteEverywhereEnabled)
+        await d.model.removeVideo(everywhere: true, app: d.app)
+        XCTAssertEqual(d.actions.deletedIds, [])
+        for answer in [VideoDeleteEverywhere.otherLessons(2), .unknown] {
+            d.model.readDeleteEverywhere = { _ in answer }
+            await d.model.openDeleteConfirm(app: d.app)
+            XCTAssertEqual(d.model.deleteEverywhereState, answer)
+        }
+        await d.model.removeVideo(everywhere: false, app: d.app)
+        XCTAssertEqual(d.actions.deletedIds, ["a"])
+    }
+
     func testChoicesAreIgnoredWhileDeleting() async {
         let d = deleting(["a", "b"])
         d.model.makeRecorder = { _ in XCTFail("deleting"); return nil }
