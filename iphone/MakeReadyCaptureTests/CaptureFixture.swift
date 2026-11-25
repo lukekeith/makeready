@@ -1157,8 +1157,6 @@ struct CaptureComponent: Codable {
     // activities-editor §35 (video-recorder D18). Additive:
     let videoPendingPosterURL: String?         // videoPending's poster frame; nil = neutral ground
     let replaceVideoMenuOpen: Bool?            // the attached video's Replace video menu drawn open
-    // activities-editor §15.2 (chat change 2026-11-09, D30). Additive:
-    let sliderDocked: Bool?                    // C-093 drawn docked at the left edge
     let snapIndex: Int?                        // activities-editor §18.8 — the dragged object's index (−1 none)
     // OQ-C-081-6 (restored 2026-11-09): each chip's screenshot URL, parallel to `slideIDs`; "" = none.
     let slideImages: [String]?
@@ -1676,6 +1674,14 @@ struct CaptureComponent: Codable {
     let startMs: Int?                          // C-156 — the layer's window start in ms, required
     let endMs: Int?                            // C-156 — the layer's window end in ms, required
     let canSplit: Bool?                        // C-156 — required
+    // video-recorder (video-polish). Additive:
+    let lengthMode: String?                    // "any" | "specify"
+    let endCountdown: Int?                     // 0 | 3 | 10 s
+    let reviewPlaying: Bool?
+    let reviewElapsed: Double?                 // seconds
+    let reviewDuration: Double?                // seconds
+    let reviewScrubbing: Bool?
+    let railLabelsVisible: Bool?               // the rail's labels as first drawn
     // ── preview props ──
     // Harness key, not a §4 prop (C-158 §4): the frame the case gives the overlay, "9:16" | "16:9".
     let frameAspect: String?                   // C-158 — required

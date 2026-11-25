@@ -75,4 +75,21 @@ final class RecordingTimelineTests: XCTestCase {
         XCTAssertEqual(PreRoll.three.beepHz(remaining: 2), 1100)
         XCTAssertEqual(PreRoll.three.beepHz(remaining: 1), 1660)
     }
+
+    // MARK: video-polish D5 — the typed length (d2m's LengthEntry)
+
+    func testLengthEntryFormatsFromTheRight() {
+        XCTAssertEqual(LengthEntry.digits("1"), "0:01")
+        XCTAssertEqual(LengthEntry.digits("13"), "0:13")
+        XCTAssertEqual(LengthEntry.digits("130"), "1:30")
+        XCTAssertEqual(LengthEntry.digits("2005"), "2:00")
+        XCTAssertEqual(LengthEntry.digits("1:3"), "0:13", "Backspace on 1:30 leaves 0:13")
+    }
+
+    func testLengthEntryCommitNormalisesAndClamps() {
+        XCTAssertEqual(LengthEntry.commit("0:75"), 75)
+        XCTAssertEqual(LengthEntry.commit("0:02"), 5)
+        XCTAssertEqual(LengthEntry.commit("9:99"), 120)
+        XCTAssertEqual(LengthEntry.format(75), "1:15")
+    }
 }

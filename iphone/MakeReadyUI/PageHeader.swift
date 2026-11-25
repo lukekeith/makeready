@@ -9,6 +9,7 @@
 //  leading slot and each trailing glyph and owns its 44×44 tap area (OQ-C-040-7).
 //  DEPENDENCY: C-076 ActivitySpinner, level 1 — replaces the `textButtons` trailing label
 //  while `trailingLoading` is true (D66).
+//  DEPENDENCY: C-159 DoneCheck, level 1 — the `showsDone` check.
 //
 
 import SwiftUI
@@ -33,8 +34,6 @@ struct PageHeader: View {
     // visual, so the bar scales the part (not a re-draw) and lays it out in a 32pt box.
     private static let glyphSize: CGFloat = 32
     private static let glyphNativeSize: CGFloat = 24
-    // LITERAL — C-040 §2 (owner, 2026-11-21): the done check is a 32×32 `color-accent` circle.
-    private static let doneSize: CGFloat = 32
 
     let style: Style
     /// §4 `title` — centred; single line, tail ellipsis (OQ-C-040-5).
@@ -129,20 +128,11 @@ struct PageHeader: View {
         }
     }
 
-    /// §2 Done check (owner, 2026-11-21): a 32×32 `color-accent` circle with a white checkmark;
-    /// tapping it fires `onDone`; 44pt tap target.
+    /// §2 Done check (owner, 2026-11-21): C-159 — a 32×32 `color-accent` circle with a white
+    /// checkmark; tapping it fires `onDone`; 44pt tap target.
     private var doneCheck: some View {
-        SwiftUI.Button(action: onDone) {
-            Glyph(.checkmarkCarbon, size: .sm, tint: Token.white100)
-                .accessibilityHidden(true)
-                .frame(width: Self.doneSize, height: Self.doneSize)
-                .background(Circle().fill(Token.accent))
-                .contentShape(Rectangle().inset(by: -(Self.labelHitHeight - Self.doneSize) / 2))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Done")
-        .accessibilityAddTraits(.isButton)
-        .ui2Element("Done check")
+        DoneCheck(onTap: onDone)
+            .ui2Element("Done check")
     }
 
     /// A C-021 glyph at the bar's 32pt size (§2, owner 2026-11-21), with the `toolbarTone` ink.

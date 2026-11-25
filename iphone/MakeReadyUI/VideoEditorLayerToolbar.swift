@@ -8,16 +8,15 @@
 
 import SwiftUI
 
-/// C-156 VideoEditorLayerToolbar — "Selected-layer toolbar: Deselect, Split (40% opacity when
-/// disabled), Edit, Delete."
+/// C-156 VideoEditorLayerToolbar — selected-layer toolbar: Split (40% opacity when disabled), Edit,
+/// Delete. No Deselect tile (owner 2026-11-24, video-polish D10).
 ///
-/// §2: four 84 × 56 tiles centred as a group. Width-driven, chrome-free (R-16).
+/// §2: three 84 × 56 tiles centred as a group. Width-driven, chrome-free (R-16).
 ///
-/// Controlled (R-01): the only internal state is pressed feedback (R-02). It reports four taps;
+/// Controlled (R-01): the only internal state is pressed feedback (R-02). It reports three taps;
 /// what they mean is the caller's (R-03, R-04).
 struct VideoEditorLayerToolbar: View {
     /// §2 Labels.
-    static let deselectLabel = "Deselect"
     static let splitLabel = "Split"
     static let editLabel = "Edit"
     static let deleteLabel = "Delete"
@@ -30,8 +29,6 @@ struct VideoEditorLayerToolbar: View {
     let endMs: Int
     /// §4: false dims Split and stops its tap.
     let canSplit: Bool
-    /// §4: Deselect was tapped.
-    var onDeselect: () -> Void = {}
     /// §4: Split was tapped; never fires while `canSplit` is false.
     var onSplit: () -> Void = {}
     /// §4: Edit was tapped.
@@ -60,7 +57,6 @@ struct VideoEditorLayerToolbar: View {
 
     var body: some View {
         HStack(spacing: Token.Space.buttonGap) {
-            tile(Self.deselectLabel, glyph: .x, action: onDeselect)
             tile(Self.splitLabel, glyph: .scissors, enabled: canSplit, action: onSplit)
             tile(Self.editLabel, glyph: .pencil, action: onEdit)
             tile(Self.deleteLabel, glyph: .trash2, action: onDelete)

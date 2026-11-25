@@ -20,7 +20,7 @@ import UIKit
 /// Composed only of §4's C-152 CameraPreview, C-013 RecordButton (`video`), C-144 TimerPill,
 /// C-145 SegmentedProgressBar, C-146 CameraRail (→ C-147 RailTool), C-147 RailTool (Review's
 /// Edit and Filters), C-148 CountdownNumerals, C-149 LengthSlider, C-150 FilterStrip, C-151
-/// TeleprompterBand, C-132 EmptyState, and the lessonInline host chrome C-040 PageHeader and
+/// TeleprompterBand, C-159 DoneCheck, C-004 ScrubTrack, C-047 RadioOptionRow, C-132 EmptyState, and the lessonInline host chrome C-040 PageHeader and
 /// C-081 ActivityNavBar (deviation 3). §2's C-021 GlyphButton roles (close, import, undo, ✓) and
 /// C-105 Button roles (Retake, Save) are NOT in §4's roll-call (§4: "they join the roll-call
 /// with drawings once a frame draws them"), so this build draws none of them — a spec gap,
@@ -66,10 +66,14 @@ struct VideoRecorderScreen: View {
         var segments: [Double] = []
         /// C-145 `liveDuration` — seconds into the segment recording now; 0 when none.
         var liveDuration: Double = 0
-        /// §5 `length` — the chosen length in seconds (D3: 10…120, default 60).
+        /// §5 `length` — the chosen length in seconds (5…120, default 60).
         var length: Double = 60
         /// §5 `countdown` as the rail shows it: "" Off, "3s", "10s" (D2).
         var countdownValue: String = ""
+        /// §5 `lengthMode` — "any" | "specify" (the Length panel's row).
+        var lengthMode: String = "any"
+        /// §5 `endCountdown` — 0 | 3 | 10 seconds (Length panel, Specify length).
+        var endCountdown: Int = 0
         /// §5 `countdownSound` — the Countdown panel's Sound switch; the container plays the beeps.
         var countdownSound: Bool = false
         /// §5 `filter` — a C-150 look by name ("Normal" … "Noir"); unknown = Normal.
@@ -84,6 +88,14 @@ struct VideoRecorderScreen: View {
         var speed: Int = 3
         /// §5 `teleprompter.size` — "Small" | "Medium" | "Large".
         var textSize: String = "Medium"
+        /// §5 Review playback — the container's player.
+        var reviewPlaying: Bool = false
+        var reviewElapsed: TimeInterval = 0
+        var reviewDuration: TimeInterval = 0
+        /// True while a finger is on Review's C-004.
+        var reviewScrubbing: Bool = false
+        /// §3 Rail labels: whether they show at first; the screen times them from there.
+        var railLabelsVisible: Bool = true
         /// The sheet open at first (§3 Sheets).
         var sheet: Sheet = .none
         /// §1 deviation 4: the capture's fixed sample still in place of the live feed — a
@@ -113,6 +125,13 @@ struct VideoRecorderScreen: View {
     /// §3 Countdown panel: Off · 3 s · 10 s chosen; the Sound switch changed.
     var onPreRollChange: (State.PreRoll) -> Void = { _ in }
     var onCountdownSoundChange: (Bool) -> Void = { _ in }
+    /// §3 Length panel: a row chosen ("any" | "specify"); End countdown chosen (0 | 3 | 10).
+    var onLengthModeChange: (String) -> Void = { _ in }
+    var onEndCountdownChange: (Int) -> Void = { _ in }
+    /// §3 Review: a tap on the video (play / pause); C-004's seek and touch state.
+    var onReviewTap: () -> Void = {}
+    var onReviewSeek: (TimeInterval) -> Void = { _ in }
+    var onReviewScrubbingChange: (Bool) -> Void = { _ in }
 
     // Host inputs (every default renders as captured).
     /// The live feed: the capture engine's display layer, or Review's player layer. nil = the
@@ -142,8 +161,18 @@ struct VideoRecorderScreen: View {
     // §3 UI-only rule: "Sheets (Length, Countdown, Filters, Teleprompter) … are screen-local
     // presentation state" (R-31).
     @SwiftUI.State private var sheet: State.Sheet
+    /// The sheet drawn: stays until its slide-out ends, then becomes `sheet`.
+    @SwiftUI.State private var mountedSheet: State.Sheet
+    /// The mounted sheet is the seeded one, at rest from the first frame.
+    @SwiftUI.State private var mountedAtRest: Bool
+    // §3 Rail labels: shown on appear and on each tool tap, then faded (video-polish D7).
+    @SwiftUI.State private var labelsVisible: Bool
+    @SwiftUI.State private var railTaps = 0
+    @SwiftUI.State private var shownRailTaps = 0
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// True only beneath the capture harness's element map (UI2Element.swift).
+    @Environment(\.ui2ElementCollecting) private var capturing
 
     init(
         state: State,
@@ -170,7 +199,12 @@ struct VideoRecorderScreen: View {
         previewSlot: @escaping () -> AnyView = { AnyView(EmptyView()) },
         recordRowSlot: @escaping () -> AnyView = { AnyView(EmptyView()) },
         reviewSlot: @escaping () -> AnyView = { AnyView(EmptyView()) },
-        onEdit: (() -> Void)? = nil
+        onEdit: (() -> Void)? = nil,
+        onLengthModeChange: @escaping (String) -> Void = { _ in },
+        onEndCountdownChange: @escaping (Int) -> Void = { _ in },
+        onReviewTap: @escaping () -> Void = {},
+        onReviewSeek: @escaping (TimeInterval) -> Void = { _ in },
+        onReviewScrubbingChange: @escaping (Bool) -> Void = { _ in }
     ) {
         self.state = state
         self.onRecord = onRecord
@@ -197,7 +231,15 @@ struct VideoRecorderScreen: View {
         self.recordRowSlot = recordRowSlot
         self.reviewSlot = reviewSlot
         self.onEdit = onEdit
+        self.onLengthModeChange = onLengthModeChange
+        self.onEndCountdownChange = onEndCountdownChange
+        self.onReviewTap = onReviewTap
+        self.onReviewSeek = onReviewSeek
+        self.onReviewScrubbingChange = onReviewScrubbingChange
         _sheet = SwiftUI.State(initialValue: state.sheet)
+        _mountedSheet = SwiftUI.State(initialValue: state.sheet)
+        _mountedAtRest = SwiftUI.State(initialValue: state.sheet != .none)
+        _labelsVisible = SwiftUI.State(initialValue: state.railLabelsVisible)
     }
 
     // MARK: - Geometry (§2c, relative to the preview's own rect)
@@ -218,10 +260,16 @@ struct VideoRecorderScreen: View {
         static let reviewToolGap: CGFloat = 10
         /// GAP — video-recorder §2a: the host's "hairline divider"; no stroke token.
         static let hairline: CGFloat = 1
-        /// GAP — video-recorder §2d Countdown panel: the segmented choice, at C-151 §2b's step
-        /// control size (36 pt capsule, selection inset 2 pt); no size token.
-        static let segmentHeight: CGFloat = 36
-        static let segmentInset: CGFloat = 2
+    }
+
+    /// GAP — video-recorder §2c Rail labels: 0.2 s in, 0.3 s out, held 1.0 s on appear and 2.0 s
+    /// after a tap; no motion token names them.
+    private enum RailLabelMotion {
+        static let fadeIn = Animation.easeOut(duration: 0.2)
+        static let fadeOut = Animation.easeOut(duration: 0.3)
+        static let appearHold = Duration.seconds(1)
+        /// The 0.2 s fade-in, then 2.0 s.
+        static let tapHold = Duration.seconds(2.2)
     }
 
     // MARK: - Derived (§3)
@@ -250,23 +298,14 @@ struct VideoRecorderScreen: View {
         isRecording || (phase == .paused && !state.segments.isEmpty)
     }
 
-    /// §2c CameraRail: ready, paused; §2d: hidden while a sheet is open, except the Countdown
-    /// panel ("the rail stays so its Countdown tool can close the panel").
-    private var showsRail: Bool {
-        (phase == .ready || phase == .paused) && (sheet == .none || sheet == .countdown)
-    }
+    /// §2c CameraRail: ready, paused.
+    private var showsRail: Bool { phase == .ready || phase == .paused }
 
-    /// §2c SegmentedProgressBar: every camera phase; §2d: hidden by Length and Countdown.
-    private var showsProgress: Bool { isCameraPhase && !dimsPreview }
+    /// §2c RecordButton: "always except permissionDenied, review, trim".
+    private var showsRecordRow: Bool { isCameraPhase }
 
-    /// §2c RecordButton: "always except permissionDenied, review, trim"; §2d: the Length sheet and
-    /// the Countdown panel hide the record row and Filters takes its place.
-    private var showsRecordRow: Bool {
-        isCameraPhase && !dimsPreview && sheet != .filters
-    }
-
-    /// §2d Length, Countdown: "the preview dims".
-    private var dimsPreview: Bool { sheet == .length || sheet == .countdown }
+    /// §2d Length panel: Specify length chosen.
+    private var specifiesLength: Bool { state.lengthMode == "specify" }
 
     /// §5 `countdown`, as the Countdown panel's selection.
     private var preRoll: State.PreRoll {
@@ -286,10 +325,10 @@ struct VideoRecorderScreen: View {
         } ?? .medium
     }
 
-    /// C-146 `lengthValue` — D3: "shows the value as `m:ss`".
+    /// C-146 `lengthValue` — `m:ss`; under Any length, the 2:00 cap.
     private var lengthValue: String {
-        let total = max(Int(state.length.rounded()), 0)
-        return String(format: "%d:%02d", total / 60, total % 60)
+        guard specifiesLength else { return LengthEntry.format(LengthEntry.maximumSeconds) }
+        return LengthEntry.format(max(Int(state.length.rounded()), 0))
     }
 
     // MARK: - Body
@@ -303,8 +342,58 @@ struct VideoRecorderScreen: View {
         }
         .frame(maxWidth: .infinity, maxHeight: fillsHeight ? .infinity : nil, alignment: .top)
         .background(Token.layoutBackground)
-        // §2d: the Length sheet and the Teleprompter panel — house overlay chrome over the page.
-        .overlay(alignment: .bottom) { sheetContent }
+        // §2d: the sheets, in place over the recorder.
+        .overlayPreferenceValue(PreviewBoundsKey.self) { anchor in
+            GeometryReader { proxy in
+                sheetLayer(previewRect: anchor.map { proxy[$0] } ?? .zero)
+            }
+        }
+        .onChange(of: sheet) { _, next in
+            // An open sheet slides off first (`sheetHidden`); from none, the new one mounts now.
+            guard mountedSheet == .none, next != .none else { return }
+            mountedAtRest = false
+            mountedSheet = next
+        }
+        .task(id: RailLabelKey(railShown: showsRail, taps: railTaps)) { await showRailLabels() }
+    }
+
+    /// The preview's rect, for the rail the Countdown sheet keeps above its dim.
+    private struct PreviewBoundsKey: PreferenceKey {
+        static let defaultValue: Anchor<CGRect>? = nil
+        static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) {
+            value = value ?? nextValue()
+        }
+    }
+
+    // MARK: - §3 Rail labels
+
+    private struct RailLabelKey: Equatable {
+        let railShown: Bool
+        let taps: Int
+    }
+
+    /// Shown as the rail appears (held 1.0 s) and on a tool tap (faded in, held 2.0 s), then faded
+    /// out. A new tap or the rail leaving cancels the hold. A capture keeps its seeded labels.
+    private func showRailLabels() async {
+        guard showsRail, !capturing else { return }
+        let tapped = railTaps != shownRailTaps
+        shownRailTaps = railTaps
+        if tapped {
+            withAnimation(RailLabelMotion.fadeIn) { labelsVisible = true }
+        } else {
+            labelsVisible = true
+        }
+        do {
+            try await Task.sleep(for: tapped ? RailLabelMotion.tapHold : RailLabelMotion.appearHold)
+        } catch {
+            return // cancelled: the next task times the labels
+        }
+        withAnimation(RailLabelMotion.fadeOut) { labelsVisible = false }
+    }
+
+    private func railTapped(_ action: () -> Void) {
+        railTaps += 1
+        action()
     }
 
     // MARK: - §2a lessonInline
@@ -390,6 +479,9 @@ struct VideoRecorderScreen: View {
             AnyView(overlays)
         }
         .ui2Element("C-152 CameraPreview")
+        .transformAnchorPreference(key: PreviewBoundsKey.self, value: .bounds) { value, anchor in
+            value = value ?? anchor
+        }
     }
 
     /// §1 deviation 4: the capture renders a fixed sample still; the app passes the live layer.
@@ -417,23 +509,25 @@ struct VideoRecorderScreen: View {
                 cameraOverlays
             }
             previewSlot()
-            if dimsPreview {
-                // §2d Length, Countdown: "the preview dims" — house overlay chrome.
-                // A tap outside closes it: neither sheet has a Done.
-                Token.scrim
-                    .onTapGesture { sheet = .none }
-            }
-            if sheet == .countdown && showsRail {
-                // §2d Countdown: the rail stays tappable, so it sits over the scrim.
-                rail
-            }
         }
     }
 
     @ViewBuilder private var cameraOverlays: some View {
+        if phase == .review {
+            // §3 Review: a tap on the video plays or pauses, under every control.
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture(perform: onReviewTap)
+                .accessibilityElement()
+                .accessibilityLabel(state.reviewPlaying ? "Pause" : "Play")
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction { onReviewTap() }
+                .ui2Element("Review video")
+        }
+
         // Top: bar, timer, teleprompter band (§2c).
         VStack(spacing: 0) {
-            if showsProgress {
+            if isCameraPhase {
                 SegmentedProgressBar(
                     length: state.length,
                     segments: state.segments,
@@ -472,8 +566,9 @@ struct VideoRecorderScreen: View {
         }
 
         // Centre: the rail (trailing) and the countdown numeral.
-        if showsRail && sheet != .countdown {
+        if showsRail && mountedSheet != .countdown {
             rail
+                .padding(.trailing, Token.Space.pageMargin)
         }
 
         if phase == .preRoll || phase == .endCountdown {
@@ -484,7 +579,7 @@ struct VideoRecorderScreen: View {
             .ui2Element("C-148 CountdownNumerals")
         }
 
-        // Bottom: the record row, or the Filters strip in its place (§2d).
+        // Bottom: the record row, or Review's and Trim's.
         VStack(spacing: 0) {
             Spacer(minLength: 0)
             bottomRow
@@ -499,32 +594,33 @@ struct VideoRecorderScreen: View {
             lengthEnabled: state.segments.isEmpty,
             filtersActive: look != .normal,
             teleprompterActive: state.teleprompterOn,
-            onFlip: { onRail(.flip) },
-            onCountdown: toggleCountdown,
-            onLength: { openSheet(.length, tool: .length) },
-            onFilters: { openSheet(.filters, tool: .filters) },
-            onTeleprompter: { openSheet(.teleprompter, tool: .teleprompter) }
+            labelsVisible: labelsVisible,
+            onFlip: { railTapped { onRail(.flip) } },
+            onCountdown: { railTapped(toggleCountdown) },
+            onLength: { railTapped { openSheet(.length, tool: .length) } },
+            onFilters: { railTapped { openSheet(.filters, tool: .filters) } },
+            onTeleprompter: { railTapped { openSheet(.teleprompter, tool: .teleprompter) } }
         )
         .ui2Element("C-146 CameraRail")
-        .padding(.trailing, Token.Space.pageMargin)
     }
 
     @ViewBuilder private var bottomRow: some View {
-        if sheet == .filters && (isCameraPhase || phase == .review) {
-            // §2d Filters: C-150 "laid over the bottom of the preview in place of the record row".
-            FilterStrip(
-                selected: look,
-                onSelect: { onFilterChange($0.name) },
-                strength: state.strength,
-                onStrengthChange: onStrengthChange,
-                thumbnails: filterThumbnails,
-                onDone: { sheet = .none }
-            )
-            .ui2Element("C-150 FilterStrip")
-        } else if showsRecordRow {
+        if showsRecordRow {
             recordRow
         } else if phase == .review {
-            reviewRow
+            // §2d Review: C-004 directly above the bottom row.
+            VStack(spacing: Token.Space.elementGap) {
+                ScrubTrack(
+                    elapsed: state.reviewElapsed,
+                    duration: state.reviewDuration,
+                    dragging: state.reviewScrubbing,
+                    onSeek: onReviewSeek,
+                    onDraggingChange: onReviewScrubbingChange
+                )
+                .ui2Element("C-004 ScrubTrack")
+                .padding(.horizontal, Token.Space.pageMargin)
+                reviewRow
+            }
         } else if phase == .trim {
             reviewSlot()
         }
@@ -597,33 +693,81 @@ struct VideoRecorderScreen: View {
         }
     }
 
-    // MARK: - §2d sheets (house overlay chrome)
+    // MARK: - §2d sheets
 
-    @ViewBuilder private var sheetContent: some View {
-        switch sheet {
+    @ViewBuilder private func sheetLayer(previewRect: CGRect) -> some View {
+        if mountedSheet != .none {
+            VideoRecorderPanelSheet(
+                visible: sheet == mountedSheet,
+                startsShown: mountedAtRest,
+                // C-150 insets its own rows.
+                contentInset: mountedSheet == .filters ? 0 : Token.Space.pageMargin,
+                bottomInset: sheetBottomInset,
+                coversScreen: state.layout == .fullScreen,
+                onDismiss: { sheet = .none },
+                onHidden: sheetHidden,
+                aboveDim: {
+                    if mountedSheet == .countdown && showsRail {
+                        // §2d Countdown: the rail stays tappable above the dim, where it was. Its
+                        // natural width, so the dim beside it still takes the dismissing tap.
+                        rail
+                            .fixedSize(horizontal: true, vertical: false)
+                            .padding(.trailing, Token.Space.pageMargin)
+                            .frame(width: previewRect.width, height: previewRect.height, alignment: .trailing)
+                            .padding(.top, previewRect.minY)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    }
+                },
+                content: { sheetContent(mountedSheet) }
+            )
+            .id(mountedSheet)
+        }
+    }
+
+    /// The slide-out ended: unmount it, or mount the sheet that replaced it.
+    private func sheetHidden() {
+        guard sheet != mountedSheet else { return }
+        mountedAtRest = false
+        mountedSheet = sheet
+    }
+
+    @ViewBuilder private func sheetContent(_ shown: State.Sheet) -> some View {
+        switch shown {
         case .length:
-            sheetSurface {
-                LengthSlider(length: state.length, onChange: onLengthChange)
-                    .ui2Element("C-149 LengthSlider")
-            }
+            VideoRecorderLengthPanel(
+                specifies: specifiesLength,
+                length: state.length,
+                endCountdown: State.PreRoll(rawValue: state.endCountdown) ?? .off,
+                onModeChange: onLengthModeChange,
+                onLengthChange: onLengthChange,
+                onEndCountdownChange: { onEndCountdownChange($0.rawValue) }
+            )
         case .countdown:
-            sheetSurface { countdownPanel }
+            countdownPanel
+        case .filters:
+            FilterStrip(
+                selected: look,
+                onSelect: { onFilterChange($0.name) },
+                strength: state.strength,
+                onStrengthChange: onStrengthChange,
+                thumbnails: filterThumbnails,
+                onDone: { sheet = .none }
+            )
+            .ui2Element("C-150 FilterStrip")
         case .teleprompter:
-            sheetSurface {
-                TeleprompterBand(
-                    surface: .panel,
-                    script: state.script,
-                    textSize: teleprompterSize,
-                    speed: state.speed,
-                    onScriptChange: onScriptChange,
-                    onUseNote: onUseNote,
-                    onSpeedChange: onSpeedChange,
-                    onTextSizeChange: { onTextSizeChange($0.label) },
-                    onDone: { sheet = .none }
-                )
-                .ui2Element("C-151 TeleprompterBand")
-            }
-        case .filters, .none:
+            TeleprompterBand(
+                surface: .panel,
+                script: state.script,
+                textSize: teleprompterSize,
+                speed: state.speed,
+                onScriptChange: onScriptChange,
+                onUseNote: onUseNote,
+                onSpeedChange: onSpeedChange,
+                onTextSizeChange: { onTextSizeChange($0.label) },
+                onDone: { sheet = .none }
+            )
+            .ui2Element("C-151 TeleprompterBand")
+        case .none:
             EmptyView()
         }
     }
@@ -631,56 +775,12 @@ struct VideoRecorderScreen: View {
     /// §2d Countdown panel: "both controls are drawn by this screen's sheet, not by a registry part".
     private var countdownPanel: some View {
         VStack(alignment: .leading, spacing: Token.Space.rowGap) {
-            VStack(alignment: .leading, spacing: Token.Space.elementGap) {
-                Text("Countdown")
-                    .designTextStyle(Token.TypeStyle.bodySm)
-                    .foregroundStyle(Token.textPrimary)
-                    .accessibilityHidden(true)
-                    .ui2Element("Countdown label")
-                preRollControl
-            }
+            VideoRecorderPreRollChoice(caption: "Countdown", selected: preRoll, onSelect: onPreRollChange)
             soundRow
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .sensoryFeedback(.selection, trigger: preRoll)
         .ui2Element("Countdown panel")
-    }
-
-    /// §2d: the segmented choice Off · 3 s · 10 s, in the look of C-151's step control. `radius-circle`
-    /// is unparsed ("50%"), so the shapes are SwiftUI capsules.
-    private var preRollControl: some View {
-        GeometryReader { proxy in
-            let options = State.PreRoll.allCases
-            let segment = proxy.size.width / CGFloat(options.count)
-            ZStack(alignment: .leading) {
-                Capsule().fill(Token.white10)
-                Capsule()
-                    .fill(Token.accent)
-                    .frame(
-                        width: max(segment - 2 * Geometry.segmentInset, 0),
-                        height: Geometry.segmentHeight - 2 * Geometry.segmentInset
-                    )
-                    .offset(x: CGFloat(options.firstIndex(of: preRoll) ?? 0) * segment + Geometry.segmentInset)
-                HStack(spacing: 0) {
-                    ForEach(options, id: \.self) { option in
-                        SwiftUI.Button { onPreRollChange(option) } label: {
-                            Text(option.label)
-                                .designTextStyle(Token.TypeStyle.labelEmphasis)
-                                .foregroundStyle(option == preRoll ? Token.textPrimary : Token.textSecondary)
-                                .lineLimit(1)
-                                .frame(width: segment, height: Geometry.segmentHeight)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Countdown \(option.label)")
-                        .accessibilityAddTraits(option == preRoll ? .isSelected : [])
-                    }
-                }
-            }
-            .animation(reduceMotion ? nil : Token.Motion.chipSelect, value: preRoll)
-        }
-        .frame(height: Geometry.segmentHeight)
-        .ui2Element("Countdown choice")
     }
 
     /// §2d: the Sound switch, "dimmed and not tappable while Countdown is Off".
@@ -742,23 +842,6 @@ struct VideoRecorderScreen: View {
             }
         }
     }
-
-    /// The house sheet surface (ActionMenuOverlay's): `color-modal-background`, `radius-modal`
-    /// top corners, `space-page-margin` inset.
-    private func sheetSurface(@ViewBuilder _ content: () -> some View) -> some View {
-        content()
-            .padding(Token.Space.pageMargin)
-            .padding(.bottom, sheetBottomInset)
-            .frame(maxWidth: .infinity)
-            .background(
-                UnevenRoundedRectangle(
-                    topLeadingRadius: Token.Radius.modal,
-                    topTrailingRadius: Token.Radius.modal,
-                    style: .continuous
-                )
-                .fill(Token.modalBackground)
-            )
-    }
 }
 
 // MARK: - Previews (one per §3 state; the device canvas, D22)
@@ -806,7 +889,10 @@ struct VideoRecorderScreen: View {
 }
 
 #Preview("Review") {
-    VideoRecorderScreen(state: .init(phase: .review, segments: [7.8, 7.0]), onEdit: {})
+    VideoRecorderScreen(
+        state: .init(phase: .review, segments: [7.8, 7.0], reviewElapsed: 4, reviewDuration: 14.8),
+        onEdit: {}
+    )
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)
@@ -820,7 +906,7 @@ struct VideoRecorderScreen: View {
 }
 
 #Preview("Length sheet") {
-    VideoRecorderScreen(state: .init(phase: .ready, sheet: .length))
+    VideoRecorderScreen(state: .init(phase: .ready, lengthMode: "specify", sheet: .length))
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)
@@ -863,6 +949,27 @@ struct VideoRecorderScreen: View {
 
 #Preview("Countdown panel — 10 s") {
     VideoRecorderScreen(state: .init(phase: .ready, countdownValue: "10s", sheet: .countdown))
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
+
+#Preview("Length sheet — Any length") {
+    VideoRecorderScreen(state: .init(phase: .ready, sheet: .length))
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
+
+#Preview("Teleprompter panel — empty") {
+    VideoRecorderScreen(state: .init(phase: .ready, sheet: .teleprompter))
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
+
+#Preview("Rail labels hidden") {
+    VideoRecorderScreen(state: .init(phase: .ready, railLabelsVisible: false))
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)

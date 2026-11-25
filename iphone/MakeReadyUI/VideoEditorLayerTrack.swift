@@ -12,7 +12,8 @@ import SwiftUI
 /// and caption looks; selected state shows end handles to trim and bar drag to slide."
 ///
 /// §2: 44 pt tall, the timeline's content width, leading edge = time 0. One bar per window, drawn
-/// where C-153's time scale puts it; handles sit outside the selected bar's ends.
+/// where C-153's time scale puts it; handles are drawn inside the selected bar's ends (owner
+/// 2026-11-24, video-polish D12).
 ///
 /// Controlled (R-01): the windows and the selection are displayed, never held; the only internal
 /// state is a drag in flight (R-02). It reports unclamped intents — every timing rule is the
@@ -75,6 +76,8 @@ struct VideoEditorLayerTrack: View {
         static let outline: CGFloat = 2
         /// FLAGGED LITERAL — C-154 §2 FL-5: 12 handle, no token.
         static let handleWidth: CGFloat = 12
+        /// FLAGGED LITERAL — C-154 §2: even a 20 pt bar (0.5 s) can still be slid, no token.
+        static let minimumSlide: CGFloat = 20
         /// FLAGGED LITERAL — C-154 §2 FL-6: 2 × 20 grip, no token.
         static let gripWidth: CGFloat = 2
         static let gripHeight: CGFloat = 20
@@ -94,7 +97,7 @@ struct VideoEditorLayerTrack: View {
         }
         .frame(maxWidth: .infinity, minHeight: Geometry.height, maxHeight: Geometry.height, alignment: .topLeading)
         // §2: a tap over a handle's hit area selects the bar under it, so the track resolves taps by
-        // place. No content shape here: only bars and handles are hit, and handles pass the ends.
+        // place. No content shape here: only bars and handles are hit, and hit areas pass the ends.
         .gesture(SpatialTapGesture().onEnded { tap in
             if let bar = bar(at: tap.location.x) { onSelect(bar.id) }
         })
@@ -113,15 +116,14 @@ struct VideoEditorLayerTrack: View {
                 barBody(bar, width: width, selected: true, number: number)
                     .horizontalPan(onChanged: { pan($0, .body, bar) }, onEnded: { _ in endDrag(.body, bar.id) })
                     .accessibilityAdjustableAction { step($0, .body, bar) }
-                handle(.start, bar)
-                    .offset(x: -Geometry.height)
-                handle(.end, bar)
-                    .offset(x: width)
+                handle(.start, bar, width: width)
+                    .offset(x: handleReach(width) - Geometry.height)
+                handle(.end, bar, width: width)
+                    .offset(x: width - handleReach(width))
                 RoundedRectangle(cornerRadius: Token.Radius.card, style: .continuous)
                     .strokeBorder(selectionColor, lineWidth: Geometry.outline)
-                    .frame(width: width + Geometry.handleWidth * 2, height: Geometry.height)
+                    .frame(width: width, height: Geometry.height)
                     .ui2Element("Selected outline")
-                    .offset(x: -Geometry.handleWidth)
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
             }
@@ -131,8 +133,8 @@ struct VideoEditorLayerTrack: View {
     }
 
     private func barBody(_ bar: Bar, width: CGFloat, selected: Bool, number: Int) -> some View {
-        let shape = RoundedRectangle(cornerRadius: selected ? 0 : Token.Radius.card, style: .continuous)
-        return content(bar, width: width, number: number)
+        let shape = RoundedRectangle(cornerRadius: Token.Radius.card, style: .continuous)
+        return content(bar, width: width, selected: selected, number: number)
             .frame(width: width, height: Geometry.height, alignment: .leading)
             .background(fill(selected: selected))
             .clipShape(shape)
@@ -150,9 +152,11 @@ struct VideoEditorLayerTrack: View {
     }
 
     /// §2 Glyph and label; nothing in a bar narrower than its glyph and gaps.
-    @ViewBuilder private func content(_ bar: Bar, width: CGFloat, number: Int) -> some View {
+    @ViewBuilder private func content(_ bar: Bar, width: CGFloat, selected: Bool, number: Int) -> some View {
         let gap = Token.Space.elementGap
-        let minimum = gap * 2 + (kind == .text ? Geometry.glyph : 0)
+        // D12: the content clears the handles inside the selected bar.
+        let inset = gap + (selected ? handleWidth(width) : 0)
+        let minimum = inset * 2 + (kind == .text ? Geometry.glyph : 0)
         if width >= minimum {
             HStack(spacing: gap) {
                 if kind == .text {
@@ -170,13 +174,13 @@ struct VideoEditorLayerTrack: View {
                     .ui2Element("Label \(number)")
             }
             .foregroundStyle(Token.textPrimary)
-            // §2 Label pinning (OQ-C-154-2): this view's leading edge is `gap` into the bar.
+            // §2 Label pinning (OQ-C-154-2): this view's leading edge is `inset` into the bar.
             .visualEffect { effect, proxy in
                 let hidden = (proxy.bounds(of: .scrollView)?.minX ?? -.infinity) + gap
-                let room = max(width - gap * 2 - proxy.size.width, 0)
+                let room = max(width - inset * 2 - proxy.size.width, 0)
                 return effect.offset(x: min(max(hidden, 0), room))
             }
-            .padding(.horizontal, gap)
+            .padding(.horizontal, inset)
         } else {
             Color.clear
         }
@@ -184,9 +188,21 @@ struct VideoEditorLayerTrack: View {
 
     // MARK: - Handles
 
-    /// §2 Handle: 12 pt drawn against the bar's end, inside a 44 × 44 hit area running outward.
-    private func handle(_ part: Part, _ bar: Bar) -> some View {
+    /// D12: 12 pt, or a third of a bar too narrow for two, so a handle never passes the bar.
+    private func handleWidth(_ width: CGFloat) -> CGFloat {
+        min(Geometry.handleWidth, width / 3)
+    }
+
+    /// How far a handle's hit area runs into the bar: over the drawn handle, but never leaving less
+    /// than 20 pt of bar to slide.
+    private func handleReach(_ width: CGFloat) -> CGFloat {
+        min(handleWidth(width), max((width - Geometry.minimumSlide) / 2, 0))
+    }
+
+    /// §2 Handle: drawn inside the bar's end (D12); its 44 × 44 hit area runs outward.
+    private func handle(_ part: Part, _ bar: Bar, width: CGFloat) -> some View {
         let leading = part == .start
+        let inward = handleWidth(width) - handleReach(width)
         let outer = Token.Radius.card
         return UnevenRoundedRectangle(
             topLeadingRadius: leading ? outer : 0,
@@ -196,7 +212,7 @@ struct VideoEditorLayerTrack: View {
             style: .continuous
         )
         .fill(selectionColor)
-        .frame(width: Geometry.handleWidth, height: Geometry.height)
+        .frame(width: handleWidth(width), height: Geometry.height)
         .overlay {
             Capsule()
                 .fill(kind == .text ? Token.textPrimary : Token.cardBackground)
@@ -204,6 +220,7 @@ struct VideoEditorLayerTrack: View {
                 .ui2Element(leading ? "Start grip" : "End grip")
         }
         .ui2Element(leading ? "Start handle" : "End handle")
+        .offset(x: leading ? inward : -inward)
         .frame(width: Geometry.height, height: Geometry.height, alignment: leading ? .trailing : .leading)
         .contentShape(Rectangle())
         .horizontalPan(onChanged: { pan($0, part, bar) }, onEnded: { _ in endDrag(part, bar.id) })

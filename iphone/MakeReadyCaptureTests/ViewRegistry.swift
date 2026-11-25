@@ -3485,6 +3485,8 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
                 liveDuration: c.liveDuration ?? recorderDefaults.liveDuration,
                 length: c.length ?? recorderDefaults.length,
                 countdownValue: c.countdownValue ?? recorderDefaults.countdownValue,
+                lengthMode: c.lengthMode ?? recorderDefaults.lengthMode,
+                endCountdown: c.endCountdown ?? recorderDefaults.endCountdown,
                 countdownSound: c.countdownSound ?? recorderDefaults.countdownSound,
                 filterLook: c.filterLook ?? recorderDefaults.filterLook,
                 strength: c.strength ?? recorderDefaults.strength,
@@ -3492,6 +3494,11 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
                 script: c.script ?? recorderDefaults.script,
                 speed: c.speed ?? recorderDefaults.speed,
                 textSize: c.textSize ?? recorderDefaults.textSize,
+                reviewPlaying: c.reviewPlaying ?? recorderDefaults.reviewPlaying,
+                reviewElapsed: c.reviewElapsed ?? recorderDefaults.reviewElapsed,
+                reviewDuration: c.reviewDuration ?? recorderDefaults.reviewDuration,
+                reviewScrubbing: c.reviewScrubbing ?? recorderDefaults.reviewScrubbing,
+                railLabelsVisible: c.railLabelsVisible ?? recorderDefaults.railLabelsVisible,
                 sheet: recorderSheet,
                 cameraImageURL: c.cameraImageURL ?? recorderDefaults.cameraImageURL
             ),
@@ -4539,7 +4546,7 @@ private func buildCaptureViewPart12(_ fixture: CaptureFixture, authManager: Auth
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-156: missing state.component")
         }
-        // C-156 §4 (R-07): every value is required; the four closures are the view's no-op defaults.
+        // C-156 §4 (R-07): every value is required; the three closures are the view's no-op defaults.
         guard let ui2C156Text = c.text, let ui2C156Start = c.startMs,
               let ui2C156End = c.endMs, let ui2C156CanSplit = c.canSplit else {
             throw ViewRegistryError.unknownView("component.ui2.C-156: props.text, startMs, endMs and canSplit are required")
@@ -4590,6 +4597,12 @@ private func buildCaptureViewPart13(_ fixture: CaptureFixture, authManager: Auth
         return declareCase(
             MakeReadyUI.UnsafeBandOverlay(),
             PreviewFrame(width: ui2C158Size.width, height: ui2C158Size.height, marginEdges: .vertical)
+        )
+    case "component.ui2.C-159":
+        // C-159: no look props — the check hugs its own 32 × 32.
+        return declareCase(
+            MakeReadyUI.DoneCheck(),
+            PreviewFrame(alignment: .leading, intrinsic: true)
         )
     case "screen.2.0.video-editor":
         // Out of line for the same stack-frame reason as C-083.
@@ -5388,7 +5401,6 @@ private func buildScreenActivitiesEditor(_ fixture: CaptureFixture) throws -> An
             readOnlyPosterURL: readOnlyPosterURL,
             videoPendingPosterURL: videoPendingPosterURL,
             replaceVideoMenuOpen: c.replaceVideoMenuOpen ?? sample.replaceVideoMenuOpen,
-            sliderDocked: c.sliderDocked ?? sample.sliderDocked,
             snapIndex: c.snapIndex ?? sample.snapIndex,
             objectLocks: c.objectLocks ?? sample.objectLocks,
             objectIDs: c.objectIDs ?? sample.objectIDs,

@@ -8,16 +8,15 @@
 
 import SwiftUI
 
-/// C-093 TextSizeSlider — "Vertical wedge size slider with a 26pt thumb: writes the text
-/// object's size."
+/// C-093 TextSizeSlider — vertical size line with a dot: writes the text object's size.
 ///
-/// §2: a 20 × 263.5pt wedge track tapering from a 20pt top edge to an apex at the bottom
-/// centre, and a 26pt thumb disc on the track's centre line. Linear, **top = 1 (largest),
-/// bottom = 0 (smallest)**; the point size is the caller's mapping (activities-editor OQ-015).
+/// video-polish D11 (owner 2026-11-24): a 1pt line, 263.5pt long, centred in the 20pt frame, and a
+/// 12pt dot on it. Linear, **top = 1 (largest), bottom = 0 (smallest)**; the point size is the
+/// caller's mapping (activities-editor OQ-015).
 ///
 /// Controlled (R-01): it displays `value` and never holds it. Width-driven, chrome-free (R-16):
-/// it states its own 263.5pt height, paints no background and adds no outer padding. The thumb
-/// overhangs the 20pt frame by 3pt each side (§2) and the track's ends by 13pt (OQ-C-093-003).
+/// it states its own 263.5pt height, paints no background and adds no outer padding. The dot
+/// overhangs the line's ends by 6pt (OQ-C-093-003).
 struct TextSizeSlider: View {
     /// §4 — thumb position, 0…1 along the track, 1 = top = largest.
     let value: CGFloat
@@ -27,14 +26,16 @@ struct TextSizeSlider: View {
     /// §2 frame: 20 × 263.5pt (§1 deviation 3 — the half point is laid out as authored).
     private let trackWidth: CGFloat = 20
     private let trackHeight: CGFloat = 263.5
-    /// §2 thumb: a 26 × 26pt disc.
-    private let thumbDiameter: CGFloat = 26
+    /// FLAGGED LITERAL — video-polish D11: a 1pt line and a 12pt dot, no size tokens.
+    private let lineWidth: CGFloat = 1
+    private let thumbDiameter: CGFloat = 12
     /// §2 touch / OQ-C-093-002: a 44pt-wide hit strip centred on the track, full height.
     private let hitWidth: CGFloat = 44
 
     var body: some View {
-        Wedge()
-            .fill(Token.white50)
+        Rectangle()
+            .fill(Token.white100)
+            .frame(width: lineWidth)
             .ui2Element("Track")
             .frame(width: trackWidth, height: trackHeight)
             .overlay(alignment: .top) {
@@ -42,7 +43,6 @@ struct TextSizeSlider: View {
                 Circle()
                     .fill(Token.white100)
                     .frame(width: thumbDiameter, height: thumbDiameter)
-                    .designShadow(Token.Elevation.thumb)
                     .ui2Element("Thumb")
                     // OQ-C-093-003: the centre travels the full track, y = (1 − value) × 263.5.
                     .offset(y: (1 - clamped(value)) * trackHeight - thumbDiameter / 2)
@@ -82,18 +82,5 @@ struct TextSizeSlider: View {
 
     private func clamped(_ raw: CGFloat) -> CGFloat {
         min(max(raw, 0), 1)
-    }
-}
-
-/// §2 track — `M0 0 H20 L10 263.5 Z`: the full top edge tapering to an apex at the bottom
-/// centre. Inline anatomy of C-093, not a registry row (§5).
-private struct Wedge: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
-        path.closeSubpath()
-        return path
     }
 }

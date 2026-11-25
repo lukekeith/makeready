@@ -76,7 +76,6 @@ struct TeleprompterBand: View {
     private static let bandHeight: CGFloat = 212
     private static let bandInset: CGFloat = 24          // text start and the fade masks
     private static let headerHeight: CGFloat = 44
-    private static let doneGlyph: CGFloat = 24
     private static let fieldHeight: CGFloat = 160
     private static let controlHeight: CGFloat = 36
     private static let segmentInset: CGFloat = 2
@@ -122,7 +121,8 @@ struct TeleprompterBand: View {
                 .fill(Token.black50)
                 .ui2Element("Plate")
             if scriptBlank {
-                // §2a Empty (OQ-C-151-4): one centred line, vertically centred, no scroll.
+                // The recorder shows the band only with a script (video-recorder §2c), so this is
+                // never reached there. §2a Empty (OQ-C-151-4): one centred line, vertically centred, no scroll.
                 Text(Self.emptyLine)
                     .designTextStyle(Token.TypeStyle.bodySm)
                     .foregroundStyle(Token.white60)
@@ -190,10 +190,9 @@ struct TeleprompterBand: View {
             field
                 .frame(height: Self.fieldHeight)
                 .padding(.bottom, Token.Space.fieldGap)
-            Button(label: "Use a note", leadingGlyph: .notebookPen, onTap: onUseNote)
+            noteRow
                 .frame(height: Self.controlHeight)
                 .padding(.bottom, Token.Space.rowGap)
-                .ui2Element("Use a note")
             stepGroup(
                 caption: "Speed",
                 labels: (1...5).map(String.init),
@@ -219,8 +218,7 @@ struct TeleprompterBand: View {
         .ui2Element("TeleprompterBand")
     }
 
-    /// §2b Header: "Teleprompter" leading; Done (`check`, 24 pt) in a 44 pt hit square at the
-    /// trailing edge (as C-150).
+    /// §2b Header: "Teleprompter" leading; C-159 DoneCheck at the trailing edge (as C-150).
     private var header: some View {
         HStack(spacing: 0) {
             Text("Teleprompter")
@@ -230,18 +228,33 @@ struct TeleprompterBand: View {
                 .accessibilityAddTraits(.isHeader)
                 .ui2Element("Title")
             Spacer(minLength: 0)
-            SwiftUI.Button(action: onDone) {
-                Glyph(.check, size: .md, tint: Token.textPrimary)
-                    .frame(width: Self.headerHeight, height: Self.headerHeight)
+            DoneCheck(onTap: onDone)
+                .ui2Element("Done")
+        }
+        .ui2Element("Header")
+    }
+
+    /// §2b Use a note, with the Clear text button trailing on its row (video-recorder §2d): Clear
+    /// empties the script.
+    private var noteRow: some View {
+        HStack(spacing: Token.Space.elementGap) {
+            Button(label: "Use a note", leadingGlyph: .notebookPen, onTap: onUseNote)
+                .ui2Element("Use a note")
+            Spacer(minLength: 0)
+            // The page header's text-action look (C-040 `type-nav-action`, `color-accent`).
+            SwiftUI.Button { onScriptChange("") } label: {
+                Text("Clear")
+                    .designTextStyle(Token.TypeStyle.navAction)
+                    .foregroundStyle(Token.accent)
+                    .lineLimit(1)
+                    .fixedSize()
+                    .frame(height: Self.headerHeight)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Done")
-            .ui2Element("Done")
+            .accessibilityLabel("Clear script")
+            .ui2Element("Clear")
         }
-        // The glyph's trailing edge sits at the panel's edge; the hit square overhangs it.
-        .padding(.trailing, -(Self.headerHeight - Self.doneGlyph) / 2)
-        .ui2Element("Header")
     }
 
     /// §2b Script field: `color-white-5` fill, `radius-card` corners, 12 pt padding; text

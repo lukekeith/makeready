@@ -198,6 +198,9 @@ struct VideoEditorScreen: View {
         .environment(\.colorScheme, .dark)          // §2: dark appearance
     }
 
+    /// FLAGGED LITERAL — video-editor §2 item 6 (owner 2026-11-24, video-polish D10): 16 pt.
+    private static let toolbarGap: CGFloat = 16
+
     private var isCovered: Bool { state.textTool != nil || state.confirm != .none }
 
     /// §2 items 1–7, top → bottom.
@@ -215,7 +218,7 @@ struct VideoEditorScreen: View {
             toolbar
                 // The tool row can rest here when no keyboard is up.
                 .opacity(state.textTool == nil ? 1 : 0)
-                .padding(.top, Token.Space.elementGap)
+                .padding(.top, Self.toolbarGap)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -308,7 +311,6 @@ struct VideoEditorScreen: View {
                     startMs: layer.startMs,
                     endMs: layer.endMs,
                     canSplit: state.canSplit,
-                    onDeselect: onDeselect,
                     onSplit: onSplit,
                     onEdit: { onEdit(layer.id) },
                     onDelete: { onDelete(layer.id) }
@@ -940,9 +942,6 @@ private struct VideoEditorTextTool: View {
     @SwiftUI.State private var style: Style
     @SwiftUI.State private var openTool: Tool
     @SwiftUI.State private var palettePage = 0
-    @SwiftUI.State private var sliderDocked = false
-    @SwiftUI.State private var sliderTouching = false
-    @SwiftUI.State private var sliderTimer = 0
     @SwiftUI.State private var sliderStart: (value: CGFloat, height: CGFloat)?
     @SwiftUI.State private var sliderFrame: CGRect = .zero
     @Environment(\.self) private var environment
@@ -970,12 +969,8 @@ private struct VideoEditorTextTool: View {
         /// GAP — activities-editor §3 / OQ-015, cited by video-editor §3: 12–64 wu, linear.
         static let minSize: CGFloat = 12
         static let maxSize: CGFloat = 64
-        /// FLAGGED LITERAL — video-editor §2: C-093 at x 11; activities-editor §15.2: docked on its
-        /// centre line after 2 s, ease-out 250 ms.
-        static let sliderX: CGFloat = 11
-        static let sliderWidth: CGFloat = 20
-        static let dockDelay = Duration.seconds(2)
-        static let dock = Animation.easeOut(duration: 0.25)
+        /// FLAGGED LITERAL — video-editor §2 (video-polish D11): C-093 fixed 11 from the trailing edge.
+        static let sliderInset: CGFloat = 11
         /// FLAGGED LITERAL — activities-editor §15.1: 32 pt tools, 4 padding, 8 radius, 16 gap.
         static let tool: CGFloat = 32
         static let toolPadding: CGFloat = 4
@@ -1040,9 +1035,9 @@ private struct VideoEditorTextTool: View {
             .fixedSize()
             .scaleEffect(unit)
             .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
-            .overlay(alignment: .leading) {
-                if stylePanels { slider(unit: unit) }
-            }
+            // §2: whenever text is being edited — never on a caption, whose Edit has header, text
+            // and keyboard only (§2; captions carry no style panels).
+            .overlay(alignment: .trailing) { if stylePanels { slider(unit: unit) } }
         }
     }
 
@@ -1055,7 +1050,7 @@ private struct VideoEditorTextTool: View {
         style.size = Double(Geometry.minSize + clamped * (Geometry.maxSize - Geometry.minSize))
     }
 
-    /// activities-editor §15.2: one gesture owns the touch — it undocks, then tracks the same drag.
+    /// One gesture owns the touch: it jumps to the finger, then tracks the same drag.
     private func slider(unit: CGFloat) -> some View {
         TextSizeSlider(value: sliderValue, onChange: setSlider)
             .ui2Element("C-093 TextSizeSlider")
@@ -1063,39 +1058,21 @@ private struct VideoEditorTextTool: View {
                 // pan-ok: vertical slider — tracks the finger on C-093's strip
                 DragGesture(minimumDistance: 0, coordinateSpace: .global)
                     .onChanged(dragSlider)
-                    .onEnded { _ in
-                        sliderStart = nil
-                        sliderTouching = false
-                        sliderTimer += 1
-                    }
+                    .onEnded { _ in sliderStart = nil }
             )
-            .offset(x: sliderDocked ? -Geometry.sliderWidth / 2 : Geometry.sliderX)
-            .scaleEffect(unit, anchor: .leading)
+            .offset(x: -Geometry.sliderInset)
+            .scaleEffect(unit, anchor: .trailing)
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { sliderFrame = $0 }
-            .task(id: sliderTimer) {
-                guard !sliderTouching, !sliderDocked else { return }
-                try? await Task.sleep(for: Geometry.dockDelay)
-                guard !Task.isCancelled, !sliderTouching else { return }
-                dock(true)
-            }
     }
 
     private func dragSlider(_ drag: DragGesture.Value) {
         if sliderStart == nil {
             let height = max(sliderFrame.height, 1)
-            // From docked the thumb moves with the finger; on the full slider it jumps to it.
-            let value = sliderDocked ? sliderValue : 1 - (drag.startLocation.y - sliderFrame.minY) / height
+            let value = 1 - (drag.startLocation.y - sliderFrame.minY) / height
             sliderStart = (min(max(value, 0), 1), height)
-            sliderTouching = true
-            sliderTimer += 1
-            if sliderDocked { dock(false) }
         }
         guard let begun = sliderStart else { return }
         setSlider(begun.value + (drag.startLocation.y - drag.location.y) / begun.height)
-    }
-
-    private func dock(_ docked: Bool) {
-        withAnimation(environment.accessibilityReduceMotion ? nil : Geometry.dock) { sliderDocked = docked }
     }
 
     // MARK: Tool row

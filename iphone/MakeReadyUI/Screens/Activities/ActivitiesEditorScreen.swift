@@ -160,9 +160,6 @@ struct ActivitiesEditorScreen: View {
         /// §35.1 `videoRecorder` (video-recorder P3): the header and the chips fade out while the
         /// inline recorder records; the layout keeps its place.
         var videoRecorderHidesChrome: Bool = false
-        /// §15.2 (D30): C-093 drawn docked at the screen's left edge when the edit opens (the
-        /// slider-docked preview). The live view docks it itself after 2 s untouched.
-        var sliderDocked: Bool = false
         /// §18.8 (D32, D33): in Manipulating, the object drawn as the one being dragged — its
         /// active guides are `snapPosition`'s at its seeded position, and C-091's reserved zones
         /// draw only while its box enters one. −1 = none (the snap-centre / -edge / -gap previews).
@@ -522,16 +519,10 @@ struct ActivitiesEditorScreen: View {
     @SwiftUI.State private var snapEngaged = SnapEngaged()
     @SwiftUI.State private var rotationEngaged: Double?
     @SwiftUI.State private var liveGuides: [ActivityCanvasGuideSegment] = []
-    // §15.2 (D30): C-093 docked half off the left edge; a finger on it; and the dock timer's
-    // generation — bumping it cancels the running 2 s task and starts a new one (no `asyncAfter`).
-    @SwiftUI.State private var sliderDocked: Bool
-    @SwiftUI.State private var sliderTouching = false
-    @SwiftUI.State private var sliderDockTimer = 0
     // §15.2 (round 8): the slider drag in flight — its touch-down reference in the global space —
     // and the track's on-screen frame.
     @SwiftUI.State private var sliderDrag: SliderDrag?
     @SwiftUI.State private var sliderFrame: CGRect = .zero
-    // §15.2: Reduce Motion cuts between docked and full.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init<Recorder: View>(
@@ -605,7 +596,6 @@ struct ActivitiesEditorScreen: View {
         _openTool = SwiftUI.State(initialValue: Tool(rawValue: state.openTool))
         _focusedField = SwiftUI.State(initialValue: state.focusedActionField.isEmpty ? nil : state.focusedActionField)
         _alertPresented = SwiftUI.State(initialValue: state.saveFailed)
-        _sliderDocked = SwiftUI.State(initialValue: state.sliderDocked)
     }
 
     /// §14.1: the editable canvas shows — `typeGrid` and `readOnly` have no edit mode and no
@@ -741,12 +731,7 @@ struct ActivitiesEditorScreen: View {
         // §10.6 (round 2): a text edit opens with no rail open, and ending it closes every rail —
         // a page rail closing through `setOpenTool`, so `onPageRailsClosed` fires (D19).
         .onChange(of: mode) { previous, next in
-            // §15.2 (D30): when an edit begins C-093 first appears in full.
-            if next == .editing && previous != .editing {
-                sliderDocked = state.sliderDocked
-                sliderTouching = false
-                sliderDrag = nil
-            }
+            if next == .editing && previous != .editing { sliderDrag = nil }
             let wasEditing = previous == .editing || previous == .highlighting
             let isEditing = next == .editing || next == .highlighting
             guard wasEditing != isEditing, openTool != nil else { return }
@@ -1102,62 +1087,34 @@ struct ActivitiesEditorScreen: View {
                     if let editedIndex { apply(.init(index: editedIndex, size: CGFloat(Self.size(forSlider: value)))) }
                 })
                     .ui2Element("C-093 TextSizeSlider")
-                    // §15.2 (round 8): ONE gesture owns the slider's touch — it holds the dock timer,
-                    // undocks on touch-down and keeps tracking the same drag. It is measured in the
-                    // global space, so the undock's slide cannot move the finger's reference, and
-                    // each frame is display-only (§9.1a) with one ObjectEdit on lift.
+                    // ONE gesture owns the slider's touch, measured in the global space; each frame
+                    // is display-only (§9.1a) with one ObjectEdit on lift.
                     .highPriorityGesture(
                         // pan-ok: vertical slider — tracks the finger on C-093's strip
                         DragGesture(minimumDistance: 0, coordinateSpace: .global)
                             .onChanged { drag in dragSlider(drag) }
                             .onEnded { _ in endSliderDrag() }
                     )
-                    // FLAGGED LITERAL — activities-editor §2: slider 20×263.5 at x 11; §15.2 (D30)
-                    // docked: its centre line on the screen's left edge, only its right half shows.
-                    .offset(x: sliderDocked ? -Self.sliderWidth / 2 : Self.sliderX,
+                    // Fixed at the trailing edge (owner 2026-11-24, video-polish D11; retires D30).
+                    .offset(x: Self.sliderX,
                             y: max(min(Self.editSlotY + offset - Self.sliderHeight / 2, containerTop - Self.sliderHeight),
                                    headerBottom))
                     .scaleEffect(unit, anchor: .topLeading)
-                    // §15.2 (round 8): the track's on-screen frame, for a touch-down on the full slider.
+                    // The line's on-screen frame, for a touch-down.
                     .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { sliderFrame = $0 }
-                    // §15.2: the dock timer is a cancellable task owned by this view — restarted
-                    // when a touch on C-093 ends, cancelled when the edit ends (the slider leaves).
-                    .task(id: sliderDockTimer) {
-                        guard !sliderTouching, !sliderDocked else { return }
-                        try? await Task.sleep(for: Self.sliderDockDelay)
-                        guard !Task.isCancelled, !sliderTouching else { return }
-                        setSliderDocked(true)
-                    }
             }
         }
     }
 
-    // MARK: - §15.2 (D30): the docking size slider
+    // MARK: - The size line
 
-    private func beginSliderTouch() {
-        guard !sliderTouching else { return }
-        sliderTouching = true
-        sliderDockTimer += 1                                 // cancels a running dock timer
-        if sliderDocked { setSliderDocked(false) }
-    }
-
-    private func endSliderTouch() {
-        sliderTouching = false
-        sliderDockTimer += 1                                 // restarts the 2 s
-    }
-
-    /// §15.2 (round 8): one slider frame. Touch-down undocks and fixes the reference: from docked
-    /// the thumb moves relative to where the finger went down (no jump); on the full slider it
-    /// jumps to the touch first, as C-093 does (OQ-C-093-002). Display only — no report.
+    /// §15.2 (round 8): one slider frame. Touch-down jumps the dot to the touch, as C-093 does
+    /// (OQ-C-093-002), and fixes the reference. Display only — no report.
     private func dragSlider(_ drag: DragGesture.Value) {
         guard let editedIndex else { return }
         if sliderDrag == nil {
-            let wasDocked = sliderDocked
-            beginSliderTouch()
             let height = max(sliderFrame.height, 1)
-            let start = wasDocked
-                ? sliderValue
-                : min(max(1 - (drag.startLocation.y - sliderFrame.minY) / height, 0), 1)
+            let start = min(max(1 - (drag.startLocation.y - sliderFrame.minY) / height, 0), 1)
             sliderDrag = SliderDrag(startY: drag.startLocation.y, startValue: start,
                                     height: height, startSize: draftSize)
         }
@@ -1175,12 +1132,6 @@ struct ActivitiesEditorScreen: View {
             apply(.init(index: editedIndex, size: draftSize))
         }
         sliderDrag = nil
-        endSliderTouch()
-    }
-
-    /// §15.2: one ease-out, ≈ 250 ms, both ways; Reduce Motion cuts.
-    private func setSliderDocked(_ docked: Bool) {
-        withAnimation(reduceMotion ? nil : Self.sliderDockAnimation) { sliderDocked = docked }
     }
 
     /// C-091's `content` slot, laid out in wu: the committed objects at their transforms, the
@@ -2886,23 +2837,23 @@ struct ActivitiesEditorScreen: View {
     }
 
     /// §2 item 3 (D40, owner 2026-11-11): the width handles sit OUTSIDE the text box — the bar's
-    /// inner edge `handleGap` from the text, never on a glyph. While the box's left handle would
+    /// inner edge `handleGap` from the text, never on a glyph. While the box's right handle would
     /// fall in the size-slider column, the edited block is nudged in just far enough to clear it
     /// (it returns to its own place on Done); when the block is too wide for both handles at the
     /// full gap, the gap shrinks (to 0 at the widest) instead of the handles touching the text.
     private var draftHandleLayout: (centreX: CGFloat, gap: CGFloat) {
         let width = draftLayoutWidth
-        // Where the box edge may sit with a zero gap: the left bar (its full width) clears the
-        // slider column, the right bar stays wholly on the canvas.
-        let leftLimit = Self.sliderColumn + Self.handleBarWidth
-        let rightLimit = Self.referenceWidth - Self.handleBarWidth
+        // Where the box edge may sit with a zero gap: the right bar (its full width) clears the
+        // slider column, the left bar stays wholly on the canvas (D11: the line is trailing).
+        let leftLimit = Self.handleBarWidth
+        let rightLimit = Self.referenceWidth - Self.sliderColumn - Self.handleBarWidth
         let fullGap = Self.handleGap
         // The largest gap both handles can have with the block anywhere between the limits.
         let room = (rightLimit - leftLimit - width) / 2
         let gap = min(fullGap, max(room, 0))
         let minLeft = leftLimit + gap                     // the box's left edge may not go further left
         let maxLeft = rightLimit - gap - width            // nor its right edge further right
-        let left = min(max(slotCentreX - width / 2, minLeft), max(maxLeft, minLeft))
+        let left = max(min(slotCentreX - width / 2, maxLeft), min(minLeft, maxLeft))
         return (left + width / 2, gap)
     }
 
@@ -3355,16 +3306,10 @@ struct ActivitiesEditorScreen: View {
     private static let editSlotY: CGFloat = 478
     /// FLAGGED LITERAL — C-092 §2: the 80 wu minimum layout width.
     private static let minObjectWidth: CGFloat = 80
-    /// FLAGGED LITERAL — activities-editor §2 item 3: the slider at x 11, 263.5 tall; its column
-    /// ends at frame x 38; the handles' 14 wu inset.
-    private static let sliderX: CGFloat = 11
+    /// FLAGGED LITERAL — activities-editor §2 item 3: the slider 263.5 tall; its column is the
+    /// trailing 38 wu. video-polish D11: C-093's 20 wu frame sits 11 from the trailing edge.
+    private static let sliderX: CGFloat = referenceWidth - 11 - 20
     private static let sliderHeight: CGFloat = 263.5
-    /// FLAGGED LITERAL — C-093 §2: the 20pt track (§15.2 docks it by half).
-    private static let sliderWidth: CGFloat = 20
-    /// FLAGGED LITERAL — activities-editor §15.2 (D30): docks after 2 s untouched, one ease-out
-    /// ≈ 250 ms (no `motion-*` token holds either).
-    private static let sliderDockDelay: Duration = .seconds(2)
-    private static let sliderDockAnimation = Animation.easeOut(duration: 0.25)
     private static let sliderColumn: CGFloat = 38
     /// FLAGGED LITERAL — D40 (owner 2026-11-11): the gap between a width handle's bar and the text.
     private static let handleGap: CGFloat = 6
@@ -3999,13 +3944,6 @@ extension ActivitiesEditorScreen.State {
         s.objectTexts = [sampleText]
         return s
     }()
-    /// §15.3 slider-docked (D30) — editing, C-093 docked: only its right half shows at the
-    /// screen's left edge.
-    static let sliderDocked: Self = {
-        var s = editing(sampleText, tool: "font")
-        s.sliderDocked = true
-        return s
-    }()
     /// §9.4 Load-failed — the container could not load the activity.
     static let loadFailed: Self = {
         var s = base
@@ -4232,12 +4170,6 @@ extension ActivitiesEditorScreen.State {
 
 #Preview("Editing rails gradient") {
     ActivitiesEditorScreen(state: .editingRailsGradient)
-        .safeAreaPadding(.top, 59)
-        .frame(width: 440, height: 956, alignment: .top)
-}
-
-#Preview("Slider docked") {
-    ActivitiesEditorScreen(state: .sliderDocked)
         .safeAreaPadding(.top, 59)
         .frame(width: 440, height: 956, alignment: .top)
 }

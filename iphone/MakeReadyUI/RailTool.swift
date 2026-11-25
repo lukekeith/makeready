@@ -58,6 +58,9 @@ struct RailTool: View {
     var active: Bool = false
     /// C-147 §4 `enabled` — false draws `color-white-50` and ignores taps (D3, OQ-C-147-3).
     var enabled: Bool = true
+    /// `labelsVisible` (video-polish D7) — false fades the label out; the glyph, the slot and the
+    /// hit target stay. The caller times it and supplies the animation.
+    var labelsVisible: Bool = true
     /// C-147 §4 `onTap` — the one action; the caller decides what it means. No render effect;
     /// defaulted to a no-op (R-03).
     var onTap: () -> Void = {}
@@ -105,6 +108,7 @@ struct RailTool: View {
                     .fixedSize()
                     // §2: text shadow `elevation-thumb` so it reads over any camera image.
                     .designShadow(Token.Elevation.thumb)
+                    .opacity(labelsVisible ? 1 : 0)
                     .ui2Element(value == nil ? "Label" : "Value")
                 // §2 Slot: 40 × 50 at the trailing edge, paint none; Glyph 24 × 24 centred,
                 // template paint (C-021's `md` size, deviation 1).

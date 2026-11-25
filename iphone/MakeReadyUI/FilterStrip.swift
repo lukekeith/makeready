@@ -10,8 +10,9 @@ import SwiftUI
 
 /// C-150 FilterStrip — "Horizontal strip of 7 filter looks (d2m picks them, D6) with a strength slider."
 ///
-/// §2: three rows top to bottom — the 44 pt strength slider (hidden under Normal, its space kept),
-/// the 44 pt header ("Filters" and a ✓ Done), and the 74 pt scrolling row of eight tiles — with
+/// Held by the recorder's Filters sheet (video-recorder §2d). Three rows top to bottom — the 44 pt
+/// header ("Filters" and the purple C-159 DoneCheck, top-trailing on the sheet), the 44 pt strength
+/// slider (hidden under Normal, its space kept), and the 74 pt scrolling row of eight tiles — with
 /// `space-element-gap` between rows: 44 + 8 + 44 + 8 + 74 = 178 pt.
 ///
 /// Controlled (R-01): it displays `selected` and `strength` and never holds them; the caller
@@ -48,7 +49,7 @@ struct FilterStrip: View {
     var onStrengthChange: (Int) -> Void = { _ in }
     /// §4: the graded swatch per look, resolved by the caller; a missing key draws the placeholder.
     let thumbnails: [Look: Image]
-    /// §4: ✓ tapped; the caller closes the strip, keeping the look.
+    /// §4: ✓ tapped; the caller closes the sheet, keeping the look.
     var onDone: () -> Void = {}
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -59,7 +60,6 @@ struct FilterStrip: View {
     // 40 pt are this component's geometry, as in C-149 and C-093").
     private static let rowHeight: CGFloat = 44
     private static let swatchSize: CGFloat = 56
-    private static let glyphSize: CGFloat = 24
     private static let trackHeight: CGFloat = 6
     private static let thumbDiameter: CGFloat = 24
     private static let outlineWidth: CGFloat = 2
@@ -80,10 +80,10 @@ struct FilterStrip: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            strengthRow
+            header
                 .frame(height: Self.rowHeight)
                 .padding(.bottom, Token.Space.elementGap)
-            header
+            strengthRow
                 .frame(height: Self.rowHeight)
                 .padding(.bottom, Token.Space.elementGap)
             tiles
@@ -98,7 +98,7 @@ struct FilterStrip: View {
         .ui2Element("FilterStrip")
     }
 
-    // MARK: - Strength row (§2 row 1)
+    // MARK: - Strength row
 
     /// The slider, inset `space-page-margin` both sides; hidden under Normal with its 44 pt kept
     /// (deviation 5, OQ-C-150-003).
@@ -188,10 +188,9 @@ struct FilterStrip: View {
             .ui2Element("Value bubble")
     }
 
-    // MARK: - Header (§2 row 2)
+    // MARK: - Header
 
-    /// "Filters" leading at `space-page-margin`; Done — the `check` glyph, 24 pt, in a 44 pt hit
-    /// square whose trailing edge sits at `space-page-margin` − 10 (the glyph's at 16).
+    /// "Filters" leading and C-159 DoneCheck trailing, both at `space-page-margin`.
     private var header: some View {
         HStack(spacing: 0) {
             Text("Filters")
@@ -201,17 +200,10 @@ struct FilterStrip: View {
                 .accessibilityAddTraits(.isHeader)
                 .ui2Element("Title")
             Spacer(minLength: 0)
-            SwiftUI.Button(action: onDone) {
-                Glyph(.check, size: .md, tint: Token.textPrimary)
-                    .frame(width: Self.rowHeight, height: Self.rowHeight)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Done")
-            .ui2Element("Done")
+            DoneCheck(onTap: onDone)
+                .ui2Element("Done")
         }
-        .padding(.leading, Token.Space.pageMargin)
-        .padding(.trailing, Token.Space.pageMargin - (Self.rowHeight - Self.glyphSize) / 2)
+        .padding(.horizontal, Token.Space.pageMargin)
         .ui2Element("Header")
     }
 

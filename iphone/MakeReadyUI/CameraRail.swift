@@ -28,6 +28,8 @@ struct CameraRail: View {
     var filtersActive: Bool = false
     /// C-146 §4 `teleprompterActive` — the teleprompter is on (D7).
     var teleprompterActive: Bool = false
+    /// `labelsVisible` (video-polish D7) — passed to every tool; false fades the labels, icons stay.
+    var labelsVisible: Bool = true
     /// C-146 §4 — one closure per tool; no render effect, defaulted to a no-op (R-03).
     var onFlip: () -> Void = {}
     var onCountdown: () -> Void = {}
@@ -42,20 +44,27 @@ struct CameraRail: View {
     var body: some View {
         // §2 Slots: 5 × C-147 RailTool, stacked with no gap, in the fixed order (closed wiring).
         VStack(spacing: 0) {
-            RailTool(tool: .flip, onTap: onFlip)
+            RailTool(tool: .flip, labelsVisible: labelsVisible, onTap: onFlip)
                 .ui2Element("Slot 1")
             RailTool(
                 tool: .countdown,
                 value: countdownValue,
                 active: countdownValue != nil,
+                labelsVisible: labelsVisible,
                 onTap: onCountdown
             )
             .ui2Element("Slot 2")
-            RailTool(tool: .length, value: lengthValue, enabled: lengthEnabled, onTap: onLength)
+            RailTool(
+                tool: .length,
+                value: lengthValue,
+                enabled: lengthEnabled,
+                labelsVisible: labelsVisible,
+                onTap: onLength
+            )
                 .ui2Element("Slot 3")
-            RailTool(tool: .filters, active: filtersActive, onTap: onFilters)
+            RailTool(tool: .filters, active: filtersActive, labelsVisible: labelsVisible, onTap: onFilters)
                 .ui2Element("Slot 4")
-            RailTool(tool: .teleprompter, active: teleprompterActive, onTap: onTeleprompter)
+            RailTool(tool: .teleprompter, active: teleprompterActive, labelsVisible: labelsVisible, onTap: onTeleprompter)
                 .ui2Element("Slot 5")
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
