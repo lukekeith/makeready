@@ -21,7 +21,7 @@ Brainstorm record: `.builder/video-activity/brainstorm.md` — 10 settled by the
 
 | # | Feature (folder) | Size | Apps | One line | Depends on |
 |---|---|---|---|---|---|
-| 1 | video-activity-basics | md | server+iphone | A leader sees a video activity's picture in the editor and on every rail, taps to play it, holds for Replace · Delete (choosing to remove the activity or also delete the video), and saves a recording with the header's purple check | — |
+| 1 | video-activity-basics | lg | server+iphone | A leader sees a video activity's picture in the editor and on every rail, taps to play it, holds for Replace · Delete (choosing to remove the activity or also delete the video), and saves a recording with the header's purple check | — |
 | 2 | video-activity-edit | lg | server+iphone | A leader holds a saved video activity, picks Edit, adds text over the saved video, and saves it as a new version that this activity now plays | 1 |
 
 Order: basics first — it builds the hold menu that Edit joins, and it carries no contract edit needs.
