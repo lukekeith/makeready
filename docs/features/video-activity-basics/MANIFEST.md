@@ -1,7 +1,7 @@
 size: lg
 state: built
-next: /builder:agent-walk --path docs/features/video-activity-basics
-head: 6ec3cd24
+next: /builder:resume --path docs/features/video-activity-basics
+head: 118db638
 ticket: none
 branch: builder/video-activity-basics
 pr: none
