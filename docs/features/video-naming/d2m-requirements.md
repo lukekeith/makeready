@@ -63,4 +63,20 @@ The owner approves the captures before any wiring.
 
 ## As built
 
-(d2m and the implementer fill this in after the build: the actual input names where they differ.)
+Built by d2m in 446c5b1e; the owner approved the captures (D12). Names that differ from the plan:
+
+- Path: `iphone/MakeReadyUI/Screens/Fields/VideoNamingScreen.swift` (Fields, not Library).
+- `VideoNamingScreen(state:onTitleChange:onDescriptionChange:onPick:onRegenerate:onSave:onBack:)`.
+  The text and block inputs are one `VideoNamingScreen.State` struct: `title`, `titlePlaceholder`,
+  `description`, `aiState` (`AISuggestionsBlock.State`), `promptCopy`, `pairs` (`[SuggestionRows.Pair]`,
+  each `title` and `description`). The plan's `suggestions` is `pairs`. `onPick` takes the row index.
+  The screen caps its own text (80 / 300) before calling the change closures.
+- C-078 `SuggestionRows`: `pairs: [Pair]` (defaulted empty; wins over `suggestions` when not empty),
+  `onPickIndex: (Int)` beside `onPick: (String)`. C-050 `SuggestionRow` gains an optional `description`.
+  C-051 `AISuggestionsBlock` gains `pairs` and the `empty` state (raw `"empty"`), and now uses the new
+  C-160 `AIProcessing` for its loading body.
+- Additive: `SharedEditFieldTemplate` still passes title-only `suggestions` and compiles unchanged;
+  no existing capture state in `ViewRegistry` / `CaptureFixture` was removed or renamed.
+- Capture view: `screen.2.0.video-naming`; capture-only fields `pairs` and `titlePlaceholder` added to
+  `CaptureComponent`. Capture states (silent, seeded): `generating`, `list`, `regenerating`, `filled`,
+  `empty`, `prompt`. Component capture `component.ui2.C-160` added.
