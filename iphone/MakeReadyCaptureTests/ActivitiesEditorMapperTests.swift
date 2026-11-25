@@ -271,6 +271,24 @@ final class ActivitiesEditorMapperTests: XCTestCase {
         XCTAssertEqual(ActivitiesEditorMapper.fontKey("classic"), "classic")
         XCTAssertEqual(ActivitiesEditorMapper.fontKey("playfair"), "sans")
     }
+
+    // MARK: - video-activity-basics D1: the video page's still
+
+    private func entry(_ url: String, _ kind: String, _ poster: String? = nil) -> MediaMapEntry {
+        MediaMapEntry(url: url, width: nil, height: nil, kind: kind, playbackUrl: nil, posterUrl: poster,
+                      durationSeconds: nil, uploaderName: nil)
+    }
+
+    func testVideoStillOrder() {
+        func still(_ media: [String: MediaMapEntry]) -> String {
+            ActivitiesEditorMapper.videoStillURL(VideoContent(videoId: "v", posterMediaId: "p", presenter: nil), media: media)
+        }
+        let stream = entry("s.m3u8", "video"), image = entry("p", "image")
+        XCTAssertEqual(still(["v": entry("s.m3u8", "video", "still"), "p": image]), "still")
+        XCTAssertEqual(still(["v": stream, "p": entry("p", "image", "pp")]), "pp")
+        XCTAssertEqual(still(["v": entry("s.m3u8", "video", ""), "p": image]), "p")
+        XCTAssertEqual(still(["v": stream, "p": stream]), "")
+    }
 }
 
 // MARK: - Fixtures
@@ -322,24 +340,6 @@ extension ActivityDocument {
     func jsonObject() throws -> JSONObject {
         let data = try JSONEncoder().encode(self)
         return JSONObject(root: try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any]))
-    }
-
-    // MARK: - video-activity-basics D1: the video page's still
-
-    private func entry(_ url: String, _ kind: String, _ poster: String? = nil) -> MediaMapEntry {
-        MediaMapEntry(url: url, width: nil, height: nil, kind: kind, playbackUrl: nil, posterUrl: poster,
-                      durationSeconds: nil, uploaderName: nil)
-    }
-
-    func testVideoStillOrder() {
-        func still(_ media: [String: MediaMapEntry]) -> String {
-            ActivitiesEditorMapper.videoStillURL(VideoContent(videoId: "v", posterMediaId: "p", presenter: nil), media: media)
-        }
-        let stream = entry("s.m3u8", "video"), image = entry("p", "image")
-        XCTAssertEqual(still(["v": entry("s.m3u8", "video", "still"), "p": image]), "still")
-        XCTAssertEqual(still(["v": stream, "p": entry("p", "image", "pp")]), "pp")
-        XCTAssertEqual(still(["v": entry("s.m3u8", "video", ""), "p": image]), "p")
-        XCTAssertEqual(still(["v": stream, "p": stream]), "")
     }
 }
 
