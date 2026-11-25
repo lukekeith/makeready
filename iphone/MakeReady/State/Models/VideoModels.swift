@@ -50,6 +50,8 @@ struct Video: Codable, Identifiable {
     var libraryRemovedAt: Date?
     /// Distinct lesson activities using the video, from `GET /api/videos/:id` only.
     var lessonUseCount: Int?
+    /// Activity rows in every lesson version of any status naming the video, from `GET /api/videos/:id` only (D11).
+    var versionUseCount: Int?
 
     /// Formatted duration string (e.g., "1:30")
     var formattedDuration: String? {
@@ -67,6 +69,38 @@ struct Video: Codable, Identifiable {
     /// Display title (falls back to "Untitled Video")
     var displayTitle: String {
         title ?? "Untitled Video"
+    }
+}
+
+/// Whether "Delete video everywhere" may run, from both use counts (D5, D11).
+enum VideoDeleteEverywhere: Equatable {
+    case checking
+    case allowed
+    /// Other lessons use the video: lessonUseCount − 1 of them.
+    case otherLessons(Int)
+    case published
+    case unknown
+
+    /// A fresh `GET /api/videos/:id` answer: a missing count is `unknown`, then lessons decide, then versions.
+    init(_ video: Video) {
+        guard let lessons = video.lessonUseCount, let versions = video.versionUseCount else { self = .unknown; return }
+        if lessons > 1 { self = .otherLessons(lessons - 1) }
+        else if versions > 1 { self = .published }
+        else { self = .allowed }
+    }
+
+    var enabled: Bool { self == .allowed }
+
+    /// The row's subtitle, word for word from D11; empty when allowed.
+    var note: String {
+        switch self {
+        case .checking: return "Checking where it's used…"
+        case .allowed: return ""
+        case .otherLessons(1): return "Used in 1 other lesson"
+        case .otherLessons(let n): return "Used in \(n) other lessons"
+        case .published: return "Used in a published lesson"
+        case .unknown: return "Couldn't check where it's used"
+        }
     }
 }
 
