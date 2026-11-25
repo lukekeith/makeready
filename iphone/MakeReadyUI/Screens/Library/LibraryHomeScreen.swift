@@ -74,6 +74,9 @@ struct LibraryHomeScreen: View {
         /// §3 input `videos` — "the videos, passed next to the notes and memos", interleaved by
         /// date (§2 item 4).
         var videos: [VideoRowInput] = []
+        /// Per video id: how many of its deletes have settled (succeeded, failed or asked again). A
+        /// change brings back a row an armed release collapsed, when the caller still lists it.
+        var videoDeletesSettled: [String: Int] = [:]
         /// §3 `row-open`: "one row, swiped half way, rests open with its trailing `Delete` circle
         /// showing" — the preview's seed for the open row (R-31: ephemeral screen state, seeded
         /// here): `note:<row index>`, `memo:<memo id>` or `video:<video id>`; nil = every row closed.
@@ -158,8 +161,9 @@ struct LibraryHomeScreen: View {
     var onDeleteNote: (Int) -> Void = { _ in }
     /// §3 "Swipe a memo row to Delete: the screen calls `onDeleteMemo(id)`" — the memo's `id`.
     var onDeleteMemo: (String) -> Void = { _ in }
-    /// §3 `onDeleteVideo` — "a video, by id, was asked to be deleted. The row stays until the call
-    /// succeeds" (`removesRow: false`): the screen never removes a video row itself.
+    /// §3 `onDeleteVideo` — a video, by id, was asked to be deleted. After an armed release the row
+    /// is already gone (C-142 §5) and returns when `state.videoDeletesSettled` counts the id; after
+    /// the confirmation the row stays until the call succeeds.
     var onDeleteVideo: (String) -> Void = { _ in }
 
     // §3 search-active: "The list filters live across all three kinds" — UI-only, seeded from `state`
@@ -173,6 +177,9 @@ struct LibraryHomeScreen: View {
     /// rows deleted since the caller last passed its rows; cleared when new rows arrive, so a
     /// caller that restores a row (a failed delete) shows it again.
     @SwiftUI.State private var deletedItems: Set<Item> = []
+    /// C-142 §5: videos an armed release collapsed. Kept apart from `deletedItems` so rows arriving
+    /// mid-delete (a video page) do not show one again; each leaves when its delete settles.
+    @SwiftUI.State private var collapsedVideos: Set<String> = []
     /// §3 Delete confirmation: the row whose resting Delete circle was tapped — the C-066 card is
     /// up while it is set (R-31: a presented sheet is ephemeral screen state).
     @SwiftUI.State private var confirmingItem: Item?
@@ -230,6 +237,8 @@ struct LibraryHomeScreen: View {
         let list = visibleList
         VStack(spacing: 0) {
             header
+                // On the always-mounted header: the page's own chain is at the type-checker's limit.
+                .onChange(of: state.videoDeletesSettled, showSettledVideos)
             GeometryReader { viewport in
                 ScrollView(.vertical) {
                     content(list)
@@ -474,6 +483,7 @@ struct LibraryHomeScreen: View {
         } : []
         let videos = showsVideos ? state.videos.indices.filter { index in
             let video = state.videos[index]
+            guard !collapsedVideos.contains(video.id) else { return false }
             guard filtering else { return true }
             // §3: "a memo or a video by title and transcript text".
             return video.title.localizedCaseInsensitiveContains(needle)
@@ -609,9 +619,7 @@ struct LibraryHomeScreen: View {
                     glyph: .trash2,
                     tint: Token.error,
                     fullSwipe: true,
-                    // §3: "A video row uses `removesRow: false`: the row stays in place until the
-                    // delete call succeeds, and it springs back closed".
-                    removesRow: Self.removesRow(item),
+                    // C-142 §5: `removesRow` left nil = true for every row, videos included.
                     onAction: { delete(item, animated: false) },
                     onTap: { confirmingItem = item }
                 ),
@@ -632,11 +640,13 @@ struct LibraryHomeScreen: View {
     /// after C-142's own height collapse, so the row is removed instantly with no transition of the
     /// screen's own (C-142 deviation 3). The confirmation's Delete, whose row has not collapsed,
     /// still moves the rows below on `motion-swipe-settle`, with no fade (`.transition(.identity)`).
-    /// A video row (`removesRow: false`) is never removed here: it closes and stays until the
-    /// caller's delete succeeds and the row leaves `state.videos`.
+    /// A video row's armed release removes it the same way (C-142 §5). Its confirmed delete does
+    /// not: the row closes and stays until the caller's delete succeeds and it leaves `state.videos`.
     private func delete(_ item: Item, animated: Bool = true) {
         if openItem == item { openItem = nil }
-        if Self.removesRow(item) {
+        if case .video(let id) = item {
+            if !animated { collapsedVideos.insert(id) }
+        } else {
             withAnimation(animated ? Token.Motion.swipeSettle : nil) { _ = deletedItems.insert(item) }
         }
         switch item {
@@ -646,10 +656,10 @@ struct LibraryHomeScreen: View {
         }
     }
 
-    /// §3: notes and memos "collapse the row as soon as Delete runs"; a video row does not.
-    private static func removesRow(_ item: Item) -> Bool {
-        if case .video = item { return false }
-        return true
+    /// A settled video delete: a failed (or unconfirmed) one shows its row again, closed; a
+    /// successful one has left `state.videos`.
+    private func showSettledVideos(_ old: [String: Int], _ new: [String: Int]) {
+        collapsedVideos = collapsedVideos.filter { old[$0] == new[$0] }
     }
 
     // MARK: - §3 Delete confirmation

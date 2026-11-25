@@ -24,8 +24,10 @@ struct LibraryHomeContainer: View {
     /// once, restored when the delete fails.
     @State private var deletingNoteIds: Set<String> = []
     @State private var deletingMemoIds: Set<String> = []
-    /// video-recorder D17: a video row stays until the server call succeeds (`removesRow: false`), so this
-    /// is only the second confirm for a video that lessons use.
+    /// C-142 §5: each video id's settled deletes, so the screen brings back a swiped row whose delete
+    /// failed or asked the second confirm.
+    @State private var videoDeletesSettled: [String: Int] = [:]
+    /// video-recorder D17: the second confirm for a video that lessons use.
     @State private var pendingRemoval: LibraryVideoDeletion.Removal?
     /// D20: the last scroll offset, the measured viewport and row count, whether a page is loading, and
     /// whether the last page failed (a failed page waits for Retry, a refresh or the page reappearing).
@@ -67,6 +69,7 @@ struct LibraryHomeContainer: View {
             var state = LibraryHomeMapper.state(rows: rows, phase: phase, query: query, now: now, calendar: calendar)
             state.selectedTypes = selectedTypes
             state.noteIDs = noteIds
+            state.videoDeletesSettled = videoDeletesSettled
             return state
         }()
         LibraryHomeScreen(
@@ -171,7 +174,10 @@ struct LibraryHomeContainer: View {
             })
     }
 
-    private func deleteVideo(id: String) async { await videoDeletion.delete(id: id) }
+    private func deleteVideo(id: String) async {
+        await videoDeletion.delete(id: id)
+        videoDeletesSettled[id, default: 0] += 1
+    }
 
     private func confirmRemoval() async {
         guard let removal = pendingRemoval else { return }
