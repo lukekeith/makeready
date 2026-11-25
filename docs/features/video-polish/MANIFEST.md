@@ -1,14 +1,15 @@
 size: md
 state: planned
 next: /builder:resume --path docs/features/video-polish
-head: 03fa1ef5
+head: 4b3a90df
 ticket: none
 branch: main
 pr: none
 apps: iphone
 contract: none
 hold: none
-go-ahead: none
+go-ahead: Luke 2026-11-24 (here)
+tests: walk=risk review=slice
 walk: none
 verify: none
 ready: none
