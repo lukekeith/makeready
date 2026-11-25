@@ -30,6 +30,13 @@ export const createVideoBody = z
   })
   .strict()
 
+/** Body of POST /api/videos/suggest-details (D19): trimmed, then 1–20,000 UTF-16 units; unknown keys are a 400. */
+export const suggestDetailsBody = z
+  .object({
+    transcript: z.string().trim().min(1, 'Transcript is required').max(20_000, 'Transcript is too long'),
+  })
+  .strict()
+
 export type CreateVideoInput = z.infer<typeof createVideoBody>
 
 export class VideoServiceError extends Error {

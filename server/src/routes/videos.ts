@@ -15,9 +15,11 @@ import {
   listLibraryVideos,
   refreshFromStream,
   removeFromLibrary,
+  suggestDetailsBody,
   versionUseCount,
   VideoServiceError,
 } from '../services/videos.service.js'
+import { suggestVideoDetails } from '../services/claude.js'
 import { canManageOrgContent } from '../services/permission.js'
 import { videoActivityUseCount } from '../services/content-media.service.js'
 import { MEDIA_IN_USE_ERROR } from '../services/content.js'
@@ -432,6 +434,83 @@ router.post('/', requireAuth, async (req, res) => {
     return res.status(500).json({
       success: false,
       error: 'Internal server error',
+    })
+  }
+})
+
+/**
+ * @openapi
+ * /api/videos/suggest-details:
+ *   post:
+ *     tags: [Videos]
+ *     summary: Suggest three titles and descriptions from a transcript
+ *     description: |
+ *       One Claude call that reads the transcript and returns exactly three `{ title, description }` pairs
+ *       (title up to 80 characters, description up to 300). Nothing is stored; the transcript is not logged.
+ *     security:
+ *       - userSession: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [transcript]
+ *             additionalProperties: false
+ *             properties:
+ *               transcript:
+ *                 type: string
+ *                 description: 1-20,000 characters after trimming
+ *     responses:
+ *       200:
+ *         description: Exactly three suggestions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     suggestions:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           title:
+ *                             type: string
+ *                           description:
+ *                             type: string
+ *       400:
+ *         description: Missing, blank, too long or unknown key (code VALIDATION)
+ *       401:
+ *         description: Not authenticated
+ *       502:
+ *         description: Claude failed or answered unusably (code SUGGESTIONS_UNAVAILABLE)
+ */
+router.post('/suggest-details', requireAuth, async (req, res) => {
+  const validation = suggestDetailsBody.safeParse(req.body)
+  if (!validation.success) {
+    return res.status(400).json({
+      success: false,
+      error: validation.error.errors[0].message,
+      code: 'VALIDATION',
+    })
+  }
+
+  try {
+    const suggestions = await suggestVideoDetails(validation.data.transcript)
+    return res.json({ success: true, data: { suggestions } })
+  } catch (error: any) {
+    // Name and status only: neither the transcript nor Claude's text may reach a log (D19).
+    console.error('Video suggestions failed:', error?.name, error?.status)
+    return res.status(502).json({
+      success: false,
+      error: 'Suggestions are unavailable right now',
+      code: 'SUGGESTIONS_UNAVAILABLE',
     })
   }
 })
