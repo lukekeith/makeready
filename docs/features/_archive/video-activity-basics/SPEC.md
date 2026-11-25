@@ -1,5 +1,5 @@
 # video-activity-basics — spec
-> 🤖 AGENT SIGNED OFF 2026-11-25 — e234dd9e · agent walk round 3 · not human-tested · evidence: .builder/video-activity-basics/agent-walk/round-3/
+> ✅ SHIPPED 2026-11-25 — merged into main · no ticket · 🤖 agent signed off (walk round 3), not human-tested · quick-checked
 > lg · no ticket · child 1 of the video-activity program (`docs/features/video-activity/PROGRAM.md`)
 
 ## Idea
@@ -198,6 +198,7 @@ lessons; Save from the header check in a lesson and full screen.
 | F5 | build-time risk — d2m's shape for the player slot, press gesture and C-066 fields is known only once its request completes (settled by the d2m task; wiring follows the delivered signatures) | the d2m task |
 | F6 | build-time risk — the walk env has no Cloudflare: inline playback of fixture HLS depends on the network and Stream deletion fails softly (`routes/videos.ts` continues to the database delete) | the walk; playback owed to a real iPhone |
 | F7 | Auth: GET and DELETE use the same org check (`canManageOrgContent`), so a leader who can open the confirm can delete; a 403/404 on the read disables the row (D11) | no change |
+| L1 | lesson for §Standing traps: iPhone lesson pages open cache-first, so a lesson version's status in `AppState` may be stale or absent; a destructive confirm that depends on draft/published reads it from the server first, and its tests cover a cached draft against a published server copy | proposed |
 
 ## Fixes
 

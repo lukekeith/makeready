@@ -10,5 +10,5 @@ hold: none
 go-ahead: Luke 2026-11-25
 ui2: none (d2m designs each child's screens from doc source, owner approves before wiring)
 auto: off
-child: video-activity-basics — spec
+child: video-activity-basics — shipped
 child: video-activity-edit — spec
