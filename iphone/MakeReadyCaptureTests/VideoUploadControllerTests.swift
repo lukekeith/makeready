@@ -80,9 +80,16 @@ final class FakeVideoAPI: VideoUploadAPI, VideoStreamTransport {
 final class BannerSpy: VideoUploadBanner {
     struct Shown { let message: String; let hasRetry: Bool }
     private(set) var shown: [Shown] = []
+    /// "surface:" or "withdraw:" plus the item id, "nil" for none, in order.
+    private(set) var events: [String] = []
 
-    func surface(_ error: Error, context: String, message: String, retry: (() -> Void)?) {
+    func surface(_ error: Error, context: String, message: String, itemId: String?, retry: (() -> Void)?) {
         shown.append(Shown(message: message, hasRetry: retry != nil))
+        events.append("surface:\(itemId ?? "nil")")
+    }
+
+    func withdraw(itemId: String) {
+        events.append("withdraw:\(itemId)")
     }
 }
 
@@ -99,6 +106,11 @@ final class VideoUploadControllerTests: XCTestCase {
     private var root: URL!
     private var dir: URL!
     private var source: URL!
+    // Set by `failed`.
+    private var c: VideoUploadController!
+    private var api: FakeVideoAPI!
+    private var banner: BannerSpy!
+    private var id: String!
 
     override func setUpWithError() throws {
         root = FileManager.default.temporaryDirectory.appendingPathComponent("video-upload-\(UUID().uuidString)")
@@ -304,6 +316,72 @@ final class VideoUploadControllerTests: XCTestCase {
         for _ in 0..<4 { _ = await c.processNext() }
         XCTAssertEqual(banner.shown.count, 1)
         XCTAssertEqual(c.pending().first?.failures, 4)
+    }
+
+    // MARK: - The banner seam (D9, D20)
+
+    /// One item over an API that fails every upload, `n` attempts run.
+    private func failed(_ n: Int, with error: Error = URLError(.networkConnectionLost)) async throws {
+        api = FakeVideoAPI(failUploads: 1_000)
+        api.uploadError = error
+        banner = BannerSpy()
+        c = makeController(api: api, banner: banner)
+        id = try c.enqueue(exported(), attach: nil).localId
+        for _ in 0..<n { _ = await c.processNext() }
+    }
+
+    func testARetryStartingWithdrawsItsBanner() async throws {
+        try await failed(3)
+        var atUpload: String?
+        api.onUpload = { _ in atUpload = self.banner.events.last }
+        _ = await c.processNext()
+        XCTAssertEqual(atUpload, "withdraw:\(id!)")
+    }
+
+    func testARemovedItemWithdrawsItsBanner() async throws {
+        try await failed(3)
+        try c.remove(localId: id)
+        XCTAssertEqual(banner.events.suffix(2), ["surface:\(id!)", "withdraw:\(id!)"])
+    }
+
+    func testASuspendedTransferIsNotCounted() async throws {
+        try await failed(5, with: VideoUploadError.suspended)
+        XCTAssertEqual(c.pending().first?.failures, 0)
+        XCTAssertNotNil(c.pending().first?.nextAttemptAt)
+        XCTAssertTrue(banner.shown.isEmpty)
+    }
+
+    func testOnlyAnExpiredCancellationIsASuspension() {
+        let f = URLSessionVideoStreamTransport.failure
+        XCTAssertEqual(f(CancellationError(), true) as? VideoUploadError, .suspended)
+        XCTAssertEqual(f(URLError(.cancelled), true) as? VideoUploadError, .suspended)
+        XCTAssertTrue(f(CancellationError(), false) is CancellationError)
+        XCTAssertEqual((f(URLError(.timedOut), true) as? URLError)?.code, .timedOut)
+    }
+
+    func testWithdrawLeavesAnotherError() {
+        let state = AppState()
+        let banner = AppStateVideoUploadBanner(state: state)
+        func surface(_ message: String, itemId: String) {
+            banner.surface(URLError(.timedOut), context: "test", message: message, itemId: itemId, retry: nil)
+        }
+        surface("mine", itemId: "a"); banner.withdraw(itemId: "b")
+        XCTAssertEqual(state.activeSurfacedError?.message, "mine")
+        state.recordError(URLError(.timedOut), context: "other", surface: true, friendlyMessage: "theirs")
+        banner.withdraw(itemId: "a")
+        XCTAssertEqual(state.activeSurfacedError?.message, "theirs")
+        surface("mine", itemId: "a"); banner.withdraw(itemId: "a")
+        XCTAssertNil(state.activeSurfacedError)
+    }
+
+    func testARefusedAttachSurvivesTheNextStage() async throws {
+        let banner = BannerSpy()
+        let api = FakeVideoAPI(attachErrors: [ActivityActionsError.gone])
+        let c = makeController(api: api, banner: banner)
+        _ = try c.enqueue(exported(), attach: VideoAttach(versionId: "ver1", activityId: nil, title: "Video 1"))
+        await drain(c)
+        XCTAssertEqual(banner.events.filter { $0.hasPrefix("surface") }, ["surface:nil"])
+        XCTAssertFalse(banner.events.contains("withdraw:nil"))
     }
 
     // MARK: - Attach jobs (D18)

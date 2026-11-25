@@ -74,7 +74,11 @@ protocol VideoUploadAPI {
 /// Where the controller's errors surface: the top error banner (`/ios-error-surface`).
 @MainActor
 protocol VideoUploadBanner {
-    func surface(_ error: Error, context: String, message: String, retry: (() -> Void)?)
+    /// `itemId` names the queue item whose failure this is; nil for an error no later stage of that
+    /// item should take down.
+    func surface(_ error: Error, context: String, message: String, itemId: String?, retry: (() -> Void)?)
+    /// Takes down the banner `itemId` surfaced, if it is still on screen; never another error's.
+    func withdraw(itemId: String)
 }
 
 // MARK: - The item
@@ -414,6 +418,8 @@ final class VideoUploadController {
         defer { isProcessing = false }
         let cutoff = now()
         guard var item = pending().first(where: { !onlyDue || ($0.dueAt ?? .distantPast) <= cutoff }) else { return .idle }
+        // A retry never shows the failure it is retrying (D9, D20).
+        banner.withdraw(itemId: item.localId)
         do {
             try await run(&item)
             return .advanced
@@ -478,7 +484,7 @@ final class VideoUploadController {
             try await api.attach(attach, videoId: serverId)
         } catch where Self.isRefusal(error) {
             banner.surface(error, context: "VideoUploadController.attach",
-                           message: "Couldn't add the video to the lesson. It's in your Library.", retry: nil)
+                           message: "Couldn't add the video to the lesson. It's in your Library.", itemId: nil, retry: nil)
         }
         try advance(&item, to: .attaching)
     }
@@ -522,9 +528,13 @@ final class VideoUploadController {
 
     /// A user-initiated upload that did not go through: back off, and after three in a row surface
     /// the banner once with Retry (`/ios-error-surface`).
+    /// A transfer iOS suspended (`VideoUploadError.suspended`) backs off by the next failure's delay but is
+    /// not counted and never surfaces (D20).
     private func recordFailure(_ item: inout VideoQueueItem, _ error: Error) {
-        item.failures += 1
-        item.nextAttemptAt = now().addingTimeInterval(Double(Self.delay(forAttempt: item.failures).components.seconds))
+        let suspended = (error as? VideoUploadError) == .suspended
+        if !suspended { item.failures += 1 }
+        let attempt = suspended ? item.failures + 1 : item.failures
+        item.nextAttemptAt = now().addingTimeInterval(Double(Self.delay(forAttempt: attempt).components.seconds))
         do {
             try update(item)
         } catch is ItemRemoved {
@@ -532,10 +542,10 @@ final class VideoUploadController {
         } catch {
             Log.media.error("video backoff not persisted: \(error.localizedDescription, privacy: .public)")
         }
-        guard item.failures == Self.surfaceAfterFailures else { return }
+        guard !suspended, item.failures == Self.surfaceAfterFailures else { return }
         banner.surface(error, context: "VideoUploadController.run",
                        message: item.attach != nil ? "Couldn't add your video to the lesson" : "Couldn't upload your video",
-                       retry: { [weak self] in Task { await self?.retryNow() } })
+                       itemId: item.localId, retry: { [weak self] in Task { await self?.retryNow() } })
     }
 
     /// An attach no retry can make: no access, a document the server rejects, or a version or activity
@@ -576,8 +586,9 @@ final class VideoUploadController {
         discard(item)
     }
 
-    /// Deletes the item's files and manifest, then refreshes `pendingItems`.
+    /// Deletes the item's files and manifest, then refreshes `pendingItems`. Its banner goes with it (D20).
     private func discard(_ item: VideoQueueItem) {
+        banner.withdraw(itemId: item.localId)
         for url in [item.fileURL, manifestURL(item)] + (item.posterURL.map { [$0] } ?? []) {
             do {
                 try FileManager.default.removeItem(at: url)
@@ -616,6 +627,8 @@ private struct ItemRemoved: Error {}
 enum VideoUploadError: Error, Equatable {
     case badUploadURL
     case uploadRejected(status: Int)
+    /// iOS ended the transfer's background time: the queue backs off but the attempt is not counted (D20).
+    case suspended
 }
 
 // MARK: - D24 limits
@@ -733,12 +746,25 @@ struct LiveVideoUploadAPI: VideoUploadAPI {
     }
 }
 
-/// The real banner: the app's one error channel, surfaced because the leader tapped Save.
+/// The real banner: the app's one error channel, surfaced because the leader tapped Save. It
+/// remembers which error each item put up, so a withdrawal never takes down another's.
 @MainActor
-struct AppStateVideoUploadBanner: VideoUploadBanner {
-    let state: AppState
+final class AppStateVideoUploadBanner: VideoUploadBanner {
+    private let state: AppState
+    /// `itemId -> AppError.id` of the error that item surfaced.
+    private var surfaced: [String: UUID] = [:]
 
-    func surface(_ error: Error, context: String, message: String, retry: (() -> Void)?) {
+    init(state: AppState) {
+        self.state = state
+    }
+
+    func surface(_ error: Error, context: String, message: String, itemId: String?, retry: (() -> Void)?) {
         state.recordError(error, context: context, surface: true, friendlyMessage: message, retry: retry)
+        if let itemId { surfaced[itemId] = state.activeSurfacedError?.id }
+    }
+
+    func withdraw(itemId: String) {
+        guard let errorId = surfaced.removeValue(forKey: itemId), state.activeSurfacedError?.id == errorId else { return }
+        state.activeSurfacedError = nil
     }
 }

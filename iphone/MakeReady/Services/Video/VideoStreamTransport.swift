@@ -36,9 +36,18 @@ struct URLSessionVideoStreamTransport: VideoStreamTransport {
             await work.end()
             return status
         } catch {
+            let expired = work.didExpire
             await work.end()
-            throw error
+            throw Self.failure(error, backgroundTimeExpired: expired)
         }
+    }
+
+    /// What a failed transfer throws: a cancellation that came from the background time running out is
+    /// `suspended` (the queue does not count it); any other error, a plain cancellation included, is
+    /// thrown as it came.
+    static func failure(_ error: Error, backgroundTimeExpired: Bool) -> Error {
+        let cancelled = error is CancellationError || (error as? URLError)?.code == .cancelled
+        return backgroundTimeExpired && cancelled ? VideoUploadError.suspended : error
     }
 
     private func send(fileURL: URL, to url: URL) async throws -> Int {
@@ -94,6 +103,8 @@ private final class BackgroundWork: @unchecked Sendable {
         }
         lock.withLock { identifier = id }
     }
+
+    var didExpire: Bool { lock.withLock { expired } }
 
     func attach(_ task: Task<Int, Error>) {
         let cancelNow = lock.withLock { () -> Bool in
