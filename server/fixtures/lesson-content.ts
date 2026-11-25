@@ -7,7 +7,7 @@
  * Id scheme: a lesson fixtureId('lesson', n) has its version fixtureId('lessonVersion', n); an activity row takes
  * fixtureId('contentActivity', m) for the m of its fixtureId('activity', m) key.
  */
-import { hashLessonContent } from '../src/services/activity-document.js'
+import { documentMediaRefs, hashLessonContent } from '../src/services/activity-document.js'
 import type { FixtureContext } from './context.js'
 import { FIXTURE_ORG_ID, FIXTURE_USER_ID, fixtureId } from './ids.js'
 
@@ -137,4 +137,30 @@ export async function customizeLessons(
   for (const i of items) {
     await ctx.prisma.scheduledLesson.update({ where: { id: i.scheduledLessonId }, data: { currentVersionId: i.version.id } })
   }
+}
+
+/**
+ * The `ACTIVITY` usage rows a save writes (content-media.service.ts `syncActivityMediaUsage`), under fixture ids from
+ * `n` upward: one per activity key and Media row its documents name, over every version of the programs' lessons.
+ */
+export async function seedActivityUsages(ctx: FixtureContext, programIds: string[], n: number): Promise<void> {
+  const { prisma } = ctx
+  const activities = await prisma.contentActivity.findMany({
+    where: { lessonVersion: { lesson: { programId: { in: programIds } } } },
+    orderBy: { id: 'asc' },
+    select: { activityKey: true, title: true, document: true },
+  })
+  const media = await prisma.media.findMany({ where: { organizationId: FIXTURE_ORG_ID }, orderBy: { id: 'asc' }, select: { id: true, videoId: true } })
+  const usages = new Map<string, { mediaId: string; resourceId: string; resourceName: string }>()
+  for (const a of activities) {
+    const refs = documentMediaRefs(a.document)
+    for (const m of media) {
+      if (!refs.mediaIds.includes(m.id) && !(m.videoId && refs.videoIds.includes(m.videoId))) continue
+      const key = `${a.activityKey} ${m.id}`
+      if (!usages.has(key)) usages.set(key, { mediaId: m.id, resourceId: a.activityKey, resourceName: a.title })
+    }
+  }
+  await prisma.mediaUsage.createMany({
+    data: [...usages.values()].map((u, i) => ({ id: fixtureId('mediaUsage', n + i), usageType: 'ACTIVITY', ...u })),
+  })
 }

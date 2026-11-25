@@ -7,7 +7,9 @@ import { parseActivityDocument } from '../../src/services/activity-document.js'
 import { buildMediaMap, videoActivityUseCount, videoVersionUseCount } from '../../src/services/content-media.service.js'
 import { thumbnailFromDocument } from '../../src/services/next-study-thumbnail.js'
 import { SAMPLE_POSTER_URL } from '../activity-samples.js'
-import { FIXTURE_IDS as ids } from '../ids.js'
+import { VIDEO_THUMBNAIL_URL } from '../screens/groups-detail.js'
+import { videoActivityKey } from '../base.js'
+import { FIXTURE_IDS as ids, fixtureId } from '../ids.js'
 import { type FixturesDb, TEST_DB_URL, openFixturesDb } from './db-harness.js'
 
 describe.skipIf(!TEST_DB_URL)('activities screens (text-activity Task 17)', () => {
@@ -58,6 +60,22 @@ describe.skipIf(!TEST_DB_URL)('activities screens (text-activity Task 17)', () =
     const map = await db.prisma.$transaction((tx: any) => buildMediaMap(tx, [doc]))
     expect(thumbnailFromDocument(doc, map)).toBe(SAMPLE_POSTER_URL)
     expect(await Promise.all([videoActivityUseCount(db.prisma, id), videoVersionUseCount(db.prisma, id)])).toEqual([1, 1])
+  }, 180_000)
+
+  it('the published videos have the Media and usage rows a save writes', async () => {
+    await runScenario('activities-player', 'full')
+    const player = await db.prisma.contentActivity.findFirstOrThrow({ where: { lessonVersionId: ids.activitiesPlayer.lessonVersionId, kind: 'video' } })
+    const playerVideo = (player.document as any).content.videoId
+    const counts = (id: string) => Promise.all([videoActivityUseCount(db.prisma, id), videoVersionUseCount(db.prisma, id)])
+    expect(await counts(playerVideo)).toEqual([1, 2])
+    // Foundations of Faith and Walking Through John: 21 + 30 lessons, plus enrollment 4's two customized versions.
+    const watch = fixtureId('video', 1)
+    expect(await counts(watch)).toEqual([51, 53])
+    const media = await db.prisma.media.findMany({ where: { videoId: watch } })
+    expect(media.map((m) => [m.type, m.thumbnailUrl])).toEqual([['video', VIDEO_THUMBNAIL_URL]])
+    const row = await db.prisma.contentActivity.findFirstOrThrow({ where: { activityKey: videoActivityKey(1, 1) } })
+    const map = await db.prisma.$transaction((tx: any) => buildMediaMap(tx, [row.document]))
+    expect(thumbnailFromDocument(row.document, map)).toBe(VIDEO_THUMBNAIL_URL)
   }, 180_000)
 
   it('every fixture document validates except the fallback row', async () => {
