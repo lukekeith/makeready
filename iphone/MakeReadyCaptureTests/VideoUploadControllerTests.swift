@@ -210,7 +210,7 @@ final class VideoUploadControllerTests: XCTestCase {
         XCTAssertEqual(c.heldIds, [])
     }
 
-    func testAHeldItemWaitingForItsNameWakesNothingAndTheTranscriptWaitDoesNotDelayItsUpload() async throws {
+    func testAHeldItemWaitingForItsNameIsNotCreatedAndIsNotWokenByTheProcessLoop() async throws {
         try held(transcriptHold: 600)
         _ = await c.processNext()
         XCTAssertEqual(api.uploads.count, 1)
@@ -219,6 +219,37 @@ final class VideoUploadControllerTests: XCTestCase {
         let again = await c.processNext()
         XCTAssertEqual(again, .idle)
         XCTAssertEqual(api.created.count, 0)
+    }
+
+    func testTheTranscriptWaitDoesNotDelayAHeldUploadAndTheFlushNeverSleepsForIt() async throws {
+        var waits: [Duration] = []
+        let c = VideoUploadController(api: api, transport: api, banner: BannerSpy(), directory: dir, ownerUserId: "user-a",
+                                      environment: "Local", defaultTitle: { "Video 1" }, now: { Date() },
+                                      sleep: { waits.append($0) })
+        _ = try c.enqueue(exported(), localId: "H", title: "Video 1", attach: nil, transcriptHold: 600, namingHold: true)
+        await c.flush()
+        XCTAssertEqual(api.uploads.count, 1)
+        XCTAssertEqual(c.queued(localId: "H")?.stage, .uploading)
+        XCTAssertEqual(api.createCalls, 0)
+        XCTAssertTrue(waits.isEmpty)
+    }
+
+    func testAReleasedItemStillWaitsForItsTranscriptBeforeTheCreate() async throws {
+        var waits: [Duration] = []
+        var clock = Date()
+        let c = VideoUploadController(api: api, transport: api, banner: BannerSpy(), directory: dir, ownerUserId: "user-a",
+                                      environment: "Local", defaultTitle: { "Video 1" }, now: { clock },
+                                      sleep: { wait in
+                                          waits.append(wait)
+                                          clock = clock.addingTimeInterval(Double(wait.components.seconds) + 1)
+                                      })
+        _ = try c.enqueue(exported(), localId: "H", title: "Video 1", attach: nil, transcriptHold: 42, namingHold: true)
+        await c.flush()
+        XCTAssertTrue(waits.isEmpty)
+        try c.endNamingHold(localId: "H", title: "Hope", description: nil)
+        await c.flush()
+        XCTAssertEqual(Double(waits.first?.components.seconds ?? 0), 42, accuracy: 1)
+        XCTAssertEqual(api.created.map(\.title), ["Hope"])
     }
 
     func testEndingAnUnknownOrReleasedHoldChangesNothing() async throws {
