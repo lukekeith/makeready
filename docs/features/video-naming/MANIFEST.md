@@ -16,5 +16,5 @@ verify: none
 ready: none
 ui2: none (d2m builds the video-naming screen from this spec, D12)
 auto: on 2026-11-25
-blocked: "the naming page screen isn't built: d2m's queue stopped on a question its channel can't answer, and the owner must approve the screen's captures — next: answer C-051's AIProcessing question in d2m's Contract tab, then /builder:agent"
+blocked: none
 agent-walk: on 2026-11-25

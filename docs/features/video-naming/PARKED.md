@@ -32,3 +32,4 @@ Building the screen by hand here would break the rule that d2m owns MakeReadyUI;
 
 ## History
 - 2026-11-25 parked — d2m could not record an answer, and its queue did not advance
+- 2026-11-25 unparked by a person — named to /builder:agent or /builder:fleet
