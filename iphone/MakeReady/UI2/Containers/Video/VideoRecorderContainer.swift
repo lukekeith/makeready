@@ -55,6 +55,8 @@ struct VideoRecorderContainer: View {
     @State private var pickerOpen = false
     @State private var pick: PhotosPickerItem?
     @State private var thumbnails: [FilterStrip.Look: Image] = [:]
+    /// The record row's width, for delete-last's place (video-polish D8).
+    @State private var rowWidth: CGFloat = 0
 
     private var shown: VideoRecorderModel.ScreenState { model.screenState }
 
@@ -79,6 +81,8 @@ struct VideoRecorderContainer: View {
                 pick = nil
                 Task { await model.importPicked { try await VideoImportFlow.clip(from: picked) } }
             }
+            // video-polish D9: the scrub bar follows the player while Review plays.
+            .task(id: model.reviewPlaying) { await followReview() }
             .onAppear {
                 model.open()
                 thumbnails = FilterSwatches.images
@@ -115,6 +119,11 @@ struct VideoRecorderContainer: View {
             onTextSizeChange: { model.setTextSize(named: $0) },
             onPreRollChange: { model.setPreRoll(PreRoll(panel: $0)) },
             onCountdownSoundChange: model.setCountdownSound,
+            onLengthModeChange: { model.setLengthMode(LengthMode(rawValue: $0) ?? .any) },
+            onEndCountdownChange: model.setEndCountdown,
+            onReviewTap: model.reviewTapped,
+            onReviewSeek: model.reviewSeek(to:),
+            onReviewScrubbingChange: model.setReviewScrubbing,
             feed: feed,
             hostChrome: false,
             teleprompterOffset: shown.teleprompterOffset,
@@ -150,8 +159,8 @@ struct VideoRecorderContainer: View {
         /// GAP — video-recorder §2d: C-105's 36 pt pill in the same row: 6 + (80 − 36) / 2.
         static let reviewButtonBottom: CGFloat = 28
         /// GAP — video-recorder §2d: Retake and Save side by side, as Edit and Filters are (10 pt).
-        /// GAP — video-recorder §2c: undo "centre 98 left of the record centre".
-        static let undoOffset: CGFloat = -98
+        /// GAP — video-recorder §2c: the record disc is 80 pt wide, centred.
+        static let recordDisc: CGFloat = 80
         /// C-021 §2: a 24 pt glyph in a 44 pt target.
         static let hitTarget: CGFloat = 44
     }
@@ -180,7 +189,8 @@ struct VideoRecorderContainer: View {
             }
             if shown.showsDeleteLast {
                 glyphButton(.undo2, label: "Delete last clip", size: Geometry.rowButton, action: model.requestDeleteLast)
-                    .offset(x: Geometry.undoOffset)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, max(Self.deleteLastCentreX(width: rowWidth) - Geometry.rowButton / 2, 0))
             }
             if shown.canFinish {
                 glyphButton(.check, label: "Review", size: Geometry.rowButton, action: model.done)
@@ -189,6 +199,21 @@ struct VideoRecorderContainer: View {
             }
         }
         .padding(.bottom, Geometry.rowButtonBottom)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { rowWidth = $0 }
+    }
+
+    /// video-polish D8: delete-last centred halfway between the leading edge and the record disc.
+    static func deleteLastCentreX(width: CGFloat) -> CGFloat {
+        (width / 2 - Geometry.recordDisc / 2) / 2
+    }
+
+    /// Review's elapsed time, followed while it plays.
+    private func followReview() async {
+        guard model.reviewPlaying else { return }
+        while !Task.isCancelled {
+            model.reviewTick()
+            try? await Task.sleep(for: .milliseconds(33))
+        }
     }
 
     /// D8: a spinner while the pick is read.

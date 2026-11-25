@@ -460,6 +460,12 @@ final class VideoRecorderModelTests: XCTestCase {
         XCTAssertEqual(settings.script, "Welcome\nGood morning")
     }
 
+    // MARK: video-polish D8 — delete-last halfway to the record disc
+
+    func testDeleteLastSitsHalfwayToRecord() {
+        XCTAssertEqual(VideoRecorderContainer.deleteLastCentreX(width: 440), 90)
+    }
+
     // MARK: video-polish D3 — on only with text
 
     func testSavedScriptTurnsTheTeleprompterOn() {
