@@ -68,6 +68,13 @@ struct ActivityActions {
         apply(try JSONDecoder.apiDecoder.decode(LessonVersionPayload.self, from: data))
     }
 
+    /// `GET /api/lesson-versions/:id`, its current status only: no store is written, so a page open on the
+    /// version keeps its document (video-activity-basics D20).
+    @MainActor
+    func versionStatus(id: String) async throws -> LessonVersion.Status {
+        try await api.get("/api/lesson-versions/\(id)", responseType: LessonVersionPayload.self).version.status
+    }
+
     /// `GET /api/lessons/:id/draft`, then the reloaded draft's activities. The newest program draft
     /// is read by `number`: a draft another leader published stays in the store until it is reloaded.
     @MainActor

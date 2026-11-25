@@ -815,7 +815,7 @@ final class ActivitiesEditorContainerTests: XCTestCase {
     private var a2: ContentActivity { videoActivity("a2", key: "k-a", version: "ver2") }
     private var z: ContentActivity { videoActivity("z", key: "k-z", version: "ver2", position: 1) }
 
-    /// One video activity per id (key `k-<id>`, all of vid1, in ver1), the editor on `at`. Confirm reads answer allowed;
+    /// One video activity per id (key `k-<id>`, all of vid1, in ver1), the editor on `at`. Confirm reads answer allowed, draft;
     /// a video delete or a banner fails the test unless the test swaps it.
     private func deleting(_ ids: [String], at: String = "a", draft: [ContentActivity] = [],
                           steps: [ScriptedActivityActions.Step] = [])
@@ -824,6 +824,7 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         let actions = ScriptedActivityActions(deleteSteps: steps, draft: draft)
         let model = videoEditor(app: app, actions: actions, at: at)
         model.readDeleteEverywhere = { _ in .allowed }
+        model.readVersionStatus = { _ in .draft }
         model.deleteVideo = { id in XCTFail("deleted video \(id)") }
         model.report = { _, text in XCTFail("banner \(text)") }
         return (app, model, actions)
@@ -905,14 +906,14 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         XCTAssertEqual(d.model.deleteEverywhereState, .checking)
     }
 
-    /// D19: the open version decides after the counts allow.
-    func testAPublishedVersionWithNoDraftCannotDeleteEverywhere() async {
+    /// D19, D20: once the counts allow, the server's status of the open version decides, not the cached one.
+    func testAPublishedVersionCannotDeleteEverywhere() async {
         let d = deleting(["a", "b"])
+        var read: [String] = []
+        d.model.readVersionStatus = { read.append($0); return .published }
+        XCTAssertEqual(d.app.lessonVersions["ver1"]?.status, .draft)
         await d.model.openDeleteConfirm(app: d.app)
-        XCTAssertTrue(shown(d).deleteEverywhereEnabled)
-        d.app.lessonVersions.upsert(LessonVersion(id: "ver1", lessonId: "l1", enrollmentId: nil, number: 1, status: .published,
-                                                  title: nil, estimatedSeconds: nil, publishedAt: nil))
-        await d.model.openDeleteConfirm(app: d.app)
+        XCTAssertEqual(read, ["ver1"])
         XCTAssertEqual(shown(d).deleteEverywhereNote, "Used in a published lesson")
         XCTAssertFalse(shown(d).deleteEverywhereEnabled)
         await d.model.removeVideo(everywhere: true, app: d.app)
@@ -924,6 +925,58 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         }
         await d.model.removeVideo(everywhere: false, app: d.app)
         XCTAssertEqual(d.actions.deletedIds, ["a"])
+    }
+
+    func testAServerDraftCanDeleteEverywhereWhateverTheCacheHolds() async {
+        let d = deleting(["a", "b"])
+        d.app.lessonVersions.upsert(LessonVersion(id: "ver1", lessonId: "l1", enrollmentId: nil, number: 1, status: .published,
+                                                  title: nil, estimatedSeconds: nil, publishedAt: nil))
+        await d.model.openDeleteConfirm(app: d.app)
+        XCTAssertTrue(shown(d).deleteEverywhereEnabled)
+        XCTAssertEqual(shown(d).deleteEverywhereNote, "")
+    }
+
+    func testAFailedStatusReadCannotDeleteEverywhere() async {
+        for failure in [URLError(.timedOut), APIHTTPError(status: 404, message: "x", details: [:])] as [Error] {
+            let d = deleting(["a", "b"])
+            d.model.readVersionStatus = { _ in throw failure }
+            await d.model.openDeleteConfirm(app: d.app)
+            XCTAssertEqual(shown(d).deleteEverywhereNote, "Couldn't check where it's used")
+            XCTAssertFalse(shown(d).deleteEverywhereEnabled)
+            await d.model.removeVideo(everywhere: false, app: d.app)
+            XCTAssertEqual(d.actions.deletedIds, ["a"])
+        }
+    }
+
+    /// Checking until both answers are in; one that comes after the page was left is dropped.
+    func testALateStatusIsDropped() async {
+        for answer in [LessonVersion.Status.draft, .published] {
+            let d = deleting(["a", "b"])
+            d.model.readVersionStatus = { _ in
+                XCTAssertEqual(d.model.deleteEverywhereState, .checking)
+                await d.model.selectSlide("b", app: d.app)
+                return answer
+            }
+            await d.model.openDeleteConfirm(app: d.app)
+            XCTAssertEqual(d.model.deleteEverywhereState, .checking)
+        }
+    }
+
+    func testTheStatusReadLeavesUnsavedEditsAndTheStoresAlone() async {
+        let d = deleting(["a", "b"])
+        let api = StubAPIClient()
+        api.stub("GET", "/api/lesson-versions/ver1", json: #"{"version":{"id":"ver1","lessonId":"l1","enrollmentId":null,"number":1,"status":"PUBLISHED","title":null,"estimatedSeconds":null,"publishedAt":null},"activities":[],"media":{}}"#)
+        let live = ActivityActions(api: api, state: d.app)
+        d.model.readVersionStatus = { try await live.versionStatus(id: $0) }
+        d.model.changeBackground(.colour("#123456"), app: d.app)
+        let unsaved = d.model.document
+        XCTAssertNotEqual(unsaved, d.app.activities["a"]?.document)
+        await d.model.openDeleteConfirm(app: d.app)
+        XCTAssertEqual(shown(d).deleteEverywhereNote, "Used in a published lesson")
+        XCTAssertEqual(d.model.document, unsaved)
+        XCTAssertTrue(shown(d).canSave)
+        XCTAssertEqual(d.app.activities(forVersion: "ver1").map(\.id), ["a", "b"])
+        XCTAssertEqual(d.app.lessonVersions["ver1"]?.status, .draft)
     }
 
     func testChoicesAreIgnoredWhileDeleting() async {

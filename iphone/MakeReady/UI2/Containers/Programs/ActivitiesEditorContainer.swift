@@ -1198,6 +1198,8 @@ struct ActivitiesEditorContainer: View {
 
         /// Reads whether the video may be deleted everywhere; live over `VideoActions`.
         var readDeleteEverywhere: (String) async throws -> VideoDeleteEverywhere = { try await VideoActions().deleteEverywhere(id: $0) }
+        /// Reads the open version's status from the server, leaving the stores alone (D20); live over `ActivityActions`.
+        var readVersionStatus: (String) async throws -> LessonVersion.Status = { try await ActivityActions().versionStatus(id: $0) }
         /// Deletes the library video; live over `VideoActions`.
         var deleteVideo: (String) async throws -> Void = { try await VideoActions().deleteOrRemove(id: $0, decision: .delete) }
         /// Shows a user-initiated failure as the banner (/ios-error-surface).
@@ -1215,21 +1217,24 @@ struct ActivitiesEditorContainer: View {
         private var deleteCheckedVideoId: String?
 
         /// Delete was chosen: the video pauses and the confirm reads where the video is used. A failed read is
-        /// `unknown` (console-only: the leader asked to delete, not to check). An open version that is not a draft
-        /// turns `allowed` into `published`: the removal's new draft leaves the published row naming the video (D19).
+        /// `unknown` (console-only: the leader asked to delete, not to check). An open version the server
+        /// no longer has as a draft turns `allowed` into `published`: the removal's new draft leaves the published row
+        /// naming the video (D19), and a publish elsewhere leaves the cached status stale (D20).
         func openDeleteConfirm(app: AppState? = nil) async {
             let app = app ?? .shared
             guard !isDeleting, let video = openVideo(app: app) else { return }
             pauseVideo()
-            let version = app.lessonVersions[lessonVersionId]
-            let isPublished = version.map { $0.status != .draft } ?? false
+            let versionId = lessonVersionId
             deleteEverywhereState = .checking
             deleteCheckedVideoId = video.videoId
             deleteCheck += 1
             let check = deleteCheck
             do {
-                let answer = try await readDeleteEverywhere(video.videoId)
-                if check == deleteCheck { deleteEverywhereState = answer == .allowed && isPublished ? .published : answer }
+                async let status = readVersionStatus(versionId)
+                var answer = try await readDeleteEverywhere(video.videoId)
+                // The counts' own reason comes first, whatever the status read says.
+                if answer == .allowed, try await status != .draft { answer = .published }
+                if check == deleteCheck { deleteEverywhereState = answer }
             } catch {
                 guard check == deleteCheck else { return }
                 log(error, "ActivitiesEditorContainer.openDeleteConfirm")
