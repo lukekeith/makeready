@@ -14,6 +14,7 @@ import {
   assertDocumentMediaAllowed,
   buildMediaMap,
   syncActivityMediaUsage,
+  videoVersionUseCount,
 } from '../src/services/content-media.service.js'
 
 // DELETE /api/videos/:id reaches Stream; nothing may leave the machine (D7, D11).
@@ -145,6 +146,22 @@ describe('media in activity documents (D34)', () => {
       await use('vu2', 'DRAFT', a.m.id)
       await use('vu2', 'PUBLISHED', b.m.id)
       expect(await counts(a.v)).toEqual([1, 1])
+    })
+    it('counts from the documents alone, without a usage row or a Media row', async () => {
+      const { v, m } = await newVideo()
+      const draft = await use('vu5', 'DRAFT', m.id)
+      const published = await use('vu5', 'PUBLISHED', m.id)
+      await prisma.mediaUsage.deleteMany({ where: { mediaId: m.id } })
+      expect(await counts(v)).toEqual([0, 2])
+      for (const { id } of [draft, published]) {
+        await prisma.contentActivity.update({ where: { id }, data: { document: { ...EXAMPLE_TEXT, content: { type: 'video', videoId: v } } } })
+      }
+      // a mention outside the media fields is not a use
+      const other = await createMedia(w.orgId)
+      const text = await use('vu6', 'DRAFT', other.id)
+      await prisma.contentActivity.update({ where: { id: text.id }, data: { document: { ...EXAMPLE_TEXT, fallback: { title: v, body: v } } } })
+      await prisma.media.delete({ where: { id: m.id } })
+      expect(await videoVersionUseCount(prisma, v)).toBe(2)
     })
     it('after the draft row goes, DELETE answers as the count predicted', async () => {
       const auth = bearer(w.leader.token)
