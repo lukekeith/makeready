@@ -1,7 +1,7 @@
 size: lg
-state: audited
+state: planned
 next: /builder:resume --path docs/features/video-naming
-head: d42198ac
+head: 5d42dc6a
 ticket: none
 branch: builder/video-naming
 pr: none

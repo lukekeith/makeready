@@ -182,3 +182,16 @@ typed keeps "Video N"; force an upload failure, then a successful retry shows no
 | F7 | Fixtures rule: the naming page reads no server data, so no `server/fixtures/screens/video-naming.ts` (video-recorder has none either) | resolved |
 | F8 | D12 reserves screen approval to the owner | the d2m task ends with captures and parks as a human step until the owner approves; server work comes first |
 | F9 | Replaced surfaces: none; the recorder's + menu Save gains a step. Entry and exit edges unchanged (check → Library) | resolved |
+
+## Plan
+
+The plan, task by task: `docs/features/video-naming/PLAN.md` (§PLAN.md).
+
+- Phase 1 · Task 1 · POST /api/videos/suggest-details
+- Phase 2 · Task 2 · The upload banner never shows an old failure
+- Phase 2 · Task 3 · d2m builds the video-naming screen; the owner approves
+- Phase 3 · Task 4 · The queue holds an item for naming
+- Phase 3 · Task 5 · The saver starts, releases and takes back a held save
+- Phase 3 · Task 6 · The suggestions Action and the naming page's model
+- Phase 4 · Task 7 · The recorder's naming phase
+- Phase 4 · Task 8 · The naming page over the recorder
