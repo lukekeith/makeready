@@ -55,41 +55,7 @@ struct ActivitiesEditorContainer: View {
         let _ = imagesSeeded
         let state = Self.screenState(model, app: AppState.shared)
         let pendingVideos = Self.pendingVideos(AppState.shared, versionId: model.lessonVersionId)
-        ActivitiesEditorScreen(
-            state: state,
-            onBack: { Task { await model.back() } },
-            onCancel: { Task { await model.cancel() } },
-            onDone: { Task { await model.done() } },
-            onSelectSlide: { id in Task { await model.selectSlide(id) } },
-            onAdd: { Task { await model.addActivity() } },
-            onPickType: { type in Task { await model.pickType(type) } },
-            onTapEmpty: { point in model.tapEmpty(at: point) },
-            onTapObject: { index in Task { await model.tapObject(index) } },
-            onEditObject: { edit in model.edit(edit) },
-            onLoadFailed: { message in Self.surfaceLoadFailure(message) },
-            onTapOff: { Task { await model.tapOff() } },
-            onBackground: { command in model.changeBackground(command) },
-            onActionsChange: { actions in model.changeActions(actions) },
-            onPageRailsClosed: { Task { await model.closePageRails() } },
-            onToggleHighlight: { model.startHighlighting() },
-            onDeleteHighlight: { Task { await model.deleteSelectedHighlight() } },
-            onRetry: { Task { await model.retry() } },
-            onDiscard: { model.discard() },
-            onHighlightRange: { index, start, end in model.highlightRange(objectIndex: index, start: start, end: end) },
-            onEndHighlighting: { Task { await model.endHighlighting() } },
-            onBibleStyleChange: { change in model.setBibleStyle(change) },
-            // D48: a text dropped on the trash circle is deleted and saved.
-            onDeleteObject: { index in Task { await model.dropDelete(objectIndex: index) } },
-            onReplaceVideo: { model.replaceVideo() },
-            onVideoTap: { model.videoTapped() },
-            onVideoMenu: { model.pauseVideo() },
-            onDelete: { Task { await model.openDeleteConfirm() } },
-            onReviewSave: { Task { await model.saveReview() } },
-            onRemoveFromLesson: { Task { await model.removeVideo(everywhere: false) } },
-            onDeleteEverywhere: { Task { await model.removeVideo(everywhere: true) } },
-            videoLayer: model.videoLayer,
-            videoRecorder: { inlineRecorder }
-        )
+        editorScreen(state: state)
         // The screen seeds its sheets' buffers and its alert from `State` once, at init; a new
         // generation (loaded, a failed save, a discard) re-seeds them.
         .id(model.screenGeneration)
@@ -163,6 +129,45 @@ struct ActivitiesEditorContainer: View {
         .task(id: Self.pageImageURLs(of: state)) {
             if await UI2ImageLoader.seed(Self.pageImageURLs(of: state), context: "ActivitiesEditorContainer") { imagesSeeded += 1 }
         }
+    }
+
+    /// The screen, with every handler wired to the model.
+    private func editorScreen(state: ActivitiesEditorScreen.State) -> some View {
+        ActivitiesEditorScreen(
+            state: state,
+            onBack: { Task { await model.back() } },
+            onCancel: { Task { await model.cancel() } },
+            onDone: { Task { await model.done() } },
+            onSelectSlide: { id in Task { await model.selectSlide(id) } },
+            onAdd: { Task { await model.addActivity() } },
+            onPickType: { type in Task { await model.pickType(type) } },
+            onTapEmpty: { point in model.tapEmpty(at: point) },
+            onTapObject: { index in Task { await model.tapObject(index) } },
+            onEditObject: { edit in model.edit(edit) },
+            onLoadFailed: { message in Self.surfaceLoadFailure(message) },
+            onTapOff: { Task { await model.tapOff() } },
+            onBackground: { command in model.changeBackground(command) },
+            onActionsChange: { actions in model.changeActions(actions) },
+            onPageRailsClosed: { Task { await model.closePageRails() } },
+            onToggleHighlight: { model.startHighlighting() },
+            onDeleteHighlight: { Task { await model.deleteSelectedHighlight() } },
+            onRetry: { Task { await model.retry() } },
+            onDiscard: { model.discard() },
+            onHighlightRange: { index, start, end in model.highlightRange(objectIndex: index, start: start, end: end) },
+            onEndHighlighting: { Task { await model.endHighlighting() } },
+            onBibleStyleChange: { change in model.setBibleStyle(change) },
+            // D48: a text dropped on the trash circle is deleted and saved.
+            onDeleteObject: { index in Task { await model.dropDelete(objectIndex: index) } },
+            onReplaceVideo: { model.replaceVideo() },
+            onVideoTap: { model.videoTapped() },
+            onVideoMenu: { model.pauseVideo() },
+            onDelete: { Task { await model.openDeleteConfirm() } },
+            onReviewSave: { Task { await model.saveReview() } },
+            onRemoveFromLesson: { Task { await model.removeVideo(everywhere: false) } },
+            onDeleteEverywhere: { Task { await model.removeVideo(everywhere: true) } },
+            videoLayer: model.videoLayer,
+            videoRecorder: { inlineRecorder }
+        )
     }
 
     /// The pictures the page on screen needs in the image cache: its background image and a video page's still.
