@@ -581,7 +581,7 @@ struct ActivitiesEditorContainer: View {
         /// Cancel restores only the edited object — an added one is removed, an existing one goes back
         /// to how it was — and keeps every page edit made meanwhile, saving them if any (text-activity-v2 D19).
         func cancel() async {
-            guard editingIndex >= 0 else { return }
+            guard editingIndex >= 0, !isDeleting else { return }
             if editAddedObject {
                 document = ActivitiesEditorMapper.removeObject(at: editingIndex, from: document)
             } else if let editStart {
@@ -596,6 +596,7 @@ struct ActivitiesEditorContainer: View {
 
         /// Done: commits the edit (a new object left empty is dropped) and saves the whole document.
         func done() async {
+            guard !isDeleting else { return }
             // Owner 2026-11-08: the Idle header's Done saves, then leaves the editor. A failed save
             // stays on the page with the alert, so the edits are not lost.
             guard editingIndex >= 0 else {
@@ -1009,6 +1010,7 @@ struct ActivitiesEditorContainer: View {
         /// Back: unsaved changes save first (an open edit commits), and a failed save stays on the page with
         /// the alert. No activity is ever deleted on the way out (D16, superseded round 5).
         func back() async {
+            guard !isDeleting else { return }
             closeVideo()
             if closeRecorder(then: { [weak self] in await self?.back() }) { return }
             guard await leave() else { return }
@@ -1044,6 +1046,7 @@ struct ActivitiesEditorContainer: View {
             let app = app ?? .shared
             let pending = pending ?? ActivitiesEditorContainer.pendingVideos(app, versionId: lessonVersionId)
             let pendingVideo = pending.first { $0.id == id }
+            guard !isDeleting else { return }
             guard pendingVideo != nil || app.activities[id] != nil else { return }
             guard id != activityId || [.typeGrid, .videoRecorder].contains(canvasContent) else { return }
             closeVideo()
@@ -1078,7 +1081,7 @@ struct ActivitiesEditorContainer: View {
 
         /// D27: ＋ shows the type grid in place of the canvas, once the current activity has saved.
         func addActivity() async {
-            guard canvasContent != .typeGrid else { return }
+            guard canvasContent != .typeGrid, !isDeleting else { return }
             closeVideo()
             if closeRecorder(then: { [weak self] in await self?.addActivity() }) { return }
             guard await leave() else { return }
@@ -1125,7 +1128,12 @@ struct ActivitiesEditorContainer: View {
             guard let videoId = missingStillVideoId(app: app ?? .shared) else { return }
             do {
                 guard try await waitForVideo(videoId), !Task.isCancelled else { return }
-                _ = try await actions.reloadDraft(lessonId: lessonId)
+                let rows = try await actions.reloadDraft(lessonId: lessonId)
+                // Another leader may have published: the page's row lives in the new draft, under the same key.
+                if let row = rows.first(where: { $0.activityKey == activityKey }) {
+                    activityId = row.id
+                    lessonVersionId = row.lessonVersionId
+                }
             } catch {
                 if UI2ImageLoader.isCancellation(error) { return }
                 log(error, "ActivitiesEditorContainer.followMissingStill")
@@ -1140,15 +1148,32 @@ struct ActivitiesEditorContainer: View {
         /// The layer the video page shows over its still; nil until the first play on this page.
         private(set) var videoLayer: CALayer?
 
+        /// The open video page's video, as the page draws it: from the store, which a Replace or a reload updates
+        /// (the buffer `document` does not follow them).
+        private func openVideo(app: AppState) -> VideoContent? {
+            guard canvasContent == .readOnly, let activity = app.activities[activityId],
+                  case .video(let video) = activity.document.renderable else { return nil }
+            return video
+        }
+
+        /// The video id the player was built for.
+        private var playerVideoId: String?
+
         /// A tap plays or pauses the video page's stream; the first one loads it. No stream, no player.
         func videoTapped(app: AppState? = nil) {
-            guard canvasContent == .readOnly, !isDeleting, case .video(let video) = document.renderable else { return }
+            guard !isDeleting, let video = openVideo(app: app ?? .shared) else { return }
+            if videoPlayer != nil, playerVideoId != video.videoId {
+                videoPlayer?.stop()
+                videoPlayer = nil
+                videoLayer = nil
+            }
             if videoPlayer == nil {
                 let entry = (app ?? .shared).mediaMap[video.videoId]
                 guard let playback = entry?.playbackUrl, !playback.isEmpty, let url = URL(string: playback) else { return }
                 let opened = makePlayer()
                 opened.load(url: url, duration: entry?.durationSeconds ?? 0)
                 videoPlayer = opened
+                playerVideoId = video.videoId
                 videoLayer = opened.layer
             }
             guard let videoPlayer else { return }
@@ -1163,6 +1188,8 @@ struct ActivitiesEditorContainer: View {
             videoPlayer?.stop()
             videoPlayer = nil
             videoLayer = nil
+            playerVideoId = nil
+            deleteCheckedVideoId = nil
             deleteCheck += 1
             deleteEverywhereState = .checking
         }
@@ -1184,13 +1211,16 @@ struct ActivitiesEditorContainer: View {
         private(set) var isDeleting = false
         /// Names the read in flight, so an answer that arrives after the page was left is dropped.
         private var deleteCheck = 0
+        /// The video the confirm's read was made for: a removal deletes only that one.
+        private var deleteCheckedVideoId: String?
 
         /// Delete was chosen: the video pauses and the confirm reads where the video is used. A failed read is
         /// `unknown` (console-only: the leader asked to delete, not to check).
         func openDeleteConfirm(app: AppState? = nil) async {
-            guard canvasContent == .readOnly, !isDeleting, case .video(let video) = document.renderable else { return }
+            guard !isDeleting, let video = openVideo(app: app ?? .shared) else { return }
             pauseVideo()
             deleteEverywhereState = .checking
+            deleteCheckedVideoId = video.videoId
             deleteCheck += 1
             let check = deleteCheck
             do {
@@ -1208,8 +1238,9 @@ struct ActivitiesEditorContainer: View {
         /// the removed one's place, else the previous, else the type grid. The removed document is never saved.
         func removeVideo(everywhere: Bool, app: AppState? = nil) async {
             let app = app ?? .shared
-            guard canvasContent == .readOnly, case .video(let video) = document.renderable, !isDeleting,
+            guard !isDeleting, let video = openVideo(app: app), deleteCheckedVideoId == video.videoId,
                   !everywhere || deleteEverywhereState.enabled else { return }
+            let videoId = video.videoId
             isDeleting = true
             defer { isDeleting = false }
             let key = activityKey
@@ -1217,13 +1248,15 @@ struct ActivitiesEditorContainer: View {
             closeVideo()
             await waitForSaves()
             do {
-                try await deleteActivity(key: key, index: &index)
+                try await deleteActivity(key: key, index: &index, app: app)
             } catch {
                 report(error, "Couldn't remove the video")
                 return
             }
             let remaining = app.activities(forVersion: lessonVersionId).filter { $0.activityKey != key }
-            if remaining.indices.contains(index) {
+            if activityKey != key || canvasContent != .readOnly {
+                // The page changed under the removal: leave it be.
+            } else if remaining.indices.contains(index) {
                 open(remaining[index])
             } else if let last = remaining.last {
                 open(last)
@@ -1231,18 +1264,24 @@ struct ActivitiesEditorContainer: View {
                 showTypeGrid()
             }
             guard everywhere else { return }
-            do { try await deleteVideo(video.videoId) } catch {
+            do { try await deleteVideo(videoId) } catch {
                 report(error, "Removed from the lesson, but couldn't delete the video")
             }
         }
 
         /// The activity delete: once, and once more on the draft's row with the same key after a frozen or deleted draft.
-        private func deleteActivity(key: String, index: inout Int) async throws {
+        private func deleteActivity(key: String, index: inout Int, app: AppState) async throws {
             do {
                 try await actions.delete(activityId: activityId)
             } catch ActivityActionsError.notDraft, ActivityActionsError.gone {
                 let rows = try await actions.reloadDraft(lessonId: lessonId)
-                if let first = rows.first { lessonVersionId = first.lessonVersionId }
+                // The page follows the new draft, even an empty one (its rows carry no version id).
+                if let first = rows.first {
+                    lessonVersionId = first.lessonVersionId
+                } else if let draft = app.lessonVersions.all.filter({ $0.lessonId == lessonId && $0.status == .draft && $0.enrollmentId == nil })
+                    .max(by: { $0.number < $1.number }) {
+                    lessonVersionId = draft.id
+                }
                 // A key gone from the new draft was removed already.
                 guard let at = rows.firstIndex(where: { $0.activityKey == key }) else { return }
                 activityId = rows[at].id

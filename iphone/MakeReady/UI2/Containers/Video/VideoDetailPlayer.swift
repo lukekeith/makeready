@@ -39,6 +39,9 @@ final class AVVideoPlayer: VideoPlaying {
     @ObservationIgnored private let playerLayer: AVPlayerLayer
     @ObservationIgnored private let session: MemoPlaybackSessionControlling
     @ObservationIgnored private var duration: Double = 0
+    /// The loaded stream, kept so a play after a failure loads it again instead of playing nothing.
+    @ObservationIgnored private var loadedURL: URL?
+    @ObservationIgnored private var didFail = false
     @ObservationIgnored private var timeObserver: Any?
     @ObservationIgnored private var statusObservation: NSKeyValueObservation?
     @ObservationIgnored private var endObserver: NSObjectProtocol?
@@ -68,6 +71,8 @@ final class AVVideoPlayer: VideoPlaying {
 
     func load(url: URL, duration: Double) {
         self.duration = duration
+        loadedURL = url
+        didFail = false
         elapsed = 0
         isPlaying = false
         isReady = false
@@ -91,6 +96,7 @@ final class AVVideoPlayer: VideoPlaying {
     }
 
     func play() {
+        if didFail, let loadedURL { load(url: loadedURL, duration: duration) }
         // A video that has ended starts over, whether or not its duration is known.
         if isAtEnd || (duration > 0 && elapsed >= duration) { seek(to: 0) }
         if !isMuted {
@@ -134,6 +140,7 @@ final class AVVideoPlayer: VideoPlaying {
     }
 
     private func failed(_ error: Error?) {
+        didFail = true
         isPlaying = false
         isReady = false
         AppState.shared.recordError(error ?? CancellationError(), context: "AVVideoPlayer", surface: true,

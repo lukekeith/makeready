@@ -919,6 +919,78 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         XCTAssertEqual(d.actions.deletedIds, ["a"])
     }
 
+    // MARK: - final review: the page's video follows the store, and a removal holds the page still
+
+    /// The open page's activity, its document replaced by one of video `videoId` (what a Replace's save or a reload does).
+    private func replaceVideo(of activity: ContentActivity, with videoId: String, in app: AppState) {
+        app.activities.upsert(ContentActivity(id: activity.id, lessonVersionId: activity.lessonVersionId, activityKey: activity.activityKey,
+                                              position: activity.position, kind: "video", title: "Video",
+                                              document: LiveVideoUploadAPI.videoDocument(videoId: videoId, title: "Video"),
+                                              estimatedSeconds: nil))
+    }
+
+    func testAReplacedVideoIsTheOneTappedConfirmedAndDeleted() async {
+        let d = deleting(["a", "b"])
+        d.app.mergeMedia(["vid1": videoEntry(playback: "https://x/old.m3u8"), "vid2": videoEntry(playback: "https://x/new.m3u8")])
+        var players: [FakeInlinePlayer] = []
+        d.model.makePlayer = { let p = FakeInlinePlayer(); players.append(p); return p }
+        d.model.videoTapped(app: d.app)
+        replaceVideo(of: d.app.activities["a"]!, with: "vid2", in: d.app)
+        d.model.videoTapped(app: d.app)
+        XCTAssertEqual(players.map { $0.urls.map(\.absoluteString) }, [["https://x/old.m3u8"], ["https://x/new.m3u8"]])
+        XCTAssertEqual(players.map(\.stops), [1, 0])
+        var read: [String] = [], deleted: [String] = []
+        d.model.readDeleteEverywhere = { read.append($0); return .allowed }
+        d.model.deleteVideo = { deleted.append($0) }
+        await remove(d, everywhere: true)
+        XCTAssertEqual(read + deleted, ["vid2", "vid2"])
+    }
+
+    func testAConfirmReadForAnotherVideoDeletesNothing() async {
+        let d = deleting(["a", "b"])
+        await d.model.openDeleteConfirm(app: d.app)
+        replaceVideo(of: d.app.activities["a"]!, with: "vid2", in: d.app)
+        await d.model.removeVideo(everywhere: true, app: d.app)
+        XCTAssertEqual(d.actions.deletedIds, [])
+        XCTAssertEqual(d.model.activityId, "a")
+    }
+
+    func testNavigationIsIgnoredWhileDeleting() async {
+        let d = deleting(["a", "b"])
+        var seen: [(String, ActivitiesEditorContainer.Model.CanvasContent, String?)] = []
+        d.actions.onDelete = {
+            await d.model.selectSlide("b", app: d.app)
+            await d.model.addActivity()
+            await d.model.back()
+            await d.model.done()
+            seen.append((d.model.activityId, d.model.canvasContent, d.model.insertAfterID))
+        }
+        await remove(d)
+        XCTAssertEqual(seen.count, 1)
+        XCTAssertEqual(seen[0].0, "a")
+        XCTAssertEqual(seen[0].1, .readOnly)
+        XCTAssertNil(seen[0].2)
+        XCTAssertEqual(d.model.activityId, "b")
+    }
+
+    func testAMissingStillFollowsTheNewDraftsRow() async {
+        let d = deleting(["a"], draft: [a2])
+        d.app.mergeMedia(["vid1": videoEntry()])
+        d.model.waitForVideo = { _ in true }
+        d.app.activities.upsert(a2)
+        await d.model.followMissingStill(app: d.app)
+        XCTAssertEqual([d.model.activityId, d.model.lessonVersionId], ["a2", "ver2"])
+    }
+
+    func testAnEmptyNewDraftIsFollowedByVersion() async {
+        let d = deleting(["a"], steps: [.failure(.gone)])
+        d.app.lessonVersions.upsert(LessonVersion(id: "ver2", lessonId: "l1", enrollmentId: nil, number: 2, status: .draft,
+                                                  title: nil, estimatedSeconds: nil, publishedAt: nil))
+        await remove(d)
+        XCTAssertEqual(d.model.lessonVersionId, "ver2")
+        XCTAssertEqual(d.model.canvasContent, .typeGrid)
+    }
+
     // MARK: - video-activity-basics D3, D12: tap to play inline
 
     @MainActor
@@ -929,7 +1001,8 @@ final class ActivitiesEditorContainerTests: XCTestCase {
         let layer: CALayer? = CALayer()
         private(set) var loads = 0
         private(set) var stops = 0
-        func load(url: URL, duration: Double) { loads += 1 }
+        private(set) var urls: [URL] = []
+        func load(url: URL, duration: Double) { loads += 1; urls.append(url) }
         func play() { isPlaying = true }
         func pause() { isPlaying = false }
         func seek(to seconds: Double) { elapsed = seconds }
