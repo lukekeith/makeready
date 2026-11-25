@@ -1,9 +1,9 @@
 size: lg
-state: spec
+state: audited
 next: /builder:resume --path docs/features/video-naming
-head: b1ad6b00
+head: d42198ac
 ticket: none
-branch: main
+branch: builder/video-naming
 pr: none
 apps: server+iphone
 contract: open
@@ -15,4 +15,5 @@ walk: none
 verify: none
 ready: none
 ui2: none (d2m builds the video-naming screen from this spec, D12)
-auto: off
+auto: on 2026-11-25
+agent-walk: on 2026-11-25
