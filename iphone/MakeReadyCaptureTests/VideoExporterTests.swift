@@ -112,7 +112,8 @@ final class VideoExporterTests: XCTestCase {
         for (name, clip) in [("turned", turned), ("mirrored", mirrored)] {
             let out = try await VideoExporter.export(segments: [clip], timeRange: nil, filter: .normal, strength: 1,
                                                      to: tmp("\(name).mp4"))
-            let track = try await XCTUnwrap(AVURLAsset(url: out.url).loadTracks(withMediaType: .video).first)
+            let tracks = try await AVURLAsset(url: out.url).loadTracks(withMediaType: .video)
+            let track = try XCTUnwrap(tracks.first)
             let (stored, transform) = try await track.load(.naturalSize, .preferredTransform)
             XCTAssertEqual(transform, .identity, name)
             XCTAssertEqual(stored, CGSize(width: 360, height: 640), name)
