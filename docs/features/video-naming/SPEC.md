@@ -4,8 +4,7 @@
 ## Idea
 
 **Why.** Every video a leader records is saved as "Video N" with no description. The Library fills
-with "Video 3", "Video 4" and nothing says what each one is. Leaders recording on iPhone, from the +
-menu and inside a lesson, meet it every time. Separately, a retried upload that succeeds still
+with "Video 3", "Video 4" and nothing says what each one is. Leaders recording a Library video on iPhone from the + menu meet it every time. Separately, a retried upload that succeeds still
 flashes the red upload error for a moment.
 
 **What success looks like.** On the owner's phone: after Save, a "Name your video" page offers a Title
@@ -51,7 +50,7 @@ after upload, so most saves would see no suggestions.
 |---|---|---|---|
 | server | ✅ | New `POST /api/videos/suggest-details`: a transcript in, three title + description pairs out (Claude) | §server |
 | client | ⬜ | No change — the web never records video; it shows the title and description the server already returns | — |
-| iphone | ✅ | The naming page after Save (d2m first), on-device transcription for it, the title and description saved with the video, the retry error flash | §iphone |
+| iphone | ✅ | The naming page after Save in the full-screen (+ menu) recorder only (d2m first), on-device transcription for it, the title and description saved with the video, the retry error flash | §iphone |
 
 **Sequencing:** server (the endpoint, tested) → d2m designs the naming page, owner approves → iPhone
 wiring.
@@ -81,7 +80,7 @@ keeps saving "Video N".
 | # | Decision | Ruling | Who / date |
 |---|---|---|---|
 | D1 | One naming page | After Save, one page titled "Name your video" holds a Title field (single line, the C-045/C-046 field edit-text-single-field uses), a Description field (multi-line, as edit-text-multi-field) and one C-051 AI Suggestions block, with the purple C-159 check in the header to save. Rejected: two pages, Title then Description (an extra step; a pick could not fill both) | Luke 2026-11-25 |
-| D2 | Where it runs | The page opens after Review's save in both recorder layouts: full screen from the + menu (after the plain checkmark) and lessonInline (after the header's purple check). Closing it (back) returns to Review with nothing saved. Rejected: + menu only (lesson videos would stay "Video N") | Luke 2026-11-25 |
+| D2 | Where it runs | ~~Both layouts~~ superseded 2026-11-25: the page opens only after Review's save in the full-screen recorder (the + menu, a video going straight to the Library), after its plain checkmark. The lessonInline recorder (a lesson video activity) saves exactly as today, with no naming page. Back returns to Review with nothing saved. Rejected: both places (the owner does not want the extra step when building a lesson) | Luke 2026-11-25 |
 | D3 | Suggestions are pairs | The block shows at most 3 rows; each row is one suggestion, its title on the first line and its description below. Tapping a row replaces both fields with that pair. Regenerate asks again. Rejected: separate title and description lists (two picks) | Luke 2026-11-25 |
 | D4 | Optional | Saving is never blocked. A trimmed-empty title saves as the automatic "Video N"; a trimmed-empty description saves as no description. Rejected: title required (blocks saving) | Luke 2026-11-25 |
 | D5 | Transcript source | The page uses the transcript the editor already made when there is one; otherwise it transcribes the kept clip on the phone (`VideoTranscriber`, the window Review keeps) when the page opens, with the block in `loading`. The transcript's text is sent to D6. No transcript (no speech, or transcription failed) → the block shows no rows and its prompt copy "No speech to suggest from". Rejected: waiting for the server transcript (minutes after upload) | Luke 2026-11-25 |
@@ -89,7 +88,7 @@ keeps saving "Video N".
 | D7 | Upload starts at Save | The upload is queued at Review's save, before the naming page, as today. The page's check stores the title and description on the queue item; if the server row already exists, they are sent with `PATCH /api/videos/:id`, otherwise with the create call. Rejected: holding the upload until naming ends (slower; a leader who leaves the page loses nothing today) | (assumed at spec) 2026-11-25 |
 | D8 | Leaving the page | Leaving the naming page by the app going to the background or the recorder closing keeps the video under "Video N"; a later save is not offered. Back returns to Review (D2) | (assumed at spec) 2026-11-25 |
 | D9 | Retry error flash | The upload banner shows only for an attempt that has just failed; starting a retry, or a retry that succeeds, never shows or re-shows it. Rejected: showing a stored earlier failure while retrying (it reads as a new failure when the upload is actually going through) | Luke 2026-11-25 |
-| D10 | Lesson activity title | In a lesson, the video activity's title follows the saved video title | (assumed at spec) 2026-11-25 |
+| D10 | Lesson activity title | ~~The activity title follows the video title~~ withdrawn 2026-11-25: lesson recording has no naming page (D2), so lesson videos are unchanged | Luke 2026-11-25 |
 | D11 | No audio in automated runs | Transcription in tests, captures and agent walks uses seeded transcripts or silent clips; nothing plays sound on the Mac | owner 2026-11-24 |
 | D12 | d2m designs the page | The naming page (fields, the pairs in C-078, its states) is built by d2m from this spec; the owner approves the screens before wiring | (assumed at spec) 2026-11-25 |
 
@@ -124,7 +123,7 @@ Title and Description fields; C-051 with C-078 rows showing pairs (two lines per
   model transcribes (D5), calls VideoActions.suggestDetails, and on check stores title/description.
 - VideoSaver / VideoUploadController: the queue item carries `description`; a title or description set
   after create is sent by PATCH (D7); D4's empty-title rule.
-- Lesson: the activity title follows (D10).
+- Lesson (lessonInline) save is unchanged (D2).
 - VideoUploadController: D9.
 
 ## Testing
@@ -137,9 +136,9 @@ Title and Description fields; C-051 with C-078 rows showing pairs (two lines per
 - a pick fills both fields; empty title saves as "Video N"; empty description saves none.
 - title/description go with create when the row does not exist yet, else by PATCH.
 - D9: a retry that succeeds surfaces nothing; a failed retry after three failures surfaces once.
-- lesson activity title follows the video title.
+- a lessonInline save never opens the naming page (D2).
 
-**Human verification (owner's phone):** record from the + menu and in a lesson; suggestions appear
+**Human verification (owner's phone):** record from the + menu (and once in a lesson, to see no naming page); suggestions appear
 within seconds and read sensibly; a pick fills both; the Library row shows the title; save with nothing
 typed keeps "Video N"; force an upload failure, then a successful retry shows no error.
 
@@ -148,3 +147,4 @@ typed keeps "Video N"; force an upload failure, then a successful retry shows no
 - Renaming an existing video from the Library or video detail.
 - AI suggestions on other edit-field screens.
 - Any web change.
+- A naming step for videos recorded inside a lesson activity (D2).
