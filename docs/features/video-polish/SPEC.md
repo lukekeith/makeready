@@ -209,3 +209,13 @@ thin size line in both editors.
 | F9 | Typing a length would clamp mid-typing if sent per keystroke | D5: local draft, sent on commit |
 | F10 | Snapping is pinned in this spec; its feel (8/12 pt) is only judged on a phone | build-time risk — the owner's walk settles it (Phase 2 · snap task) |
 
+## Plan
+
+The plan, task by task: `docs/features/video-polish/PLAN.md` (§PLAN.md).
+
+- Phase 1 · Task 1 · Recorder length mode, unsnapped length and the end countdown setting
+- Phase 1 · Task 2 · Layer edge snapping on the editor timeline
+- Phase 2 · Task 3 · d2m changes the recorder and editor views; the owner approves
+- Phase 3 · Task 4 · Recorder model — teleprompter rule, Review playback
+- Phase 3 · Task 5 · Recorder container — the new callbacks and delete-last placement
+- Phase 3 · Task 6 · Editor container — tap to play, snap haptic

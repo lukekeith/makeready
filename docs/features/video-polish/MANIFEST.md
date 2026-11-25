@@ -1,7 +1,7 @@
 size: md
-state: audited
+state: planned
 next: /builder:resume --path docs/features/video-polish
-head: 32c286c2
+head: 03fa1ef5
 ticket: none
 branch: main
 pr: none
