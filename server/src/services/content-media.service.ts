@@ -143,6 +143,29 @@ export function videoActivityUseCount(db: Pick<Tx, 'mediaUsage'>, videoId: strin
   return activityUseCount(db, { videoId })
 }
 
+/**
+ * Activity rows, in versions of every status, whose document names the video by id or by a Media row linked to
+ * it (D11). Reads only the rows of activity keys that hold an `ACTIVITY` usage of the video's Media.
+ */
+export async function videoVersionUseCount(db: Pick<Tx, 'media' | 'mediaUsage' | 'contentActivity'>, videoId: string): Promise<number> {
+  const linked = new Set((await db.media.findMany({ where: { videoId }, select: { id: true } })).map((m) => m.id))
+  if (!linked.size) return 0
+  const usages = await db.mediaUsage.findMany({
+    where: { usageType: ACTIVITY_USAGE_TYPE, mediaId: { in: [...linked] } },
+    distinct: ['resourceId'],
+    select: { resourceId: true },
+  })
+  if (!usages.length) return 0
+  const rows = await db.contentActivity.findMany({
+    where: { activityKey: { in: usages.map((u) => u.resourceId) } },
+    select: { document: true },
+  })
+  return rows.filter(({ document }) => {
+    const refs = documentMediaRefs(document)
+    return refs.videoIds.includes(videoId) || refs.mediaIds.some((id) => linked.has(id))
+  }).length
+}
+
 /** Whether an `ACTIVITY` usage row names any of `mediaIds` (D34's delete guard). */
 export async function isUsedByActivity(db: Pick<Tx, 'mediaUsage'>, mediaIds: string[]): Promise<boolean> {
   if (!mediaIds.length) return false

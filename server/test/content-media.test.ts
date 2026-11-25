@@ -4,7 +4,7 @@
  * map carries the contract's fields.
  */
 import { randomUUID } from 'node:crypto'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import request from 'supertest'
 import { app } from '../src/index.js'
 import { prisma } from '../src/lib/prisma.js'
@@ -15,6 +15,12 @@ import {
   buildMediaMap,
   syncActivityMediaUsage,
 } from '../src/services/content-media.service.js'
+
+// DELETE /api/videos/:id reaches Stream; nothing may leave the machine (D7, D11).
+vi.mock('../src/services/cloudflare.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/services/cloudflare.js')>()),
+  deleteVideo: vi.fn(async () => ({ success: true })),
+}))
 
 const EXAMPLE_TEXT = {
   schemaVersion: 1,
@@ -107,5 +113,48 @@ describe('media in activity documents (D34)', () => {
     const m = await createMedia(w.orgId)
     const map = await prisma.$transaction(tx => buildMediaMap(tx, [withImage(EXAMPLE_TEXT, m.id)]))
     expect(Object.keys(map)).toEqual([m.id])
+  })
+
+  describe('versionUseCount (D11)', () => {
+    const newVideo = async () => {
+      const v = randomUUID()
+      return { v, m: await createMedia(w.orgId, { videoId: v }) }
+    }
+    const use = async (key: string, status: 'DRAFT' | 'PUBLISHED', mediaId: string) => {
+      const row = await seedActivity(w, { activityKey: key, versionStatus: status, mediaId })
+      await prisma.$transaction(tx => syncActivityMediaUsage(tx, key))
+      return row
+    }
+    const counts = async (videoId: string) => {
+      const res = await request(app).get(`/api/videos/${videoId}`).set('Authorization', bearer(w.leader.token))
+      return [res.body.data.lessonUseCount, res.body.data.versionUseCount]
+    }
+
+    it('versionUseCount counts rows in every version that name the video', async () => {
+      const { v, m } = await newVideo()
+      const draft = await use('vu1', 'DRAFT', m.id)
+      expect(await counts(v)).toEqual([1, 1])
+      await use('vu1', 'PUBLISHED', m.id)
+      expect(await counts(v)).toEqual([1, 2])
+      // the draft names it by video id
+      await prisma.contentActivity.update({ where: { id: draft.id }, data: { document: { ...EXAMPLE_TEXT, content: { type: 'video', videoId: v } } } })
+      expect(await counts(v)).toEqual([1, 2])
+    })
+    it('a version that names another video is not counted', async () => {
+      const a = await newVideo(), b = await newVideo()
+      await use('vu2', 'DRAFT', a.m.id)
+      await use('vu2', 'PUBLISHED', b.m.id)
+      expect(await counts(a.v)).toEqual([1, 1])
+    })
+    it('after the draft row goes, DELETE answers as the count predicted', async () => {
+      const auth = bearer(w.leader.token)
+      for (const [key, published, status] of [['vu3', false, 200], ['vu4', true, 409]] as const) {
+        const { v, m } = await newVideo()
+        const row = await use(key, 'DRAFT', m.id)
+        if (published) await use(key, 'PUBLISHED', m.id)
+        await request(app).delete(`/api/content-activities/${row.id}`).set('Authorization', auth)
+        expect((await request(app).delete(`/api/videos/${v}`).set('Authorization', auth)).status).toBe(status)
+      }
+    })
   })
 })
