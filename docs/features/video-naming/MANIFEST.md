@@ -1,7 +1,7 @@
 size: lg
-state: built
-next: /builder:agent-walk --path docs/features/video-naming
-head: 33bdab7a
+state: signed-off
+next: /builder:resume --path docs/features/video-naming
+head: ebe65377
 ticket: none
 branch: builder/video-naming
 pr: none
@@ -11,7 +11,7 @@ hold: none
 go-ahead: auto (recommended) 2026-11-25
 tests: walk=risk review=slice
 target: main
-walk: none
+walk: agent-pass 2026-11-25 ebe65377
 verify: none
 ready: yes 2026-11-25 33bdab7a
 ui2: none (d2m builds the video-naming screen from this spec, D12)
