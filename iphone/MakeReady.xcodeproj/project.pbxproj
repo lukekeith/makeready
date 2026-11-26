@@ -647,6 +647,10 @@
 		7A90E1F3748230755F92CB3A /* MetaPair.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D91FF0005F3180CBFFEDAC5 /* MetaPair.swift */; };
 		7AA4F1CBE5632F4A4308D9D1 /* EditOptionsCustomFieldScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A52B503E5B111C68CF79691 /* EditOptionsCustomFieldScreen.swift */; };
 		7AA73A1FF06C43FECFF4B8F1 /* InvitesHomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B23AA06F46CCC92550A6C28 /* InvitesHomeScreen.swift */; };
+		A1C0FFEE1111222233334442 /* VideoNamingContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FFEE1111222233334441 /* VideoNamingContainer.swift */; };
+		A1C0FFEE1111222233334443 /* VideoNamingContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FFEE1111222233334441 /* VideoNamingContainer.swift */; };
+		A1C0FFEE1111222233334452 /* VideoNamingPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FFEE1111222233334451 /* VideoNamingPresentation.swift */; };
+		A1C0FFEE1111222233334453 /* VideoNamingPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FFEE1111222233334451 /* VideoNamingPresentation.swift */; };
 		7AAC9124B6362F1E00EF106F /* VideoNamingModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5360B971B53EB18209C07A2F /* VideoNamingModel.swift */; };
 		7ABA3035BA7F7EA1095C692E /* FilterRail.swift in Sources */ = {isa = PBXBuildFile; fileRef = C010172032C7D00245C2331C /* FilterRail.swift */; };
 		7AD7B2AFED98BBD1898CA78B /* EventIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793AE2E54A40CA1145F94725 /* EventIndicator.swift */; };
@@ -824,6 +828,7 @@
 		9B97B2B93DC2CE59A4AC48EB /* CalendarEventRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = BABD4EEE3782A40450EDC653 /* CalendarEventRow.swift */; };
 		9BB935C98EA7ED8693A4700E /* CaptureFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88550B352EE04282DC290166 /* CaptureFixture.swift */; };
 		9BCB064B73F66E04E066361E /* ListStyleMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B3CC9DB821629789887982E /* ListStyleMenu.swift */; };
+		A1C0FFEE1111222233334462 /* VideoNamingContainerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FFEE1111222233334461 /* VideoNamingContainerTests.swift */; };
 		9C11190B7CE5926A9939E52C /* VideoNamingScreenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC3E143316E40E986726C117 /* VideoNamingScreenTests.swift */; };
 		9C191DE8915C586ED7F4245E /* NoteSectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75C6B760D8C053EF84711BB0 /* NoteSectionHeader.swift */; };
 		9C3E01A450B2785560D7B6EC /* GroupFieldEditContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0466BB805D1828407F191773 /* GroupFieldEditContainer.swift */; };
@@ -1743,6 +1748,8 @@
 		529AAFFC91A665BA979EF534 /* EnrollmentSelectSyncScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EnrollmentSelectSyncScreen.swift; path = Screens/Groups/EnrollmentSelectSyncScreen.swift; sourceTree = "<group>"; };
 		530653278A6469E2AA16EE0B /* EnrollmentDraftTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnrollmentDraftTests.swift; sourceTree = "<group>"; };
 		53227F2AF4CF2D647BF7F26D /* MakeReadyCaptureApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MakeReadyCaptureApp.swift; sourceTree = "<group>"; };
+		A1C0FFEE1111222233334441 /* VideoNamingContainer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = VideoNamingContainer.swift; path = Containers/Video/VideoNamingContainer.swift; sourceTree = "<group>"; };
+		A1C0FFEE1111222233334451 /* VideoNamingPresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = VideoNamingPresentation.swift; path = Containers/Video/VideoNamingPresentation.swift; sourceTree = "<group>"; };
 		5360B971B53EB18209C07A2F /* VideoNamingModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = VideoNamingModel.swift; path = Containers/Video/VideoNamingModel.swift; sourceTree = "<group>"; };
 		5398FF3A0E6F66DB02E35AE6 /* VideoExporter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VideoExporter.swift; sourceTree = "<group>"; };
 		53D93D05D498AF548FE5B284 /* NotesBottomBar.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NotesBottomBar.swift; sourceTree = "<group>"; };
@@ -2236,6 +2243,7 @@
 		EAD4F17466C8C519D0D4A94F /* CountdownBeeper.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CountdownBeeper.swift; sourceTree = "<group>"; };
 		EB02409820064BFEBAA66B1E /* CardEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardEvent.swift; sourceTree = "<group>"; };
 		EBB160A55BF61CDE175F32BA /* MediaBrowser.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MediaBrowser.swift; sourceTree = "<group>"; };
+		A1C0FFEE1111222233334461 /* VideoNamingContainerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VideoNamingContainerTests.swift; sourceTree = "<group>"; };
 		EC3E143316E40E986726C117 /* VideoNamingScreenTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VideoNamingScreenTests.swift; sourceTree = "<group>"; };
 		EC8C4B11C668BCCF2F63D17F /* TopNavDragTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TopNavDragTests.swift; sourceTree = "<group>"; };
 		ECC122F1DF8104431B5F2D50 /* CoverImageRenderingTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CoverImageRenderingTests.swift; sourceTree = "<group>"; };
@@ -2658,6 +2666,8 @@
 				4F288426E61DAFAFC6589236 /* VideoEditorContainer.swift */,
 				5D1A7C3E92B64F08A1C4E7D2 /* VideoEditorPresentation.swift */,
 				4281B9882EE0BFB0603C00AB /* VideoFilmstrip.swift */,
+				A1C0FFEE1111222233334441 /* VideoNamingContainer.swift */,
+				A1C0FFEE1111222233334451 /* VideoNamingPresentation.swift */,
 				5360B971B53EB18209C07A2F /* VideoNamingModel.swift */,
 			);
 			path = UI2;
@@ -3162,6 +3172,7 @@
 				3E9B0F42C6D84A15B7E2918F /* VideoRecorderEditTests.swift */,
 				960C441372D2E43BF19AB00F /* VideoEditorMapperTests.swift */,
 				7F3C9E5A0B4D8621C3E6A9F4 /* VideoEditorPresentationTests.swift */,
+				A1C0FFEE1111222233334461 /* VideoNamingContainerTests.swift */,
 				EC3E143316E40E986726C117 /* VideoNamingScreenTests.swift */,
 				619B7B00381DAE70EC53D33E /* VideoNamingModelTests.swift */,
 			);
@@ -4594,6 +4605,7 @@
 				A7D3C5E18B2F4096AC1E5D70 /* VideoRecorderEditTests.swift in Sources */,
 				CDC403EAB366960F4CA06023 /* VideoEditorMapperTests.swift in Sources */,
 				8A4D0F6B1C5E9732D4F7B0A5 /* VideoEditorPresentationTests.swift in Sources */,
+				A1C0FFEE1111222233334462 /* VideoNamingContainerTests.swift in Sources */,
 				9C11190B7CE5926A9939E52C /* VideoNamingScreenTests.swift in Sources */,
 				DF9DC5B256DD37E6FE7DD820 /* VideoNamingModelTests.swift in Sources */,
 			);
@@ -5082,6 +5094,8 @@
 				CC66DE39B17C98DF079AA439 /* RowSwitchStyle.swift in Sources */,
 				78D1A23D71A31AFF81B87480 /* AIProcessing.swift in Sources */,
 				9DE2C5CDB74B93B61BD16AEC /* VideoNamingScreen.swift in Sources */,
+				A1C0FFEE1111222233334442 /* VideoNamingContainer.swift in Sources */,
+				A1C0FFEE1111222233334452 /* VideoNamingPresentation.swift in Sources */,
 				9D66F300B2B7C67D9534FD82 /* VideoNamingModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -5786,6 +5800,8 @@
 				E493E6A4B1BFA71ED5A6BC4D /* RowSwitchStyle.swift in Sources */,
 				93729A9AD90075735E2C6FCC /* AIProcessing.swift in Sources */,
 				2D2CC6E16C5E4450C9BC2E66 /* VideoNamingScreen.swift in Sources */,
+				A1C0FFEE1111222233334443 /* VideoNamingContainer.swift in Sources */,
+				A1C0FFEE1111222233334453 /* VideoNamingPresentation.swift in Sources */,
 				7AAC9124B6362F1E00EF106F /* VideoNamingModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

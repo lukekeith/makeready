@@ -72,6 +72,8 @@ struct VideoRecorderContainer: View {
             }
             // video-editor D10, D29: the editor over Review, hosted or in place.
             .videoEditorPresentation(model: model)
+            // video-naming D1, D2: the naming page over Review after the + menu's save.
+            .videoNamingPresentation(model: model)
             // D8: the system picker — a modifier, not .sheet/.fullScreenCover (as MediaHomeContainer's).
             .photosPicker(isPresented: $pickerOpen, selection: $pick, matching: .videos)
             .onChange(of: pick) { _, picked in
