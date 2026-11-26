@@ -33,3 +33,4 @@ Building the screen by hand here would break the rule that d2m owns MakeReadyUI;
 ## History
 - 2026-11-25 parked — d2m could not record an answer, and its queue did not advance
 - 2026-11-25 unparked by a person — named to /builder:agent or /builder:fleet
+- 2026-11-25 resumed by the fleet build — the cause no longer held: d2m's change cmwwoooo501ddv0h9eot25dve landed as 446c5b1e with the owner's capture approval; Task 3 finished (Steps 4–5), Phases 3–4 built, all phases green
