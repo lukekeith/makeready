@@ -31,6 +31,8 @@ final class QueueSpy: VideoSaveQueue {
     }
 
     var error: Error?
+    /// Refuses to end a naming hold.
+    var endError: Error?
     /// What the queue already holds, as after a kill between its taking the video and the draft going.
     var alreadyHolds: VideoQueueItem?
     private(set) var items: [Item] = []
@@ -59,6 +61,7 @@ final class QueueSpy: VideoSaveQueue {
     }
 
     func endNamingHold(localId: String, title: String?, description: String?) throws {
+        if let endError { throw endError }
         ended.append(Ended(localId: localId, title: title, description: description))
     }
 
@@ -509,10 +512,13 @@ final class VideoRecorderSaveTests: XCTestCase {
 
     func testSavingAnImportKeepsItsWindowAndSource() async {
         let queue = QueueSpy()
-        let m = makeModel(queue: queue)
+        let saver = makeSaver(queue: queue)
+        let m = makeModel(saver: saver)
         m.imported(url: tmpURL, duration: 180)
         m.trimmed(range: 30...150)
         await m.save()
+        m.naming?.saveTapped()
+        await saver.settled()
         XCTAssertEqual(queue.items.first?.source, "import")
         XCTAssertEqual(exporter.calls.first?.window, 30...150)
         XCTAssertEqual(exporter.calls.first?.clips.count, 1)
@@ -951,5 +957,80 @@ final class VideoRecorderSaveTests: XCTestCase {
         XCTAssertNotNil(item.videoComposition)
         live.stop()
         XCTAssertNil(live.item)
+    }
+
+    // MARK: The naming phase (video-naming D2, D7, D8, D13, D14)
+
+    private var m: VideoRecorderModel!
+    private var namingQueue: QueueSpy!
+    private var namingSaver: VideoSaver!
+    private var finished = 0
+
+    private func toReview(entry: VideoRecorderEntry = .plusMenu, imported: Bool = false) async {
+        session.segmentSeconds = 4
+        namingQueue = QueueSpy()
+        namingSaver = makeSaver(queue: namingQueue)
+        m = makeModel(entry: entry, saver: namingSaver)
+        finished = 0
+        m.onFinished = { [unowned self] _ in finished += 1 }
+        if imported {
+            m.imported(url: tmpURL, duration: 10)
+        } else {
+            record(m); m.done()
+        }
+        await m.settled()
+    }
+
+    private func toNaming(imported: Bool = false) async {
+        await toReview(imported: imported)
+        await m.save()
+        await namingSaver.settled()
+    }
+
+    func testAPlusSaveFromReviewOpensNaming() async {
+        await toNaming()
+        XCTAssertEqual(m.screenState.phase, .naming); XCTAssertEqual(m.naming?.titlePlaceholder, "Video 1")
+        XCTAssertFalse(m.isClosed); XCTAssertEqual(finished, 0)
+        XCTAssertFalse(m.canEdit); m.requestRetake(); XCTAssertNil(m.confirm)
+        m.naming?.setTitle("Hope"); m.naming?.saveTapped()
+        XCTAssertEqual(namingQueue.ended.map(\.title), ["Hope"])
+        XCTAssertTrue(m.isClosed); XCTAssertEqual(finished, 1)
+    }
+
+    func testALessonSaveNeverOpensNaming() async {
+        await toReview(entry: .lesson(versionId: "v", activityId: nil)); await m.save()
+        XCTAssertNil(m.naming); XCTAssertTrue(m.isClosed); XCTAssertEqual(namingQueue.items.first?.namingHold, false)
+    }
+
+    func testBackReturnsToReviewWithEverything() async {
+        for imported in [false, true] {
+            await toNaming(imported: imported)
+            m.naming?.backTapped()
+            XCTAssertEqual(m.screenState.phase, .review); XCTAssertEqual(m.reviewDuration, imported ? 10 : 4)
+            XCTAssertEqual(namingQueue.removed.count, 1); XCTAssertTrue(drafts.saving().isEmpty); XCTAssertTrue(m.canEdit)
+            await m.playerSettled()
+            XCTAssertTrue(FileManager.default.fileExists(atPath: player.loads.last!.clips[0].path))
+            await m.save()
+            XCTAssertEqual(m.screenState.phase, .naming)
+            m.naming?.backTapped() // the next pass starts with nothing marked saving
+        }
+    }
+
+    func testBackgroundOrCloseEndsNamingAsVideoN() async {
+        for leave in [{ (m: VideoRecorderModel) in m.backgrounded() }, { $0.closeTapped() }] {
+            await toNaming(); m.naming?.setTitle("typed")
+            leave(m); await namingSaver.settled()
+            XCTAssertTrue(m.isClosed); XCTAssertNil(m.confirm)
+            XCTAssertEqual(namingQueue.ended.map(\.title), [nil]); XCTAssertTrue(drafts.saving().isEmpty)
+            XCTAssertEqual(finished, 1)
+        }
+    }
+
+    func testAFailedCheckStaysOnThePage() async {
+        await toNaming()
+        namingQueue.endError = CocoaError(.fileWriteOutOfSpace); m.naming?.saveTapped()
+        XCTAssertEqual(reports, ["Couldn't save your video"]); XCTAssertEqual(m.screenState.phase, .naming)
+        namingQueue.endError = nil; m.naming?.saveTapped()
+        XCTAssertTrue(m.isClosed)
     }
 }

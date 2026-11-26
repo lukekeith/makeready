@@ -60,6 +60,8 @@ final class VideoRecorderModel {
         case permissionDenied
         case review
         case trim
+        /// The naming page is open over Review, after a + menu save (video-naming D13, D14).
+        case naming
     }
 
     /// The C-066 confirms.
@@ -136,6 +138,9 @@ final class VideoRecorderModel {
     private(set) var editor: VideoEditorModel?
     /// The edit's layers, kept in memory even when the draft cannot be written (D16, D28).
     private(set) var layers: [VideoLayer] = []
+    /// The naming page's model while it is open; its host drops it with `namingHidden` once the page is off the screen.
+    /// After Back the phase is `review` while this is still set: the page is sliding out.
+    private(set) var naming: VideoNamingModel?
     /// Save was tapped and the recorder is done (D9).
     @ObservationIgnored var onFinished: (VideoRecorderEntry) -> Void = { _ in }
     /// The recorder closed with nothing saved.
@@ -173,6 +178,8 @@ final class VideoRecorderModel {
     @ObservationIgnored private let loadNotes: () async throws -> Void
     @ObservationIgnored private let now: () -> TimeInterval
     @ObservationIgnored private let sleep: (Duration) async throws -> Void
+    @ObservationIgnored private let suggest: (String) async throws -> [VideoDetailSuggestion]
+    @ObservationIgnored private let onUnauthorized: () -> Void
 
     @ObservationIgnored private var opened = false
     @ObservationIgnored private var preRollTask: Task<Void, Never>?
@@ -193,6 +200,8 @@ final class VideoRecorderModel {
          player: VideoReviewPlaying, saver: VideoSaving, recoverDraft: @escaping () -> VideoDraft?, beep: @escaping (Double) -> Void,
          report: @escaping (Error, String) -> Void, loadNotes: @escaping () async throws -> Void,
          makeEditor: MakeEditor? = nil,
+         suggest: @escaping (String) async throws -> [VideoDetailSuggestion] = { _ in [] },
+         onUnauthorized: @escaping () -> Void = {},
          now: @escaping () -> TimeInterval = CACurrentMediaTime,
          sleep: @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) }) {
         self.entry = entry
@@ -206,6 +215,8 @@ final class VideoRecorderModel {
         self.loadNotes = loadNotes
         self.now = now
         self.sleep = sleep
+        self.suggest = suggest
+        self.onUnauthorized = onUnauthorized
         self.makeEditor = makeEditor ?? Self.liveEditor(report: report)
         timeline = RecordingTimeline(lengthSeconds: settings.length, mode: settings.lengthMode,
                                      endCountdownSeconds: settings.endCountdownSeconds)
@@ -246,7 +257,7 @@ final class VideoRecorderModel {
     var isCapturing: Bool {
         switch phase {
         case .recording, .endCountdown: true
-        case .ready, .preRoll, .paused, .permissionDenied, .review, .trim: false
+        case .ready, .preRoll, .paused, .permissionDenied, .review, .trim, .naming: false
         }
     }
 
@@ -300,12 +311,16 @@ final class VideoRecorderModel {
         case .permissionDenied: prepare()
         case .review, .trim:
             if editor == nil, phase == .trim || reviewPlaying { player.play() }
-        case .ready, .preRoll, .recording, .endCountdown, .paused: break
+        case .ready, .preRoll, .recording, .endCountdown, .paused, .naming: break
         }
     }
 
     /// The engine ends a segment itself (D26); a countdown has no segment yet.
     func backgrounded() {
+        guard phase != .naming else {
+            leaveNaming()
+            return
+        }
         cancelPreRoll()
         if isOpeningEditor { backgroundedWhileOpening = true }
         editor?.backgrounded()
@@ -314,6 +329,10 @@ final class VideoRecorderModel {
     /// Asks first when something would be lost (D9).
     func closeTapped() {
         guard !isSaving, !isClosed else { return }
+        guard phase != .naming else {
+            leaveNaming()
+            return
+        }
         cancelPreRoll()
         if isCapturing { endSegment() }
         if timeline.segments.isEmpty && importedClip == nil {
@@ -358,7 +377,7 @@ final class VideoRecorderModel {
             cancelPreRoll()
         case .recording, .endCountdown:
             endSegment()
-        case .permissionDenied, .review, .trim:
+        case .permissionDenied, .review, .trim, .naming:
             break
         }
     }
@@ -646,7 +665,7 @@ final class VideoRecorderModel {
         case .review where timeline.segments.isEmpty && engine.draft != nil && importedClip == nil:
             phase = .ready // the only segment was lost
             prepare()
-        case .preRoll, .recording, .endCountdown, .permissionDenied, .review, .trim:
+        case .preRoll, .recording, .endCountdown, .permissionDenied, .review, .trim, .naming:
             break
         }
     }
@@ -928,21 +947,37 @@ final class VideoRecorderModel {
     // MARK: Save (D9)
 
     /// Closes the recorder once the recording is safely handed over, and returns when its video is in
-    /// the upload queue, or has failed to get there.
+    /// the upload queue, or has failed to get there. From Review in the + menu's recorder it opens the naming page
+    /// instead, and returns once the save has started (D2, D7, D14).
     func save() async {
         guard !isSaving, !isClosed, phase == .review || screenState.canFinish else { return }
+        let names = entry == .plusMenu && phase == .review
         isSaving = true
         defer { isSaving = false }
         await settled()
-        guard !isClosed, let clip = clipToSave else { return }
+        guard !isClosed else { return }
+        if names {
+            // D13: an import is a draft before the save starts, so Back has a clip to return to.
+            do { if importedClip != nil { _ = try draftToEdit() } } catch {
+                report(error, "Couldn't save your video")
+                return
+            }
+        }
+        guard let clip = clipToSave else { return }
         let work: Task<Void, Never>
         do {
             if case .draft = clip { try engine.save(layers: layers, transcript: transcript) }
             work = try saver.start(
                 VideoSave(entry: entry, source: importedClip == nil ? .recording : .imported, filter: filter,
-                          strength: Double(filterStrength), window: trimWindow), of: savedClip(clip))
+                          strength: Double(filterStrength), window: trimWindow, namingHold: names ? true : nil),
+                of: savedClip(clip))
         } catch {
             report(error, "Couldn't save your video")
+            return
+        }
+        if names, case let .draft(draft) = clip {
+            stopPlaying()
+            openNaming(localId: draft.id.uuidString)
             return
         }
         importedClip = nil
@@ -952,6 +987,76 @@ final class VideoRecorderModel {
         onFinished(entry)
         await work.value
     }
+
+    // MARK: Naming (video-naming D2, D8, D13)
+
+    private func openNaming(localId: String) {
+        let saver = saver
+        let opened = VideoNamingModel(
+            titlePlaceholder: saver.automaticTitle(localId) ?? "Video",
+            transcript: { await saver.namingTranscript(localId)?.text },
+            suggest: suggest,
+            save: { [weak self] title, description in self?.finishNaming(localId, title: title, description: description) ?? false },
+            back: { [weak self] in self?.cancelNaming(localId) },
+            onUnauthorized: onUnauthorized)
+        naming = opened
+        namingLocalId = localId
+        phase = .naming
+        opened.open()
+    }
+
+    /// The check: the details go with the video, then the recorder closes (D13).
+    private func finishNaming(_ localId: String, title: String, description: String) -> Bool {
+        guard phase == .naming, !isClosed else { return false }
+        do {
+            try saver.finishNaming(localId, title: title, description: description)
+        } catch {
+            report(error, "Couldn't save your video")
+            return false
+        }
+        closeAfterNaming()
+        return true
+    }
+
+    /// Back: nothing is saved and Review plays on, as it was (D2).
+    private func cancelNaming(_ localId: String) {
+        guard phase == .naming, !isClosed else { return }
+        do {
+            try saver.cancelNaming(localId)
+        } catch {
+            report(error, "Couldn't go back")
+            return
+        }
+        phase = .review
+        startPlaying()
+    }
+
+    /// The app went to the background or the recorder was closed: the video keeps "Video N" and the recorder closes (D8).
+    private func leaveNaming() {
+        guard !isClosed, let naming, let localId = namingLocalId else { return }
+        naming.leave()
+        do {
+            try saver.finishNaming(localId, title: "", description: "")
+        } catch {
+            // Recovered: the video stays held and the next launch ends the hold as "Video N".
+            Log.media.error("video naming not ended: \(error.localizedDescription, privacy: .public)")
+        }
+        closeAfterNaming()
+    }
+
+    private func closeAfterNaming() {
+        importedClip = nil
+        isClosed = true
+        perform { [self] in await engine.close() }
+        onFinished(entry)
+    }
+
+    /// The naming page's host has taken it off the screen.
+    func namingHidden() {
+        naming = nil
+    }
+
+    @ObservationIgnored private var namingLocalId: String?
 
     private var clipToSave: VideoClip? {
         if let importedClip {
@@ -1038,6 +1143,7 @@ extension VideoRecorderModel {
         case .permissionDenied: view.phase = .permissionDenied
         case .review: view.phase = .review
         case .trim: view.phase = .trim
+        case .naming: view.phase = .review // the page over it is the host's
         }
         view.segments = shown.segments
         view.liveDuration = shown.liveDuration

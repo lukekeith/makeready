@@ -142,7 +142,7 @@ struct VideoRecorderContainer: View {
     private var feed: CameraPreview<AnyView>.Feed {
         switch shown.phase {
         case .ready, .preRoll, .recording, .endCountdown, .paused: .layer(model.displayLayer)
-        case .review, .trim: .layer(model.playerLayer)
+        case .review, .trim, .naming: .layer(model.playerLayer)
         case .permissionDenied: .none
         }
     }
@@ -314,7 +314,9 @@ struct VideoRecorderContainer: View {
 extension VideoRecorderModel {
     /// A recorder on the camera, with the signed-in user's drafts in this environment. Nil, with a
     /// banner, when their folder cannot be made.
-    static func live(entry: VideoRecorderEntry, userId: String?, app: AppState? = nil) -> VideoRecorderModel? {
+    /// `onUnauthorized` is the app's sign-out, for the naming page's suggestions (ui2-shell D27).
+    static func live(entry: VideoRecorderEntry, userId: String?, app: AppState? = nil,
+                     onUnauthorized: @escaping () -> Void = {}) -> VideoRecorderModel? {
         let state = app ?? AppState.shared
         let report: (Error, String) -> Void = { error, message in
             state.recordError(error, context: "VideoRecorder", surface: true, friendlyMessage: message)
@@ -331,7 +333,8 @@ extension VideoRecorderModel {
             return VideoRecorderModel(
                 entry: entry, engine: engine, settings: RecorderSettings(),
                 player: VideoReviewPlayer(), saver: saver, recoverDraft: { drafts.recoverable(for: entry).last }, beep: { beeper.beep(hz: $0) }, report: report,
-                loadNotes: { _ = try await NoteActions().load() })
+                loadNotes: { _ = try await NoteActions().load() },
+                suggest: { try await VideoActions().suggestDetails(transcript: $0) }, onUnauthorized: onUnauthorized)
         } catch {
             report(error, "Couldn't open the recorder")
             return nil

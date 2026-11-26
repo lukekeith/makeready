@@ -268,6 +268,8 @@ final class FakeCaptureSession: VideoCaptureSession {
     let displayLayer = CALayer()
     var denied: Set<CapturePermission> = []
     var failure: Error?
+    /// How long each recorded file turns out to be.
+    var segmentSeconds: TimeInterval = 3
     var onAsk: (() async -> Void)?
     private(set) var asked: [CapturePermission] = []
     private(set) var isOpen = false
@@ -295,7 +297,7 @@ final class FakeCaptureSession: VideoCaptureSession {
     func stopRecording() {
         let finish = onFinish
         onFinish = nil
-        if let failure { finish?(.failure(failure)) } else { finish?(.success(3)) }
+        if let failure { finish?(.failure(failure)) } else { finish?(.success(segmentSeconds)) }
     }
 
     func flip() { flips += 1 }

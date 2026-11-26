@@ -210,7 +210,7 @@ final class VideoRecorderEditTests: XCTestCase {
     func testSaveWhileOpening() async throws {
         let m = model(); await inReview(m)
         await whileOpening(m) { await m.save() }
-        XCTAssertNil(m.editor); XCTAssertTrue(m.isClosed)
+        XCTAssertNil(m.editor); XCTAssertEqual(m.screenState.phase, .naming)
     }
 
     func testCloseWhileOpening() async throws {
