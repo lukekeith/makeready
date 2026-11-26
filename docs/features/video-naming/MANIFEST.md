@@ -1,7 +1,7 @@
 size: lg
-state: building
-next: /builder:resume --path docs/features/video-naming
-head: 50826dc3
+state: built
+next: /builder:agent-walk --path docs/features/video-naming
+head: 33bdab7a
 ticket: none
 branch: builder/video-naming
 pr: none
@@ -13,7 +13,7 @@ tests: walk=risk review=slice
 target: main
 walk: none
 verify: none
-ready: pending "dev env (fleet walk lane)"
+ready: yes 2026-11-25 33bdab7a
 ui2: none (d2m builds the video-naming screen from this spec, D12)
 auto: on 2026-11-25
 blocked: none
