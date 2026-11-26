@@ -1,5 +1,5 @@
 # video-naming — spec
-> 🤖 AGENT SIGNED OFF 2026-11-25 — ebe65377 · agent walk round 1 · not human-tested · evidence: .builder/video-naming/agent-walk/round-1/
+> ✅ SHIPPED 2026-11-25 — merged into main · no ticket · 🤖 agent signed off (walk round 1), not human-tested · quick-checked
 > lg · no ticket
 
 ## Idea
@@ -183,3 +183,4 @@ typed keeps "Video N"; force an upload failure, then a successful retry shows no
 | F7 | Fixtures rule: the naming page reads no server data, so no `server/fixtures/screens/video-naming.ts` (video-recorder has none either) | resolved |
 | F8 | D12 reserves screen approval to the owner | the d2m task ends with captures and parks as a human step until the owner approves; server work comes first |
 | F9 | Replaced surfaces: none; the recorder's + menu Save gains a step. Entry and exit edges unchanged (check → Library) | resolved |
+| L1 | lesson for §Standing traps: d2m writes its edits into the main checkout, uncommitted, never into a fleet worktree — a build agent in a worktree must carry them across by commit (and check no unrelated capture changed) before it can see them | proposed |
