@@ -725,7 +725,7 @@ enum VideoTranscriptLimits {
         }
     }
 
-    private static func prefix(_ text: String, units: Int) -> String {
+    static func prefix(_ text: String, units: Int) -> String {
         guard text.utf16.count > units else { return text }
         var result = ""
         var used = 0
