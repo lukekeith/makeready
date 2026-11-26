@@ -39,6 +39,7 @@ final class VideoNamingModelTests: XCTestCase {
         saves = []
         saveSucceeds = true
         models = []
+        unauthorizedCalls = 0
     }
 
     override func tearDown() {
@@ -52,6 +53,8 @@ final class VideoNamingModelTests: XCTestCase {
         VideoDetailSuggestion(title: "Three", description: "Third"),
     ]
 
+    private var unauthorizedCalls = 0
+
     private func make(transcript: String?) -> VideoNamingModel {
         let model = VideoNamingModel(
             titlePlaceholder: "Video 4",
@@ -61,7 +64,8 @@ final class VideoNamingModelTests: XCTestCase {
                 saves.append((title, description))
                 return saveSucceeds
             },
-            back: {})
+            back: {},
+            onUnauthorized: { [unowned self] in unauthorizedCalls += 1 })
         models.append(model)
         return model
     }
@@ -117,5 +121,29 @@ final class VideoNamingModelTests: XCTestCase {
         XCTAssertEqual(m.title.count, 80); XCTAssertEqual(m.description.count, 300)
         saveSucceeds = false; m.saveTapped(); saveSucceeds = true; m.saveTapped(); m.saveTapped()
         XCTAssertEqual(saves.count, 2)
+    }
+
+    func testAFailedSaveKeepsAnAnswerInFlight() async {
+        let m = make(transcript: "hello"); m.open(); await settle()
+        saveSucceeds = false; m.saveTapped()
+        spy.answer(three); await settle()
+        XCTAssertEqual(m.block, .list); XCTAssertEqual(m.suggestions, three)
+    }
+
+    func testASavedPageDropsALateAnswer() async {
+        let m = make(transcript: "hello"); m.open(); await settle()
+        m.saveTapped()
+        spy.answer(three); await settle()
+        XCTAssertTrue(m.suggestions.isEmpty)
+    }
+
+    func testUnauthorizedSignsOutAndOtherErrorsShowThePrompt() async {
+        let m = make(transcript: "hello"); m.open(); await settle()
+        spy.fail(APIError.unauthorized); await settle()
+        await settle()  // the 401 path takes more hops than the plain failure
+        XCTAssertEqual(unauthorizedCalls, 1)
+        let n = make(transcript: "hello"); n.open(); await settle()
+        spy.fail(URLError(.timedOut)); await settle()
+        XCTAssertEqual(unauthorizedCalls, 1); XCTAssertEqual(n.block, .prompt)
     }
 }

@@ -26,10 +26,11 @@ final class VideoNamingModel {
     private let suggest: (String) async throws -> [VideoDetailSuggestion]
     private let save: (String, String) async -> Bool
     private let back: () -> Void
+    private let onUnauthorized: () -> Void
 
     /// The text every ask sends: the transcript cut to the server's limit (D15).
     private var askedText = ""
-    /// Bumped by every ask, `leave`, the check and Back: an answer that finds it changed is stale (D17).
+    /// Bumped by every ask, `leave`, a save that went through and Back: an answer that finds it changed is stale (D17).
     private var generation = 0
     private var isSaving = false
     private var hasSaved = false
@@ -39,16 +40,19 @@ final class VideoNamingModel {
     ///   - suggest: asks the server for suggestions from the transcript text
     ///   - save: stores the typed title and description; true when it went through
     ///   - back: leaves the page without saving
+    ///   - onUnauthorized: the app's sign-out hook, called when an ask answers 401 (ui2-shell D27)
     init(titlePlaceholder: String,
          transcript: @escaping () async -> String?,
          suggest: @escaping (String) async throws -> [VideoDetailSuggestion],
          save: @escaping (String, String) async -> Bool,
-         back: @escaping () -> Void) {
+         back: @escaping () -> Void,
+         onUnauthorized: @escaping () -> Void = {}) {
         self.titlePlaceholder = titlePlaceholder
         self.transcript = transcript
         self.suggest = suggest
         self.save = save
         self.back = back
+        self.onUnauthorized = onUnauthorized
     }
 
     /// The copy the block shows when it has no rows to show.
@@ -112,7 +116,11 @@ final class VideoNamingModel {
                 block = .list
             } catch {
                 guard mine == generation else { return }
-                // D16: suggestions are optional help, so a failure is console-only (a 401 follows the app's sign-out rule).
+                // D16: suggestions are optional help, so a failure is console-only; a 401 follows the app's sign-out rule.
+                if AuthStatusPolicy.shouldSignOut(after: error) {
+                    onUnauthorized()
+                    return
+                }
                 Log.ui.error("naming suggestions failed: \(error.localizedDescription, privacy: .public)")
                 block = failureBlock
             }
@@ -129,17 +137,18 @@ final class VideoNamingModel {
     // MARK: - Leaving
 
     /// D4, D17: one save at a time, and none after one that went through; a failed one can be tapped again.
-    /// An answer that lands after the check is dropped.
+    /// An answer that lands after a save that went through is dropped.
     func saveTapped() {
         guard !isSaving, !hasSaved else { return }
         isSaving = true
-        generation += 1
         let (title, description) = (title, description)
         // Immediate: the guard above must see a save that finishes without waiting as already finished.
         Task.immediate {
             let went = await save(title, description)
             isSaving = false
             hasSaved = went
+            // Only a save that went through ends the page's asking; a failed one leaves the block as it was.
+            if went { generation += 1 }
         }
     }
 
