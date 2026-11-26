@@ -18,15 +18,27 @@ import SwiftUI
 /// and adds no outer padding — C-051 owns the inset. Height n × 56 at one title line per row.
 struct SuggestionRows: View {
 
+    /// C-078 §4: `pairs` element — one suggestion's title and description.
+    struct Pair {
+        let title: String
+        let description: String
+    }
+
     /// C-078 §4: `suggestions` — "the row titles in order; element i becomes the i-th C-050
     /// `title` (composition by position). Identity is position, so two equal strings are two
     /// rows." Required: no frame shows a default for it (R-07).
     let suggestions: [String]
+    /// C-078 §4: `pairs` — "the title and description pairs, in order. When it is not empty the
+    /// stack draws these and ignores `suggestions`." Defaulted, so existing callers are unchanged.
+    var pairs: [Pair] = []
     /// C-078 §4: `onPick` — "raised with the row's title when that row's C-050 `onAdd` fires;
     /// the consumer decides what a pick means." Interaction-bearing with no render effect, so
     /// it is emitted as a defaulted no-op closure (R-03) and the promoted view keeps its real
     /// signature.
     var onPick: (String) -> Void = { _ in }
+    /// C-078 §4: `onPickIndex` — "raised with the picked row's zero-based index, for title rows
+    /// and pair rows alike. One pick raises both callbacks; a caller wires the one it needs."
+    var onPickIndex: (Int) -> Void = { _ in }
 
     // FLAGGED LITERAL — C-078 §2: "a full-width **1pt** stroke in `color-layout-border` … (The
     // 1pt stroke width is a flagged literal — the era has no stroke-width token; the colour is
@@ -42,11 +54,18 @@ struct SuggestionRows: View {
         // hairline, no placeholder" — an empty ForEach in a zero-spacing VStack is exactly that.
         VStack(spacing: 0) {
             // §4: "Identity is position" — enumerate on the offset, never on the string.
-            ForEach(Array(suggestions.enumerated()), id: \.offset) { index, title in
+            ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
                 // §2: "**C-050 SuggestionRow** — `title` = the suggestion, `onAdd` → this
                 // component's `onPick(title)`. C-050 draws no separator of its own (C-050
                 // deviation 2); the line is this component's."
-                SuggestionRow(title: title, onAdd: { onPick(title) })
+                SuggestionRow(
+                    title: row.title,
+                    description: row.description,
+                    onAdd: {
+                        onPick(row.title)
+                        onPickIndex(index)
+                    }
+                )
                     // OQ-C-078-001 (ruled 2026-09-22): "SuggestionRows draws one hairline
                     // ABOVE every row including the first (n lines, none below the last)."
                     // §2: "It occupies **no layout height** … the build paints it as an
@@ -61,6 +80,15 @@ struct SuggestionRows: View {
         // §2 / R-16: fills the width it is given; the intrinsic height is the rows' own.
         .frame(maxWidth: .infinity)
         .ui2Element("SuggestionRows")                             // capture element map — UI2Element.swift
+    }
+
+    /// What the stack draws: `pairs` when there are any, else `suggestions` (§4). §2: "An empty
+    /// `description` draws no second line and no 4pt gap: the row is the title row" — so nil.
+    private var rows: [(title: String, description: String?)] {
+        guard pairs.isEmpty else {
+            return pairs.map { ($0.title, $0.description.isEmpty ? nil : $0.description) }
+        }
+        return suggestions.map { ($0, nil) }
     }
 
     /// §2: "a full-width **1pt** stroke in `color-layout-border`, drawn as Figma draws it: a

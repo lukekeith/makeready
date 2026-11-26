@@ -291,4 +291,13 @@ final class VideoActionsLibraryTests: XCTestCase {
         state.libraryVideos.upsert(try! JSONDecoder.apiDecoder.decode(VideoSummary.self, from: Data(summaryJSON("b", title: "Video 4").utf8)))
         XCTAssertEqual(state.nextVideoTitle(), "Video 5")
     }
+
+    // MARK: - Suggestions (video-naming D6)
+
+    func testSuggestDetailsPostsTheTranscript() async throws {
+        api.stub("POST", "/api/videos/suggest-details", json: #"{"success":true,"data":{"suggestions":[{"title":"A","description":"B"}]}}"#)
+        let answer = try await actions.suggestDetails(transcript: "hello")
+        XCTAssertEqual(answer, [VideoDetailSuggestion(title: "A", description: "B")])
+        XCTAssertEqual(api.calls.last?.body?["transcript"] as? String, "hello")
+    }
 }

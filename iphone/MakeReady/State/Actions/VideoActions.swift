@@ -167,6 +167,22 @@ private let api: APIClientProtocol
         return video
     }
 
+    // MARK: - Suggestions (video-naming D6)
+
+    /// `POST /api/videos/suggest-details`: title and description pairs for what the video says. Returns them
+    /// rather than storing them: they belong to the naming page that asked, not to any other screen (D17).
+    func suggestDetails(transcript: String) async throws -> [VideoDetailSuggestion] {
+        let response: VideoSuggestionsResponse = try await api.post(
+            "/api/videos/suggest-details",
+            body: ["transcript": transcript],
+            responseType: VideoSuggestionsResponse.self
+        )
+        guard response.success, let payload = response.data else {
+            throw APIError.serverError(response.error ?? "Failed to get suggestions")
+        }
+        return payload.suggestions
+    }
+
     // MARK: - Library window (D20, D27)
 
     /// `GET /api/videos/library`. No cursor replaces the window (page 1), so videos removed or deleted

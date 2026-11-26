@@ -191,7 +191,14 @@ struct UI2Shell: View {
         guard videoRecorderRequested else { return }
         videoRecorderRequested = false
         guard videoRecorder == nil, recorder == nil,
-              let opened = VideoRecorderModel.live(entry: .plusMenu, userId: authManager.currentUser?.id) else { return }
+              let opened = VideoRecorderModel.live(entry: .plusMenu, userId: authManager.currentUser?.id, onUnauthorized: { [authManager] in
+                  // ui2-shell D27: a 401 ends the session; UI2Root then shows Login.
+                  Task {
+                      do { try await authManager.signOut() } catch {
+                          AppState.shared.recordError(error, context: "UI2Shell.videoNamingSignOut", surface: false)
+                      }
+                  }
+              }) else { return }
         // D9: behind the recorder, which then slides away.
         opened.onFinished = { _ in model.showLibrary() }
         videoRecorder = opened

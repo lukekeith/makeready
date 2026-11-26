@@ -90,6 +90,11 @@ private final class SpyRecorderEngine: VideoRecorderCapturing {
 /// Save is `VideoRecorderSaveTests`'s.
 @MainActor
 private final class UnusedSaver: VideoSaving {
+    func automaticTitle(_ localId: String) -> String? { nil }
+    func namingTranscript(_ localId: String) async -> VideoTranscript? { nil }
+    func finishNaming(_ localId: String, title: String, description: String) throws {}
+    func cancelNaming(_ localId: String) throws {}
+
     func start(_ save: VideoSave, of clip: VideoClip) throws -> Task<Void, Never> { Task {} }
 }
 

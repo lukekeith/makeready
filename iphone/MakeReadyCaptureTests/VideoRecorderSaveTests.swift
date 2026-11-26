@@ -20,19 +20,33 @@ final class QueueSpy: VideoSaveQueue {
         let transcript: VideoTranscript?
         let holdsForTranscript: TimeInterval?
         let hasPoster: Bool
+        let description: String?
+        let namingHold: Bool
+    }
+
+    struct Ended: Equatable {
+        let localId: String
+        let title: String?
+        let description: String?
     }
 
     var error: Error?
+    /// Refuses to end a naming hold.
+    var endError: Error?
     /// What the queue already holds, as after a kill between its taking the video and the draft going.
     var alreadyHolds: VideoQueueItem?
     private(set) var items: [Item] = []
     private(set) var supplied: [VideoTranscript?] = []
+    private(set) var ended: [Ended] = []
+    private(set) var removed: [String] = []
 
     func enqueue(_ video: ExportedVideo, localId: String, title: String, source: VideoSource, transcript: VideoTranscript?,
-                 attach: VideoAttach?, transcriptHold: TimeInterval?) throws -> VideoQueueItem {
+                 attach: VideoAttach?, transcriptHold: TimeInterval?, description: String?,
+                 namingHold: Bool) throws -> VideoQueueItem {
         if let error { throw error }
         items.append(Item(localId: localId, title: title, source: source.rawValue, attach: attach, transcript: transcript,
-                          holdsForTranscript: transcriptHold, hasPoster: video.posterImage != nil))
+                          holdsForTranscript: transcriptHold, hasPoster: video.posterImage != nil,
+                          description: description, namingHold: namingHold))
         return VideoQueueItem(
             localId: localId, fileName: "\(localId).mp4", posterFileName: nil, title: title,
             durationSeconds: video.durationSeconds, source: source, transcript: transcript, createdAt: Date(), streamUid: nil,
@@ -45,6 +59,19 @@ final class QueueSpy: VideoSaveQueue {
     func supplyTranscript(_ transcript: VideoTranscript?, forLocalId localId: String) {
         supplied.append(transcript)
     }
+
+    func endNamingHold(localId: String, title: String?, description: String?) throws {
+        if let endError { throw endError }
+        ended.append(Ended(localId: localId, title: title, description: description))
+    }
+
+    var heldIds: [String] {
+        items.filter { item in
+            item.namingHold && !ended.contains { $0.localId == item.localId } && !removed.contains(item.localId)
+        }.map(\.localId)
+    }
+
+    func remove(localId: String) throws { removed.append(localId) }
 }
 
 @MainActor
@@ -116,6 +143,12 @@ final class VideoRecorderSaveTests: XCTestCase {
     private var transcriptTimeouts: [Duration] = []
     private var interruptions = 0
     private var suiteName: String!
+    private var queue: QueueSpy!
+    private var saver: VideoSaver!
+    private var draft: VideoDraft!
+    private var clipTranscriptions = 0
+    private var clipTimeouts: [Duration] = []
+    private var id: String { draft.id.uuidString }
 
     override func setUp() async throws {
         dir = FileManager.default.temporaryDirectory.appendingPathComponent("VideoRecorderSaveTests-\(UUID().uuidString)")
@@ -129,11 +162,14 @@ final class VideoRecorderSaveTests: XCTestCase {
         transcript = nil
         transcriptTimeouts = []
         interruptions = 0
+        clipTranscriptions = 0
+        clipTimeouts = []
         suiteName = "VideoRecorderSaveTests-\(UUID().uuidString)"
     }
 
     override func tearDown() async throws {
         exporter.release()
+        if let draft { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: draft.folder.path) }
         UserDefaults.standard.removePersistentDomain(forName: suiteName)
         try FileManager.default.removeItem(at: dir)
     }
@@ -144,7 +180,7 @@ final class VideoRecorderSaveTests: XCTestCase {
         return url
     }
 
-    private func makeSaver(queue: QueueSpy, existingTitles: [String] = [],
+    private func makeSaver(queue: QueueSpy, existingTitles: [String] = [], clipTranscript: VideoTranscript? = nil,
                            savingTitles: @escaping () -> [String] = { [] }) -> VideoSaver {
         let exporter = exporter!
         return VideoSaver(
@@ -158,6 +194,11 @@ final class VideoRecorderSaveTests: XCTestCase {
             transcribe: { [weak self] _, timeout in
                 self?.transcriptTimeouts.append(timeout)
                 return self?.transcript
+            },
+            transcribeClips: { [weak self] _, _, timeout in
+                self?.clipTranscriptions += 1
+                self?.clipTimeouts.append(timeout)
+                return clipTranscript
             },
             waitForForeground: { [weak self] in
                 guard let self, self.interruptions > 0 else { return false }
@@ -471,10 +512,13 @@ final class VideoRecorderSaveTests: XCTestCase {
 
     func testSavingAnImportKeepsItsWindowAndSource() async {
         let queue = QueueSpy()
-        let m = makeModel(queue: queue)
+        let saver = makeSaver(queue: queue)
+        let m = makeModel(saver: saver)
         m.imported(url: tmpURL, duration: 180)
         m.trimmed(range: 30...150)
         await m.save()
+        m.naming?.saveTapped()
+        await saver.settled()
         XCTAssertEqual(queue.items.first?.source, "import")
         XCTAssertEqual(exporter.calls.first?.window, 30...150)
         XCTAssertEqual(exporter.calls.first?.clips.count, 1)
@@ -750,6 +794,157 @@ final class VideoRecorderSaveTests: XCTestCase {
         XCTAssertEqual(reports, [])
     }
 
+    // MARK: a save that waits for its name (video-naming D4, D5, D8, D13, D15)
+
+    private var heldSave: VideoSave {
+        var save = plusSave
+        save.namingHold = true
+        return save
+    }
+
+    /// Starts a held save of `edited(transcript)`.
+    private func startHeld(_ transcript: VideoTranscript?, clipTranscript: VideoTranscript? = nil) throws {
+        queue = QueueSpy()
+        saver = makeSaver(queue: queue, clipTranscript: clipTranscript)
+        draft = try edited(transcript)
+        _ = try saver.start(heldSave, of: .draft(draft))
+    }
+
+    /// The same, with the export held open until `exporter.release()`.
+    private func startHeldExporting(_ transcript: VideoTranscript?) async throws {
+        exporter.holds = true
+        try startHeld(transcript)
+        for _ in 0..<200 where exporter.calls.isEmpty { await Task.yield() }
+        XCTAssertFalse(exporter.calls.isEmpty)
+    }
+
+    /// A real queue over a fake server, and a saver whose export writes a file the queue can move.
+    private func realQueue(_ name: String, api: FakeVideoAPI) -> VideoUploadController {
+        VideoUploadController(api: api, transport: api, banner: BannerSpy(), directory: dir.appendingPathComponent(name),
+                              ownerUserId: "u", environment: "test", defaultTitle: { "Video 1" })
+    }
+
+    private func realSaver(_ queue: VideoUploadController) -> VideoSaver {
+        VideoSaver(drafts: drafts, queue: queue, nextTitle: { "Video 2" }, report: { _, message, _ in XCTFail(message) },
+                   export: { _, _, _, _, _, destination in
+                       FileManager.default.createFile(atPath: destination.path, contents: Data([1]))
+                       return ExportedVideo(url: destination, durationSeconds: 4, posterImage: UIImage())
+                   },
+                   transcribe: { _, _ in nil }, waitForForeground: { false })
+    }
+
+    private func drain(_ controller: VideoUploadController) async {
+        for _ in 0..<60 where await controller.processNext() != .idle {}
+    }
+
+    func testACheckedNameReachesTheQueueAndTheDraftGoes() async throws {
+        try startHeld(heard); await saver.settled()
+        XCTAssertEqual(queue.items.first?.namingHold, true)
+        XCTAssertTrue(drafts.exists(draft))
+        XCTAssertEqual(saver.automaticTitle(id), "Video 1")
+        try saver.finishNaming(id, title: " Hope ", description: "  "); await saver.settled()
+        XCTAssertEqual(queue.ended.map(\.title), ["Hope"])
+        XCTAssertEqual(queue.ended.map(\.description), [nil])
+        XCTAssertFalse(drafts.exists(draft))
+    }
+
+    func testANameCheckedDuringTheExportIsTheOneEnqueued() async throws {
+        try await startHeldExporting(heard)
+        try saver.finishNaming(id, title: "", description: " d ")
+        exporter.release(); await saver.settled()
+        XCTAssertEqual(queue.items.map(\.title), ["Video 1"])
+        XCTAssertEqual(queue.items.map(\.description), ["d"])
+        XCTAssertEqual(queue.items.first?.namingHold, false)
+        XCTAssertFalse(drafts.exists(draft))
+    }
+
+    func testBackLeavesNoVideoAndTheDraftIntact() async throws {
+        for exporting in [true, false] {
+            if exporting { try await startHeldExporting(heard) } else { try startHeld(heard); await saver.settled() }
+            try saver.cancelNaming(id)
+            XCTAssertEqual(queue.removed, exporting ? [] : [id])
+            XCTAssertEqual(drafts.current(draft)?.layers, layers)
+            XCTAssertEqual(drafts.current(draft)?.transcript, heard)
+            // The first pass leaves its restarted save marked, so only this draft's mark counts.
+            XCTAssertFalse(drafts.saving().contains { $0.draft.id == draft.id }); XCTAssertTrue(saver.saving.isEmpty)
+            _ = try saver.start(heldSave, of: .draft(draft))
+            exporter.release(); await saver.settled()
+            XCTAssertEqual(queue.items.count, exporting ? 1 : 2)
+        }
+    }
+
+    func testBackThatCannotClearTheMarkThrowsAndChangesNothing() async throws {
+        try startHeld(heard); await saver.settled()
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: draft.folder.path)
+        XCTAssertThrowsError(try saver.cancelNaming(id))
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: draft.folder.path)
+        XCTAssertEqual(queue.removed, [])
+        XCTAssertEqual(drafts.saving().count, 1)
+        try saver.finishNaming(id, title: "Hope", description: ""); await saver.settled()
+        XCTAssertEqual(queue.ended.map(\.title), ["Hope"])
+    }
+
+    func testTheClipIsTranscribedOnceAndHandedOver() async throws {
+        try startHeld(nil, clipTranscript: heard)
+        let spoken = await saver.namingTranscript(id)
+        XCTAssertEqual(spoken, heard)
+        try saver.finishNaming(id, title: "", description: ""); await saver.settled()
+        XCTAssertEqual(queue.items.compactMap(\.transcript) + queue.supplied.compactMap { $0 }, [heard])
+        XCTAssertEqual(clipTranscriptions, 1); XCTAssertEqual(clipTimeouts, [.seconds(4)]); XCTAssertEqual(transcriptTimeouts, [])
+        XCTAssertFalse(drafts.exists(draft))
+    }
+
+    func testTheEditorsCorrectedTranscriptIsReusedAndBlankIsNone() async throws {
+        try startHeld(heard)
+        let spoken = await saver.namingTranscript(id)
+        XCTAssertEqual(spoken?.text, "John"); XCTAssertEqual(clipTranscriptions, 0)
+        try startHeld(nil, clipTranscript: VideoTranscript(text: "  ", segments: []))
+        let none = await saver.namingTranscript(id)
+        XCTAssertNil(none)
+    }
+
+    func testARelaunchWhileHeldUploadsOnceAsVideoN() async throws {
+        for queuedFirst in [false, true] {
+            let api = FakeVideoAPI()
+            let real = realQueue("relaunch-\(queuedFirst)", api: api)
+            let draft = try edited(heard)
+            var mark = heldSave
+            mark.title = "Video 1"
+            try drafts.markSaving(mark, in: draft)
+            if queuedFirst {
+                try real.enqueue(ExportedVideo(url: tmpURL, durationSeconds: 4, posterImage: UIImage()), localId: draft.id.uuidString,
+                                 title: "Video 1", attach: nil, namingHold: true)
+            }
+            let saver = realSaver(real)
+            saver.resume(); await saver.settled(); await drain(real)
+            XCTAssertEqual(api.created.map(\.title), ["Video 1"])
+            XCTAssertFalse(drafts.exists(draft))
+        }
+    }
+
+    func testResumeLeavesALiveNamingAloneAndEndsAnOrphanHold() async throws {
+        let api = FakeVideoAPI()
+        let real = realQueue("orphan", api: api)
+        try real.enqueue(ExportedVideo(url: tmpURL, durationSeconds: 4, posterImage: UIImage()), localId: "orphan", title: "orphan",
+                         attach: nil, namingHold: true)
+        let saver = realSaver(real)
+        let draft = try edited(heard)
+        _ = try saver.start(heldSave, of: .draft(draft)); await saver.settled()
+        XCTAssertEqual(Set(real.heldIds), ["orphan", draft.id.uuidString])
+        saver.resume(); await saver.settled()
+        XCTAssertEqual(real.heldIds, [draft.id.uuidString])
+        XCTAssertTrue(drafts.exists(draft))
+    }
+
+    func testAnOldSaveMarkDecodes() throws {
+        var full = plusSave
+        full.description = "d"; full.namingHold = true
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(full)) as? [String: Any])
+        object["description"] = nil; object["namingHold"] = nil
+        let json = try JSONSerialization.data(withJSONObject: object)
+        XCTAssertEqual(try JSONDecoder().decode(VideoSave.self, from: json), plusSave)
+    }
+
     // MARK: the looping player
 
     func testTheReviewPlayerPlaysTheClips() async throws {
@@ -762,5 +957,80 @@ final class VideoRecorderSaveTests: XCTestCase {
         XCTAssertNotNil(item.videoComposition)
         live.stop()
         XCTAssertNil(live.item)
+    }
+
+    // MARK: The naming phase (video-naming D2, D7, D8, D13, D14)
+
+    private var m: VideoRecorderModel!
+    private var namingQueue: QueueSpy!
+    private var namingSaver: VideoSaver!
+    private var finished = 0
+
+    private func toReview(entry: VideoRecorderEntry = .plusMenu, imported: Bool = false) async {
+        session.segmentSeconds = 4
+        namingQueue = QueueSpy()
+        namingSaver = makeSaver(queue: namingQueue)
+        m = makeModel(entry: entry, saver: namingSaver)
+        finished = 0
+        m.onFinished = { [unowned self] _ in finished += 1 }
+        if imported {
+            m.imported(url: tmpURL, duration: 10)
+        } else {
+            record(m); m.done()
+        }
+        await m.settled()
+    }
+
+    private func toNaming(imported: Bool = false) async {
+        await toReview(imported: imported)
+        await m.save()
+        await namingSaver.settled()
+    }
+
+    func testAPlusSaveFromReviewOpensNaming() async {
+        await toNaming()
+        XCTAssertEqual(m.screenState.phase, .naming); XCTAssertEqual(m.naming?.titlePlaceholder, "Video 1")
+        XCTAssertFalse(m.isClosed); XCTAssertEqual(finished, 0)
+        XCTAssertFalse(m.canEdit); m.requestRetake(); XCTAssertNil(m.confirm)
+        m.naming?.setTitle("Hope"); m.naming?.saveTapped()
+        XCTAssertEqual(namingQueue.ended.map(\.title), ["Hope"])
+        XCTAssertTrue(m.isClosed); XCTAssertEqual(finished, 1)
+    }
+
+    func testALessonSaveNeverOpensNaming() async {
+        await toReview(entry: .lesson(versionId: "v", activityId: nil)); await m.save()
+        XCTAssertNil(m.naming); XCTAssertTrue(m.isClosed); XCTAssertEqual(namingQueue.items.first?.namingHold, false)
+    }
+
+    func testBackReturnsToReviewWithEverything() async {
+        for imported in [false, true] {
+            await toNaming(imported: imported)
+            m.naming?.backTapped()
+            XCTAssertEqual(m.screenState.phase, .review); XCTAssertEqual(m.reviewDuration, imported ? 10 : 4)
+            XCTAssertEqual(namingQueue.removed.count, 1); XCTAssertTrue(drafts.saving().isEmpty); XCTAssertTrue(m.canEdit)
+            await m.playerSettled()
+            XCTAssertTrue(FileManager.default.fileExists(atPath: player.loads.last!.clips[0].path))
+            await m.save()
+            XCTAssertEqual(m.screenState.phase, .naming)
+            m.naming?.backTapped() // the next pass starts with nothing marked saving
+        }
+    }
+
+    func testBackgroundOrCloseEndsNamingAsVideoN() async {
+        for leave in [{ (m: VideoRecorderModel) in m.backgrounded() }, { $0.closeTapped() }] {
+            await toNaming(); m.naming?.setTitle("typed")
+            leave(m); await namingSaver.settled()
+            XCTAssertTrue(m.isClosed); XCTAssertNil(m.confirm)
+            XCTAssertEqual(namingQueue.ended.map(\.title), [nil]); XCTAssertTrue(drafts.saving().isEmpty)
+            XCTAssertEqual(finished, 1)
+        }
+    }
+
+    func testAFailedCheckStaysOnThePage() async {
+        await toNaming()
+        namingQueue.endError = CocoaError(.fileWriteOutOfSpace); m.naming?.saveTapped()
+        XCTAssertEqual(reports, ["Couldn't save your video"]); XCTAssertEqual(m.screenState.phase, .naming)
+        namingQueue.endError = nil; m.naming?.saveTapped()
+        XCTAssertTrue(m.isClosed)
     }
 }

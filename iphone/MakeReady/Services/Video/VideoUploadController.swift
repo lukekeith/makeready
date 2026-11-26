@@ -60,6 +60,8 @@ struct VideoCreateRequest: Equatable {
     let title: String
     let source: VideoSource
     let transcript: VideoTranscript?
+    /// Omitted from the create when nil (D4, D7).
+    var description: String? = nil
 }
 
 /// The server calls the controller makes, so a test can script them.
@@ -74,7 +76,11 @@ protocol VideoUploadAPI {
 /// Where the controller's errors surface: the top error banner (`/ios-error-surface`).
 @MainActor
 protocol VideoUploadBanner {
-    func surface(_ error: Error, context: String, message: String, retry: (() -> Void)?)
+    /// `itemId` names the queue item whose failure this is; nil for an error no later stage of that
+    /// item should take down.
+    func surface(_ error: Error, context: String, message: String, itemId: String?, retry: (() -> Void)?)
+    /// Takes down the banner `itemId` surfaced, if it is still on screen; never another error's.
+    func withdraw(itemId: String)
 }
 
 // MARK: - The item
@@ -88,6 +94,11 @@ struct VideoQueueItem: Codable, Equatable {
     let durationSeconds: Double
     let source: VideoSource
     var transcript: VideoTranscript?
+    /// The leader's description, sent with the create; nil when none (D4, D7).
+    var description: String?
+    /// True while the naming page is open (D13): the file uploads, the create waits. A manifest from before
+    /// the hold decodes to nil.
+    var namingHold: Bool?
     let createdAt: Date
     var streamUid: String?
     var serverId: String?
@@ -107,7 +118,7 @@ struct VideoQueueItem: Codable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case localId, fileName, posterFileName, title, durationSeconds, source, transcript, createdAt, streamUid
         case serverId, stage, failures, polls, nextAttemptAt, attach, ownerUserId, environment
-        case transcriptDue
+        case transcriptDue, description, namingHold
     }
 
     /// The exported video in the queue folder.
@@ -118,7 +129,11 @@ struct VideoQueueItem: Codable, Equatable {
 
     /// When the queue may run the item; nil is now. Neither the network's return nor Retry shortens
     /// the wait for the transcript.
-    var dueAt: Date? { [nextAttemptAt, transcriptDue].compactMap { $0 }.max() }
+    /// While held the item's file upload is not delayed by the transcript wait (D13, D15).
+    var dueAt: Date? { [nextAttemptAt, namingHold == true ? nil : transcriptDue].compactMap { $0 }.max() }
+
+    /// A held item that has uploaded its file waits for `endNamingHold`: nothing runs it, nothing wakes for it (D13).
+    var isWaitingForName: Bool { namingHold == true && stage != .queued }
 
     /// True once the server has the row: the Library shows "Processing…", not "Uploading…".
     var isOnServer: Bool { serverId != nil }
@@ -201,10 +216,12 @@ final class VideoUploadController {
     /// `title` is the next `Video n`. With `transcriptHold` the upload waits that long for
     /// `supplyTranscript`, then goes without one (D10).
     /// A `localId` already queued answers its item, so a save a kill cut off can run again.
+    /// With `namingHold` the file uploads but the create waits for `endNamingHold` (D13).
     @discardableResult
     func enqueue(_ video: ExportedVideo, localId: String = UUID().uuidString, title: String? = nil, source: VideoSource = .recording,
                  transcript: VideoTranscript? = nil, attach: VideoAttach?,
-                 transcriptHold: TimeInterval? = nil) throws -> VideoQueueItem {
+                 transcriptHold: TimeInterval? = nil, description: String? = nil,
+                 namingHold: Bool = false) throws -> VideoQueueItem {
         let fm = FileManager.default
         try prepareDirectory()
         if let queued = pending().first(where: { $0.localId == localId }) { return queued }
@@ -216,7 +233,8 @@ final class VideoUploadController {
         let posterFileName = writePoster(video.posterImage, localId: localId)
         let item = VideoQueueItem(
             localId: localId, fileName: fileName, posterFileName: posterFileName, title: title ?? defaultTitle(),
-            durationSeconds: video.durationSeconds, source: source, transcript: transcript, createdAt: now(),
+            durationSeconds: video.durationSeconds, source: source, transcript: transcript,
+            description: description, namingHold: namingHold ? true : nil, createdAt: now(),
             streamUid: nil, serverId: nil, stage: .queued, failures: 0, polls: 0, nextAttemptAt: nil, attach: attach,
             ownerUserId: ownerUserId, environment: environment,
             transcriptDue: transcriptHold.map { now().addingTimeInterval($0) }, folder: directory)
@@ -248,6 +266,22 @@ final class VideoUploadController {
         guard flushesOnEnqueue else { return }
         if flushTask != nil { wake() } else { Task { await flush() } }
     }
+
+    /// Ends a hold (D13): the item takes the leader's `title` (nil keeps its own) and `description`, and the
+    /// flush goes on to create it. An unknown or already released `localId` is ignored.
+    func endNamingHold(localId: String, title: String?, description: String?) throws {
+        guard var item = pending().first(where: { $0.localId == localId }), item.namingHold == true else { return }
+        if let title { item.title = title }
+        item.description = description
+        item.namingHold = nil
+        try update(item)
+        guard flushesOnEnqueue else { return }
+        startPathMonitoring()
+        if flushTask != nil { wake() } else { Task { await flush() } }
+    }
+
+    /// The local ids of the items still held for naming.
+    var heldIds: [String] { pending().filter { $0.namingHold == true }.map(\.localId) }
 
     /// This owner's and this environment's unsent items, oldest first.
     func pending() -> [VideoQueueItem] {
@@ -374,7 +408,7 @@ final class VideoUploadController {
                 isPausedForAuth = true
                 return
             case .idle:
-                guard let due = pending().compactMap(\.dueAt).min() else { return }
+                guard let due = pending().filter({ !$0.isWaitingForName }).compactMap(\.dueAt).min() else { return }
                 let wait = max(0, due.timeIntervalSince(now()))
                 guard await sleeps(.seconds(wait)) else { return }
                 await Task.yield()
@@ -413,7 +447,10 @@ final class VideoUploadController {
         isProcessing = true
         defer { isProcessing = false }
         let cutoff = now()
-        guard var item = pending().first(where: { !onlyDue || ($0.dueAt ?? .distantPast) <= cutoff }) else { return .idle }
+        guard var item = pending().first(where: { !$0.isWaitingForName && (!onlyDue || ($0.dueAt ?? .distantPast) <= cutoff) })
+        else { return .idle }
+        // A retry never shows the failure it is retrying (D9, D20).
+        banner.withdraw(itemId: item.localId)
         do {
             try await run(&item)
             return .advanced
@@ -427,7 +464,8 @@ final class VideoUploadController {
     }
 
     private func run(_ item: inout VideoQueueItem) async throws {
-        if item.transcriptDue != nil {
+        // A held item keeps waiting for its transcript: the wait ends with the hold, not with the upload (D15).
+        if item.transcriptDue != nil && item.namingHold != true {
             item.transcriptDue = nil
             try update(item)
         }
@@ -450,7 +488,7 @@ final class VideoUploadController {
     private func upload(_ item: inout VideoQueueItem) async throws {
         let ticket = try await api.mintUploadURL(title: item.title)
         item.streamUid = ticket.uid
-        try update(item)
+        try writeStage(&item)
         guard let url = URL(string: ticket.uploadUrl) else { throw VideoUploadError.badUploadURL }
         let status = try await transport.upload(fileURL: item.fileURL, to: url)
         guard (200..<300).contains(status) else { throw VideoUploadError.uploadRejected(status: status) }
@@ -461,11 +499,12 @@ final class VideoUploadController {
         guard let uid = item.streamUid else {
             // The uid is persisted before the upload, so this is a damaged manifest: start over.
             item.stage = .queued
-            try update(item)
+            try writeStage(&item)
             return
         }
         item.serverId = try await api.createVideo(
-            VideoCreateRequest(uid: uid, title: item.title, source: item.source, transcript: item.transcript))
+            VideoCreateRequest(uid: uid, title: item.title, source: item.source, transcript: item.transcript,
+                               description: item.description))
         try advance(&item, to: .creating)
     }
 
@@ -478,7 +517,7 @@ final class VideoUploadController {
             try await api.attach(attach, videoId: serverId)
         } catch where Self.isRefusal(error) {
             banner.surface(error, context: "VideoUploadController.attach",
-                           message: "Couldn't add the video to the lesson. It's in your Library.", retry: nil)
+                           message: "Couldn't add the video to the lesson. It's in your Library.", itemId: nil, retry: nil)
         }
         try advance(&item, to: .attaching)
     }
@@ -501,7 +540,7 @@ final class VideoUploadController {
             item.stage = .processing
             item.failures = 0
             item.nextAttemptAt = now().addingTimeInterval(Self.pollInterval)
-            try update(item)
+            try writeStage(&item)
         }
     }
 
@@ -510,32 +549,36 @@ final class VideoUploadController {
     private func restartAtCreate(_ item: inout VideoQueueItem) throws {
         item.stage = .uploading
         item.nextAttemptAt = nil
-        try update(item)
+        try writeStage(&item)
     }
 
     private func advance(_ item: inout VideoQueueItem, to stage: VideoUploadStage) throws {
         item.stage = stage
         item.failures = 0
         item.nextAttemptAt = nil
-        try update(item)
+        try writeStage(&item)
     }
 
     /// A user-initiated upload that did not go through: back off, and after three in a row surface
     /// the banner once with Retry (`/ios-error-surface`).
+    /// A transfer iOS suspended (`VideoUploadError.suspended`) backs off by the next failure's delay but is
+    /// not counted and never surfaces (D20).
     private func recordFailure(_ item: inout VideoQueueItem, _ error: Error) {
-        item.failures += 1
-        item.nextAttemptAt = now().addingTimeInterval(Double(Self.delay(forAttempt: item.failures).components.seconds))
+        let suspended = (error as? VideoUploadError) == .suspended
+        if !suspended { item.failures += 1 }
+        let attempt = suspended ? item.failures + 1 : item.failures
+        item.nextAttemptAt = now().addingTimeInterval(Double(Self.delay(forAttempt: attempt).components.seconds))
         do {
-            try update(item)
+            try writeStage(&item)
         } catch is ItemRemoved {
             return // Silent: the leader deleted it; its failure no longer matters
         } catch {
             Log.media.error("video backoff not persisted: \(error.localizedDescription, privacy: .public)")
         }
-        guard item.failures == Self.surfaceAfterFailures else { return }
+        guard !suspended, item.failures == Self.surfaceAfterFailures else { return }
         banner.surface(error, context: "VideoUploadController.run",
                        message: item.attach != nil ? "Couldn't add your video to the lesson" : "Couldn't upload your video",
-                       retry: { [weak self] in Task { await self?.retryNow() } })
+                       itemId: item.localId, retry: { [weak self] in Task { await self?.retryNow() } })
     }
 
     /// An attach no retry can make: no access, a document the server rejects, or a version or activity
@@ -571,13 +614,28 @@ final class VideoUploadController {
         try persist(item)
     }
 
+    /// Writes what a stage changed onto the manifest as it is on disk now, so a release or a transcript that
+    /// landed while the stage was awaiting is never overwritten (D13, D15). `item` becomes what was written.
+    private func writeStage(_ item: inout VideoQueueItem) throws {
+        guard var fresh = pending().first(where: { $0.localId == item.localId }) else { throw ItemRemoved() }
+        fresh.stage = item.stage
+        fresh.failures = item.failures
+        fresh.polls = item.polls
+        fresh.nextAttemptAt = item.nextAttemptAt
+        fresh.streamUid = item.streamUid
+        fresh.serverId = item.serverId
+        try persist(fresh)
+        item = fresh
+    }
+
     private func finish(_ item: VideoQueueItem) {
         if let serverId = item.serverId { completedServerIds[item.localId] = serverId }
         discard(item)
     }
 
-    /// Deletes the item's files and manifest, then refreshes `pendingItems`.
+    /// Deletes the item's files and manifest, then refreshes `pendingItems`. Its banner goes with it (D20).
     private func discard(_ item: VideoQueueItem) {
+        banner.withdraw(itemId: item.localId)
         for url in [item.fileURL, manifestURL(item)] + (item.posterURL.map { [$0] } ?? []) {
             do {
                 try FileManager.default.removeItem(at: url)
@@ -616,6 +674,8 @@ private struct ItemRemoved: Error {}
 enum VideoUploadError: Error, Equatable {
     case badUploadURL
     case uploadRejected(status: Int)
+    /// iOS ended the transfer's background time: the queue backs off but the attempt is not counted (D20).
+    case suspended
 }
 
 // MARK: - D24 limits
@@ -665,7 +725,7 @@ enum VideoTranscriptLimits {
         }
     }
 
-    private static func prefix(_ text: String, units: Int) -> String {
+    static func prefix(_ text: String, units: Int) -> String {
         guard text.utf16.count > units else { return text }
         var result = ""
         var used = 0
@@ -694,7 +754,8 @@ struct LiveVideoUploadAPI: VideoUploadAPI {
 
     func createVideo(_ request: VideoCreateRequest) async throws -> String {
         try await videos.createVideoRecord(cloudflareUid: request.uid, title: request.title,
-                                           source: request.source, transcript: request.transcript).id
+                                           description: request.description, source: request.source,
+                                           transcript: request.transcript).id
     }
 
     func status(ofVideo id: String) async throws -> VideoStatus {
@@ -733,12 +794,25 @@ struct LiveVideoUploadAPI: VideoUploadAPI {
     }
 }
 
-/// The real banner: the app's one error channel, surfaced because the leader tapped Save.
+/// The real banner: the app's one error channel, surfaced because the leader tapped Save. It
+/// remembers which error each item put up, so a withdrawal never takes down another's.
 @MainActor
-struct AppStateVideoUploadBanner: VideoUploadBanner {
-    let state: AppState
+final class AppStateVideoUploadBanner: VideoUploadBanner {
+    private let state: AppState
+    /// `itemId -> AppError.id` of the error that item surfaced.
+    private var surfaced: [String: UUID] = [:]
 
-    func surface(_ error: Error, context: String, message: String, retry: (() -> Void)?) {
+    init(state: AppState) {
+        self.state = state
+    }
+
+    func surface(_ error: Error, context: String, message: String, itemId: String?, retry: (() -> Void)?) {
         state.recordError(error, context: context, surface: true, friendlyMessage: message, retry: retry)
+        if let itemId { surfaced[itemId] = state.activeSurfacedError?.id }
+    }
+
+    func withdraw(itemId: String) {
+        guard let errorId = surfaced.removeValue(forKey: itemId), state.activeSurfacedError?.id == errorId else { return }
+        state.activeSurfacedError = nil
     }
 }

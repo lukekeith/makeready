@@ -192,6 +192,21 @@ struct VideoResponse: Codable {
     let error: String?
 }
 
+/// video-naming D3, D6: one suggested title with its description.
+struct VideoDetailSuggestion: Codable, Equatable {
+    let title: String
+    let description: String
+}
+
+struct VideoSuggestionsResponse: Codable {
+    struct Payload: Codable {
+        let suggestions: [VideoDetailSuggestion]
+    }
+    let success: Bool
+    let data: Payload?
+    let error: String?
+}
+
 struct VideoListResponse: Codable {
     let success: Bool
     let data: [Video]?

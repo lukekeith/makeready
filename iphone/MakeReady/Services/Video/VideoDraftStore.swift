@@ -218,6 +218,14 @@ struct VideoDraftStore {
         try JSONEncoder().encode(save).write(to: draft.folder.appendingPathComponent(Self.saveName), options: .atomic)
     }
 
+    /// The draft is not being saved any more (Back from naming): it is an ordinary draft again. Throws, with the
+    /// mark kept, when it cannot be removed.
+    func clearSaving(_ draft: VideoDraft) throws {
+        let url = draft.folder.appendingPathComponent(Self.saveName)
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        try FileManager.default.removeItem(at: url)
+    }
+
     /// Drafts saved whose video the upload queue does not have yet, oldest first.
     func saving() -> [(draft: VideoDraft, save: VideoSave)] {
         folders().compactMap { folder in
