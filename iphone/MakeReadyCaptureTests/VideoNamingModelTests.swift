@@ -70,20 +70,36 @@ final class VideoNamingModelTests: XCTestCase {
         return model
     }
 
+    /// Lets work that must NOT change anything run its course (a dropped answer). Positive waits use `until`.
     private func settle() async {
         for _ in 0..<20 { await Task.yield() }
     }
 
+    /// Waits for an observable outcome, bounded by time (5 s), never by a count of scheduler hops.
+    private func until(_ what: String, file: StaticString = #filePath, line: UInt = #line,
+                       _ condition: () -> Bool) async {
+        let deadline = ContinuousClock.now + .seconds(5)
+        while !condition() {
+            if ContinuousClock.now > deadline { XCTFail("timed out waiting for \(what)", file: file, line: line); return }
+            try? await Task.sleep(for: .milliseconds(1))
+        }
+    }
+
+    /// Waits until the spy holds `count` asks, so a test answers only an ask that was made.
+    private func untilAsked(_ count: Int, file: StaticString = #filePath, line: UInt = #line) async {
+        await until("\(count) ask(s)", file: file, line: line) { spy.asked.count >= count }
+    }
+
     func testSuggestionsLoadAndAPickFillsBoth() async {
-        let m = make(transcript: "hello"); m.open(); await settle()
+        let m = make(transcript: "hello"); m.open(); await untilAsked(1)
         XCTAssertEqual(m.block, .generating)
-        spy.answer(three); await settle()
+        spy.answer(three); await until("the list") { m.block == .list }
         XCTAssertEqual(m.block, .list); XCTAssertEqual(m.suggestions, three); XCTAssertEqual(m.title, "")
         m.setTitle("mine"); m.pick(1); m.pick(7)
         XCTAssertEqual(m.title, three[1].title); XCTAssertEqual(m.description, three[1].description)
-        m.setTitle("after"); m.regenerate(); await settle()
+        m.setTitle("after"); m.regenerate(); await untilAsked(2)
         XCTAssertEqual(m.block, .regenerating); XCTAssertEqual(m.suggestions, three)
-        spy.answer(Array(three.reversed())); await settle()
+        spy.answer(Array(three.reversed())); await until("the new list") { m.block == .list }
         XCTAssertEqual(m.title, "after"); XCTAssertEqual(m.suggestions, Array(three.reversed()))
     }
 
@@ -97,25 +113,27 @@ final class VideoNamingModelTests: XCTestCase {
     }
 
     func testFailuresFollowD16() async {
-        let m = make(transcript: "hello"); m.open(); await settle()
-        spy.fail(URLError(.timedOut)); await settle()
+        let m = make(transcript: "hello"); m.open(); await untilAsked(1)
+        spy.fail(URLError(.timedOut)); await until("the prompt") { m.block == .prompt }
         XCTAssertEqual(m.block, .prompt); XCTAssertEqual(m.promptCopy, "Couldn't get suggestions")
-        m.regenerate(); await settle()
+        m.regenerate(); await untilAsked(2)
         XCTAssertEqual(m.block, .generating)
-        spy.answer(three); await settle(); m.regenerate(); await settle()
-        spy.fail(URLError(.timedOut)); await settle()
+        spy.answer(three); await until("the list") { m.block == .list }
+        m.regenerate(); await untilAsked(3)
+        XCTAssertEqual(m.block, .regenerating)
+        spy.fail(URLError(.timedOut)); await until("the list back") { m.block == .list }
         XCTAssertEqual(m.block, .list); XCTAssertEqual(m.suggestions, three)
     }
 
     func testAnAnswerAfterLeavingIsDropped() async {
-        let m = make(transcript: "hello"); m.open(); await settle()
+        let m = make(transcript: "hello"); m.open(); await untilAsked(1)
         m.leave()
         spy.answer(three); await settle()
         XCTAssertTrue(m.suggestions.isEmpty)
     }
 
     func testCapsAndOneSave() async {
-        let m = make(transcript: String(repeating: "x", count: 20_500)); m.open(); await settle()
+        let m = make(transcript: String(repeating: "x", count: 20_500)); m.open(); await untilAsked(1)
         XCTAssertEqual(spy.asked.first?.utf16.count, 20_000)
         m.setTitle(String(repeating: "t", count: 90)); m.setDescription(String(repeating: "d", count: 310))
         XCTAssertEqual(m.title.count, 80); XCTAssertEqual(m.description.count, 300)
@@ -124,26 +142,25 @@ final class VideoNamingModelTests: XCTestCase {
     }
 
     func testAFailedSaveKeepsAnAnswerInFlight() async {
-        let m = make(transcript: "hello"); m.open(); await settle()
+        let m = make(transcript: "hello"); m.open(); await untilAsked(1)
         saveSucceeds = false; m.saveTapped()
-        spy.answer(three); await settle()
+        spy.answer(three); await until("the list") { m.block == .list }
         XCTAssertEqual(m.block, .list); XCTAssertEqual(m.suggestions, three)
     }
 
     func testASavedPageDropsALateAnswer() async {
-        let m = make(transcript: "hello"); m.open(); await settle()
+        let m = make(transcript: "hello"); m.open(); await untilAsked(1)
         m.saveTapped()
         spy.answer(three); await settle()
         XCTAssertTrue(m.suggestions.isEmpty)
     }
 
     func testUnauthorizedSignsOutAndOtherErrorsShowThePrompt() async {
-        let m = make(transcript: "hello"); m.open(); await settle()
-        spy.fail(APIError.unauthorized); await settle()
-        await settle()  // the 401 path takes more hops than the plain failure
+        let m = make(transcript: "hello"); m.open(); await untilAsked(1)
+        spy.fail(APIError.unauthorized); await until("the sign-out") { unauthorizedCalls == 1 }
         XCTAssertEqual(unauthorizedCalls, 1)
-        let n = make(transcript: "hello"); n.open(); await settle()
-        spy.fail(URLError(.timedOut)); await settle()
+        let n = make(transcript: "hello"); n.open(); await untilAsked(2)
+        spy.fail(URLError(.timedOut)); await until("the prompt") { n.block == .prompt }
         XCTAssertEqual(unauthorizedCalls, 1); XCTAssertEqual(n.block, .prompt)
     }
 }
