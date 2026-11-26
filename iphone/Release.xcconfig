@@ -10,7 +10,7 @@ PRODUCT_NAME = MakeReady
 APP_DISPLAY_NAME = MakeReady
 
 // Version Configuration
-MARKETING_VERSION = 2.0.1
+MARKETING_VERSION = 2.0.2
 
 // Developer Mode (enables environment switcher in user profile)
 DEV_MODE = NO
